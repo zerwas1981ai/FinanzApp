@@ -15,17 +15,6 @@ export function platzhalter({ titel, text, kommt, etappe }) {
   };
 }
 
-export const zeigeUebersicht = platzhalter({
-  titel: 'Übersicht',
-  text: 'Hier entsteht dein Finanz-Cockpit. Dieser Bereich ist noch ein Platzhalter.',
-  kommt: [
-    'Monatsansicht je Konto mit Zwischensummen',
-    'Kennzahlen: Kontostand heute und zum Monatsende, Budgetauslastung, Warnungen',
-    'Zukunftsmonate bis 2050 als klar gekennzeichnete Annahme',
-  ],
-  etappe: 'Kommt ab Etappe 2',
-});
-
 export const zeigeBuchungen = platzhalter({
   titel: 'Alle Buchungen',
   text: 'Hier siehst du später alle Buchungen über alle Konten. Dieser Bereich ist noch ein Platzhalter.',

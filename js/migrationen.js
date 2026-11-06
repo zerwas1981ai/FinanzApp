@@ -20,10 +20,18 @@
 //   { version, konten: [...], kategorien: [...] } – unabhängig von IndexedDB.
 //   So lassen sie sich mit derselben Funktion auf die Drive-JSON-Datei anwenden.
 
-export const DATENMODELL_VERSION = 1;
+export const DATENMODELL_VERSION = 2;
 
 export const MIGRATIONEN = [
-  // Noch keine – Version 1 ist der erste Stand.
+  {
+    nach: 2,
+    beschreibung: 'Etappe 2: Sammlungen "buchungen" und "abstimmungen" kommen dazu',
+    migriere(daten) {
+      daten.buchungen ??= [];
+      daten.abstimmungen ??= [];
+      return daten;
+    },
+  },
 ];
 
 /**

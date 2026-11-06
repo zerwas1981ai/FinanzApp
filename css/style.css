@@ -167,12 +167,12 @@ svg { stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; 
 main {
   max-width: 980px;
   margin: 0 auto;
-  padding: 20px 16px calc(var(--nav-hoehe) + 40px + env(safe-area-inset-bottom));
+  padding: 20px 16px calc(var(--nav-hoehe) + 110px + env(safe-area-inset-bottom));
   outline: none;
 }
 
 @media (min-width: 768px) {
-  main { padding-bottom: 48px; }
+  main { padding-bottom: 110px; }
 }
 
 .seitentitel { font-size: 1.6rem; margin: 4px 0 18px; }
@@ -475,6 +475,144 @@ fieldset.feld { border: none; padding: 0; margin: 0 0 14px; }
 @media (min-width: 768px) {
   .toast { bottom: 28px; }
 }
+
+/* =========================================================
+   Etappe 2: Buchungen, Monatsansicht, Abstimmung
+   ========================================================= */
+
+.dialog { overflow: auto; }
+.dialog-zusatz { margin-right: auto; }
+.icon-knopf:disabled { opacity: .35; cursor: not-allowed; }
+
+.zentriert { text-align: center; }
+.klein { color: var(--text-2); font-size: .85rem; }
+.gross { font-size: 1.7rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.2; margin: 2px 0; }
+.warn-text { color: var(--warnung); }
+.erfolg-text { color: var(--einnahme); font-weight: 600; }
+.plus { color: var(--einnahme); }
+.gedaempft { color: var(--text-2); }
+.betrag { font-variant-numeric: tabular-nums; white-space: nowrap; font-weight: 600; }
+
+/* Runder Knopf "Neue Buchung" */
+.fab {
+  position: fixed;
+  right: max(20px, calc((100vw - 980px) / 2 + 20px));
+  bottom: calc(var(--nav-hoehe) + 20px + env(safe-area-inset-bottom));
+  z-index: 15;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  border: none;
+  background: var(--akzent);
+  color: var(--auf-akzent);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(37, 99, 235, .35);
+}
+.fab svg { width: 28px; height: 28px; stroke-width: 2.5; }
+.fab:hover { background: var(--akzent-hover); }
+@media (min-width: 768px) {
+  .fab { bottom: 32px; }
+}
+
+/* Umschalter Ausgabe/Einnahme/Umbuchung */
+.segmente {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--flaeche-2);
+  border-radius: var(--radius-klein);
+  margin-bottom: 16px;
+}
+.segment {
+  flex: 1;
+  min-height: 38px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-2);
+  font: inherit;
+  font-weight: 600;
+  font-size: .9rem;
+  cursor: pointer;
+}
+.segment[aria-pressed="true"] { background: var(--flaeche); color: var(--text); box-shadow: var(--schatten); }
+:root[data-theme="dunkel"] .segment[aria-pressed="true"] { background: var(--rand); }
+
+.feld .eingabe-betrag { font-size: 1.4rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.feld[hidden] { display: none; }
+
+/* Kontoauswahl */
+.chips { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 14px; scrollbar-width: thin; }
+.chip {
+  flex: none;
+  border: 1px solid var(--rand);
+  background: var(--flaeche);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 7px 14px;
+  font: inherit;
+  font-size: .9rem;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.chip[aria-pressed="true"] { background: var(--akzent); border-color: transparent; color: var(--auf-akzent); }
+
+.konto-kopf { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.abstimm-info { margin-top: 4px; }
+
+/* Monatsnavigation */
+.monat-nav { display: flex; align-items: center; gap: 8px; margin: 4px 0 12px; }
+.monat-nav .icon-knopf { font-size: 1.5rem; line-height: 1; }
+.monat-titel { font-size: 1.2rem; min-width: 0; flex: 0 1 auto; text-align: center; padding: 0 4px; }
+.monat-nav .knopf { margin-left: auto; }
+
+/* Zwischensummen */
+.summen { display: grid; gap: 6px; }
+.summe { display: flex; justify-content: space-between; gap: 12px; }
+.summe.ergebnis { border-top: 1px solid var(--rand); padding-top: 8px; margin-top: 2px; font-weight: 700; }
+.dialog .summen { margin-bottom: 12px; }
+
+/* Buchungsliste */
+.bereich.buchungen { padding-top: 6px; padding-bottom: 6px; }
+.tag + .tag { border-top: 1px solid var(--rand); }
+.tag-kopf {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0 4px;
+  font-size: .8rem;
+  font-weight: 600;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: .03em;
+}
+.tag-stand { font-variant-numeric: tabular-nums; text-transform: none; letter-spacing: 0; font-weight: 500; }
+
+.buchung {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 8px;
+  margin: 0 -8px;
+  width: calc(100% + 16px);
+  border: none;
+  border-radius: var(--radius-klein);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.buchung:hover { background: var(--flaeche-2); }
+.buchung-text { display: flex; flex-direction: column; min-width: 0; }
+.buchung-titel { font-weight: 500; }
+.buchung-titel .marke { background: var(--warnung-leicht); color: var(--warnung); }
+.buchung-unter { color: var(--text-2); font-size: .85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }

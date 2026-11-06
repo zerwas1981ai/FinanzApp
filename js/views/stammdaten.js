@@ -7,6 +7,26 @@ import { dialog, frage, toast, eingabe, auswahl, optionsGruppe, knopf, schalter 
 import { hatTestdaten, ladeTestdaten, loescheTestdaten } from '../testdaten.js';
 import { neueKategorie } from '../startdaten.js';
 import { DATENMODELL_VERSION } from '../migrationen.js';
+import { anzahlFuerKonto, anzahlFuerKategorien, gruppeVon, wiederherstellen, endgueltigLoeschen } from '../buchungen.js';
+import { wirkungCent } from '../rechnen.js';
+
+// Alle Buchungen (auch im Papierkorb) – für die Löschsperre. Wird bei jedem Zeichnen neu geladen.
+let buchungen = [];
+
+/** Wird gelöscht, obwohl Buchungen daran hängen? Dann stattdessen Archivieren anbieten. */
+async function loeschenGesperrt(anzahl, datensatz, sammlung, neu) {
+  if (anzahl === 0) return false;
+  const ok = await frage({
+    titel: 'Löschen nicht möglich',
+    text: [
+      `An „${datensatz.name}“ ${anzahl === 1 ? 'hängt 1 Buchung' : `hängen ${anzahl} Buchungen`} (Papierkorb mitgezählt).`,
+      'Damit keine Buchung ihr Konto oder ihre Kategorie verliert, kannst du nur archivieren.',
+    ],
+    jaText: datensatz.archiviert ? 'OK' : 'Stattdessen archivieren',
+  });
+  if (ok && !datensatz.archiviert) await setzeArchiv(sammlung, datensatz, true, neu);
+  return true;
+}
 
 // Merkt sich Ansichts-Einstellungen, solange die Seite offen ist
 const ansicht = { kontenArchiv: false, kategorienArchiv: false, offen: new Set() };
@@ -17,12 +37,14 @@ const jetzt = () => new Date().toISOString();
 const ART_TEXT = { einnahme: 'Einnahme', ausgabe: 'Ausgabe' };
 
 export async function zeigeStammdaten(container) {
-  const [konten, kategorien] = await Promise.all([db.alle('konten'), db.alle('kategorien')]);
+  const [konten, kategorien, alleBuchungen] = await Promise.all([db.alle('konten'), db.alle('kategorien'), db.alle('buchungen')]);
+  buchungen = alleBuchungen;
   const neu = () => zeigeStammdaten(container);
   container.replaceChildren(
     h('h1', { class: 'seitentitel' }, 'Stammdaten'),
     kontenBereich(konten, neu),
     kategorienBereich(kategorien, neu),
+    papierkorbBereich(konten, kategorien, neu),
     testdatenBereich(konten, kategorien, neu),
     infoBereich(),
   );
@@ -110,6 +132,14 @@ function kontoDialog(konto, konten, neu) {
       }
       const anfangssaldoCent = parseEuro(saldo.input.value, 'Anfangssaldo') ?? 0;
       if (!istGueltigesDatum(stichtag.input.value)) throw new Error('Bitte einen gültigen Stichtag wählen.');
+      if (konto) {
+        const frueheste = buchungen
+          .filter((b) => b.kontoId === konto.id && !b.geloeschtAm)
+          .reduce((min, b) => (min === null || b.datum < min ? b.datum : min), null);
+        if (frueheste && stichtag.input.value > frueheste) {
+          throw new Error(`Es gibt Buchungen ab ${formatDatum(frueheste)}. Der Stichtag darf nicht danach liegen.`);
+        }
+      }
       const mindestsaldoCent = parseEuro(mindest.input.value, 'Mindestsaldo');
 
       const zeit = jetzt();
@@ -129,6 +159,7 @@ function kontoDialog(konto, konten, neu) {
 }
 
 async function kontoLoeschen(k, neu) {
+  if (await loeschenGesperrt(anzahlFuerKonto(k.id, buchungen), k, 'konten', neu)) return;
   const ok = await frage({
     titel: 'Konto löschen?',
     text: [`„${k.name}“ wird endgültig gelöscht.`, 'Tipp: „Archivieren“ blendet das Konto nur aus und lässt sich rückgängig machen.'],
@@ -279,6 +310,7 @@ function unterDialog(unterKat, haupt, kategorien, neu) {
 }
 
 async function hauptLoeschen(k, unter, neu) {
+  if (await loeschenGesperrt(anzahlFuerKategorien([k.id, ...unter.map((u) => u.id)], buchungen), k, 'kategorien', neu)) return;
   const text = [`„${k.name}“ wird endgültig gelöscht.`];
   if (unter.length) text[0] = `„${k.name}“ und ${unter.length === 1 ? 'ihre Unterkategorie' : `ihre ${unter.length} Unterkategorien`} werden endgültig gelöscht.`;
   text.push('Tipp: „Archivieren“ blendet die Kategorie nur aus und lässt sich rückgängig machen.');
@@ -291,6 +323,7 @@ async function hauptLoeschen(k, unter, neu) {
 }
 
 async function unterLoeschen(u, neu) {
+  if (await loeschenGesperrt(anzahlFuerKategorien([u.id], buchungen), u, 'kategorien', neu)) return;
   const ok = await frage({
     titel: 'Unterkategorie löschen?',
     text: [`„${u.name}“ wird endgültig gelöscht.`, 'Tipp: „Archivieren“ blendet sie nur aus.'],
@@ -303,15 +336,78 @@ async function unterLoeschen(u, neu) {
   neu();
 }
 
+/* ========================= Papierkorb ========================= */
+
+function papierkorbBereich(konten, kategorien, neu) {
+  // Umbuchungen nur einmal zeigen (die "ab"-Hälfte)
+  const geloescht = buchungen
+    .filter((b) => b.geloeschtAm && b.richtung !== 'zu')
+    .sort((a, b) => b.geloeschtAm.localeCompare(a.geloeschtAm));
+  const kontoName = new Map(konten.map((k) => [k.id, k.name]));
+  const kat = new Map(kategorien.map((k) => [k.id, k]));
+
+  const beschreibung = (b) => {
+    if (b.art === 'umbuchung') return `Umbuchung ${kontoName.get(b.kontoId) ?? '?'} → ${kontoName.get(b.gegenkontoId) ?? '?'}`;
+    const unter = kat.get(b.kategorieId);
+    return `${unter?.name ?? 'Unbekannte Kategorie'} · ${kontoName.get(b.kontoId) ?? '?'}`;
+  };
+
+  return h('section', { class: 'bereich', 'aria-labelledby': 'titel-papierkorb' },
+    h('div', { class: 'bereich-kopf' },
+      h('h2', { id: 'titel-papierkorb' }, `Papierkorb (${geloescht.length})`),
+      geloescht.length > 0 && h('button', {
+        type: 'button',
+        class: 'knopf knopf-gefahr',
+        onclick: async () => {
+          const ok = await frage({
+            titel: 'Papierkorb leeren?',
+            text: `${geloescht.length === 1 ? '1 Buchung wird' : `${geloescht.length} Buchungen werden`} endgültig gelöscht.`,
+            jaText: 'Endgültig löschen',
+            gefahr: true,
+          });
+          if (!ok) return;
+          await endgueltigLoeschen(buchungen.filter((b) => b.geloeschtAm));
+          toast('Papierkorb geleert');
+          neu();
+        },
+      }, 'Leeren'),
+    ),
+    geloescht.length === 0
+      ? h('p', { class: 'leer' }, 'Der Papierkorb ist leer. Gelöschte Buchungen landen zuerst hier.')
+      : h('ul', { class: 'liste' }, geloescht.map((b) => {
+        const wirkung = b.art === 'umbuchung' ? b.betragCent : wirkungCent(b);
+        return h('li', { class: 'zeile' },
+          h('div', {},
+            h('div', { class: 'zeile-titel' }, beschreibung(b)),
+            h('div', { class: 'zeile-info' }, `${formatDatum(b.datum)}${b.notiz ? ` · ${b.notiz}` : ''}`)),
+          h('div', { class: 'zeile-betrag' + (wirkung < 0 ? ' negativ' : '') }, formatEuro(wirkung)),
+          h('div', { class: 'zeile-aktionen' },
+            knopf('Wiederherstellen', async () => {
+              await wiederherstellen(gruppeVon(b, buchungen));
+              toast('Buchung wiederhergestellt');
+              neu();
+            }),
+            knopf('Endgültig löschen', async () => {
+              const ok = await frage({ titel: 'Endgültig löschen?', text: 'Die Buchung kann danach nicht wiederhergestellt werden.', jaText: 'Endgültig löschen', gefahr: true });
+              if (!ok) return;
+              await endgueltigLoeschen(gruppeVon(b, buchungen));
+              toast('Buchung endgültig gelöscht');
+              neu();
+            }, 'knopf-gefahr')));
+      })),
+  );
+}
+
 /* ========================= Testdaten ========================= */
 
 function testdatenBereich(konten, kategorien, neu) {
-  const vorhanden = hatTestdaten(konten, kategorien);
+  const vorhanden = hatTestdaten(konten, kategorien, buchungen);
   return h('section', { class: 'bereich', 'aria-labelledby': 'titel-testdaten' },
     h('h2', { id: 'titel-testdaten' }, 'Testdaten'),
     h('p', { class: 'hinweis' },
-      'Erfundene Beispielkonten und -kategorien zum Ausprobieren. Sie sind mit „(Test)“ markiert. ' +
-      '„Testdaten löschen“ entfernt nur diese – deine eigenen Einträge bleiben erhalten.'),
+      'Erfundene Beispielkonten, -kategorien und Buchungen der letzten drei Monate zum Ausprobieren. ' +
+      'Konten und Kategorien sind mit „(Test)“ markiert. „Testdaten löschen“ entfernt nur diese ' +
+      '(und Buchungen, die an Testkonten hängen) – deine eigenen Einträge bleiben erhalten.'),
     h('div', { class: 'knopfreihe' },
       h('button', {
         type: 'button',
@@ -328,10 +424,10 @@ function testdatenBereich(konten, kategorien, neu) {
         class: 'knopf knopf-gefahr',
         disabled: !vorhanden,
         onclick: async () => {
-          const ok = await frage({ titel: 'Testdaten löschen?', text: 'Alle mit „(Test)“ markierten Konten und Kategorien werden entfernt.', jaText: 'Löschen', gefahr: true });
+          const ok = await frage({ titel: 'Testdaten löschen?', text: 'Alle mit „(Test)“ markierten Konten und Kategorien und alle Buchungen darauf werden endgültig entfernt.', jaText: 'Löschen', gefahr: true });
           if (!ok) return;
           const anzahl = await loescheTestdaten();
-          toast(`Testdaten gelöscht (${anzahl.konten} Konten, ${anzahl.kategorien} Kategorien)`);
+          toast(`Testdaten gelöscht (${anzahl.konten} Konten, ${anzahl.kategorien} Kategorien, ${anzahl.buchungen} Buchungen)`);
           neu();
         },
       }, 'Testdaten löschen'),

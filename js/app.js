@@ -2,8 +2,10 @@
 
 import { initialisiere } from './db.js';
 import { h } from './dom.js';
-import { zeigeUebersicht, zeigeBuchungen, zeigeAnnahmen } from './views/platzhalter.js';
+import { zeigeBuchungen, zeigeAnnahmen } from './views/platzhalter.js';
+import { zeigeUebersicht } from './views/uebersicht.js';
 import { zeigeStammdaten } from './views/stammdaten.js';
+import { oeffneBuchungsdialog } from './views/buchung-dialog.js';
 
 const TABS = {
   uebersicht: { titel: 'Übersicht', zeige: zeigeUebersicht },
@@ -19,7 +21,7 @@ function aktuellerTab() {
   return TABS[name] ? name : 'uebersicht';
 }
 
-async function zeigeTab() {
+async function zeigeTab({ nachOben = true } = {}) {
   const name = aktuellerTab();
   document.querySelectorAll('.nav a').forEach((a) => {
     if (a.dataset.tab === name) a.setAttribute('aria-current', 'page');
@@ -31,7 +33,7 @@ async function zeigeTab() {
   } catch (err) {
     zeigeFehler(err);
   }
-  window.scrollTo(0, 0);
+  if (nachOben) window.scrollTo(0, 0);
 }
 
 function zeigeFehler(err) {
@@ -76,7 +78,12 @@ async function start() {
     zeigeFehler(err);
     return;
   }
-  window.addEventListener('hashchange', zeigeTab);
+  window.addEventListener('hashchange', () => zeigeTab());
+  // Nach dem Speichern irgendwo: aktuellen Tab neu zeichnen, Scrollposition behalten
+  window.addEventListener('daten-geaendert', () => zeigeTab({ nachOben: false }));
+  document.getElementById('neue-buchung').addEventListener('click', () => {
+    oeffneBuchungsdialog().catch(zeigeFehler);
+  });
   await zeigeTab();
 }
 

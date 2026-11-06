@@ -20,19 +20,28 @@ export function toast(text) {
  * onSpeichern darf einen Fehler werfen – dessen Text erscheint dann im Dialog,
  * und der Dialog bleibt offen.
  */
-export function dialog({ titel, inhalt, speichernText = 'Speichern', gefahr = false, onSpeichern }) {
+export function dialog({ titel, inhalt, speichernText = 'Speichern', gefahr = false, onSpeichern, abbrechenText = 'Abbrechen', zusatz = null }) {
   const fehler = h('p', { class: 'dialog-fehler', role: 'alert' });
   const speichern = h('button', { type: 'submit', class: 'knopf ' + (gefahr ? 'knopf-gefahr-voll' : 'knopf-primaer') }, speichernText);
-  const abbrechen = h('button', { type: 'button', class: 'knopf' }, 'Abbrechen');
+  const abbrechen = abbrechenText && h('button', { type: 'button', class: 'knopf' }, abbrechenText);
+  // Optionaler Zusatzknopf links (z. B. "In den Papierkorb"). zusatz.onclick erhält den Dialog.
+  const zusatzKnopf = zusatz && h('button', { type: 'button', class: `knopf ${zusatz.variante ?? ''} dialog-zusatz` }, zusatz.text);
   const form = h('form', { class: 'dialog-form', novalidate: true },
     h('h2', { class: 'dialog-titel' }, titel),
     h('div', { class: 'dialog-inhalt' }, inhalt),
     fehler,
-    h('div', { class: 'dialog-fuss' }, abbrechen, speichern),
+    h('div', { class: 'dialog-fuss' }, zusatzKnopf, abbrechen, speichern),
   );
   const dlg = h('dialog', { class: 'dialog', 'aria-label': titel }, form);
 
-  abbrechen.addEventListener('click', () => dlg.close());
+  abbrechen?.addEventListener('click', () => dlg.close());
+  zusatzKnopf?.addEventListener('click', async () => {
+    try {
+      await zusatz.onclick(dlg);
+    } catch (err) {
+      fehler.textContent = err?.message ?? String(err);
+    }
+  });
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     fehler.textContent = '';
@@ -50,9 +59,37 @@ export function dialog({ titel, inhalt, speichernText = 'Speichern', gefahr = fa
 
   document.body.append(dlg);
   dlg.showModal();
-  (dlg.querySelector('input, select') ?? speichern).focus();
+  (dlg.querySelector('[autofocus]') ?? dlg.querySelector('input, select') ?? speichern).focus();
   return dlg;
 }
+
+/** Reine Information mit nur einem OK-Knopf */
+export function hinweis({ titel, text }) {
+  return new Promise((resolve) => {
+    const dlg = dialog({
+      titel,
+      inhalt: (Array.isArray(text) ? text : [text]).map((t) => (t instanceof Node ? t : h('p', {}, t))),
+      speichernText: 'OK',
+      abbrechenText: null,
+    });
+    dlg.addEventListener('close', () => resolve());
+  });
+}
+
+/** Meldet der App, dass sich Daten geändert haben → aktueller Tab zeichnet sich neu */
+export function datenGeaendert() {
+  window.dispatchEvent(new Event('daten-geaendert'));
+}
+
+/** Kleines Gedächtnis pro Gerät (z. B. zuletzt benutztes Konto). Fehler werden ignoriert. */
+export const geraet = {
+  lies(schluessel) {
+    try { return localStorage.getItem(`finanzapp-${schluessel}`); } catch { return null; }
+  },
+  schreib(schluessel, wert) {
+    try { localStorage.setItem(`finanzapp-${schluessel}`, wert); } catch { /* egal */ }
+  },
+};
 
 /** Ja/Nein-Rückfrage. Liefert true, wenn bestätigt. */
 export function frage({ titel, text, jaText = 'OK', gefahr = false }) {

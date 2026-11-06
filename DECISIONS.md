@@ -131,7 +131,7 @@ Wird eine Entscheidung geändert, den alten Eintrag nicht löschen, sondern als
 - **Archivieren** blendet aus und lässt sich rückgängig machen. Das ist der empfohlene Weg.
 - **Löschen** entfernt endgültig, aber nur nach einer Rückfrage. Beim Löschen einer
   Hauptkategorie werden ihre Unterkategorien mitgelöscht.
-- **Ab Etappe 2 umsetzen:** Löschen eines Kontos oder einer Kategorie sperren, sobald
+- **In Etappe 2 umgesetzt (D22):** Löschen eines Kontos oder einer Kategorie sperren, sobald
   Buchungen daran hängen (dann nur Archivieren). Entscheidung des Nutzers.
 - Der Papierkorb aus CLAUDE.md gilt für **Buchungen** (Etappe 2), nicht für Stammdaten.
 
@@ -188,3 +188,120 @@ Wird eine Entscheidung geändert, den alten Eintrag nicht löschen, sondern als
   Die Icons erzeugt `tools/icons-erzeugen.js`.
 - Auf Android installierbar ist die App erst, wenn sie über **https** im Netz liegt
   (GitHub/Cloudflare Pages). Am PC unter `localhost` ist sie schon jetzt installierbar.
+
+---
+
+# Etappe 2
+
+## D17 – Datenmodell Version 2: Buchungen und Abstimmungen
+*Etappe 2*
+
+- Neue Sammlungen `buchungen` und `abstimmungen`. Dafür `DB_STRUKTUR_VERSION` = 2 und
+  `DATENMODELL_VERSION` = 2. Die Migration 1 → 2 ergänzt nur leere Listen.
+  Sie wurde im Browser mit einem echten Datenstand aus Etappe 1 geprüft.
+- Datensatz Buchung (Details in `js/buchungen.js`):
+  ```js
+  { id, datum, betragCent /* immer > 0 */, art /* 'einnahme'|'ausgabe'|'umbuchung' */,
+    kontoId, kategorieId /* Unterkategorie, bei Umbuchung null */,
+    notiz, status /* 'gebucht'|'vorgemerkt' */, belege: [],
+    umbuchungId, richtung /* 'ab'|'zu' */, gegenkontoId,   // nur Umbuchung
+    geloeschtAm /* null = aktiv */, erstelltAm, geaendertAm, testdaten? }
+  ```
+- **Betrag immer positiv, die Art bestimmt die Richtung.** Ein Minus wird bei der Eingabe
+  abgelehnt. Das verhindert doppelte Vorzeichen-Verwirrung.
+- Die Art steht an der Buchung selbst, nicht nur an der Kategorie. Wird eine Kategorie später
+  umgestellt, bleiben alte Buchungen dadurch richtig.
+- `belege` ist ein leeres Feld als Vorbereitung. Anhängen ist erst mit Drive möglich
+  (Etappe 6, Entscheidung des Nutzers).
+
+## D18 – Status: „gebucht“ / „vorgemerkt“
+*Etappe 2 – Entscheidung des Nutzers*
+
+- Das ist wie bei der Bank: „vorgemerkt“ heißt noch nicht abgebucht (z. B. Kartenzahlung).
+  Standard ist „gebucht“.
+- Vorgemerkte Buchungen **zählen** zum Kontostand. In der Übersicht und bei der
+  Abstimmung wird ihre Summe extra ausgewiesen.
+
+## D19 – Stichtag-Regel
+*Etappe 2 – Entscheidung des Nutzers*
+
+- Der Anfangssaldo ist der Stand **zu Beginn** des Stichtags. Buchungen ab dem Stichtag
+  (einschließlich) verändern ihn.
+- Buchungen vor dem Stichtag werden mit einer Meldung abgelehnt. Bei Umbuchungen gilt das
+  für beide Konten.
+- Den Stichtag eines Kontos kann man nicht hinter die früheste Buchung verschieben.
+
+## D20 – Umbuchung = zwei verknüpfte Datensätze
+*Etappe 2*
+
+- Eine Hälfte „ab“ (Von-Konto) und eine Hälfte „zu“ (Auf-Konto) mit gemeinsamer `umbuchungId`.
+  Jede Hälfte zeigt über `gegenkontoId` auf das andere Konto.
+- Bearbeiten, Papierkorb, Wiederherstellen und endgültiges Löschen betreffen **immer beide
+  Hälften** (`gruppeVon()`).
+- In Monatssummen erscheinen Umbuchungen in einer eigenen Zeile „Umbuchungen (saldiert)“,
+  nie bei Einnahmen oder Ausgaben.
+- Beim Bearbeiten lässt sich eine Umbuchung nicht in eine normale Buchung umwandeln und
+  umgekehrt auch nicht. Dafür löscht man sie und legt sie neu an. Das hält die Logik einfach.
+
+## D21 – Papierkorb über das Feld `geloeschtAm`
+*Etappe 2*
+
+- „Löschen“ setzt nur `geloeschtAm` (Zeitpunkt). Die Buchung zählt dann nirgends mehr mit.
+- Wiederherstellen und endgültig löschen gehen unter **Stammdaten → Papierkorb**.
+  Der Papierkorb leert sich nie automatisch.
+- **Warum ein Feld statt einer eigenen Sammlung:** Das Verschieben zwischen zwei Sammlungen
+  wäre fehleranfälliger. Für den späteren Sync ist eine Änderung an einem Feld ebenfalls einfacher.
+
+## D22 – Löschsperre für Konten und Kategorien
+*Etappe 2 (siehe D10)*
+
+- Hängt mindestens eine Buchung daran, ist Löschen gesperrt. Gezählt werden auch Buchungen
+  im Papierkorb, sonst gäbe es beim Wiederherstellen Buchungen ohne Konto.
+- Die App erklärt das und bietet direkt „Stattdessen archivieren“ an.
+
+## D23 – Monatsansicht
+*Etappe 2 – Entscheidung des Nutzers: Konten umschaltbar*
+
+- Oben stehen Kontoknöpfe. Das gewählte Konto merkt sich das Gerät (`localStorage`, wie D12).
+- Man blättert monatsweise mit ‹ ›. Der früheste Monat ist der Monat des Stichtags, der
+  späteste der aktuelle Monat oder der Monat der spätesten erfassten Buchung.
+  Zukunftsprognosen kommen in Etappe 5.
+- Zwischensummen: Stand am Monatsanfang (oder Anfangssaldo am Stichtag), Einnahmen,
+  Ausgaben, Umbuchungen, Stand am Monatsende.
+- Buchungen nach Tagen, **neueste zuerst** (Tage absteigend, innerhalb eines Tages die zuletzt
+  erfasste oben; Wunsch des Nutzers). Je Tag steht der Kontostand am Ende dieses Tages.
+  Ein Klick auf eine Buchung öffnet sie zum Bearbeiten.
+- Die Rechenlogik steht in `js/rechnen.js` (reine Funktionen, getestet).
+- Archivierte Konten erscheinen nicht in der Übersicht.
+
+## D24 – Erfassen
+*Etappe 2*
+
+- Ein runder „+“-Knopf ist auf jedem Tab sichtbar.
+- Reihenfolge im Dialog: Art, **Betrag**, **Kategorie**, Konto, Datum, Status, Notiz.
+  Datum ist standardmäßig heute. Als Konto wird das zuletzt benutzte vorgeschlagen
+  (`localStorage`, nur Komfort).
+- Die Kategorieauswahl zeigt nur Unterkategorien passend zur Art, gruppiert nach
+  Hauptkategorie. Archivierte Kategorien erscheinen nicht, außer beim Bearbeiten
+  die bisher gewählte.
+- Vorlagen für häufige Buchungen gibt es noch nicht (siehe CLAUDE.md „Komfort“, noch keiner
+  Etappe zugeordnet).
+
+## D25 – Kontoabstimmung
+*Etappe 2*
+
+- Man gibt den Bankstand und das Datum ein. Die App vergleicht ihn mit ihrem Stand am Ende
+  dieses Tages und zeigt die Differenz. Gibt es vorgemerkte Buchungen, zeigt sie zusätzlich
+  die Differenz ohne diese.
+- Jede Abstimmung wird gespeichert (`abstimmungen`: kontoId, datum, bankstandCent,
+  berechnetCent, erstelltAm).
+- Die Differenz der letzten Abstimmung wird in der Übersicht **immer neu berechnet**. Trägt man
+  die fehlende Buchung nach, springt sie auf „stimmt ✓“.
+- Die App legt **keine** automatische Korrekturbuchung an, denn sie ändert nie selbst etwas.
+
+## D26 – Daten-Änderungs-Signal
+*Etappe 2*
+
+- Nach jedem Speichern ruft man `datenGeaendert()` (ui.js) auf. `app.js` zeichnet dann den
+  aktuellen Tab neu, ohne nach oben zu springen. So bleiben Ansichten aktuell, egal wo der
+  Dialog geöffnet wurde.

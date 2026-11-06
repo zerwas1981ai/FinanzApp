@@ -72,6 +72,37 @@ export function heuteIso(jetzt = new Date()) {
   return `${j}-${m}-${t}`;
 }
 
+const pad = (n) => String(n).padStart(2, '0');
+
+/** (2026, 3) → "2026-03-01" */
+export function isoMonatsanfang(jahr, monat) {
+  return `${jahr}-${pad(monat)}-01`;
+}
+
+/** (2026, 12) → [2027, 1] */
+export function naechsterMonat(jahr, monat) {
+  return monat === 12 ? [jahr + 1, 1] : [jahr, monat + 1];
+}
+
+/** (2026, 1) → [2025, 12] */
+export function vorigerMonat(jahr, monat) {
+  return monat === 1 ? [jahr - 1, 12] : [jahr, monat - 1];
+}
+
+const MONATE = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+const WOCHENTAGE = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+
+/** (2026, 11) → "November 2026" */
+export function formatMonat(jahr, monat) {
+  return `${MONATE[monat - 1]} ${jahr}`;
+}
+
+/** "2026-11-05" → "Do, 05.11." */
+export function formatTag(iso) {
+  const [j, m, t] = iso.split('-').map(Number);
+  return `${WOCHENTAGE[new Date(j, m - 1, t).getDay()]}, ${pad(t)}.${pad(m)}.`;
+}
+
 /** Prüft, ob ein "JJJJ-MM-TT"-Text ein echtes Datum ist */
 export function istGueltigesDatum(iso) {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso ?? '');

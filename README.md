@@ -1,6 +1,7 @@
 # Finanzen – private Finanz-App (PWA)
 
-Stand: **Etappe 1** (Grundgerüst, Design, Hell/Dunkel, Stammdaten).
+Stand: **Etappe 2** (Buchungen erfassen, Monatsansicht pro Konto, Umbuchungen,
+Papierkorb, Kontoabstimmung). Davor Etappe 1: Grundgerüst, Design, Hell/Dunkel, Stammdaten.
 Ziele und Etappen: siehe `CLAUDE.md`. Technische Entscheidungen: siehe `DECISIONS.md`.
 
 ## App starten (Windows)
@@ -35,6 +36,7 @@ css/style.css                              Design (Hell/Dunkel)
 js/app.js                                  Start und Tab-Navigation
 js/db.js, js/migrationen.js                Datenbank, Versionen, Migrationen
 js/format.js                               Euro- und Datumsformat
+js/buchungen.js, js/rechnen.js             Buchungsregeln, Kontostände, Monatssummen
 js/startdaten.js, js/testdaten.js          Kategorie-Startsatz, Testdaten
 js/ui.js, js/dom.js                        Bausteine der Oberfläche
 js/views/                                  die Tabs

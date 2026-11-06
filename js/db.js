@@ -10,10 +10,10 @@ import { DATENMODELL_VERSION, migriereDaten } from './migrationen.js';
 import { erzeugeStartKategorien } from './startdaten.js';
 
 const DB_NAME = 'finanzapp';
-const DB_STRUKTUR_VERSION = 1;
+const DB_STRUKTUR_VERSION = 2; // 2 = Etappe 2: buchungen, abstimmungen
 
 /** Schubladen mit Nutzdaten. "meta" kommt zusätzlich dazu (Versionsnummer usw.). */
-export const SAMMLUNGEN = ['konten', 'kategorien'];
+export const SAMMLUNGEN = ['konten', 'kategorien', 'buchungen', 'abstimmungen'];
 
 let dbVersprechen = null;
 
@@ -112,7 +112,13 @@ export async function initialisiere() {
   const version = await leseMeta('datenVersion');
 
   if (version === undefined) {
-    await schreibeDatenstand({ version: DATENMODELL_VERSION, konten: [], kategorien: erzeugeStartKategorien() });
+    await schreibeDatenstand({
+      version: DATENMODELL_VERSION,
+      konten: [],
+      kategorien: erzeugeStartKategorien(),
+      buchungen: [],
+      abstimmungen: [],
+    });
     return { ersterStart: true, version: DATENMODELL_VERSION };
   }
   if (version !== DATENMODELL_VERSION) {
