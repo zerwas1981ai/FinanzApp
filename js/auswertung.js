@@ -48,7 +48,24 @@ export function partnerListe(buchungen) {
   return [...gruppen.values()].sort((a, b) => b.anzahl - a.anzahl || a.name.localeCompare(b.name, 'de', { sensitivity: 'base' }));
 }
 
-export const STANDARD_SORTIERUNG = Object.freeze({ feld: 'datum', richtung: 'ab' });
+/**
+ * Sortierung (D73): Liste von Stufen, die erste zählt zuerst. Eine angeklickte Spalte rückt
+ * nach vorn, die vorher angeklickten bleiben als weitere Stufen erhalten.
+ */
+export const STANDARD_SORTIERUNG = Object.freeze({ stufen: Object.freeze([Object.freeze({ feld: 'datum', richtung: 'ab' })]) });
+export const MAX_SORTIERSTUFEN = 3;
+
+/** Neue Sortierung nach Klick auf eine Spalte (reine Funktion) */
+export function sortiereNach(sortierung, feld) {
+  const stufen = sortierung.stufen ?? [sortierung];
+  if (stufen[0]?.feld === feld) {
+    // Gleiche Spalte erneut: Richtung umdrehen
+    return { stufen: [{ feld, richtung: stufen[0].richtung === 'ab' ? 'auf' : 'ab' }, ...stufen.slice(1)] };
+  }
+  // Zahlen und Datum zuerst absteigend, Texte zuerst A–Z
+  const richtung = feld === 'datum' || feld === 'betrag' ? 'ab' : 'auf';
+  return { stufen: [{ feld, richtung }, ...stufen.filter((x) => x.feld !== feld)].slice(0, MAX_SORTIERSTUFEN) };
+}
 
 const letzterTag = (jahr, monat) => {
   const [nj, nm] = naechsterMonat(jahr, monat);
@@ -140,28 +157,44 @@ export function filtere(buchungen, filter, { kategorien = [], konten = [], heute
   return ergebnis;
 }
 
-/** Sortiert Einträge. feld: datum | betrag | partner | kategorie | konto, richtung: auf | ab */
-export function sortiere(eintraege, { feld, richtung }, { kategorien = [], konten = [] } = {}) {
+/**
+ * Sortiert Einträge. sortierung: { stufen: [{ feld, richtung }] } (oder eine einzelne { feld, richtung }).
+ * feld: datum | betrag | partner | kategorie | konto | notiz, richtung: auf | ab.
+ * Betrag zählt mit Vorzeichen (+ Einnahme, − Ausgabe); Umbuchung ohne Kontofilter = 0.
+ */
+export function sortiere(eintraege, sortierung, { kategorien = [], konten = [] } = {}) {
+  const stufen = sortierung.stufen ?? [sortierung];
   const kat = new Map(kategorien.map((k) => [k.id, k]));
   const kontoName = new Map(konten.map((k) => [k.id, k.name]));
+  const text = (x, y) => x.localeCompare(y, 'de', { sensitivity: 'base' });
+  // Leere Texte ans Ende (bei aufsteigender Sortierung)
+  const mitLeer = (x, y) => text(x || '\uffff', y || '\uffff');
   const katText = (b) => {
     if (b.art === 'umbuchung') return 'Umbuchung';
     const unter = kat.get(b.kategorieId);
     return `${kat.get(unter?.elternId)?.name ?? ''} ${unter?.name ?? ''}`;
   };
-  const vergleiche = {
-    datum: () => 0,
-    betrag: (a, b) => a.buchung.betragCent - b.buchung.betragCent,
-    // Ohne Angabe ans Ende (bei aufsteigender Sortierung)
-    partner: (a, b) => (partnerSchluessel(a.buchung.partner) || '￿').localeCompare(partnerSchluessel(b.buchung.partner) || '￿', 'de'),
-    kategorie: (a, b) => katText(a.buchung).localeCompare(katText(b.buchung), 'de', { sensitivity: 'base' }),
-    konto: (a, b) => (kontoName.get(a.buchung.kontoId) ?? '').localeCompare(kontoName.get(b.buchung.kontoId) ?? '', 'de', { sensitivity: 'base' }),
-  }[feld] ?? (() => 0);
-  const faktor = richtung === 'auf' ? 1 : -1;
-  // Bei Gleichstand immer nach Datum (in derselben Richtung), dann nach Erfassungszeit
+  const vergleicher = {
+    datum: () => 0, // Datum entscheidet ohnehin am Schluss
+    // Umbuchungen ohne Kontofilter (Wirkung 0) untereinander nach ihrer Höhe
+    betrag: (a, b) => a.wirkung - b.wirkung
+      || (a.wirkung === 0 && b.wirkung === 0 ? a.buchung.betragCent - b.buchung.betragCent : 0),
+    partner: (a, b) => mitLeer(partnerSchluessel(a.buchung.partner), partnerSchluessel(b.buchung.partner)),
+    kategorie: (a, b) => text(katText(a.buchung), katText(b.buchung)),
+    konto: (a, b) => text(kontoName.get(a.buchung.kontoId) ?? '', kontoName.get(b.buchung.kontoId) ?? ''),
+    notiz: (a, b) => mitLeer((a.buchung.notiz ?? '').trim(), (b.buchung.notiz ?? '').trim()),
+  };
+  // Bei Gleichstand nach Datum (in der Richtung der ersten Stufe), dann nach Erfassungszeit
   const nachDatum = (a, b) => a.buchung.datum.localeCompare(b.buchung.datum)
     || (a.buchung.erstelltAm ?? '').localeCompare(b.buchung.erstelltAm ?? '');
-  return [...eintraege].sort((a, b) => faktor * (vergleiche(a, b) || nachDatum(a, b)));
+  const ersteRichtung = stufen.find((x) => x.feld === 'datum')?.richtung ?? stufen[0]?.richtung ?? 'ab';
+  return [...eintraege].sort((a, b) => {
+    for (const { feld, richtung } of stufen) {
+      const v = (vergleicher[feld] ?? (() => 0))(a, b);
+      if (v) return richtung === 'auf' ? v : -v;
+    }
+    return (ersteRichtung === 'auf' ? 1 : -1) * nachDatum(a, b);
+  });
 }
 
 /** Summen über die Einträge. Umbuchungen zählen nie als Einnahme/Ausgabe. */

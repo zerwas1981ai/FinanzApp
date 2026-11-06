@@ -9,7 +9,7 @@ import { buchungenAlsCsv, exportName } from '../export.js';
 import {
   STANDARD_FILTER, STANDARD_SORTIERUNG, filtere, sortiere, summen, zeitraumFuer,
   monateDerAuswertung, ersterErfassterTag, abgeschlosseneMonate, verlaufJeMonat, summenJeKategorie, schoeneObergrenze,
-  OHNE_PARTNER, partnerListe, partnerSchluessel, summenJePartner,
+  OHNE_PARTNER, partnerListe, partnerSchluessel, summenJePartner, sortiereNach,
 } from '../auswertung.js';
 import { oeffneBuchungsdialog } from './buchung-dialog.js';
 
@@ -19,7 +19,7 @@ const SEITE = 200; // so viele Zeilen werden auf einmal gezeigt
 // Zustand bleibt erhalten, solange die App offen ist (beim Neuladen: Standard)
 const zustand = {
   filter: { ...STANDARD_FILTER },
-  sortierung: { ...STANDARD_SORTIERUNG },
+  sortierung: STANDARD_SORTIERUNG,
   modus: 'liste', // liste | analyse
   analyseArt: 'ausgabe',
   analyseGruppe: 'kategorie', // kategorie | partner
@@ -390,22 +390,40 @@ function summenKarte(s, von, bis) {
 
 /* --------------------------- Liste --------------------------- */
 
+// Spalten der Tabelle (D73). handy: auch am Handy als Sortierknopf sichtbar
+const SPALTEN = [
+  { feld: 'datum', text: 'Datum', handy: true },
+  { feld: 'partner', text: 'Empfänger/Absender', kurz: 'An/Von', handy: true },
+  { feld: 'kategorie', text: 'Kategorie', handy: true },
+  { feld: 'konto', text: 'Konto' },
+  { feld: 'notiz', text: 'Notiz' },
+  { feld: 'betrag', text: 'Betrag', handy: true },
+];
+
+function tabellenKopf(neu) {
+  const stufen = zustand.sortierung.stufen;
+  return h('div', { class: 'btab-kopf', role: 'row' }, SPALTEN.map((sp) => {
+    const stufe = stufen.findIndex((x) => x.feld === sp.feld);
+    const aktiv = stufe >= 0;
+    const ab = aktiv && stufen[stufe].richtung === 'ab';
+    return h('button', {
+      type: 'button',
+      role: 'columnheader',
+      class: `btab-sort btab-${sp.feld}` + (stufe === 0 ? ' erste' : aktiv ? ' weitere' : '') + (sp.handy ? '' : ' nur-breit'),
+      'aria-sort': stufe === 0 ? (ab ? 'descending' : 'ascending') : 'none',
+      title: stufe === 0 ? 'Richtung umdrehen' : 'Nach dieser Spalte sortieren',
+      onclick: () => { zustand.sortierung = sortiereNach(zustand.sortierung, sp.feld); neu(); },
+    },
+    h('span', { class: 'btab-sort-text' }, sp.kurz ? [h('span', { class: 'nur-breit' }, sp.text), h('span', { class: 'nur-schmal' }, sp.kurz)] : sp.text),
+    aktiv && h('span', { class: 'btab-pfeil', 'aria-hidden': 'true' }, ab ? '↓' : '↑'),
+    aktiv && stufen.length > 1 && h('span', { class: 'btab-stufe', 'aria-hidden': 'true' }, String(stufe + 1)));
+  }));
+}
+
 function liste(eintraege, daten, neu) {
   const sortiert = sortiere(eintraege, zustand.sortierung, daten);
   const kat = new Map(daten.kategorien.map((k) => [k.id, k]));
   const kontoName = new Map(daten.konten.map((k) => [k.id, k.name]));
-
-  const sortFeld = auswahlListe(
-    [{ wert: 'datum', text: 'Datum' }, { wert: 'betrag', text: 'Betrag' }, { wert: 'partner', text: 'Empfänger/Absender' }, { wert: 'kategorie', text: 'Kategorie' }, { wert: 'konto', text: 'Konto' }],
-    zustand.sortierung.feld,
-    (w) => { zustand.sortierung.feld = w; neu(); });
-  const absteigend = zustand.sortierung.richtung === 'ab';
-  const richtung = h('button', {
-    type: 'button',
-    class: 'knopf knopf-klein',
-    'aria-label': absteigend ? 'Absteigend sortiert – umschalten' : 'Aufsteigend sortiert – umschalten',
-    onclick: () => { zustand.sortierung.richtung = absteigend ? 'auf' : 'ab'; neu(); },
-  }, absteigend ? '↓ absteigend' : '↑ aufsteigend');
 
   if (sortiert.length === 0) {
     return h('section', { class: 'bereich' }, h('p', { class: 'leer' }, 'Keine Buchungen passen zu diesen Filtern.'));
@@ -422,38 +440,65 @@ function liste(eintraege, daten, neu) {
       herunterladen(buchungenAlsCsv(auswahl, daten), exportName('auswahl', heuteIso()), 'text/csv;charset=utf-8');
     },
   }, 'Als CSV (Excel)');
+
+  const stufen = zustand.sortierung.stufen;
+  const sortText = stufen.map((x) => SPALTEN.find((sp) => sp.feld === x.feld)?.text + (x.richtung === 'ab' ? ' ↓' : ' ↑')).join(', dann ');
+  const zuruecksetzen = (stufen.length > 1 || stufen[0].feld !== 'datum' || stufen[0].richtung !== 'ab') && h('button', {
+    type: 'button',
+    class: 'knopf knopf-klein',
+    onclick: () => { zustand.sortierung = STANDARD_SORTIERUNG; neu(); },
+  }, 'Sortierung zurücksetzen');
+
+  const zeile = ({ buchung: b, wirkung }) => {
+    let partnerText;
+    let katText;
+    if (b.art === 'umbuchung') {
+      const von = b.richtung === 'ab' ? b.kontoId : b.gegenkontoId;
+      const auf = b.richtung === 'ab' ? b.gegenkontoId : b.kontoId;
+      partnerText = 'Umbuchung';
+      katText = `${kontoName.get(von) ?? '?'} → ${kontoName.get(auf) ?? '?'}`;
+    } else {
+      const unter = kat.get(b.kategorieId);
+      partnerText = b.partner?.trim() ?? '';
+      katText = [kat.get(unter?.elternId)?.name, unter?.name ?? 'Unbekannte Kategorie'].filter(Boolean).join(' › ');
+    }
+    // Umbuchung ohne Kontofilter: neutral ohne Vorzeichen
+    const betragText = b.art === 'umbuchung' && wirkung === 0
+      ? formatEuro(b.betragCent)
+      : (wirkung > 0 ? '+' : '') + formatEuro(wirkung);
+    const klasse = b.art === 'umbuchung' ? 'gedaempft' : wirkung > 0 ? 'plus' : '';
+    const unterName = b.art === 'umbuchung' ? katText : kat.get(b.kategorieId)?.name ?? 'Unbekannte Kategorie';
+    return h('li', { role: 'row' },
+      h('button', {
+        type: 'button',
+        class: 'btab-zeile' + (b.art === 'umbuchung' ? ' umbuchung' : ''),
+        onclick: () => (b.archivJahr ? toast(`Archiv ${b.archivJahr}: nur lesen. Zum Ändern das Jahr in den Stammdaten zurückholen.`) : oeffneBuchungsdialog(b)),
+      },
+      h('span', { class: 'btab-zelle btab-partner' },
+        partnerText
+          ? h('span', { class: 'btab-partner-name' }, partnerText)
+          // Ohne Empfänger/Absender: am Handy steht die Kategorie als Titel, am PC ein Strich
+          : [h('span', { class: 'nur-breit gedaempft' }, '–'), h('span', { class: 'nur-schmal btab-partner-name' }, unterName)],
+        b.status === 'vorgemerkt' && h('span', { class: 'marke' }, 'vorgemerkt'),
+        b.archivJahr && h('span', { class: 'marke' }, 'Archiv')),
+      h('span', { class: 'btab-unter' },
+        h('span', { class: 'btab-zelle btab-datum' }, formatDatum(b.datum)),
+        h('span', { class: 'btab-zelle btab-kategorie', title: katText }, katText),
+        h('span', { class: 'btab-zelle btab-konto' }, b.art === 'umbuchung' ? '' : kontoName.get(b.kontoId) ?? ''),
+        h('span', { class: 'btab-zelle btab-notiz', title: b.notiz || null }, b.notiz ?? '')),
+      h('span', { class: `btab-zelle btab-betrag betrag ${klasse}` }, betragText)));
+  };
+
   return h('section', { class: 'bereich buchungen' },
-    h('div', { class: 'sortierung' }, h('span', { class: 'klein' }, 'Sortieren nach'), sortFeld, richtung, exportKnopf),
-    h('ul', { class: 'liste' }, zeigen.map(({ buchung: b, wirkung }) => {
-      let titel;
-      let teile;
-      if (b.art === 'umbuchung') {
-        const von = b.richtung === 'ab' ? b.kontoId : b.gegenkontoId;
-        const auf = b.richtung === 'ab' ? b.gegenkontoId : b.kontoId;
-        titel = `Umbuchung ${kontoName.get(von) ?? '?'} → ${kontoName.get(auf) ?? '?'}`;
-        teile = [formatDatum(b.datum), b.notiz];
-      } else {
-        const unter = kat.get(b.kategorieId);
-        // Empfänger/Absender steht immer vor der Kategorie
-        titel = [b.partner, unter?.name ?? 'Unbekannte Kategorie'].filter(Boolean).join(' · ');
-        teile = [formatDatum(b.datum), kontoName.get(b.kontoId), kat.get(unter?.elternId)?.name, b.notiz];
-      }
-      // Umbuchung ohne Kontofilter: neutral ohne Vorzeichen
-      const betragText = b.art === 'umbuchung' && wirkung === 0
-        ? formatEuro(b.betragCent)
-        : (wirkung > 0 ? '+' : '') + formatEuro(wirkung);
-      const klasse = b.art === 'umbuchung' ? 'gedaempft' : wirkung > 0 ? 'plus' : '';
-      return h('li', {},
-        h('button', {
-          type: 'button',
-          class: 'buchung',
-          onclick: () => (b.archivJahr ? toast(`Archiv ${b.archivJahr}: nur lesen. Zum Ändern das Jahr in den Stammdaten zurückholen.`) : oeffneBuchungsdialog(b)),
-        },
-          h('span', { class: 'buchung-text' },
-            h('span', { class: 'buchung-titel' }, titel, b.status === 'vorgemerkt' && h('span', { class: 'marke' }, 'vorgemerkt'), b.archivJahr && h('span', { class: 'marke' }, 'Archiv')),
-            h('span', { class: 'buchung-unter' }, teile.filter(Boolean).join(' · '))),
-          h('span', { class: `betrag ${klasse}` }, betragText)));
-    })),
+    h('div', { class: 'btab-werkzeuge' },
+      h('span', { class: 'klein' }, `Sortiert nach ${sortText}`),
+      zuruecksetzen,
+      exportKnopf),
+    h('div', { class: 'btab', role: 'table', 'aria-label': 'Buchungen' },
+      tabellenKopf(neu),
+      h('ul', { class: 'btab-liste', role: 'rowgroup' }, zeigen.map(zeile))),
+    h('p', { class: 'hinweis btab-hinweis' }, 'Spaltenkopf antippen zum Sortieren, erneut antippen dreht die Richtung um. ' +
+      'Die zuletzt gewählte Spalte zählt zuerst, die vorherigen gelten bei Gleichstand.'),
     sortiert.length > zeigen.length && h('div', { class: 'mehr' },
       h('button', {
         type: 'button',

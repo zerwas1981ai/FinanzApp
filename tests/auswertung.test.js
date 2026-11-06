@@ -209,3 +209,31 @@ test('Mehrfachauswahl Empfänger/Absender', async () => {
   assert.deepEqual(ids(['Kiosk', OHNE_PARTNER]), ['3', '4']);
 });
 
+test('Mehrstufige Sortierung per Spaltenkopf (D73)', async () => {
+  const { sortiereNach, STANDARD_SORTIERUNG } = await import('../js/auswertung.js');
+  // Klickfolge: Kategorie, dann Betrag → Betrag zuerst, Kategorie bei Gleichstand
+  let s = sortiereNach(STANDARD_SORTIERUNG, 'kategorie');
+  assert.deepEqual(s.stufen, [{ feld: 'kategorie', richtung: 'auf' }, { feld: 'datum', richtung: 'ab' }]);
+  s = sortiereNach(s, 'betrag');
+  assert.deepEqual(s.stufen.map((x) => x.feld), ['betrag', 'kategorie', 'datum']);
+  assert.equal(s.stufen[0].richtung, 'ab', 'Betrag zuerst absteigend');
+  s = sortiereNach(s, 'betrag');
+  assert.equal(s.stufen[0].richtung, 'auf', 'gleiche Spalte erneut: Richtung umdrehen');
+  assert.deepEqual(s.stufen.map((x) => x.feld), ['betrag', 'kategorie', 'datum']);
+  s = sortiereNach(s, 'konto');
+  assert.deepEqual(s.stufen.map((x) => x.feld), ['konto', 'betrag', 'kategorie'], 'höchstens 3 Stufen');
+  s = sortiereNach(s, 'kategorie');
+  assert.deepEqual(s.stufen.map((x) => x.feld), ['kategorie', 'konto', 'betrag'], 'schon vorhandene Spalte rückt nach vorn');
+  assert.equal(STANDARD_SORTIERUNG.stufen.length, 1, 'Standard bleibt unverändert');
+
+  // Sortieren: Kategorie A–Z, innerhalb gleicher Kategorie Betrag absteigend
+  const e = filtere(daten, f({ zeitraum: 'alles' }), ctx).filter((x) => x.buchung.art === 'ausgabe');
+  const r = sortiere(e, { stufen: [{ feld: 'kategorie', richtung: 'auf' }, { feld: 'betrag', richtung: 'ab' }] }, ctx);
+  assert.deepEqual(r.map((x) => [x.buchung.kategorieId, x.buchung.betragCent]),
+    [['super', 4000], ['super', 6000], ['miete', 95000], ['miete', 95000], ['strom', 8500]]);
+  // Betrag mit Vorzeichen: aufsteigend = größte Ausgabe zuerst
+  const auf = sortiere(filtere(daten, f({ zeitraum: 'alles' }), ctx), { stufen: [{ feld: 'betrag', richtung: 'auf' }] });
+  assert.equal(auf[0].wirkung, -95000);
+  assert.equal(auf.at(-1).wirkung, 300000);
+});
+

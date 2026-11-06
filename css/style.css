@@ -1137,3 +1137,81 @@ body.gesperrt .kopf, body.gesperrt main, body.gesperrt .fab, body.gesperrt #neue
 }
 .mehrfach-leeren[hidden] { display: none; }
 
+/* Tabelle "Alle Buchungen" (D73): am PC Spalten, am Handy zweizeilig */
+.btab-werkzeuge { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 2px 0 8px; }
+.btab-werkzeuge > .klein { margin-right: auto; }
+.btab { --btab-spalten: 92px minmax(0, 1.3fr) minmax(0, 1.5fr) minmax(0, .9fr) minmax(0, 1.2fr) 112px; }
+.btab-kopf, .btab-zeile {
+  display: grid;
+  grid-template-columns: var(--btab-spalten);
+  column-gap: 12px;
+  align-items: center;
+}
+.btab-kopf {
+  position: sticky; top: var(--kopf-hoehe, 56px); z-index: 2;
+  background: var(--flaeche); border-bottom: 1px solid var(--rand); padding: 0 8px;
+}
+.btab-sort {
+  display: flex; align-items: center; gap: 4px; min-width: 0; padding: 8px 0; border: 0; background: none; cursor: pointer;
+  font: inherit; font-size: .75rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--text-2); text-align: left;
+}
+.btab-sort:hover { color: var(--text); }
+.btab-sort.erste { color: var(--akzent); }
+.btab-sort.weitere { color: var(--text); }
+.btab-sort-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.btab-pfeil { font-size: .9rem; line-height: 1; }
+.btab-stufe {
+  display: inline-grid; place-items: center; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px;
+  background: var(--flaeche-2); color: var(--text-2); font-size: .68rem; letter-spacing: 0;
+}
+.btab-sort.erste .btab-stufe { background: var(--akzent-leicht); color: var(--akzent); }
+.btab-sort.btab-betrag { justify-content: flex-end; }
+.btab-liste { list-style: none; margin: 0; padding: 0; }
+.btab-liste > li + li { border-top: 1px solid var(--rand); }
+.btab-zeile {
+  width: 100%; padding: 9px 8px; border: 0; border-radius: 0; background: none; color: var(--text);
+  font: inherit; text-align: left; cursor: pointer;
+}
+.btab-liste > li:nth-child(even) .btab-zeile { background: color-mix(in srgb, var(--flaeche-2) 45%, transparent); }
+.btab-liste .btab-zeile:hover { background: var(--akzent-leicht); }
+.btab-unter { display: contents; }
+.btab-zelle { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.btab-datum { grid-column: 1; grid-row: 1; font-variant-numeric: tabular-nums; color: var(--text-2); }
+.btab-partner { grid-column: 2; grid-row: 1; font-weight: 500; }
+.btab-partner .marke { margin-left: 6px; background: var(--warnung-leicht); color: var(--warnung); }
+.btab-kategorie { grid-column: 3; grid-row: 1; }
+.btab-konto { grid-column: 4; grid-row: 1; color: var(--text-2); }
+.btab-notiz { grid-column: 5; grid-row: 1; color: var(--text-2); }
+.btab-betrag { grid-column: 6; grid-row: 1; text-align: right; font-variant-numeric: tabular-nums; }
+.btab-zeile.umbuchung .btab-partner { color: var(--text-2); font-style: italic; }
+.btab-hinweis { margin: 10px 0 0; font-size: .8rem; }
+.nur-schmal { display: none; }
+
+@media (max-width: 767px) {
+  .btab-kopf { position: static; display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 0 8px; border-bottom: 1px solid var(--rand); }
+  .btab-sort {
+    flex: none; padding: 5px 10px; border: 1px solid var(--rand); border-radius: 999px;
+    text-transform: none; letter-spacing: 0; font-size: .82rem;
+  }
+  .btab-sort.erste { border-color: var(--akzent); background: var(--akzent-leicht); }
+  .btab-sort.btab-betrag { justify-content: flex-start; }
+  .nur-breit { display: none; }
+  .nur-schmal { display: inline; }
+  .btab-zeile {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
+    row-gap: 2px;
+    padding: 8px 4px;
+  }
+  .btab-liste > li:nth-child(even) .btab-zeile { background: none; }
+  .btab-partner { grid-column: 1; grid-row: 1; }
+  .btab-betrag { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
+  .btab-unter {
+    grid-column: 1; grid-row: 2; display: block; min-width: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-2); font-size: .85rem;
+  }
+  .btab-unter .btab-zelle { display: inline; color: inherit; }
+  .btab-unter .btab-zelle:empty { display: none; }
+  .btab-unter .btab-zelle:not(:empty) ~ .btab-zelle:not(:empty)::before { content: " · "; }
+}
+

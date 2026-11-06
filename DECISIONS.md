@@ -1112,3 +1112,24 @@ Wird eine Entscheidung geändert, den alten Eintrag nicht löschen, sondern als
   (ersetzt den getönten Hintergrund aus Etappe 5). Als Annahme gekennzeichnet bleiben die
   Werte durch Kursivschrift.
 
+## D73 – „Alle Buchungen“ als Tabelle mit Sortierung per Spaltenkopf
+*Wunsch des Nutzers: mehrstufig, Standardspalten, am Handy kompakt*
+
+- **Am PC (ab 768 px):** Tabelle mit den Spalten Datum · Empfänger/Absender · Kategorie
+  (Haupt › Unter) · Konto · Notiz · Betrag. Die Kopfzeile bleibt beim Scrollen oben stehen.
+  Zeilen leicht gestreift, Antippen öffnet wie bisher die Buchung. „vorgemerkt“ und „Archiv“
+  bleiben als Marke beim Empfänger/Absender.
+- **Sortieren:** Klick auf einen Spaltenkopf macht diese Spalte zur ersten Sortierstufe. Die
+  vorher angeklickten Spalten bleiben als 2. und 3. Stufe erhalten (höchstens 3). Ein erneuter
+  Klick auf die erste Spalte dreht die Richtung um. Ziffern im Kopf zeigen die Reihenfolge,
+  über der Tabelle steht sie als Text („Sortiert nach Betrag ↓, dann Kategorie ↑ …“).
+  „Sortierung zurücksetzen“ führt zurück zu Datum, neueste zuerst.
+- Erste Richtung: Datum und Betrag absteigend, Texte A–Z. Leere Texte stehen am Ende.
+  Bei vollständigem Gleichstand entscheidet das Datum (Richtung der ersten Stufe).
+- **Betrag mit Vorzeichen:** absteigend = größte Einnahmen zuerst, aufsteigend = größte
+  Ausgaben zuerst. Umbuchungen ohne Kontofilter zählen als 0 und stehen untereinander nach Höhe.
+- **Am Handy:** zweizeilige Zeilen wie bisher (oben Empfänger/Absender, darunter Datum ·
+  Kategorie · Konto · Notiz, rechts der Betrag). Darüber Sortierknöpfe Datum, An/Von,
+  Kategorie, Betrag mit derselben Logik. Ohne Empfänger/Absender steht oben die Kategorie.
+- Die Sortierung bleibt erhalten, solange die App offen ist (wie die Filter).
+
