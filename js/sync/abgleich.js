@@ -17,7 +17,7 @@ import { geraet } from '../ui.js';
 import * as drive from './drive.js';
 import { archiviere, holeZurueck } from '../archiv.js';
 import {
-  gleicherStand, fuehreZusammen, loeseKonflikte, istFrischerStand, backupsZumLoeschen, standKurz,
+  gleicherStand, fuehreZusammen, loeseKonflikte, istFrischerStand, backupsZumLoeschen, standKurz, anzahlUnterschiede,
 } from './zusammenfuehren.js';
 
 const VERZOEGERUNG = 4000; // ms nach dem letzten Speichern
@@ -33,10 +33,21 @@ export const istEingerichtet = () => Boolean(clientId()) && geraet.lies('drive-a
 
 /* ---------- Status (für die Anzeige oben rechts und in den Stammdaten) ---------- */
 
-export const status = { zustand: 'aus', text: 'Drive nicht eingerichtet', letzter: null };
+// offen = Anzahl der Einträge, die auf diesem Gerät geändert, aber noch nicht in Drive sind (D70)
+export const status = { zustand: 'aus', text: 'Drive nicht eingerichtet', letzter: null, offen: 0 };
 
 function setzeStatus(zustand, text) {
   Object.assign(status, { zustand, text });
+  window.dispatchEvent(new CustomEvent('sync-status', { detail: { ...status } }));
+}
+
+/** Noch nicht hochgeladene Änderungen zählen (Vergleich mit dem Stand beim letzten Abgleich) */
+async function zaehleOffene() {
+  if (!istEingerichtet()) return;
+  const basis = await db.leseMeta(BASIS);
+  const offen = basis ? anzahlUnterschiede(basis.daten, await db.leseDatenstand()) : 0;
+  if (offen === status.offen) return;
+  status.offen = offen;
   window.dispatchEvent(new CustomEvent('sync-status', { detail: { ...status } }));
 }
 
@@ -260,6 +271,7 @@ async function zusammenfuehren(basis, lokal, remote) {
 
 function fertig() {
   status.letzter = new Date().toISOString();
+  status.offen = 0;
   geraet.schreib('drive-letzter-abgleich', status.letzter);
   setzeStatus('ok', 'Mit Drive abgeglichen');
 }
@@ -389,26 +401,57 @@ export async function belegDatei(beleg) {
 /* ---------- Automatik ---------- */
 
 let timer = null;
+let zaehlTimer = null;
 let letzterVordergrund = 0;
+let erneuernAus = false; // nach Abbruch/Fehler erst beim nächsten Vordergrund wieder versuchen
+
+/**
+ * Anmeldung automatisch erneuern (D70): Google erlaubt das Anmeldefenster nur direkt nach einem
+ * Antippen. Deshalb erneuert die App beim nächsten Antippen irgendwo in der App, wenn die
+ * Anmeldung abgelaufen ist oder in den nächsten 10 Minuten abläuft. Weil die Zustimmung schon
+ * erteilt ist, blitzt das Google-Fenster nur kurz auf.
+ */
+async function erneuereBeimAntippen() {
+  if (erneuernAus || !istEingerichtet() || !navigator.onLine) return;
+  if (drive.restMinuten() > 10) return;
+  if (document.body.classList.contains('gesperrt')) return; // nicht über dem Sperrbildschirm
+  try {
+    await drive.anmelden(clientId(), { stumm: true });
+    await gleicheAb();
+  } catch (err) {
+    erneuernAus = true;
+    setzeStatus('anmelden', `${err.message ?? err} – zum Anmelden auf das Wolken-Symbol tippen`);
+  }
+}
 
 export function starteAutomatik() {
   status.letzter = geraet.lies('drive-letzter-abgleich');
   if (!istEingerichtet()) setzeStatus('aus', 'Drive nicht eingerichtet');
-  else setzeStatus('anmelden', 'Zum Abgleichen bei Google anmelden');
+  else {
+    setzeStatus('anmelden', 'Zum Abgleichen bei Google anmelden');
+    drive.vorladen();
+    zaehleOffene();
+  }
 
-  // Jede Änderung an den Nutzdaten (db.speichere/db.loesche) → kurz danach abgleichen
+  // Jede Änderung an den Nutzdaten (db.speichere/db.loesche) → zählen und kurz danach abgleichen
   window.addEventListener('db-geaendert', () => {
     if (!istEingerichtet()) return;
+    clearTimeout(zaehlTimer);
+    zaehlTimer = setTimeout(zaehleOffene, 300);
     clearTimeout(timer);
     timer = setTimeout(() => gleicheAb(), VERZOEGERUNG);
   });
   window.addEventListener('online', () => gleicheAb());
   window.addEventListener('offline', () => istEingerichtet() && setzeStatus('offline', 'Offline – Änderungen werden später abgeglichen'));
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState !== 'visible' || Date.now() - letzterVordergrund < 60000) return;
+    if (document.visibilityState !== 'visible') return;
+    erneuernAus = false;
+    if (Date.now() - letzterVordergrund < 60000) return;
     letzterVordergrund = Date.now();
     if (drive.istAngemeldet()) gleicheAb();
   });
+  // "click" zählt für den Browser als Antippen, das ein Fenster öffnen darf
+  document.addEventListener('click', () => { erneuereBeimAntippen(); }, true);
 }
 
 /* ---------- Archiv alter Jahre (D68) ---------- */

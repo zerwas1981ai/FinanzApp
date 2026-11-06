@@ -37,11 +37,25 @@ function ladeGsi() {
 
 export const istAngemeldet = () => Boolean(token && token.ablauf > Date.now() + 60000);
 
+/** Minuten, bis die Anmeldung abläuft (0 = nicht angemeldet) */
+export const restMinuten = () => (token ? Math.max(0, (token.ablauf - Date.now()) / 60000) : 0);
+
+/** Google-Anmeldung schon beim Start laden, damit sie später direkt nach einem Antippen bereitsteht */
+export const vorladen = () => ladeGsi().catch(() => {});
+
+let laufendeAnmeldung = null;
+
 /**
  * Anmelden bzw. Token erneuern. Muss beim ersten Mal aus einem Klick heraus aufgerufen werden
  * (sonst blockiert der Browser das Google-Fenster).
  */
-export async function anmelden(clientId, { stumm = false } = {}) {
+export function anmelden(clientId, optionen = {}) {
+  // Läuft schon eine Anmeldung (z. B. Wolken-Knopf + automatisches Erneuern), nicht doppelt öffnen
+  laufendeAnmeldung ??= anmeldenIntern(clientId, optionen).finally(() => { laufendeAnmeldung = null; });
+  return laufendeAnmeldung;
+}
+
+async function anmeldenIntern(clientId, { stumm = false } = {}) {
   if (!clientId) throw new Error('Bitte zuerst unter Stammdaten → Google Drive die Client-ID eintragen.');
   await ladeGsi();
   if (!tokenClient || tokenClientId !== clientId) {

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  stabil, gleicherStand, fuehreZusammen, loeseKonflikte, istFrischerStand, backupsZumLoeschen,
+  stabil, gleicherStand, fuehreZusammen, loeseKonflikte, istFrischerStand, backupsZumLoeschen, anzahlUnterschiede,
 } from '../js/sync/zusammenfuehren.js';
 import { csvFeld, csvBetrag, buchungenAlsCsv } from '../js/export.js';
 import { SAMMLUNGEN } from '../js/db.js';
@@ -97,4 +97,11 @@ test('CSV für Excel: Felder, Beträge, Buchungen', () => {
   assert.equal(zeilen[1], '01.11.2026;Giro;Einnahme;;Lebensmittel;Supermarkt;1000,00;vorgemerkt;Lohn;;;0');
   assert.equal(zeilen[2], '02.11.2026;Giro;Umbuchung;;;;-50,00;gebucht;;;Tagesgeld;0');
   assert.equal(zeilen[3], '03.11.2026;Giro;Ausgabe;"Markt; Muster";Lebensmittel;Supermarkt;-12,50;gebucht;;;;1');
+});
+
+test('Unterschiede zählen: neu, geändert, gelöscht', () => {
+  const basis = stand([b('a', 1), b('b', 2), b('c', 3)]);
+  const lokal = stand([b('a', 1), b('b', 22), b('neu', 9)]);
+  assert.equal(anzahlUnterschiede(basis, lokal), 3);
+  assert.equal(anzahlUnterschiede(basis, basis), 0);
 });

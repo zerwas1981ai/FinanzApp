@@ -61,9 +61,12 @@ Danach legt die App in deinem Drive den Ordner **Finanzapp** an (Datendatei, `Be
 **Zweites Gerät (z. B. Handy):** Dort ebenfalls die Client-ID eintragen und verbinden. Die App
 fragt dann, ob sie den Stand aus Drive übernehmen soll.
 
-**Nach jedem Neustart der App** zeigt oben rechts ein Wolken-Knopf „Anmelden“. Einmal antippen –
-danach gleicht die App automatisch ab (beim Speichern, wenn das Gerät wieder online ist und wenn
-die App in den Vordergrund kommt). Ohne Anmeldung arbeitet sie ganz normal auf dem Gerät weiter.
+**Anmeldung:** Google erlaubt nur eine Anmeldung für etwa eine Stunde. Ist sie abgelaufen (oder
+nach einem Neustart), erneuert die App sie beim nächsten Antippen von selbst – ein Google-Fenster
+blitzt kurz auf. Danach gleicht sie automatisch ab (beim Speichern, wenn das Gerät wieder online
+ist und wenn die App in den Vordergrund kommt). Zeigt der Wolken-Knopf „⬆ N nicht hochgeladen“,
+sind Änderungen noch nicht in Drive: einfach darauf tippen. Ohne Anmeldung arbeitet die App ganz
+normal auf dem Gerät weiter.
 
 ## Veröffentlichen mit GitHub Pages (für Android)
 

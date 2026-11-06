@@ -40,6 +40,18 @@ export function gleicherStand(a, b) {
   });
 }
 
+/** Wie viele Datensätze unterscheiden sich zwischen zwei Ständen? (neu, geändert, gelöscht) */
+export function anzahlUnterschiede(a, b) {
+  let n = 0;
+  for (const s of SAMMLUNGEN) {
+    const x = nachId(a?.[s]);
+    const y = nachId(b?.[s]);
+    for (const [id, wert] of x) if (!gleich(wert, y.get(id))) n += 1;
+    for (const id of y.keys()) if (!x.has(id)) n += 1;
+  }
+  return n;
+}
+
 /**
  * Führt zusammen. basis darf null sein (noch nie abgeglichen) – dann zählt jeder Unterschied
  * als Konflikt, außer ein Datensatz existiert nur auf einer Seite (dann wird er übernommen).

@@ -130,7 +130,16 @@ export function richteSyncEin() {
     const text = s.text + (s.zustand === 'ok' && s.letzter ? ` (${zeit(s.letzter)})` : '');
     knopf.title = text;
     knopf.setAttribute('aria-label', `Google Drive: ${text}`);
-    knopf.querySelector('.sync-text').textContent = { anmelden: 'Anmelden', konflikt: 'Entscheiden', fehler: 'Fehler', offline: 'Offline' }[s.zustand] ?? '';
+    // Noch nicht hochgeladene Änderungen deutlich zeigen (D70)
+    const offen = s.zustand !== 'laeuft' && s.zustand !== 'ok' && s.offen > 0;
+    knopf.classList.toggle('sync-offen', offen);
+    knopf.querySelector('.sync-text').textContent = offen
+      ? `⬆ ${s.offen} nicht hochgeladen`
+      : ({ anmelden: 'Anmelden', konflikt: 'Entscheiden', fehler: 'Fehler', offline: 'Offline' }[s.zustand] ?? '');
+    if (offen) {
+      knopf.title = `${s.offen} ${s.offen === 1 ? 'Änderung ist' : 'Änderungen sind'} noch nicht in Google Drive. ${s.text}`;
+      knopf.setAttribute('aria-label', `Google Drive: ${knopf.title}`);
+    }
   };
   window.addEventListener('sync-status', (e) => zeige(e.detail));
   knopf.addEventListener('click', async () => {

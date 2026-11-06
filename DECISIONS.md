@@ -1059,3 +1059,23 @@ Wird eine Entscheidung geändert, den alten Eintrag nicht löschen, sondern als
   angemeldet), steht oben ein Hinweis mit „Aus Google Drive laden“ – so fehlt nie still ein Jahr.
 - Projektsummen enthalten archivierte Kosten weiterhin (D68).
 
+## D70 – Hinweis auf nicht Hochgeladenes, Anmeldung automatisch erneuern
+*Wunsch des Nutzers: Hinweis + automatisch erneuern*
+
+- **Grenze:** Google gibt reinen Web-Apps ohne eigenen Server nur ein Zugangs-Token für etwa
+  eine Stunde. Eine dauerhafte Anmeldung (Refresh-Token) bräuchte einen Server mit
+  Client-Geheimnis – das widerspricht dem Rahmen (nur statisches Hosting).
+- **Hinweis:** Die App zählt, wie viele Einträge sich seit dem letzten Abgleich geändert haben
+  (`anzahlUnterschiede` gegenüber der Basis). Sind es mehr als null und ist gerade kein
+  Abgleich möglich (nicht angemeldet, offline, Fehler, Rückfrage offen), zeigt der Wolken-Knopf
+  gut sichtbar „⬆ N nicht hochgeladen“.
+- **Automatisch erneuern:** Ist die Anmeldung abgelaufen oder läuft sie in den nächsten
+  10 Minuten ab, erneuert die App sie beim nächsten Antippen irgendwo in der App und gleicht
+  danach ab (auch um Änderungen der anderen Geräte zu holen). Weil die Zustimmung schon
+  erteilt ist, blitzt das Google-Fenster nur kurz auf. Browser erlauben das Fenster nur direkt
+  nach einem Antippen – deshalb nicht völlig im Hintergrund.
+- Bricht der Nutzer das Fenster ab oder schlägt es fehl, versucht die App es erst wieder, wenn
+  sie erneut in den Vordergrund kommt (kein ständiges Aufpoppen). Über dem Sperrbildschirm wird
+  nie erneuert.
+- Die Google-Anmeldung wird beim Start schon geladen, damit sie nach dem Antippen sofort bereit ist.
+

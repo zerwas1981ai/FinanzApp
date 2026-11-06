@@ -1101,3 +1101,7 @@ body.gesperrt .kopf, body.gesperrt main, body.gesperrt .fab, body.gesperrt #neue
 /* Archiv (D68) */
 .archiv-hinweis { padding: 6px 10px; border-radius: var(--radius-klein); background: var(--zukunft); }
 
+/* Noch nicht hochgeladene Änderungen (D70) */
+.sync-knopf.sync-offen { color: var(--warnung); border-color: var(--warnung); background: var(--warnung-leicht); font-weight: 600; }
+@media (max-width: 480px) { .sync-knopf.sync-offen .sync-text { font-size: .78rem; } }
+
