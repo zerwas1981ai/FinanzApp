@@ -33,8 +33,9 @@ Oberfläche auf Deutsch, Währung Euro, deutsches Datums- und Zahlenformat.
 - Konto: Name, Anfangssaldo, Stichtag, Mindestsaldo
 - Kategorie: Hauptkategorie mit Unterkategorien (Startsatz vorbelegt, in den
   Stammdaten anpassbar)
-- Buchung: Datum, Betrag, Art (Einnahme/Ausgabe), Konto, Unterkategorie,
-  Notiz, Belege (mehrere möglich, PDF/JPG), Status
+- Buchung: Datum, Betrag, Art (Einnahme/Ausgabe), Konto, Empfänger/Absender
+  (optional), Unterkategorie, Notiz, Projekt (optional), Belege (mehrere
+  möglich, PDF/JPG), Status
 - Umbuchung: zwei verknüpfte Buchungen (Abgang Konto A, Zugang Konto B).
   Zählt in Auswertungen NICHT als Einnahme oder Ausgabe.
 - Budget: pro Hauptkategorie, wiederkehrend oder einmalig
@@ -46,7 +47,7 @@ Oberfläche auf Deutsch, Währung Euro, deutsches Datums- und Zahlenformat.
   (Soll/Ist-Abgleich).
 - Gelöschte Buchungen kommen zuerst in einen Papierkorb.
 
-## Oberfläche (4 Tabs)
+## Oberfläche (5 Tabs)
 1. Übersicht
    - Oben: Gesamtkontostand heute und prognostiziert zum Monatsende (alle
      Konten), Einnahmen/Ausgaben des Monats, Budgetauslastung der wichtigsten
@@ -60,11 +61,15 @@ Oberfläche auf Deutsch, Währung Euro, deutsches Datums- und Zahlenformat.
      gekennzeichnet (z. B. kursiv oder schraffiert).
 2. Alle Buchungen: über alle Konten filtern, sortieren, analysieren; Filter
    "ohne Beleg"
-3. Annahmen: wiederkehrende Buchungen, Budgets für die Zukunft, geplante
+3. Projekte: Einmalausgaben (echte und geplante Buchungen) einem Projekt
+   zuordnen, z. B. Umbau oder Urlaub; Gesamtkosten mit optionalem Rahmen.
+   Projektausgaben zählen nicht gegen das Monatsbudget. (Ersetzt die
+   früher geplanten Szenarien „Was wäre wenn“, siehe DECISIONS.md D51.)
+4. Annahmen: wiederkehrende Buchungen, Budgets für die Zukunft, geplante
    Einmalbuchungen. Nur absolute Werte, KEINE Prozentsteigerungen oder
-   Inflation. Szenario-Schalter: einzelne Posten oder Gruppen auf "Was wäre
-   wenn" stellen, ohne etwas zu löschen.
-4. Stammdaten: Konten, Kategorien, Schwellen für Hinweise
+   Inflation. Ein/Aus-Schalter je Posten, um ihn für die Prognose
+   auszuschalten, ohne etwas zu löschen.
+5. Stammdaten: Konten, Kategorien, Schwellen für Hinweise
 
 ## Rechenlogik
 - Zukunftsmonate werden bei jedem Öffnen berechnet, nicht gespeichert.
@@ -102,5 +107,5 @@ Inflation/Prozentsteigerungen.
 3. Tab "Alle Buchungen" mit Filtern und Analyse
 4. Budgets, wiederkehrende Buchungen, Kennzahlen oben, Budgethinweise
    (zuletzt, mit Testdaten prüfen)
-5. Annahmen-Tab und Zeitleiste bis 2050, Szenario-Schalter
+5. Annahmen-Tab und Zeitleiste bis 2050, Projekte (statt Szenario-Schalter)
 6. Google Drive: Datensync mit Konfliktabfrage, Belege, Backup, Export
