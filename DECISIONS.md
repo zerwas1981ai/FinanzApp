@@ -1079,3 +1079,18 @@ Wird eine Entscheidung geändert, den alten Eintrag nicht löschen, sondern als
   nie erneuert.
 - Die Google-Anmeldung wird beim Start schon geladen, damit sie nach dem Antippen sofort bereit ist.
 
+## D71 – Buchung kopieren und als wiederkehrend übernehmen
+*Wunsch des Nutzers*
+
+- Im Dialog einer bestehenden Buchung stehen oben zwei Knöpfe:
+  - **„⧉ Kopieren“** öffnet eine neue Buchung mit denselben Werten (Art, Betrag,
+    Empfänger/Absender, Kategorie, Konto bzw. Von/Auf, Notiz, Projekt) und dem **heutigen Datum**,
+    das sich ändern lässt. Belege werden nicht mitkopiert, Status ist „gebucht“.
+  - **„↻ Als wiederkehrend anlegen“** öffnet den Dialog „Neue wiederkehrende Buchung“, vorbelegt
+    mit diesen Werten. Bezeichnung = Empfänger/Absender, sonst Notiz, sonst Kategorie.
+    Intervall monatlich. Erster Termin = einen Monat nach dieser Buchung (am selben Tag; lag sie
+    am Monatsletzten, dann „Immer am Monatsletzten“). So zählt die schon gebuchte Buchung nicht
+    doppelt. Alles lässt sich vor dem Speichern anpassen.
+- Beide nehmen die Werte, die gerade im Dialog stehen. Die ursprüngliche Buchung bleibt
+  unverändert (ungespeicherte Änderungen an ihr werden verworfen).
+

@@ -7,12 +7,14 @@ import { dialog, toast, eingabe, auswahl, optionsGruppe, datenGeaendert, geraet 
 import { speichereBuchung, gruppeVon, inPapierkorb } from '../buchungen.js';
 import { partnerListe, partnerSchluessel } from '../auswertung.js';
 import { belegeFeld } from './belege.js';
+import { wiederkehrendDialog } from './annahmen.js';
+import { monatsende, tageImMonat } from '../prognose.js';
 
 const nachName = (a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base' });
 
 /**
  * buchung: beim Bearbeiten eine bestehende Buchung (bei Umbuchung eine der beiden Hälften)
- * vorgaben (nur neue Buchungen): { kontoId, art, betragCent, kategorieId, gegenkontoId, datum, notiz, partner,
+ * vorgaben (nur neue Buchungen): { kontoId, art, betragCent, kategorieId, gegenkontoId, datum, notiz, partner, projektId,
  *   titel, wiederkehrendId, faelligAm } – z. B. beim Buchen eines fälligen Termins
  */
 export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
@@ -100,10 +102,61 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
   }
   aktualisiere();
 
+  // ---------- Kopieren / als wiederkehrend übernehmen (D71) ----------
+  // Beide nehmen die Werte, die gerade im Dialog stehen. Die Buchung selbst bleibt unverändert,
+  // ungespeicherte Änderungen an ihr werden verworfen.
+  const aktuelleWerte = () => {
+    let betragCent = null;
+    try { betragCent = parseEuro(betrag.input.value, 'Betrag'); } catch { /* leer lassen */ }
+    return {
+      art,
+      betragCent,
+      kontoId: konto.select.value,
+      gegenkontoId: art === 'umbuchung' ? gegenkonto.select.value : undefined,
+      kategorieId: art === 'umbuchung' ? undefined : kategorie.select.value || undefined,
+      partner: partner.input.value.trim(),
+      notiz: notiz.input.value.trim(),
+      projektId: projekt && art !== 'umbuchung' ? projekt.select.value || null : null,
+    };
+  };
+  const kopieren = buchung && h('button', {
+    type: 'button',
+    class: 'knopf knopf-klein',
+    onclick: () => {
+      const w = aktuelleWerte();
+      dlg.close();
+      setTimeout(() => oeffneBuchungsdialog(null, { ...w, datum: heuteIso(), titel: 'Kopie der Buchung' }), 0);
+    },
+  }, '⧉ Kopieren');
+  const alsWiederkehrend = buchung && h('button', {
+    type: 'button',
+    class: 'knopf knopf-klein',
+    onclick: () => {
+      const w = aktuelleWerte();
+      // Erster Termin: einen Monat nach dieser Buchung (sie selbst ist schon gebucht und zählt nicht doppelt)
+      const [j, m, t] = (datum.input.value || heuteIso()).split('-').map(Number);
+      const istLetzter = t === tageImMonat(j, m);
+      const nj = m === 12 ? j + 1 : j;
+      const nm = m === 12 ? 1 : m + 1;
+      const nt = istLetzter ? tageImMonat(nj, nm) : Math.min(t, tageImMonat(nj, nm));
+      const start = `${nj}-${String(nm).padStart(2, '0')}-${String(nt).padStart(2, '0')}`;
+      const katName = kategorien.find((k) => k.id === w.kategorieId)?.name;
+      dlg.close();
+      setTimeout(() => wiederkehrendDialog(null, { konten, kategorien, buchungen: alle }, {
+        ...w,
+        bezeichnung: w.partner || w.notiz || katName || '',
+        start: istLetzter ? monatsende(start) : start,
+        monatsletzter: istLetzter,
+        titel: 'Als wiederkehrende Buchung übernehmen',
+      }), 0);
+    },
+  }, '↻ Als wiederkehrend anlegen');
+  const extras = buchung && h('div', { class: 'knopfreihe dialog-extras' }, kopieren, alsWiederkehrend);
+
   // ---------- Dialog ----------
   const dlg = dialog({
     titel: buchung ? (ref.art === 'umbuchung' ? 'Umbuchung bearbeiten' : 'Buchung bearbeiten') : (vorgaben.titel ?? 'Neue Buchung'),
-    inhalt: [artKnoepfe, betrag.feld, partner.feld, kategorie.feld, konto.feld, gegenkonto.feld, datum.feld, status.feld, notiz.feld, projekt?.feld, belege.feld].filter(Boolean),
+    inhalt: [extras, artKnoepfe, betrag.feld, partner.feld, kategorie.feld, konto.feld, gegenkonto.feld, datum.feld, status.feld, notiz.feld, projekt?.feld, belege.feld].filter(Boolean),
     speichernText: buchung ? 'Speichern' : 'Erfassen',
     zusatz: buchung && {
       text: 'In den Papierkorb',

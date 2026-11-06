@@ -1105,3 +1105,6 @@ body.gesperrt .kopf, body.gesperrt main, body.gesperrt .fab, body.gesperrt #neue
 .sync-knopf.sync-offen { color: var(--warnung); border-color: var(--warnung); background: var(--warnung-leicht); font-weight: 600; }
 @media (max-width: 480px) { .sync-knopf.sync-offen .sync-text { font-size: .78rem; } }
 
+/* Buchung kopieren / als wiederkehrend (D71) */
+.dialog-extras { margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--rand); }
+

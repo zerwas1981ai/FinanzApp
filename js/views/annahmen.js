@@ -232,36 +232,46 @@ function wiederkehrendBereich(daten) {
   );
 }
 
-function wiederkehrendDialog(w, daten) {
+/**
+ * Dialog für eine wiederkehrende Buchung. daten braucht konten, kategorien, buchungen.
+ * vorgaben (nur neu, D71): z. B. aus einer echten Buchung übernommen –
+ *   { art, bezeichnung, partner, betragCent, kontoId, gegenkontoId, kategorieId, start, monatsletzter, titel }
+ */
+export function wiederkehrendDialog(w, daten, vorgaben = {}) {
   const { konten, kategorien } = daten;
   const heute = heuteIso();
-  const waehlbar = konten.filter((k) => !k.archiviert || k.id === w?.kontoId || k.id === w?.gegenkontoId).sort(nachName);
+  const v = w ?? vorgaben;
+  const waehlbar = konten.filter((k) => !k.archiviert || k.id === v.kontoId || k.id === v.gegenkontoId).sort(nachName);
   if (!waehlbar.length) {
     toast('Bitte zuerst unter Stammdaten ein Konto anlegen.');
     return;
   }
-  let art = w?.art ?? 'ausgabe';
+  let art = v.art ?? 'ausgabe';
   let ausnahmen = [...(w?.ausnahmen ?? [])];
 
-  const bezeichnung = eingabe({ label: 'Bezeichnung', value: w?.bezeichnung ?? '', maxlength: 60, placeholder: 'z. B. Miete', autofocus: true });
-  const partner = partnerFeld(daten.buchungen ?? [], w?.partner ?? '', art);
+  const bezeichnung = eingabe({ label: 'Bezeichnung', value: v.bezeichnung ?? '', maxlength: 60, placeholder: 'z. B. Miete', autofocus: true });
+  const partner = partnerFeld(daten.buchungen ?? [], v.partner ?? '', art);
   const artKnoepfe = artWahl(null, art, (neu) => { art = neu; aktualisiere(); });
-  const stufen = stufenEditor({ typ: 'date', stufen: w?.stufen ?? [], label: 'Betrag' });
+  const stufen = stufenEditor({
+    typ: 'date',
+    stufen: w?.stufen ?? (vorgaben.betragCent ? [{ ab: '', betragCent: vorgaben.betragCent }] : []),
+    label: 'Betrag',
+  });
   const kategorie = auswahl({ label: 'Kategorie', optionen: [] });
   const kontoOptionen = waehlbar.map((k) => ({ wert: k.id, text: k.name }));
-  const konto = auswahl({ label: 'Konto', optionen: kontoOptionen, wert: w?.kontoId ?? waehlbar[0].id });
-  const gegenkonto = auswahl({ label: 'Auf Konto', optionen: kontoOptionen, wert: w?.gegenkontoId ?? waehlbar.find((k) => k.id !== konto.select.value)?.id });
+  const konto = auswahl({ label: 'Konto', optionen: kontoOptionen, wert: v.kontoId ?? waehlbar[0].id });
+  const gegenkonto = auswahl({ label: 'Auf Konto', optionen: kontoOptionen, wert: v.gegenkontoId ?? waehlbar.find((k) => k.id !== konto.select.value)?.id });
   const intervall = auswahl({
     label: 'Intervall',
     optionen: Object.entries(INTERVALL_TEXT).map(([wert, text]) => ({ wert, text: text[0].toUpperCase() + text.slice(1) })),
-    wert: w?.intervall ?? 'monatlich',
+    wert: v.intervall ?? 'monatlich',
   });
-  // Standard für neue Einträge: immer am Monatsletzten (Wunsch des Nutzers)
-  const istMonatsletzter = w ? Boolean(w.monatsletzter) : true;
+  // Standard für neue Einträge: immer am Monatsletzten (Wunsch des Nutzers) – außer die Vorgabe sagt anderes
+  const istMonatsletzter = w ? Boolean(w.monatsletzter) : (vorgaben.monatsletzter ?? true);
   const start = eingabe({
     label: 'Erster Termin',
     type: 'date',
-    value: w?.start ?? monatsende(heute),
+    value: v.start ?? monatsende(heute),
     hilfe: 'Ohne Häkchen gilt der Tag dieses Datums für alle Termine (31. → Monatsletzter).',
   });
   const ende = eingabe({ label: 'Letzter Termin (optional)', type: 'date', value: w?.ende ?? '' });
@@ -304,12 +314,12 @@ function wiederkehrendDialog(w, daten) {
     partner.setzeArt(art);
     gegenkonto.feld.hidden = !istUmbuchung;
     konto.feld.querySelector('label').textContent = istUmbuchung ? 'Von Konto' : 'Konto';
-    if (!istUmbuchung) fuelleKategorien(kategorie.select, kategorien, art, w?.kategorieId);
+    if (!istUmbuchung) fuelleKategorien(kategorie.select, kategorien, art, v.kategorieId);
   }
   aktualisiere();
 
   dialog({
-    titel: w ? 'Wiederkehrende Buchung bearbeiten' : 'Neue wiederkehrende Buchung',
+    titel: w ? 'Wiederkehrende Buchung bearbeiten' : (vorgaben.titel ?? 'Neue wiederkehrende Buchung'),
     inhalt: [
       artKnoepfe, bezeichnung.feld, stufen.feld, partner.feld, kategorie.feld, konto.feld, gegenkonto.feld,
       intervall.feld, monatsletzterFeld, h('div', { class: 'feld-paar' }, start.feld, ende.feld), ausnahmenListe,
