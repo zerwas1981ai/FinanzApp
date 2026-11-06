@@ -385,7 +385,7 @@ Wird eine Entscheidung geändert, den alten Eintrag nicht löschen, sondern als
 
 - `formatEuro(-0)` zeigte „-0,00 €“. Das ist behoben, jetzt erscheint immer „0,00 €“.
 
-## D32 – Bargeldabhebungen
+## D32 – Bargeldabhebungen (geändert durch D56)
 *Etappe 3 – Entscheidung des Nutzers*
 
 - Eine Bargeldabhebung wird als **Ausgabe** gebucht, mit der Unterkategorie
@@ -594,3 +594,277 @@ Wird eine Entscheidung geändert, den alten Eintrag nicht löschen, sondern als
 - Die Einstellung gilt nur für das gerade gezeigte Konto und den gezeigten Monat. Beim
   Wechsel von Konto oder Monat sind es wieder 10. Die Zahl steht als `MAX_BUCHUNGEN` in
   `js/views/uebersicht.js`.
+
+---
+
+# Etappe 5
+
+## D44 – Datenmodell Version 4
+*Etappe 5*
+
+- Neue Sammlungen: `geplant` (geplante Einmalbuchungen) und `szenarien`.
+- Budgets und wiederkehrende Buchungen bekommen `aktiv` (Ein/Aus-Schalter, Standard `true`)
+  und `szenarioId` (oder `null`). Wiederkehrende Buchungen bekommen außerdem das Feld
+  `monatsletzter` (D42) jetzt verbindlich mit `false`, falls es fehlt.
+- Buchungen bekommen `geplantId`, die Verknüpfung zur erledigten geplanten Einmalbuchung.
+- `DB_STRUKTUR_VERSION` = 4, `DATENMODELL_VERSION` = 4. Die Migration 3 → 4 ist im Browser
+  mit einem echten Stand der Version 3 geprüft.
+
+## D45 – Geplante Einmalbuchungen und Soll/Ist-Abgleich
+*Etappe 5 – Entscheidung des Nutzers: wie bei wiederkehrenden Buchungen*
+
+- Datensatz: `bezeichnung, art, kontoId, gegenkontoId, kategorieId, datum, betragCent,
+  erledigtAm, aktiv, szenarioId` (Details in `js/annahmen.js`).
+- **Erledigt** ist sie, wenn eine nicht gelöschte Buchung mit `geplantId` auf sie zeigt
+  („Buchen“) oder `erledigtAm` gesetzt ist („Schon gebucht“). Erst dann zählt sie nicht mehr.
+  Weicht der echte Betrag ab, ist das kein Problem, denn es zählt die echte Buchung.
+  Wird die verknüpfte Buchung gelöscht, ist die Planung wieder offen.
+- Offene geplante Buchungen erscheinen beim Konto unter „Noch erwartet“ (Marke „einmalig“),
+  sobald sie im laufenden Monat liegen oder überfällig sind. Sie verschwinden **nie** still,
+  auch nicht, wenn das Datum lange vorbei ist. Knöpfe: Buchen, Verschieben (ändert das
+  Datum) und Schon gebucht. Im Annahmen-Tab lässt sich das über „Wieder als offen markieren“
+  rückgängig machen.
+- Sie verbrauchen das Budget ihrer Kategorie wie jede Buchung („Budget umfasst alles“).
+- Im Annahmen-Tab stehen erledigte unter „Erledigte anzeigen“ (zugeklappt).
+
+## D46 – Szenarien „Was wäre wenn“ (ersetzt durch D51)
+*Etappe 5 – Entscheidung des Nutzers: benannte Gruppen + Einzelschalter. Nach dem Test wieder entfernt, siehe D51.*
+
+- Ein Szenario ist eine benannte Gruppe `{ id, name, aktiv }`. Budgets, wiederkehrende und
+  geplante Buchungen können einem Szenario zugeordnet werden (Feld „Szenario“ im Dialog).
+  Neue Szenarien sind ausgeschaltet.
+- **Zählt ein Posten?** (`wirksam()` in `js/prognose.js`) Ist sein eigener Schalter aus, zählt
+  er nicht. Ohne Szenario zählt er immer. Mit Szenario zählt er nur, wenn das Szenario
+  eingeschaltet ist.
+- Die Übersicht rechnet überall (Kennzahlen, Monatsprognose, Hinweise, Zeitleiste) nur mit
+  wirksamen Posten (`nurWirksam()`).
+- **Vergleich:** Ist mindestens ein Szenario mit Posten eingeschaltet, rechnet die App die
+  Zeitleiste zusätzlich ohne Szenarien. Sie zeigt dann den Unterschied am Ende 2050 und je
+  Jahres- oder Monatszeile („Szenario −10.250 €“).
+- Ein Posten mit eigenem Schalter „aus“ zählt auch in der Basis nicht. Der Schalter wirkt
+  also immer, nicht nur im Szenario. So lässt sich auch „ohne Gehalt“ durchspielen.
+- Beim Löschen eines Szenarios bleiben seine Posten erhalten und gelten danach ohne Szenario.
+
+## D47 – Zeitleiste bis 2050
+*Etappe 5 – Entscheidung des Nutzers: je Konto + „Alle Konten“, kursiv + getönt*
+
+- `zeitleiste()` in `js/prognose.js` berechnet jeden Monat nach dem laufenden bis
+  **Dezember 2050** (`LETZTER_MONAT`). Startwert ist die Prognose zum Monatsende des
+  laufenden Monats (D35).
+- Je Monat zählen:
+  - echte Buchungen mit Zukunftsdatum
+  - Termine der wiederkehrenden Buchungen
+  - offene geplante Einmalbuchungen
+  - der **Budgetrest** je Hauptkategorie: `max(0, Budget − Ausgaben der Kategorie im Monat)`,
+    abgezogen vom Budgetkonto
+  Es gibt keine Prozent-Steigerungen und keine Inflation (CLAUDE.md).
+- Alle Termine werden einmal für den ganzen Zeitraum erzeugt und nach Monat einsortiert.
+  So bleibt die Rechnung über 289 Monate schnell.
+- **Darstellung** (unter dem aktuellen Monat des Kontos, nach „Noch erwartet“):
+  - Der Rest des laufenden Jahres steht als einzelne Monatszeilen da, jede aufklappbar.
+  - Die Folgejahre bis 2050 stehen je in einer Zeile. Aufgeklappt zeigen sie ihre 12
+    Monate, und jeder Monat zeigt aufgeklappt seine Posten (Datum, Text, Herkunft, Betrag).
+  - Spalten: Zeitraum, Veränderung, Stand am Ende. Einnahmen, Ausgaben und Umbuchungen
+    stehen im aufgeklappten Monat.
+  - Die Werte stehen kursiv auf dezent getöntem Hintergrund (`--zukunft`).
+  - Was aufgeklappt ist, merkt sich die App, solange sie offen ist.
+- **„Alle Konten“** ist ein eigener Knopf vor den Konten. Er zeigt den Gesamtstand heute,
+  die Prognose zum Monatsende und die Zeitleiste über alle aktiven Konten. Umbuchungen
+  zwischen eigenen Konten heben sich dort auf.
+- Die Monatsnavigation ‹ › reicht inzwischen bis Dezember 2050 (siehe D55).
+
+## D48 – Mindestsaldo mit erstem betroffenem Monat
+*Etappe 5 (ergänzt D39)*
+
+- `mindestsaldoWarnungen()` prüft je Konto in dieser Reihenfolge: heute, Monatsende, dann den
+  **ersten Zukunftsmonat**, dessen Endstand unter dem Mindestsaldo liegt. Die Meldung lautet
+  dann zum Beispiel: „fällt voraussichtlich erstmals im März 2027 unter den Mindestsaldo“.
+- Geprüft wird der Stand am Monatsende, nicht ein Tiefpunkt innerhalb des Monats.
+
+## D49 – Ein/Aus-Schalter in der Annahmen-Liste
+*Etappe 5*
+
+- Jede Zeile im Annahmen-Tab hat links ein Häkchen. Ein Klick speichert sofort, ausgeschaltete
+  Zeilen erscheinen blass. (Die Szenarien hatten bis D51 ebenfalls so einen Schalter.)
+- Die Löschsperre (D22/D37) zählt jetzt auch geplante Einmalbuchungen mit.
+
+## D50 – Testdaten Etappe 5
+*Etappe 5*
+
+- Geplant:
+  - „Zahnarzt-Rechnung“ in zwei Tagen (erscheint unter „Noch erwartet“)
+  - „Autoreparatur“ in zwei Monaten
+  - „Steuererstattung“ in fünf Monaten
+- (bis D51) Szenario **„Neues Auto (Test)“** (ausgeschaltet) mit „Anzahlung Auto“ (8.000 € in vier
+  Monaten) und „Autokredit“ (48 × 250 € zum Monatsletzten). Eingeschaltet senkt es den
+  Stand Ende 2050 um genau 20.000 €.
+- „Testdaten löschen“ entfernt auch Test-Szenarien und geplante Testbuchungen. Eigene Posten
+  eines Test-Szenarios gelten danach ohne Szenario.
+
+## D51 – Projekte statt Szenarien (Datenmodell Version 5)
+*Etappe 5 – Wunsch des Nutzers nach dem Test: statt „Was wäre wenn“ ein Tab „Projekte“*
+
+- Die Szenarien (D46) entfallen ganz: kein Szenario-Bereich, kein Feld „Szenario“, kein
+  Vergleich „ohne Szenarien“ in der Zeitleiste. **Abweichung von CLAUDE.md** (dort steht noch
+  „Szenario-Schalter“) – auf ausdrücklichen Wunsch des Nutzers.
+- Die **Ein/Aus-Häkchen** je Posten bleiben (Entscheidung des Nutzers). `wirksam()` prüft nur
+  noch `aktiv !== false`.
+- Neuer Tab **„Projekte“** zwischen „Alle Buchungen“ und „Annahmen“. Ein Projekt ist
+  `{ id, name, rahmenCent (optional), notiz, abgeschlossen }` in der neuen Sammlung `projekte`.
+- Zugeordnet werden **echte Buchungen** (`buchung.projektId`, Feld „Projekt“ im
+  Buchungsdialog) und **geplante Einmalbuchungen** (`geplant.projektId`). Umbuchungen nie.
+  Wiederkehrende Buchungen und Budgets nicht – Projekte sind für Einmalausgaben gedacht.
+- **Migration 4 → 5:** Sammlung `projekte` kommt dazu, Buchungen und geplante bekommen
+  `projektId: null`. Posten eines *ausgeschalteten* Szenarios werden selbst ausgeschaltet,
+  damit sich an der Prognose nichts ändert. Dann werden `szenarioId` und die Szenarien
+  gelöscht. Dafür liest die Migration die alte Schublade `szenarien` noch einmal und leert sie
+  (`ALTE_SAMMLUNGEN` in `js/db.js`); die leere Schublade bleibt bestehen und stört nicht.
+- DB-Struktur Version 5 (neue Schublade `projekte`).
+
+## D52 – Projektausgaben zählen nicht gegen das Monatsbudget
+*Entscheidung des Nutzers*
+
+- Buchungen und geplante Einmalbuchungen mit Projekt verbrauchen **kein** Monatsbudget ihrer
+  Hauptkategorie – im laufenden Monat (`ausgabenJeHauptkategorie`, Monatsprognose), in der
+  Zeitleiste und bei den Budgethinweisen. Sonst würde z. B. der Urlaub das Freizeit-Budget
+  sprengen und falsche Hinweise auslösen.
+- Die drei frei wählbaren Kategorie-Kacheln oben zeigen die Kategorie ebenfalls **ohne**
+  Projektbuchungen, damit der Vergleich mit dem Budget stimmt.
+- Kontostand, „Ausgaben des Monats“, Prognose und Zeitleiste enthalten Projektausgaben
+  natürlich – das Geld geht ja vom Konto ab.
+- Ausnahme zu „Budget umfasst alles“ (D35/D45).
+
+## D53 – Vergangene geplante Einmalbuchungen ausblenden
+*Entscheidung des Nutzers: „nur aus den Listen“*
+
+- Im Annahmen-Tab sind nur geplante Einmalbuchungen ab heute sichtbar. Alles mit Datum vor
+  heute und alles Erledigte steht zugeklappt unter „Vergangene und erledigte anzeigen“.
+- Im Projekte-Tab ebenso: vergangene, noch nicht gebuchte stehen unter „Vergangene, noch nicht
+  gebuchte anzeigen“ und sind in der Kachel „Noch geplant“ als „davon … überfällig“ genannt.
+- Noch nicht gebuchte vergangene zählen **weiter** in Prognose und Projektsumme und stehen beim
+  Konto unter „Noch erwartet“ als überfällig. So verschwindet nichts still.
+
+## D54 – Projekt-Zahlen und Buchen aus der Planung
+- `projektZahlen()` in `js/annahmen.js`:
+  - **Gebucht (Ist):** alle nicht gelöschten Buchungen des Projekts, auch vorgemerkte.
+    Kosten = Ausgaben − Einnahmen (ein Zuschuss mindert die Kosten).
+  - **Noch geplant:** eingeschaltete, noch nicht erledigte geplante Einmalbuchungen.
+  - **Gesamt** = Ist + noch geplant. **Rest vom Rahmen** = Rahmen − Gesamt (rot, wenn darüber).
+- Wird eine Planung gebucht, ersetzt die echte Buchung die Planung (Soll/Ist-Abgleich wie
+  D45). Weicht der Betrag ab, steht bei der Buchung „geplant waren …“.
+- Neu im Dialog einer offenen geplanten Einmalbuchung: **„Jetzt buchen …“**. Das öffnet den
+  vorausgefüllten Buchungsdialog (Datum = geplantes Datum, bei Zukunftsdatum heute). Betrag und
+  Datum lassen sich anpassen; das Projekt wird übernommen. So lässt sich auch eine Rechnung
+  buchen, die früher kommt als geplant.
+- „Schon gebucht“ (unter „Noch erwartet“) verknüpft keine Buchung. Die von Hand erfasste
+  Buchung muss man dann selbst dem Projekt zuordnen; der Dialog weist darauf hin.
+- Abgeschlossene Projekte stehen zugeklappt unten und sind bei neuen Buchungen nicht mehr
+  wählbar. Beim Löschen eines Projekts bleiben seine Buchungen und Planungen erhalten (ohne
+  Projekt, sie zählen dann wieder gegen das Budget).
+- Mit 5 Tabs: auf dem Handy darf „Alle Buchungen“ zweizeilig werden, zwischen 768 und 1023 px
+  Breite zeigt die Kopfzeile die Tabs ohne Symbole.
+- **Testdaten:** Projekt „Umbau Bad (Test)“ (Rahmen 12.000 €; „Planung Badumbau“ geplant 800 €,
+  gebucht 950 €; „Fliesen“ überfällig; „Handwerker Rechnung“ und „Dusche & Waschtisch“
+  geplant) und „Sommerurlaub (Test)“ (Rahmen 3.500 €; „Flüge“ gebucht, Ferienwohnung und
+  Mietwagen geplant). Das Szenario „Neues Auto“ mit Anzahlung und Autokredit entfällt.
+
+## D55 – Monatsnavigation im Konto bis Dezember 2050
+*Wunsch des Nutzers*
+
+- Mit › kann man sich im Konto in jeden Folgemonat bis Dezember 2050 klicken (vorher nur bis
+  zur letzten erfassten Buchung).
+- Ein Zukunftsmonat zeigt statt des Monatsabschlusses eine **Prognose** (kursiv, getönt,
+  Marke „Annahme“): erwarteter Stand am Monatsanfang, Einnahmen, Ausgaben, Umbuchungen,
+  erwarteter Stand am Monatsende und ggf. den Hinweis „unter dem Mindestsaldo“. Darunter die
+  erwarteten Posten (wiederkehrend, geplant, Budget) mit Datum und Betrag.
+- Die Zahlen kommen aus derselben Rechnung wie die Zeitleiste (D47), Anfang = Stand Ende des
+  Vormonats bzw. die Prognose zum Monatsende des laufenden Monats.
+- Schon erfasste Buchungen mit Datum in diesem Monat stehen darunter in der normalen,
+  anklickbaren Buchungsliste (und nicht doppelt bei den Posten).
+- Geändert werden die Posten wie bisher in „Annahmen“ bzw. „Projekte“. „Heute“ springt zurück.
+
+## D56 – Hauptkategorien „Investitionen“ und „Bargeldabhebung“ (Datenmodell Version 6)
+*Wunsch des Nutzers*
+
+- Neue Hauptkategorien, beide Art **Ausgabe** (das Geld verlässt das Konto):
+  - **Investitionen:** ETF & Fonds, Aktien, Edelmetalle, Altersvorsorge, Sonstige Investitionen
+  - **Bargeldabhebung:** Geldautomat
+  Die Unterkategorien lassen sich unter Stammdaten anpassen.
+- Startsatz (`js/startdaten.js`) ergänzt; „Sonstiges“ hat keine Unterkategorie
+  „Bargeldabhebung“ mehr.
+- **Migration 5 → 6** ergänzt bestehende Datenstände (anders als in D32, weil der Nutzer es
+  ausdrücklich wünscht):
+  - Fehlt eine Hauptkategorie „Investitionen“, wird sie mit Unterkategorien angelegt.
+  - Fehlt eine Hauptkategorie „Bargeldabhebung“ (oder „Bargeld“), wird sie angelegt. Gibt es
+    die alte Unterkategorie „Sonstiges › Bargeldabhebung“, wird sie umgehängt und in
+    „Geldautomat“ umbenannt. Ihre ID bleibt, also wandern alle Bargeld-Buchungen mit.
+  - Folge: Bargeld zählt nicht mehr gegen ein Budget „Sonstiges“.
+- Namen werden ohne Groß-/Kleinschreibung verglichen. Gibt es schon eine gleichnamige
+  Hauptkategorie, bleibt alles, wie es ist.
+
+## D57 – Drei Kategorien in der Übersicht bleiben gemerkt
+*Wunsch des Nutzers*
+
+- Die Wahl wurde schon gespeichert (Einstellung `uebersicht` in der Datenbank), aber nur nach
+  einer Änderung. Bis dahin füllte die App die Plätze mit den größten Ausgaben des Monats, und
+  die wechseln mit jeder Buchung.
+- Jetzt speichert die App die angezeigten drei Kategorien sofort, auch die automatisch
+  vorgeschlagenen. Danach bleiben sie fest, bis der Nutzer sie ändert. Nur eine gelöschte oder
+  archivierte Kategorie wird ersetzt.
+- Gespeichert wird je Gerät und Browser. PC und Handy gleichen sich erst mit dem Drive-Sync in
+  Etappe 6 ab.
+
+## D58 – Posten der Zukunft direkt ändern (Datenmodell Version 7)
+*Wunsch des Nutzers*
+
+- In einem Folgemonat der Monatsansicht und in der Zeitleiste lassen sich die Posten antippen:
+  - **Termin einer wiederkehrenden Buchung:** Betrag und Datum nur für diesen einen Termin,
+    „Überspringen“ oder „Zurücksetzen“. Gespeichert als Ausnahme
+    `{ termin, aktion: 'aendern', neuesDatum, betragCent }` (neben 'ueberspringen' und
+    'verschieben'). Entspricht die Eingabe der Regel, wird die Ausnahme entfernt; nur ein
+    anderes Datum wird als 'verschieben' gespeichert. Die Serie selbst bleibt unverändert,
+    die Liste „Einzeln geänderte Termine“ im Annahmen-Dialog zeigt alle Abweichungen.
+  - **Geplante Einmalbuchung:** öffnet ihren normalen Dialog.
+  - **Budget:** Monatsbetrag nur für diesen Monat (0 = kein Budget). Gespeichert am
+    wiederkehrenden Budget als `ausnahmen: [{ monat, betragCent }]`; `budgetFuerMonat()` nimmt
+    für diesen Monat den Ausnahme-Betrag statt der Stufe. Gibt es im Monat nur ein einmaliges
+    Budget, wird dessen Betrag direkt geändert.
+- Geänderte Posten tragen die Marke „nur dieser Termin/Monat geändert“.
+- Die Rechnung bekommt die Quelle jedes Postens als `ref` mit (siehe `zeitleiste()`).
+- **Migration 6 → 7:** wiederkehrende Budgets bekommen `ausnahmen: []`. Das Bearbeiten eines
+  Budgets unter „Annahmen“ behält die Ausnahmen.
+- Echte Buchungen mit Zukunftsdatum stehen weiter in der normalen Buchungsliste und werden dort
+  bearbeitet.
+
+## D59 – Empfänger/Absender je Buchung (Datenmodell Version 8)
+*Wunsch des Nutzers; Entscheidungen: „An“/„Von“, optional, Freitext mit Vorschlägen, auch in Annahmen*
+
+- Neues Feld `partner` (Text, höchstens 80 Zeichen, '' = keine Angabe) bei Buchungen,
+  wiederkehrenden und geplanten Buchungen. Umbuchungen haben keins (das Gegenüber ist ein
+  eigenes Konto).
+- **Eingabe:** Im Dialog heißt das Feld bei Ausgaben „An (Empfänger)“, bei Einnahmen
+  „Von (Absender)“. Es ist optional, damit die Schnellerfassung schnell bleibt. Die App schlägt
+  alle bisher verwendeten Namen vor (häufigste zuerst). Wird bei einer neuen Buchung ein
+  bekannter Name gewählt und ist noch keine Kategorie gesetzt, schlägt die App die Kategorie
+  der letzten Buchung mit diesem Namen vor.
+- **Gleicher Name:** Groß-/Kleinschreibung und Leerzeichen am Rand spielen keine Rolle
+  („REWE“ = „rewe “). Angezeigt wird die zuletzt verwendete Schreibweise. Eine Pflegeliste in
+  den Stammdaten gibt es bewusst nicht (Entscheidung des Nutzers).
+- **Anzeige:** Überall steht der Name **vor** der Kategorie, z. B. „Supermarkt Muster ·
+  Supermarkt“ (Monatsansicht, Alle Buchungen, Projekte, Noch erwartet, Annahmen). In der
+  Zeitleiste steht er bei schon erfassten Zukunftsbuchungen vor dem Text.
+- **Wiederkehrende und geplante Buchungen** geben den Namen beim Buchen an die echte Buchung
+  weiter („Buchen“ unter „Noch erwartet“, „Jetzt buchen …“).
+- **Alle Buchungen:**
+  - Filter „Empfänger/Absender“ mit allen Namen (mit Anzahl) und „Ohne Angabe“ (zum
+    Nachtragen). Bei diesem Filter fallen Umbuchungen weg.
+  - Die Suche findet auch den Namen; Sortieren nach Empfänger/Absender (ohne Angabe am Ende).
+  - Analyse: Umschalter „Nach Kategorien“ / „Nach Empfänger/Absender“. Je Name Summe, Anzahl,
+    Anteil und Ø pro Monat (nur abgeschlossene Monate, wie D30). Die 25 größten einzeln, der
+    Rest als „Weitere“. Eine Zeile antippen filtert die Liste nach diesem Namen.
+- **Migration 7 → 8:** alle Buchungen, wiederkehrenden und geplanten bekommen `partner: ''`.
+  Vorhandene Notizen werden nicht automatisch übernommen (die App kann nicht wissen, ob eine
+  Notiz ein Name ist).
+- **Testdaten:** erfundene Namen wie „Supermarkt Muster“, „Discounter Beispiel“,
+  „Vermietung Beispiel“, „Muster GmbH“; ein Supermarkt-Einkauf je Monat bleibt ohne Angabe.
+

@@ -14,6 +14,9 @@
 //   geloeschtAm,            // null = aktiv, sonst Zeitpunkt (= im Papierkorb)
 //   wiederkehrendId,        // ab Version 3: aus welcher wiederkehrenden Buchung (oder null)
 //   faelligAm,              // ab Version 3: welcher Termin damit erledigt ist ("JJJJ-MM-TT")
+//   geplantId,              // ab Version 4: welche geplante Einmalbuchung damit erledigt ist (oder null)
+//   projektId,              // ab Version 5: zugeordnetes Projekt (oder null)
+//   partner,                // ab Version 8: Empfänger (Ausgabe) bzw. Absender (Einnahme), '' = keine Angabe
 //   erstelltAm, geaendertAm, testdaten?
 // }
 
@@ -48,10 +51,19 @@ export function baueBuchungen(eingabe, { konten, bestehende = [], jetzt = new Da
     betragCent,
     art,
     notiz: (eingabe.notiz ?? '').trim(),
+    // Empfänger/Absender (Datenversion 8): undefined = unverändert; bei Umbuchungen nie
+    partner: art === 'umbuchung' ? ''
+      : (eingabe.partner === undefined ? bestehende[0]?.partner ?? '' : String(eingabe.partner ?? '').trim()).slice(0, 80),
     status: eingabe.status === 'vorgemerkt' ? 'vorgemerkt' : 'gebucht',
     // Verknüpfung mit einer wiederkehrenden Buchung (Etappe 4) – bleibt beim Bearbeiten erhalten
     wiederkehrendId: eingabe.wiederkehrendId ?? bestehende[0]?.wiederkehrendId ?? null,
     faelligAm: eingabe.faelligAm ?? bestehende[0]?.faelligAm ?? null,
+    // Verknüpfung mit einer geplanten Einmalbuchung (Etappe 5)
+    geplantId: eingabe.geplantId ?? bestehende[0]?.geplantId ?? null,
+    // Projekt (Datenversion 5): undefined = unverändert lassen, '' oder null = kein Projekt.
+    // Umbuchungen gehören nie zu einem Projekt (sie sind keine Ausgabe).
+    projektId: art === 'umbuchung' ? null
+      : (eingabe.projektId === undefined ? bestehende[0]?.projektId ?? null : eingabe.projektId || null),
     geaendertAm: jetzt,
   };
   const basis = (alt) => ({

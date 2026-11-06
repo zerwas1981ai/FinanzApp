@@ -254,12 +254,81 @@ test('Wiederkehrende Buchung bauen und prüfen', () => {
   assert.throws(() => baueWiederkehrend({ ...w, stufen: [{ ab: '', betragCent: -5 }] }, ctx), /größer 0/);
 });
 
-test('Migration 2 → 3', () => {
+test('Migration 2 → 8', () => {
   const v2 = { version: 2, konten: [], kategorien: [], buchungen: [{ id: 'b' }], abstimmungen: [] };
   const { daten } = migriereDaten(v2);
-  assert.equal(daten.version, 3);
+  assert.equal(daten.version, 8);
   assert.deepEqual(daten.budgets, []);
   assert.deepEqual(daten.wiederkehrend, []);
+  assert.deepEqual(daten.geplant, []);
+  assert.deepEqual(daten.projekte, []);
+  assert.equal('szenarien' in daten, false);
   assert.deepEqual(daten.einstellungen, [{ id: 'hinweise', monate: 3, prozent: 10 }]);
-  assert.deepEqual(daten.buchungen[0], { id: 'b', wiederkehrendId: null, faelligAm: null });
+  assert.deepEqual(daten.buchungen[0], { id: 'b', wiederkehrendId: null, faelligAm: null, geplantId: null, projektId: null, partner: '' });
+});
+
+test('Migration 3 → 8: Annahmen bekommen Schalter', () => {
+  const v3 = {
+    version: 3, konten: [], kategorien: [], buchungen: [], abstimmungen: [], hinweise: [], einstellungen: [],
+    budgets: [{ id: 'b1' }], wiederkehrend: [{ id: 'w1' }, { id: 'w2', aktiv: false, monatsletzter: true }],
+  };
+  const { daten } = migriereDaten(v3);
+  assert.deepEqual(daten.budgets[0], { id: 'b1', aktiv: true });
+  assert.deepEqual(daten.wiederkehrend[0], { id: 'w1', aktiv: true, monatsletzter: false, partner: '' });
+  assert.equal(daten.wiederkehrend[1].aktiv, false, 'vorhandene Werte bleiben');
+  assert.equal(daten.wiederkehrend[1].monatsletzter, true);
+});
+
+test('Migration 4 → 8: Szenarien entfallen, Posten ausgeschalteter Szenarien werden ausgeschaltet', () => {
+  const v4 = {
+    version: 4, konten: [], kategorien: [], buchungen: [{ id: 'b' }], abstimmungen: [], hinweise: [], einstellungen: [],
+    szenarien: [{ id: 'aus', aktiv: false }, { id: 'an', aktiv: true }],
+    budgets: [{ id: 'b1', aktiv: true, szenarioId: null }],
+    wiederkehrend: [{ id: 'w1', aktiv: true, szenarioId: 'aus' }, { id: 'w2', aktiv: true, szenarioId: 'an' }],
+    geplant: [{ id: 'g1', aktiv: true, szenarioId: 'aus' }],
+  };
+  const { daten } = migriereDaten(v4);
+  assert.equal('szenarien' in daten, false);
+  assert.deepEqual(daten.budgets[0], { id: 'b1', aktiv: true });
+  assert.deepEqual(daten.wiederkehrend.map((w) => w.aktiv), [false, true]);
+  assert.deepEqual(daten.geplant[0], { id: 'g1', aktiv: false, projektId: null, partner: '' });
+  assert.equal(daten.buchungen[0].projektId, null);
+});
+
+test('Migration 5 → 6: Hauptkategorien Investitionen und Bargeldabhebung', () => {
+  const sonstiges = { id: 'so', name: 'Sonstiges', elternId: null, art: 'ausgabe' };
+  const bar = { id: 'bar', name: 'Bargeldabhebung', elternId: 'so', art: null };
+  const v5 = { version: 5, kategorien: [sonstiges, bar, { id: 'g', name: 'Geschenke', elternId: 'so' }], buchungen: [{ id: 'b', kategorieId: 'bar' }] };
+  const { daten } = migriereDaten(v5);
+  const haupt = (name) => daten.kategorien.find((k) => !k.elternId && k.name === name);
+  const inv = haupt('Investitionen');
+  assert.equal(inv.art, 'ausgabe');
+  assert.ok(daten.kategorien.some((k) => k.elternId === inv.id && k.name === 'ETF & Fonds'));
+  const bh = haupt('Bargeldabhebung');
+  assert.equal(bh.art, 'ausgabe');
+  // Die alte Unterkategorie wandert mit ihrer ID – die Buchung hängt jetzt an "Bargeldabhebung"
+  const umgehaengt = daten.kategorien.find((k) => k.id === 'bar');
+  assert.deepEqual([umgehaengt.elternId, umgehaengt.name], [bh.id, 'Geldautomat']);
+  assert.equal(daten.kategorien.filter((k) => k.elternId === bh.id).length, 1);
+
+  // Gibt es die Hauptkategorien schon, ändert sich nichts
+  const schon = { version: 5, kategorien: [{ id: 'i', name: 'investitionen', elternId: null, art: 'ausgabe' }, { id: 'x', name: 'Bargeld', elternId: null, art: 'ausgabe' }] };
+  assert.equal(migriereDaten(schon).daten.kategorien.length, 2);
+  // Ohne alte Unterkategorie: neue Hauptkategorie mit "Geldautomat"
+  const leer = migriereDaten({ version: 5, kategorien: [] }).daten.kategorien;
+  const bh2 = leer.find((k) => k.name === 'Bargeldabhebung');
+  assert.ok(leer.some((k) => k.elternId === bh2.id && k.name === 'Geldautomat'));
+});
+
+test('Migration 6 → 7: wiederkehrende Budgets bekommen ausnahmen', () => {
+  const { daten } = migriereDaten({ version: 6, kategorien: [], budgets: [{ id: 'w', typ: 'wiederkehrend' }, { id: 'e', typ: 'einmalig' }] });
+  assert.deepEqual(daten.budgets[0].ausnahmen, []);
+  assert.equal('ausnahmen' in daten.budgets[1], false);
+});
+
+test('Migration 7 → 8: Empfänger/Absender kommt dazu, vorhandene Werte bleiben', () => {
+  const { daten } = migriereDaten({ version: 7, kategorien: [], buchungen: [{ id: 'a' }, { id: 'b', partner: 'X' }], wiederkehrend: [{ id: 'w' }], geplant: [{ id: 'g' }] });
+  assert.deepEqual(daten.buchungen.map((b) => b.partner), ['', 'X']);
+  assert.equal(daten.wiederkehrend[0].partner, '');
+  assert.equal(daten.geplant[0].partner, '');
 });

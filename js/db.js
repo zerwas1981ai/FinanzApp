@@ -10,13 +10,22 @@ import { DATENMODELL_VERSION, STANDARD_EINSTELLUNGEN, migriereDaten } from './mi
 import { erzeugeStartKategorien } from './startdaten.js';
 
 const DB_NAME = 'finanzapp';
-const DB_STRUKTUR_VERSION = 3; // 2 = Etappe 2: buchungen, abstimmungen; 3 = Etappe 4: budgets usw.
+// 2 = Etappe 2: buchungen, abstimmungen; 3 = Etappe 4: budgets usw.; 4 = Etappe 5: geplant, szenarien;
+// 5 = Projekte statt Szenarien
+const DB_STRUKTUR_VERSION = 5;
 
 /** Schubladen mit Nutzdaten. "meta" kommt zusätzlich dazu (Versionsnummer usw.). */
 export const SAMMLUNGEN = [
   'konten', 'kategorien', 'buchungen', 'abstimmungen',
   'budgets', 'wiederkehrend', 'hinweise', 'einstellungen',
+  'geplant', 'projekte',
 ];
+
+/**
+ * Schubladen, die es früher gab. Sie werden nur noch für die Migration gelesen
+ * und danach geleert (die leere Schublade selbst stört nicht).
+ */
+const ALTE_SAMMLUNGEN = ['szenarien'];
 
 let dbVersprechen = null;
 
@@ -91,10 +100,22 @@ export async function leseDatenstand() {
   return daten;
 }
 
+/** Wie leseDatenstand, aber mit den alten Schubladen (nur für Migrationen) */
+async function leseDatenstandMitAltem() {
+  const daten = await leseDatenstand();
+  const db = await oeffne();
+  for (const s of ALTE_SAMMLUNGEN) {
+    if (db.objectStoreNames.contains(s)) daten[s] = await alle(s);
+  }
+  return daten;
+}
+
 /** Ersetzt den kompletten Datenstand in EINEM Schritt (alles oder nichts). */
 async function schreibeDatenstand(daten) {
   const db = await oeffne();
-  const tx = db.transaction([...SAMMLUNGEN, 'meta'], 'readwrite');
+  const alte = ALTE_SAMMLUNGEN.filter((s) => db.objectStoreNames.contains(s));
+  const tx = db.transaction([...SAMMLUNGEN, ...alte, 'meta'], 'readwrite');
+  for (const s of alte) tx.objectStore(s).clear();
   for (const s of SAMMLUNGEN) {
     const store = tx.objectStore(s);
     store.clear();
@@ -125,11 +146,13 @@ export async function initialisiere() {
       wiederkehrend: [],
       hinweise: [],
       einstellungen: [{ ...STANDARD_EINSTELLUNGEN }],
+      geplant: [],
+      projekte: [],
     });
     return { ersterStart: true, version: DATENMODELL_VERSION };
   }
   if (version !== DATENMODELL_VERSION) {
-    const { daten, angewendet } = migriereDaten(await leseDatenstand());
+    const { daten, angewendet } = migriereDaten(await leseDatenstandMitAltem());
     await schreibeDatenstand(daten);
     return { ersterStart: false, version: daten.version, migriert: angewendet };
   }

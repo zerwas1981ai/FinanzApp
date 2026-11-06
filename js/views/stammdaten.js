@@ -14,14 +14,16 @@ import { leseEinstellungen, speichereEinstellungen } from '../annahmen.js';
 // Alle Buchungen (auch im Papierkorb) – für die Löschsperre. Wird bei jedem Zeichnen neu geladen.
 let buchungen = [];
 // [Budgets, wiederkehrende Buchungen] – für die Löschsperre und um Testdaten zu erkennen
-let testAnnahmen = [[], []];
+let testAnnahmen = [[], [], [], []]; // budgets, wiederkehrend, geplant, projekte
 
 /** Budgets und wiederkehrende Buchungen, die an Konto bzw. Kategorien hängen */
 function annahmenFuer({ kontoId = null, kategorieIds = [] }) {
   const ids = new Set(kategorieIds);
-  const [budgets, wiederkehrend] = testAnnahmen;
+  const [budgets, wiederkehrend, geplant = []] = testAnnahmen;
+  const haengt = (x) => x.kontoId === kontoId || x.gegenkontoId === kontoId || ids.has(x.kategorieId);
   return budgets.filter((b) => b.kontoId === kontoId || ids.has(b.kategorieId)).length
-    + wiederkehrend.filter((w) => w.kontoId === kontoId || w.gegenkontoId === kontoId || ids.has(w.kategorieId)).length;
+    + wiederkehrend.filter(haengt).length
+    + geplant.filter(haengt).length;
 }
 
 /** Wird gelöscht, obwohl etwas daran hängt? Dann stattdessen Archivieren anbieten. */
@@ -29,7 +31,7 @@ async function loeschenGesperrt(anzahl, datensatz, sammlung, neu, anzahlAnnahmen
   if (anzahl === 0 && anzahlAnnahmen === 0) return false;
   const teile = [];
   if (anzahl) teile.push(anzahl === 1 ? '1 Buchung (Papierkorb mitgezählt)' : `${anzahl} Buchungen (Papierkorb mitgezählt)`);
-  if (anzahlAnnahmen) teile.push(anzahlAnnahmen === 1 ? '1 Budget bzw. wiederkehrende Buchung' : `${anzahlAnnahmen} Budgets bzw. wiederkehrende Buchungen`);
+  if (anzahlAnnahmen) teile.push(anzahlAnnahmen === 1 ? '1 Annahme (Budget, wiederkehrende oder geplante Buchung)' : `${anzahlAnnahmen} Annahmen (Budgets, wiederkehrende oder geplante Buchungen)`);
   const ok = await frage({
     titel: 'Löschen nicht möglich',
     text: [
@@ -51,11 +53,11 @@ const jetzt = () => new Date().toISOString();
 const ART_TEXT = { einnahme: 'Einnahme', ausgabe: 'Ausgabe' };
 
 export async function zeigeStammdaten(container) {
-  const [konten, kategorien, alleBuchungen, budgets, wiederkehrend] = await Promise.all(
-    ['konten', 'kategorien', 'buchungen', 'budgets', 'wiederkehrend'].map((s) => db.alle(s)),
+  const [konten, kategorien, alleBuchungen, budgets, wiederkehrend, geplant, projekte] = await Promise.all(
+    ['konten', 'kategorien', 'buchungen', 'budgets', 'wiederkehrend', 'geplant', 'projekte'].map((s) => db.alle(s)),
   );
   buchungen = alleBuchungen;
-  testAnnahmen = [budgets, wiederkehrend];
+  testAnnahmen = [budgets, wiederkehrend, geplant, projekte];
   const neu = () => zeigeStammdaten(container);
   container.replaceChildren(
     h('h1', { class: 'seitentitel' }, 'Stammdaten'),
@@ -477,7 +479,7 @@ function testdatenBereich(konten, kategorien, neu) {
           if (!ok) return;
           const anzahl = await loescheTestdaten();
           toast(`Testdaten gelöscht (${anzahl.konten} Konten, ${anzahl.kategorien} Kategorien, ${anzahl.buchungen} Buchungen, ` +
-            `${anzahl.budgets} Budgets, ${anzahl.wiederkehrend} wiederkehrende)`);
+            `${anzahl.budgets} Budgets, ${anzahl.wiederkehrend} wiederkehrende/geplante)`);
           neu();
         },
       }, 'Testdaten löschen'),

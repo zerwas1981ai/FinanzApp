@@ -104,9 +104,32 @@ test('Zählen für die Löschsperre (Papierkorb zählt mit)', () => {
 test('Migration 1 → aktuell ergänzt leere Sammlungen und behält Daten', () => {
   const v1 = { version: 1, konten: [{ id: 'k' }], kategorien: [{ id: 'c' }] };
   const { daten, angewendet } = migriereDaten(v1);
-  assert.equal(daten.version, 3);
-  assert.deepEqual(angewendet, [2, 3]);
+  assert.equal(daten.version, 8);
+  assert.deepEqual(angewendet, [2, 3, 4, 5, 6, 7, 8]);
   assert.deepEqual(daten.buchungen, []);
   assert.deepEqual(daten.abstimmungen, []);
   assert.deepEqual(daten.konten, [{ id: 'k' }]);
+  assert.equal(daten.kategorien[0].id, 'c', 'vorhandene Kategorien bleiben');
+});
+
+test('Buchung: Projekt zuordnen, beibehalten, entfernen; Umbuchung nie mit Projekt', () => {
+  const konten = [{ id: 'giro', name: 'Giro', stichtag: '2026-01-01' }, { id: 'tg', name: 'TG', stichtag: '2026-01-01' }];
+  const basis = { art: 'ausgabe', betragCent: 100, datum: '2026-10-01', kontoId: 'giro', kategorieId: 'k1' };
+  const [b] = baueBuchungen({ ...basis, projektId: 'p1' }, { konten });
+  assert.equal(b.projektId, 'p1');
+  assert.equal(baueBuchungen({ ...basis }, { konten, bestehende: [b] })[0].projektId, 'p1', 'undefined = unverändert');
+  assert.equal(baueBuchungen({ ...basis, projektId: '' }, { konten, bestehende: [b] })[0].projektId, null, 'leer = entfernen');
+  const u = baueBuchungen({ ...basis, art: 'umbuchung', gegenkontoId: 'tg', projektId: 'p1' }, { konten });
+  assert.ok(u.every((x) => x.projektId === null));
+});
+
+test('Buchung: Empfänger/Absender speichern, beibehalten, bei Umbuchung leer', () => {
+  const konten = [{ id: 'giro', name: 'Giro', stichtag: '2026-01-01' }, { id: 'tg', name: 'TG', stichtag: '2026-01-01' }];
+  const basis = { art: 'ausgabe', betragCent: 100, datum: '2026-10-01', kontoId: 'giro', kategorieId: 'k1' };
+  const [b] = baueBuchungen({ ...basis, partner: '  Supermarkt Muster ' }, { konten });
+  assert.equal(b.partner, 'Supermarkt Muster');
+  assert.equal(baueBuchungen({ ...basis }, { konten, bestehende: [b] })[0].partner, 'Supermarkt Muster', 'undefined = unverändert');
+  assert.equal(baueBuchungen({ ...basis, partner: '' }, { konten, bestehende: [b] })[0].partner, '');
+  assert.equal(baueBuchungen({ ...basis }, { konten })[0].partner, '', 'ohne Angabe leer');
+  assert.ok(baueBuchungen({ ...basis, art: 'umbuchung', gegenkontoId: 'tg', partner: 'X' }, { konten }).every((x) => x.partner === ''));
 });

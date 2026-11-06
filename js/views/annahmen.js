@@ -1,20 +1,21 @@
-// Tab "Annahmen" – Etappe 4: Budgets und wiederkehrende Buchungen verwalten.
-// Etappe 5 ergänzt hier Zeitleiste bis 2050, geplante Einmalbuchungen und Szenario-Schalter.
+// Tab "Annahmen": Budgets und wiederkehrende Buchungen (Etappe 4), geplante
+// Einmalbuchungen (Etappe 5). Jede Annahme hat einen Ein/Aus-Schalter.
+// Geplante Einmalbuchungen können einem Projekt zugeordnet werden (Tab "Projekte").
 
 import { h } from '../dom.js';
 import * as db from '../db.js';
 import { formatEuro, formatDatum, formatMonat, centZuEingabe, parseEuro, heuteIso } from '../format.js';
 import { dialog, frage, toast, eingabe, auswahl, datenGeaendert } from '../ui.js';
-import { baueBudget, baueWiederkehrend, haeufigstesKonto, mitAusnahme } from '../annahmen.js';
+import { baueBudget, baueWiederkehrend, baueGeplant, geplantErledigt, haeufigstesKonto, mitAusnahme } from '../annahmen.js';
 import { budgetFuerMonat, betragAm, naechsterTermin, plusMonate, monatsende } from '../prognose.js';
-import { artWahl, fuelleKategorien } from './buchung-dialog.js';
+import { artWahl, fuelleKategorien, projektFeld, oeffneBuchungsdialog, partnerFeld } from './buchung-dialog.js';
 
 const nachName = (a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base' });
 const INTERVALL_TEXT = { monatlich: 'monatlich', vierteljaehrlich: 'vierteljährlich', jaehrlich: 'jährlich' };
 const monatText = (m) => formatMonat(Number(m.slice(0, 4)), Number(m.slice(5, 7)));
 
 export async function zeigeAnnahmen(container) {
-  const namen = ['konten', 'kategorien', 'buchungen', 'budgets', 'wiederkehrend'];
+  const namen = ['konten', 'kategorien', 'buchungen', 'budgets', 'wiederkehrend', 'geplant', 'projekte'];
   const werte = await Promise.all(namen.map((n) => db.alle(n)));
   const daten = Object.fromEntries(namen.map((n, i) => [n, werte[i]]));
 
@@ -22,16 +23,36 @@ export async function zeigeAnnahmen(container) {
     h('h1', { class: 'seitentitel' }, 'Annahmen'),
     h('p', { class: 'hinweis' },
       'Hier legst du fest, womit die App für die Zukunft rechnet. Alles sind feste Beträge – ' +
-      'keine Prozent-Steigerungen. Nichts davon wird automatisch gebucht.'),
+      'keine Prozent-Steigerungen. Nichts davon wird automatisch gebucht. Mit dem Häkchen links ' +
+      'schaltest du einen Posten für die Prognose ein oder aus, ohne ihn zu löschen.'),
     budgetBereich(daten),
     wiederkehrendBereich(daten),
-    h('section', { class: 'bereich platzhalter' },
-      h('h2', {}, 'Kommt in Etappe 5'),
-      h('ul', {},
-        h('li', {}, 'Zeitleiste mit Prognose bis 2050'),
-        h('li', {}, 'Geplante Einmalbuchungen mit Soll/Ist-Abgleich'),
-        h('li', {}, 'Szenario-Schalter „Was wäre wenn“'))),
+    geplantBereich(daten),
   );
+}
+
+/** Listenzeile mit Ein/Aus-Häkchen links; das Häkchen speichert sofort (Feld "aktiv") */
+export function zeileMitSchalter(eintrag, sammlung, knopf, beschriftung = 'In der Prognose berücksichtigen') {
+  const an = eintrag.aktiv !== false;
+  return h('li', { class: 'annahme-zeile' + (an ? '' : ' aus') },
+    h('label', { class: 'annahme-schalter', title: beschriftung },
+      h('input', {
+        type: 'checkbox',
+        checked: an,
+        'aria-label': beschriftung,
+        onchange: async (e) => {
+          await db.speichere(sammlung, { ...eintrag, aktiv: e.target.checked, geaendertAm: new Date().toISOString() });
+          toast(e.target.checked ? 'Eingeschaltet' : 'Ausgeschaltet – zählt nicht mehr in der Prognose');
+          datenGeaendert();
+        },
+      })),
+    knopf);
+}
+
+/** Kleine Marke mit dem Projekt-Namen */
+function projektMarke(eintrag, projekte) {
+  const p = eintrag.projektId && projekte.find((x) => x.id === eintrag.projektId);
+  return p && h('span', { class: 'marke marke-projekt' }, `Projekt: ${p.name}`);
 }
 
 /* =========================== Budgets =========================== */
@@ -76,7 +97,7 @@ function budgetBereich(daten) {
           if (kuenftig.length) zusatz = kuenftig.map((s) => `ab ${monatText(s.ab)}: ${formatEuro(s.betragCent)}`).join(' · ');
           beendet = Boolean(b.endMonat && b.endMonat < monat);
         }
-        return h('li', {},
+        return zeileMitSchalter(b, 'budgets',
           h('button', { type: 'button', class: 'buchung' + (beendet ? ' archiviert' : ''), onclick: () => budgetDialog(b, daten) },
             h('span', { class: 'buchung-text' },
               h('span', { class: 'buchung-titel' }, name, beendet && h('span', { class: 'marke' }, 'abgelaufen')),
@@ -192,7 +213,7 @@ function wiederkehrendBereich(daten) {
         if (w.art === 'umbuchung') zuordnung = `${kontoName.get(w.kontoId) ?? '?'} → ${kontoName.get(w.gegenkontoId) ?? '?'}`;
         else {
           const unter = kat.get(w.kategorieId);
-          zuordnung = `${kontoName.get(w.kontoId) ?? '?'} · ${kat.get(unter?.elternId)?.name ?? '?'} › ${unter?.name ?? '?'}`;
+          zuordnung = [kontoName.get(w.kontoId) ?? '?', w.partner, `${kat.get(unter?.elternId)?.name ?? '?'} › ${unter?.name ?? '?'}`].filter(Boolean).join(' · ');
         }
         const info = [
           INTERVALL_TEXT[w.intervall] + (w.monatsletzter ? ' zum Monatsletzten' : ''),
@@ -201,7 +222,7 @@ function wiederkehrendBereich(daten) {
         ].join(' · ');
         const cent = naechster?.betragCent ?? betragAm(w.stufen, heute);
         const text = w.art === 'umbuchung' ? formatEuro(cent) : (w.art === 'einnahme' ? '+' : '') + formatEuro(w.art === 'ausgabe' ? -cent : cent);
-        return h('li', {},
+        return zeileMitSchalter(w, 'wiederkehrend',
           h('button', { type: 'button', class: 'buchung' + (beendet ? ' archiviert' : ''), onclick: () => wiederkehrendDialog(w, daten) },
             h('span', { class: 'buchung-text' },
               h('span', { class: 'buchung-titel' }, w.bezeichnung, beendet && h('span', { class: 'marke' }, 'beendet')),
@@ -223,6 +244,7 @@ function wiederkehrendDialog(w, daten) {
   let ausnahmen = [...(w?.ausnahmen ?? [])];
 
   const bezeichnung = eingabe({ label: 'Bezeichnung', value: w?.bezeichnung ?? '', maxlength: 60, placeholder: 'z. B. Miete', autofocus: true });
+  const partner = partnerFeld(daten.buchungen ?? [], w?.partner ?? '', art);
   const artKnoepfe = artWahl(null, art, (neu) => { art = neu; aktualisiere(); });
   const stufen = stufenEditor({ typ: 'date', stufen: w?.stufen ?? [], label: 'Betrag' });
   const kategorie = auswahl({ label: 'Kategorie', optionen: [] });
@@ -260,11 +282,14 @@ function wiederkehrendDialog(w, daten) {
   function zeigeAusnahmen() {
     ausnahmenListe.hidden = ausnahmen.length === 0;
     ausnahmenListe.replaceChildren(
-      h('span', { class: 'feld-label' }, 'Übersprungene und verschobene Termine'),
+      h('span', { class: 'feld-label' }, 'Einzeln geänderte Termine'),
       h('ul', { class: 'liste' }, ausnahmen.map((a) => h('li', { class: 'ausnahme' },
-        h('span', {}, a.aktion === 'ueberspringen'
-          ? `${formatDatum(a.termin)} übersprungen`
-          : `${formatDatum(a.termin)} → ${formatDatum(a.neuesDatum)} verschoben`),
+        h('span', {}, {
+          ueberspringen: () => `${formatDatum(a.termin)} übersprungen`,
+          verschieben: () => `${formatDatum(a.termin)} → ${formatDatum(a.neuesDatum)} verschoben`,
+          aendern: () => `${formatDatum(a.termin)}: ${formatEuro(a.betragCent)}` +
+            (a.neuesDatum && a.neuesDatum !== a.termin ? ` am ${formatDatum(a.neuesDatum)}` : ''),
+        }[a.aktion]?.() ?? formatDatum(a.termin)),
         h('button', {
           type: 'button',
           class: 'knopf knopf-klein',
@@ -276,6 +301,7 @@ function wiederkehrendDialog(w, daten) {
   function aktualisiere() {
     const istUmbuchung = art === 'umbuchung';
     kategorie.feld.hidden = istUmbuchung;
+    partner.setzeArt(art);
     gegenkonto.feld.hidden = !istUmbuchung;
     konto.feld.querySelector('label').textContent = istUmbuchung ? 'Von Konto' : 'Konto';
     if (!istUmbuchung) fuelleKategorien(kategorie.select, kategorien, art, w?.kategorieId);
@@ -285,7 +311,7 @@ function wiederkehrendDialog(w, daten) {
   dialog({
     titel: w ? 'Wiederkehrende Buchung bearbeiten' : 'Neue wiederkehrende Buchung',
     inhalt: [
-      artKnoepfe, bezeichnung.feld, stufen.feld, kategorie.feld, konto.feld, gegenkonto.feld,
+      artKnoepfe, bezeichnung.feld, stufen.feld, partner.feld, kategorie.feld, konto.feld, gegenkonto.feld,
       intervall.feld, monatsletzterFeld, h('div', { class: 'feld-paar' }, start.feld, ende.feld), ausnahmenListe,
     ],
     zusatz: w && {
@@ -317,9 +343,167 @@ function wiederkehrendDialog(w, daten) {
         monatsletzter: monatsletzter.checked,
         ende: ende.input.value,
         stufen: stufen.werte(),
+        partner: partner.input.value,
       }, { konten, kategorien, alt: w });
       await db.speichere('wiederkehrend', { ...datensatz, ausnahmen });
       toast(w ? 'Gespeichert' : 'Wiederkehrende Buchung angelegt');
+      datenGeaendert();
+    },
+  });
+}
+
+/* ===================== Geplante Einmalbuchungen ===================== */
+
+function geplantBereich(daten) {
+  const { geplant, kategorien, konten, buchungen } = daten;
+  const heute = heuteIso();
+  const kat = new Map(kategorien.map((k) => [k.id, k]));
+  const kontoName = new Map(konten.map((k) => [k.id, k.name]));
+  const mitStatus = geplant.map((g) => ({ g, erledigt: geplantErledigt(g, buchungen) }));
+  // Sichtbar: offene ab heute. Erledigte und alles mit Datum vor heute ist eingeklappt (D53) –
+  // noch nicht gebuchte vergangene stehen weiter beim Konto unter „Noch erwartet“.
+  const offen = mitStatus.filter((x) => !x.erledigt && x.g.datum >= heute).sort((a, b) => a.g.datum.localeCompare(b.g.datum));
+  const erledigt = mitStatus.filter((x) => x.erledigt || x.g.datum < heute).sort((a, b) => b.g.datum.localeCompare(a.g.datum));
+
+  const zeile = ({ g, erledigt: e }) => {
+    const zuordnung = g.art === 'umbuchung'
+      ? `${kontoName.get(g.kontoId) ?? '?'} → ${kontoName.get(g.gegenkontoId) ?? '?'}`
+      : [kontoName.get(g.kontoId) ?? '?', g.partner, `${kat.get(kat.get(g.kategorieId)?.elternId)?.name ?? '?'} › ${kat.get(g.kategorieId)?.name ?? '?'}`].filter(Boolean).join(' · ');
+    let status = null;
+    if (e && e !== true) status = h('span', { class: 'marke' }, `erledigt: gebucht am ${formatDatum(e.datum)}`);
+    else if (e) status = h('span', { class: 'marke' }, 'erledigt');
+    else if (g.datum < heute) status = h('span', { class: 'marke marke-warn' }, 'überfällig');
+    const text = g.art === 'umbuchung' ? formatEuro(g.betragCent) : (g.art === 'einnahme' ? '+' : '') + formatEuro(g.art === 'ausgabe' ? -g.betragCent : g.betragCent);
+    return zeileMitSchalter(g, 'geplant',
+      h('button', { type: 'button', class: 'buchung' + (e ? ' archiviert' : ''), onclick: () => geplantDialog(g, daten) },
+        h('span', { class: 'buchung-text' },
+          h('span', { class: 'buchung-titel' }, g.bezeichnung, status, projektMarke(g, daten.projekte)),
+          h('span', { class: 'buchung-unter' }, `${formatDatum(g.datum)} · ${zuordnung}`)),
+        h('span', { class: 'betrag ' + (e ? '' : 'annahme ') + (g.art === 'einnahme' ? 'plus' : g.art === 'umbuchung' ? 'gedaempft' : '') }, text)));
+  };
+
+  return h('section', { class: 'bereich', 'aria-labelledby': 'titel-geplant' },
+    h('div', { class: 'bereich-kopf' },
+      h('h2', { id: 'titel-geplant' }, 'Geplante Einmalbuchungen'),
+      h('button', { type: 'button', class: 'knopf knopf-primaer', onclick: () => geplantDialog(null, daten) }, '+ Geplant')),
+    h('p', { class: 'hinweis' },
+      'Bekannte, einmalige Zahlungen (z. B. Autoreparatur, Steuererstattung). Wird sie fällig, erscheint sie beim Konto unter ' +
+      '„Noch erwartet“ – dort buchst du sie oder markierst sie als schon gebucht. So zählt sie nie doppelt.'),
+    offen.length === 0
+      ? h('p', { class: 'leer' }, erledigt.length ? 'Keine anstehenden geplanten Einmalbuchungen.' : 'Noch keine geplanten Einmalbuchungen.')
+      : h('ul', { class: 'liste' }, offen.map(zeile)),
+    erledigt.length > 0 && h('details', { class: 'erledigt-liste' },
+      h('summary', {}, `Vergangene und erledigte anzeigen (${erledigt.length})`),
+      h('ul', { class: 'liste' }, erledigt.map(zeile))),
+  );
+}
+
+/**
+ * Dialog für eine geplante Einmalbuchung. daten braucht konten, kategorien, buchungen, projekte.
+ * vorgaben (nur neu): { projektId } – z. B. aus dem Tab "Projekte"
+ */
+export function geplantDialog(g, daten, vorgaben = {}) {
+  const { konten, kategorien, buchungen } = daten;
+  const heute = heuteIso();
+  const waehlbar = konten.filter((k) => !k.archiviert || k.id === g?.kontoId || k.id === g?.gegenkontoId).sort(nachName);
+  if (!waehlbar.length) {
+    toast('Bitte zuerst unter Stammdaten ein Konto anlegen.');
+    return;
+  }
+  let art = g?.art ?? 'ausgabe';
+  const erledigt = g ? geplantErledigt(g, buchungen) : false;
+
+  const artKnoepfe = artWahl(null, art, (neu) => { art = neu; aktualisiere(); });
+  const bezeichnung = eingabe({ label: 'Bezeichnung', value: g?.bezeichnung ?? '', maxlength: 60, placeholder: 'z. B. Autoreparatur', autofocus: true });
+  const partner = partnerFeld(buchungen, g?.partner ?? '', art);
+  const betrag = eingabe({ label: 'Betrag in €', inputmode: 'decimal', placeholder: '0,00', value: g ? centZuEingabe(g.betragCent) : '', class: 'eingabe-betrag' });
+  const kategorie = auswahl({ label: 'Kategorie', optionen: [] });
+  const kontoOptionen = waehlbar.map((k) => ({ wert: k.id, text: k.name }));
+  const konto = auswahl({ label: 'Konto', optionen: kontoOptionen, wert: g?.kontoId ?? waehlbar[0].id });
+  const gegenkonto = auswahl({ label: 'Auf Konto', optionen: kontoOptionen, wert: g?.gegenkontoId ?? waehlbar.find((k) => k.id !== konto.select.value)?.id });
+  const datum = eingabe({ label: 'Geplant am', type: 'date', value: g?.datum ?? plusMonate(heute.slice(0, 7), 1) + '-01' });
+  const projekt = projektFeld(daten.projekte ?? [], g?.projektId ?? vorgaben.projektId ?? null);
+
+  function aktualisiere() {
+    const istUmbuchung = art === 'umbuchung';
+    kategorie.feld.hidden = istUmbuchung;
+    partner.setzeArt(art);
+    if (projekt) projekt.feld.hidden = istUmbuchung;
+    gegenkonto.feld.hidden = !istUmbuchung;
+    konto.feld.querySelector('label').textContent = istUmbuchung ? 'Von Konto' : 'Konto';
+    if (!istUmbuchung) fuelleKategorien(kategorie.select, kategorien, art, g?.kategorieId);
+  }
+  aktualisiere();
+
+  // Status-Hinweis und "wieder offen" für per Hand als erledigt markierte
+  const statusInfo = erledigt && h('div', { class: 'feld' },
+    h('p', { class: 'hinweis' }, erledigt === true
+      ? 'Als „schon gebucht“ markiert – zählt nicht mehr in der Prognose.'
+      : `Erledigt durch die Buchung vom ${formatDatum(erledigt.datum)} (${formatEuro(erledigt.betragCent)}). Wird diese gelöscht, ist die Planung wieder offen.`),
+    erledigt === true && h('button', {
+      type: 'button',
+      class: 'knopf knopf-klein',
+      onclick: async (e) => {
+        await db.speichere('geplant', { ...g, erledigtAm: null, geaendertAm: new Date().toISOString() });
+        e.target.closest('dialog').close();
+        toast('Wieder offen');
+        datenGeaendert();
+      },
+    }, 'Wieder als offen markieren'));
+
+  // Offene Planung direkt in eine echte Buchung umwandeln – Betrag und Datum im Buchungsdialog anpassbar
+  const buchenKnopf = g && !erledigt && h('div', { class: 'feld' },
+    h('button', {
+      type: 'button',
+      class: 'knopf knopf-klein',
+      onclick: (e) => {
+        e.target.closest('dialog').close();
+        setTimeout(() => oeffneBuchungsdialog(null, {
+          titel: `Buchen: ${g.bezeichnung}`,
+          art: g.art,
+          betragCent: g.betragCent,
+          kontoId: g.kontoId,
+          gegenkontoId: g.gegenkontoId,
+          kategorieId: g.kategorieId,
+          datum: g.datum <= heute ? g.datum : heute,
+          notiz: g.bezeichnung,
+          partner: g.partner ?? '',
+          geplantId: g.id,
+          projektId: g.projektId ?? null,
+        }), 0);
+      },
+    }, 'Jetzt buchen …'),
+    h('small', { class: 'feld-hilfe' }, 'Macht daraus eine echte Buchung. Betrag und Datum kannst du dabei anpassen.'));
+
+  dialog({
+    titel: g ? 'Geplante Einmalbuchung bearbeiten' : 'Neue geplante Einmalbuchung',
+    inhalt: [statusInfo, buchenKnopf, artKnoepfe, bezeichnung.feld, betrag.feld, partner.feld, kategorie.feld, konto.feld, gegenkonto.feld, datum.feld, projekt?.feld],
+    zusatz: g && {
+      text: 'Löschen',
+      variante: 'knopf-gefahr',
+      onclick: async (d) => {
+        const ok = await frage({ titel: 'Geplante Einmalbuchung löschen?', text: 'Sie wird endgültig gelöscht. Eine bereits gebuchte Buchung bleibt erhalten.', jaText: 'Löschen', gefahr: true });
+        if (!ok) return;
+        await db.loesche('geplant', g.id);
+        d.close();
+        toast('Geplante Einmalbuchung gelöscht');
+        datenGeaendert();
+      },
+    },
+    onSpeichern: async () => {
+      const datensatz = baueGeplant({
+        bezeichnung: bezeichnung.input.value,
+        art,
+        kontoId: konto.select.value,
+        gegenkontoId: gegenkonto.select.value,
+        kategorieId: kategorie.select.value,
+        datum: datum.input.value,
+        betragCent: parseEuro(betrag.input.value, 'Betrag'),
+        projektId: projekt ? projekt.select.value : undefined,
+        partner: partner.input.value,
+      }, { konten, kategorien, alt: g });
+      await db.speichere('geplant', datensatz);
+      toast(g ? 'Gespeichert' : 'Geplante Einmalbuchung angelegt');
       datenGeaendert();
     },
   });
@@ -393,4 +577,9 @@ function stufenEditor({ typ, stufen, label }) {
 /** Für die Übersicht: Termin überspringen bzw. verschieben und speichern */
 export async function speichereAusnahme(w, termin, aktion, neuesDatum = null) {
   await db.speichere('wiederkehrend', mitAusnahme(w, termin, aktion, neuesDatum));
+}
+
+/** Für die Übersicht: geplante Einmalbuchung verschieben oder als "schon gebucht" markieren */
+export async function aendereGeplant(g, aenderung) {
+  await db.speichere('geplant', { ...g, ...aenderung, geaendertAm: new Date().toISOString() });
 }

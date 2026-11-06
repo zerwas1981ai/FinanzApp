@@ -20,7 +20,9 @@
 //   { version, konten: [...], kategorien: [...] } – unabhängig von IndexedDB.
 //   So lassen sie sich mit derselben Funktion auf die Drive-JSON-Datei anwenden.
 
-export const DATENMODELL_VERSION = 3;
+import { neueKategorie, INVESTITIONEN_UNTER, BARGELD_UNTER } from './startdaten.js';
+
+export const DATENMODELL_VERSION = 8;
 
 /** Standard-Schwellen für Budgethinweise (in den Stammdaten änderbar) */
 export const STANDARD_EINSTELLUNGEN = Object.freeze({ id: 'hinweise', monate: 3, prozent: 10 });
@@ -49,6 +51,92 @@ export const MIGRATIONEN = [
         b.wiederkehrendId ??= null;
         b.faelligAm ??= null;
       }
+      return daten;
+    },
+  },
+  {
+    nach: 4,
+    beschreibung: 'Etappe 5: geplante Einmalbuchungen, Szenarien; Annahmen bekommen Ein/Aus-Schalter ' +
+      'und Szenario-Zuordnung; Buchungen die Verknüpfung zur geplanten Einmalbuchung',
+    migriere(daten) {
+      daten.geplant ??= [];
+      daten.szenarien ??= [];
+      for (const x of [...(daten.budgets ?? []), ...(daten.wiederkehrend ?? [])]) {
+        x.aktiv ??= true;
+        x.szenarioId ??= null;
+      }
+      for (const w of daten.wiederkehrend ?? []) w.monatsletzter ??= false;
+      for (const b of daten.buchungen ?? []) b.geplantId ??= null;
+      return daten;
+    },
+  },
+  {
+    nach: 5,
+    beschreibung: 'Projekte statt Szenarien: Sammlung "projekte" kommt dazu, Buchungen und geplante ' +
+      'Einmalbuchungen bekommen projektId. Szenarien entfallen – Posten eines ausgeschalteten ' +
+      'Szenarios werden selbst ausgeschaltet, damit sich an der Prognose nichts ändert.',
+    migriere(daten) {
+      daten.projekte ??= [];
+      const an = new Set((daten.szenarien ?? []).filter((s) => s.aktiv).map((s) => s.id));
+      for (const x of [...(daten.budgets ?? []), ...(daten.wiederkehrend ?? []), ...(daten.geplant ?? [])]) {
+        if (x.szenarioId && !an.has(x.szenarioId)) x.aktiv = false;
+        delete x.szenarioId;
+      }
+      for (const g of daten.geplant ?? []) g.projektId ??= null;
+      for (const b of daten.buchungen ?? []) b.projektId ??= null;
+      delete daten.szenarien;
+      return daten;
+    },
+  },
+  {
+    nach: 6,
+    beschreibung: 'Neue Hauptkategorien "Investitionen" und "Bargeldabhebung" (Wunsch des Nutzers). ' +
+      'Die bisherige Unterkategorie "Sonstiges › Bargeldabhebung" wandert samt Buchungen nach ' +
+      '"Bargeldabhebung › Geldautomat". Gibt es eine Hauptkategorie mit dem Namen schon, bleibt alles, wie es ist.',
+    migriere(daten) {
+      daten.kategorien ??= [];
+      const jetzt = new Date().toISOString();
+      const gleich = (a, b) => (a ?? '').trim().toLocaleLowerCase('de') === b.toLocaleLowerCase('de');
+      const haupt = () => daten.kategorien.filter((k) => !k.elternId);
+      const neueHaupt = (name, unterNamen) => {
+        const hk = neueKategorie({ name, art: 'ausgabe', jetzt });
+        daten.kategorien.push(hk, ...unterNamen.map((n) => neueKategorie({ name: n, elternId: hk.id, jetzt })));
+        return hk;
+      };
+
+      if (!haupt().some((k) => gleich(k.name, 'Investitionen'))) neueHaupt('Investitionen', INVESTITIONEN_UNTER);
+
+      if (!haupt().some((k) => gleich(k.name, 'Bargeldabhebung') || gleich(k.name, 'Bargeld'))) {
+        const sonstiges = haupt().find((k) => gleich(k.name, 'Sonstiges'));
+        const alt = sonstiges && daten.kategorien.find((k) => k.elternId === sonstiges.id && gleich(k.name, 'Bargeldabhebung'));
+        if (alt) {
+          // Unterkategorie umhängen – ihre ID bleibt, also wandern alle Buchungen mit
+          const hk = neueKategorie({ name: 'Bargeldabhebung', art: 'ausgabe', jetzt });
+          daten.kategorien.push(hk);
+          Object.assign(alt, { elternId: hk.id, name: 'Geldautomat', geaendertAm: jetzt });
+        } else {
+          neueHaupt('Bargeldabhebung', BARGELD_UNTER);
+        }
+      }
+      return daten;
+    },
+  },
+  {
+    nach: 7,
+    beschreibung: 'Wiederkehrende Budgets bekommen "ausnahmen" (einzelne Monate mit anderem Betrag). ' +
+      'Wiederkehrende Buchungen kennen zusätzlich die Ausnahme "aendern" (Betrag/Datum nur für einen Termin) – ' +
+      'dafür ist keine Umwandlung nötig.',
+    migriere(daten) {
+      for (const b of daten.budgets ?? []) if (b.typ === 'wiederkehrend') b.ausnahmen ??= [];
+      return daten;
+    },
+  },
+  {
+    nach: 8,
+    beschreibung: 'Buchungen, wiederkehrende und geplante Buchungen bekommen "partner" ' +
+      '(Empfänger bei Ausgaben, Absender bei Einnahmen; leer = keine Angabe).',
+    migriere(daten) {
+      for (const x of [...(daten.buchungen ?? []), ...(daten.wiederkehrend ?? []), ...(daten.geplant ?? [])]) x.partner ??= '';
       return daten;
     },
   },

@@ -1,7 +1,7 @@
 # Finanzen – private Finanz-App (PWA)
 
-Stand: **Etappe 4** (Budgets, wiederkehrende Buchungen, Kennzahlen, Budgethinweise).
-Davor: Etappe 3 (Alle Buchungen: Filter, Sortierung, Analyse), Etappe 2 (Buchungen,
+Stand: **Etappe 5** (Zeitleiste bis 2050, geplante Einmalbuchungen, Projekte, Ein/Aus-Schalter für Annahmen).
+Davor: Etappe 4 (Budgets, wiederkehrende Buchungen, Kennzahlen, Budgethinweise), Etappe 3 (Alle Buchungen: Filter, Sortierung, Analyse), Etappe 2 (Buchungen,
 Monatsansicht, Umbuchungen, Papierkorb, Kontoabstimmung) und Etappe 1 (Grundgerüst,
 Design, Hell/Dunkel, Stammdaten).
 Ziele und Etappen: siehe `CLAUDE.md`. Technische Entscheidungen: siehe `DECISIONS.md`.
@@ -40,7 +40,7 @@ js/db.js, js/migrationen.js                Datenbank, Versionen, Migrationen
 js/format.js                               Euro- und Datumsformat
 js/buchungen.js, js/rechnen.js             Buchungsregeln, Kontostände, Monatssummen
 js/auswertung.js                           Filter, Sortierung, Analysen
-js/prognose.js, js/annahmen.js             Budgets, wiederkehrende Buchungen, Prognose, Hinweise
+js/prognose.js, js/annahmen.js             Budgets, wiederkehrende/geplante Buchungen, Projekte, Prognose, Hinweise
 js/startdaten.js, js/testdaten.js          Kategorie-Startsatz, Testdaten
 js/ui.js, js/dom.js                        Bausteine der Oberfläche
 js/views/                                  die Tabs

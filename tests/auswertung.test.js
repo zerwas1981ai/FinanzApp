@@ -155,3 +155,30 @@ test('Schöne Achsengrenze', () => {
   assert.equal(schoeneObergrenze(1000), 1000);
   assert.equal(schoeneObergrenze(0), 1);
 });
+
+test('Empfänger/Absender: Filter, Suche, Sortierung, Liste und Summen', async () => {
+  const { OHNE_PARTNER, partnerListe, summenJePartner } = await import('../js/auswertung.js');
+  const b = (id, datum, art, cent, partner, extra = {}) => ({ id, datum, art, betragCent: cent, partner, kontoId: 'giro', kategorieId: 'super', status: 'gebucht', belege: [], notiz: '', ...extra });
+  const buchungen = [
+    b('1', '2026-10-02', 'ausgabe', 1000, 'Supermarkt Muster'),
+    b('2', '2026-10-05', 'ausgabe', 2000, 'supermarkt muster '),
+    b('3', '2026-10-07', 'ausgabe', 500, ''),
+    b('4', '2026-10-08', 'einnahme', 9000, 'Muster GmbH'),
+    b('5', '2026-10-09', 'umbuchung', 300, '', { richtung: 'ab', gegenkontoId: 'tg' }),
+  ];
+  const ctx = { heute: '2026-10-20' };
+  const mit = (f) => filtere(buchungen, { ...STANDARD_FILTER, zeitraum: 'alles', ...f }, ctx).map((e) => e.buchung.id);
+  assert.deepEqual(mit({ partner: 'SUPERMARKT muster' }).sort(), ['1', '2'], 'Groß/klein und Leerzeichen egal');
+  assert.deepEqual(mit({ partner: OHNE_PARTNER }), ['3'], 'ohne Angabe – Umbuchungen nicht');
+  assert.deepEqual(mit({ suche: 'gmbh' }), ['4']);
+  const sortiert = sortiere(filtere(buchungen, { ...STANDARD_FILTER, zeitraum: 'alles' }, ctx), { feld: 'partner', richtung: 'auf' });
+  assert.deepEqual(sortiert.map((e) => e.buchung.id).slice(0, 3), ['4', '1', '2']);
+
+  const liste = partnerListe(buchungen);
+  assert.deepEqual(liste.map((p) => [p.name, p.anzahl]), [['supermarkt muster', 2], ['Muster GmbH', 1]], 'jüngste Schreibweise, häufigste zuerst');
+
+  const s = summenJePartner(filtere(buchungen, { ...STANDARD_FILTER, zeitraum: 'alles' }, ctx), 'ausgabe', [[2026, 10]]);
+  assert.deepEqual(s.map((x) => [x.id, x.summe, x.anzahl]), [['supermarkt muster', 3000, 2], [OHNE_PARTNER, 500, 1]]);
+  assert.equal(s[1].name, 'Ohne Angabe');
+  assert.equal(s[0].schnitt, 3000);
+});

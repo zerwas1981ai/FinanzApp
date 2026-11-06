@@ -7,14 +7,15 @@
 // Monat ab. Budgets sind so gewählt, dass zwei Budgethinweise erscheinen
 // (Lebensmittel deutlich über, Freizeit deutlich unter Budget), und ein Termin
 // ("Internet & Telefon") ist im laufenden Monat bewusst noch nicht gebucht.
+// Etappe 5: geplante Einmalbuchungen und zwei Projekte (Umbau Bad, Sommerurlaub).
 
 import * as db from './db.js';
 import { neueKategorie } from './startdaten.js';
 import { baueBuchungen } from './buchungen.js';
 import { heuteIso } from './format.js';
-import { plusMonate } from './prognose.js';
+import { plusMonate, monatsende } from './prognose.js';
 
-const SAMMLUNGEN_MIT_TESTDATEN = ['konten', 'kategorien', 'buchungen', 'budgets', 'wiederkehrend'];
+const SAMMLUNGEN_MIT_TESTDATEN = ['konten', 'kategorien', 'buchungen', 'budgets', 'wiederkehrend', 'geplant', 'projekte'];
 
 function konto(name, anfangssaldoCent, stichtag, mindestsaldoCent, archiviert = false) {
   const jetzt = new Date().toISOString();
@@ -64,6 +65,15 @@ export async function ladeTestdaten() {
     return hk && alleKats.find((k) => k.elternId === hk && k.name === unter)?.id;
   };
 
+  // Erfundene Empfänger/Absender je Unterkategorie (Datenversion 8)
+  const PARTNER = {
+    Gehalt: 'Muster GmbH', Miete: 'Vermietung Beispiel', Strom: 'Stadtwerke Muster',
+    'Internet & Telefon': 'Telefon AG (Test)', 'Restaurant & Café': 'Pizzeria Beispiel',
+    'Kraftstoff & Laden': 'Tankstelle Muster', Futter: 'Tierbedarf Muster', 'Abos & Streaming': 'Streaming-Dienst (Test)',
+    'Lieferdienste (Pizza & Co.)': 'Lieferdienst Beispiel', 'Bäcker & Markt': 'Bäckerei Muster',
+    Rundfunkbeitrag: 'Beitragsservice (Test)', 'Kfz-Versicherung': 'Versicherung Muster',
+  };
+
   /* ---------- Wiederkehrende Buchungen ---------- */
   const wk = {};
   const wiederkehrend = (schluessel, bezeichnung, art, k, betragCent, intervall, start, extraFelder = {}) => {
@@ -71,8 +81,11 @@ export async function ladeTestdaten() {
     wk[schluessel] = {
       id: crypto.randomUUID(), bezeichnung, art, kontoId: k.id, gegenkontoId: null, kategorieId: null,
       intervall, start, ende: null, stufen: [{ ab: start, betragCent }], ausnahmen: [],
+      monatsletzter: false, aktiv: true, partner: '',
       erstelltAm: jetzt, geaendertAm: jetzt, testdaten: true, ...extraFelder,
     };
+    const unterName = alleKats.find((k) => k.id === wk[schluessel].kategorieId)?.name;
+    wk[schluessel].partner = PARTNER[unterName] ?? '';
   };
   const tag = (monat, t) => `${monat}-${String(t).padStart(2, '0')}`;
   wiederkehrend('gehalt', 'Gehalt', 'einnahme', giro, 320000, 'monatlich', tag(monate[0], 1), { kategorieId: kat('Einkommen', 'Gehalt') });
@@ -90,13 +103,13 @@ export async function ladeTestdaten() {
   /* ---------- Buchungen ---------- */
   const vorlagen = [
     // [Tag, Art, Konto, Cent, Hauptkategorie, Unterkategorie / Gegenkonto, Notiz, wiederkehrend, nur abgeschlossene Monate]
-    [1, 'einnahme', giro, 320000, 'Einkommen', 'Gehalt', 'Muster GmbH', 'gehalt'],
+    [1, 'einnahme', giro, 320000, 'Einkommen', 'Gehalt', '', 'gehalt'],
     [2, 'umbuchung', giro, 20000, null, tagesgeld, 'Sparrate', 'spar'],
     [3, 'ausgabe', giro, 95000, 'Wohnen', 'Miete', '', 'miete'],
     [3, 'ausgabe', giro, 8500, 'Wohnen', 'Strom', 'Abschlag', 'strom'],
     [5, 'ausgabe', giro, 3999, 'Wohnen', 'Internet & Telefon', '', 'internet', true],
     [6, 'ausgabe', giro, 6240, 'Lebensmittel', 'Supermarkt', ''],
-    [8, 'ausgabe', kredit, 4580, 'Freizeit', 'Restaurant & Café', 'Pizzeria Beispiel'],
+    [8, 'ausgabe', kredit, 4580, 'Freizeit', 'Restaurant & Café', ''],
     [10, 'ausgabe', giro, 5800, 'Mobilität', 'Kraftstoff & Laden', ''],
     [12, 'ausgabe', giro, 2390, 'Haustier (Test)', 'Futter', ''],
     [13, 'ausgabe', giro, 4815, 'Lebensmittel', 'Supermarkt', ''],
@@ -113,7 +126,10 @@ export async function ladeTestdaten() {
       const datum = tag(monat, t);
       if (datum > heute) continue;
       if (nurAbgeschlossen && monat === aktuell) continue; // bleibt im laufenden Monat "fällig"
-      const eingabe = { art, betragCent, datum, kontoId: k.id, notiz, status: 'gebucht' };
+      // Supermarkt abwechselnd bei zwei erfundenen Märkten, ein Einkauf je Monat ohne Angabe
+      const supermarkt = { 6: 'Supermarkt Muster', 13: 'Discounter Beispiel', 20: 'Supermarkt Muster', 27: '' };
+      const partner = unter === 'Supermarkt' ? supermarkt[t] : (PARTNER[unter] ?? '');
+      const eingabe = { art, betragCent, datum, kontoId: k.id, notiz, partner, status: 'gebucht' };
       if (art === 'umbuchung') eingabe.gegenkontoId = unter.id;
       else {
         eingabe.kategorieId = kat(haupt, unter);
@@ -130,7 +146,7 @@ export async function ladeTestdaten() {
   const baecker = kat('Lebensmittel', 'Bäcker & Markt');
   if (baecker) {
     datensaetze.push(...baueBuchungen(
-      { art: 'ausgabe', betragCent: 3320, datum: heute, kontoId: giro.id, kategorieId: baecker, notiz: 'Kartenzahlung', status: 'vorgemerkt' },
+      { art: 'ausgabe', betragCent: 3320, datum: heute, kontoId: giro.id, kategorieId: baecker, notiz: 'Kartenzahlung', partner: 'Bäckerei Muster', status: 'vorgemerkt' },
       { konten: neueKonten },
     ));
   }
@@ -140,7 +156,7 @@ export async function ladeTestdaten() {
   const budget = (hauptName, k, betragCent) => {
     const id = hauptId(hauptName);
     return id && {
-      id: crypto.randomUUID(), kategorieId: id, kontoId: k.id, typ: 'wiederkehrend', notiz: '',
+      id: crypto.randomUUID(), kategorieId: id, kontoId: k.id, typ: 'wiederkehrend', notiz: '', aktiv: true,
       startMonat: monate[0], endMonat: null, stufen: [{ ab: monate[0], betragCent }],
       erstelltAm: jetzt, geaendertAm: jetzt, testdaten: true,
     };
@@ -154,16 +170,66 @@ export async function ladeTestdaten() {
   const sonstiges = hauptId('Sonstiges');
   if (sonstiges) {
     budgets.push({
-      id: crypto.randomUUID(), kategorieId: sonstiges, kontoId: giro.id, typ: 'einmalig', notiz: 'Weihnachtsgeschenke',
+      id: crypto.randomUUID(), kategorieId: sonstiges, kontoId: giro.id, typ: 'einmalig', notiz: 'Weihnachtsgeschenke', aktiv: true,
       monat: plusMonate(aktuell, 1), betragCent: 30000, erstelltAm: jetzt, geaendertAm: jetzt, testdaten: true,
     });
   }
   await db.speichere('budgets', budgets.filter(Boolean));
+
+  /* ---------- Etappe 5: geplante Einmalbuchungen und Projekte ---------- */
+  const projekt = (name, rahmenCent, notiz) => ({
+    id: crypto.randomUUID(), name, rahmenCent, notiz, abgeschlossen: false, erstelltAm: jetzt, geaendertAm: jetzt, testdaten: true,
+  });
+  const bad = projekt('Umbau Bad (Test)', 1200000, 'Neue Fliesen, Dusche und Waschtisch');
+  const urlaub = projekt('Sommerurlaub (Test)', 350000, '');
+  await db.speichere('projekte', [bad, urlaub]);
+
+  const geplant = (bezeichnung, art, k, betragCent, datum, kategorieId, projektId = null) => kategorieId && ({
+    id: crypto.randomUUID(), bezeichnung, art, kontoId: k.id, gegenkontoId: null, kategorieId, datum, betragCent,
+    erledigtAm: null, aktiv: true, projektId, partner: '', erstelltAm: jetzt, geaendertAm: jetzt, testdaten: true,
+  });
+  const inTagen = (n) => {
+    const d = new Date();
+    d.setDate(d.getDate() + n);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+  const reparatur = kat('Wohnen', 'Einrichtung & Reparaturen');
+  const reise = kat('Freizeit', 'Urlaub');
+  const architekt = geplant('Planung Badumbau', 'ausgabe', giro, 80000, tag(monate[2], 18), reparatur, bad.id);
+  await db.speichere('geplant', [
+    geplant('Zahnarzt-Rechnung', 'ausgabe', giro, 8500, inTagen(2), kat('Gesundheit & Pflege', 'Arzt & Zuzahlungen')),
+    geplant('Autoreparatur', 'ausgabe', giro, 60000, tag(plusMonate(aktuell, 2), 15), kat('Mobilität', 'Werkstatt & Wartung')),
+    geplant('Steuererstattung', 'einnahme', giro, 45000, tag(plusMonate(aktuell, 5), 20), kat('Einkommen', 'Erstattungen')),
+    // Projekt "Umbau Bad": eine Planung ist schon (teurer) gebucht, eine ist überfällig, zwei kommen noch
+    architekt,
+    geplant('Fliesen', 'ausgabe', giro, 120000, inTagen(-3), reparatur, bad.id),
+    geplant('Handwerker Rechnung', 'ausgabe', giro, 600000, tag(plusMonate(aktuell, 1), 20), reparatur, bad.id),
+    geplant('Dusche & Waschtisch', 'ausgabe', giro, 280000, tag(plusMonate(aktuell, 2), 5), reparatur, bad.id),
+    // Projekt "Sommerurlaub"
+    geplant('Ferienwohnung', 'ausgabe', giro, 140000, tag(plusMonate(aktuell, 8), 1), reise, urlaub.id),
+    geplant('Mietwagen', 'ausgabe', kredit, 45000, tag(plusMonate(aktuell, 8), 2), reise, urlaub.id),
+  ].filter(Boolean));
+
+  // Echte Projektbuchungen (Ist)
+  const projektBuchungen = [];
+  if (architekt) {
+    projektBuchungen.push(...baueBuchungen({
+      art: 'ausgabe', betragCent: 95000, datum: tag(monate[2], 20), kontoId: giro.id, kategorieId: reparatur,
+      notiz: 'Planung Badumbau', partner: 'Architekturbüro Muster', status: 'gebucht', geplantId: architekt.id, projektId: bad.id,
+    }, { konten: neueKonten }));
+  }
+  if (reise) {
+    projektBuchungen.push(...baueBuchungen({
+      art: 'ausgabe', betragCent: 64000, datum: heute, kontoId: kredit.id, kategorieId: reise,
+      notiz: 'Flüge', partner: 'Fluglinie Beispiel', status: 'gebucht', projektId: urlaub.id,
+    }, { konten: neueKonten }));
+  }
+  await db.speichere('buchungen', projektBuchungen.map((b) => ({ ...b, testdaten: true })));
   return true;
 }
 
 export async function loescheTestdaten() {
-  const [konten, kategorien, buchungen, budgets, wiederkehrend, hinweise] = await Promise.all(
+  const [konten, kategorien, buchungen, budgets, wiederkehrend, geplant, projekte, hinweise] = await Promise.all(
     [...SAMMLUNGEN_MIT_TESTDATEN, 'hinweise'].map((s) => db.alle(s)),
   );
   const kontoIds = new Set(konten.filter((k) => k.testdaten).map((k) => k.id));
@@ -183,14 +249,25 @@ export async function loescheTestdaten() {
   const budgetKats = new Set(budgetWeg.map((b) => b.kategorieId));
   const hinweisWeg = hinweise.filter((x) => katIds.has(x.kategorieId) || budgetKats.has(x.kategorieId));
 
+  const geplantWeg = geplant.filter((g) => g.testdaten || kontoIds.has(g.kontoId) || kontoIds.has(g.gegenkontoId) || katIds.has(g.kategorieId));
+  const projektWeg = new Set(projekte.filter((p) => p.testdaten).map((p) => p.id));
+
   await db.loesche('buchungen', [...buchungIds]);
   await db.loesche('budgets', budgetWeg.map((b) => b.id));
   await db.loesche('wiederkehrend', wkWeg.map((w) => w.id));
+  await db.loesche('geplant', geplantWeg.map((g) => g.id));
+  await db.loesche('projekte', [...projektWeg]);
+  // Eigene Buchungen/Planungen, die einem Test-Projekt zugeordnet waren, behalten – ohne Projekt
+  const geplantIds = new Set(geplantWeg.map((g) => g.id));
+  for (const [name, liste, ids] of [['buchungen', buchungen, buchungIds], ['geplant', geplant, geplantIds]]) {
+    const betroffen = liste.filter((x) => !ids.has(x.id) && projektWeg.has(x.projektId));
+    if (betroffen.length) await db.speichere(name, betroffen.map((x) => ({ ...x, projektId: null })));
+  }
   await db.loesche('hinweise', hinweisWeg.map((x) => x.id));
   await db.loesche('konten', [...kontoIds]);
   await db.loesche('kategorien', [...katIds]);
   return {
     konten: kontoIds.size, kategorien: katIds.size, buchungen: buchungIds.size,
-    budgets: budgetWeg.length, wiederkehrend: wkWeg.length,
+    budgets: budgetWeg.length, wiederkehrend: wkWeg.length + geplantWeg.length,
   };
 }

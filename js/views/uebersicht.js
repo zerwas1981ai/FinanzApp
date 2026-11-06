@@ -1,5 +1,6 @@
-// Tab "Übersicht" (Etappe 2): Konto wählen, Monatsansicht mit Zwischensummen,
-// Kontoabstimmung. Kennzahlen (Etappe 4) und Zukunftsmonate (Etappe 5) folgen später.
+// Tab "Übersicht": Kennzahlen und Budgethinweise (Etappe 4), Konto wählen, Monatsansicht mit
+// Zwischensummen und Kontoabstimmung (Etappe 2), "Noch erwartet" (Etappe 4) und die
+// Zeitleiste bis 2050 je Konto oder für "Alle Konten" (Etappe 5).
 
 import { h } from '../dom.js';
 import * as db from '../db.js';
@@ -10,8 +11,12 @@ import {
 import { monatsuebersicht, kontostand, vorgemerktBis } from '../rechnen.js';
 import { dialog, eingabe, hinweis, toast, geraet, datenGeaendert } from '../ui.js';
 import { oeffneBuchungsdialog } from './buchung-dialog.js';
-import { monatsprognose, faelligListe, budgetHinweise } from '../prognose.js';
+import { faelligListe, budgetHinweise, zeitleiste, nurWirksam, mindestsaldoWarnungen, LETZTER_MONAT } from '../prognose.js';
 import { kennzahlenBereich, erwartetBereich, hinweisBereich } from './kennzahlen.js';
+import { zeitleisteBereich, postenListe } from './zeitleiste.js';
+import { oeffnePostenDialog } from './posten-dialog.js';
+
+const ALLE = '__alle'; // gemerkte Auswahl "Alle Konten"
 
 const nachName = (a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base' });
 // alleAnzeigen: "kontoId|JJJJ-MM-01", wenn für dieses Konto/diesen Monat alle Buchungen gezeigt werden
@@ -21,10 +26,11 @@ const MAX_BUCHUNGEN = 10; // so viele Buchungen zeigt die Monatsansicht standard
 const monatVon = (iso) => [Number(iso.slice(0, 4)), Number(iso.slice(5, 7))];
 
 export async function zeigeUebersicht(container) {
-  const namen = ['konten', 'kategorien', 'buchungen', 'abstimmungen', 'budgets', 'wiederkehrend', 'hinweise', 'einstellungen'];
+  const namen = ['konten', 'kategorien', 'buchungen', 'abstimmungen', 'budgets', 'wiederkehrend', 'hinweise', 'einstellungen', 'geplant', 'projekte'];
   const werte = await Promise.all(namen.map((s) => db.alle(s)));
-  const daten = Object.fromEntries(namen.map((n, i) => [n, werte[i]]));
-  daten.wiederkehrende = daten.wiederkehrend; // Name, den prognose.js erwartet
+  const alleDaten = Object.fromEntries(namen.map((n, i) => [n, werte[i]]));
+  // Nur eingeschaltete Annahmen (Ein/Aus-Häkchen) zählen in Prognose und Zeitleiste
+  const daten = nurWirksam(alleDaten);
   const { konten, kategorien, buchungen, abstimmungen } = daten;
   const neu = () => zeigeUebersicht(container);
   const aktive = konten.filter((k) => !k.archiviert).sort(nachName);
@@ -40,40 +46,68 @@ export async function zeigeUebersicht(container) {
     return;
   }
 
+  const heute = heuteIso();
+  // Posten der Zukunft (Zeitleiste, Folgemonate) antippen → nur diesen Termin/Monat ändern
+  const aendern = (posten) => oeffnePostenDialog(posten, alleDaten);
+
+  // Etappe 4/5: Prognose laufender Monat + Zeitleiste bis 2050, Warnungen, Hinweise
+  const zl = zeitleiste(daten, heute);
+  const prognose = zl.start;
+  const warnungen = mindestsaldoWarnungen(zl);
+  const hinweise = budgetHinweise(daten, heute);
+  // Fällige Posten (bis 7 Tage im Voraus) je Konto zählen – als Zahl an den Kontoknöpfen
+  const faelligJeKonto = new Map();
+  for (const t of faelligListe(daten, heute)) {
+    faelligJeKonto.set(t.wiederkehrend.kontoId, (faelligJeKonto.get(t.wiederkehrend.kontoId) ?? 0) + 1);
+  }
+  const oben = [
+    h('h1', { class: 'seitentitel' }, 'Übersicht'),
+    kennzahlenBereich(prognose, alleDaten, heute, warnungen),
+    hinweisBereich(hinweise, daten),
+    h('h2', { class: 'zwischentitel' }, 'Konten'),
+  ];
+
   const gemerkt = geraet.lies('ansicht-konto');
+  const waehle = (id) => { geraet.schreib('ansicht-konto', id); neu(); };
+
+  // "Alle Konten": Gesamtstand und Zeitleiste über alle aktiven Konten
+  if (gemerkt === ALLE) {
+    container.replaceChildren(...[
+      ...oben,
+      kontoAuswahl(aktive, null, faelligJeKonto, waehle),
+      h('section', { class: 'bereich konto-kopf' },
+        h('div', {},
+          h('div', { class: 'klein' }, `Alle Konten heute (${formatDatum(heute)})`),
+          h('div', { class: 'gross' + (prognose.gesamtHeute < 0 ? ' negativ' : '') }, formatEuro(prognose.gesamtHeute)),
+          h('div', { class: 'klein' }, 'Prognose Monatsende: ',
+            h('span', { class: 'annahme' }, formatEuro(prognose.gesamtPrognose))),
+          h('div', { class: 'klein' }, 'Umbuchungen zwischen deinen Konten heben sich in dieser Sicht auf.'))),
+      zeitleisteBereich(zl.gesamt, ALLE, aendern),
+    ].filter(Boolean));
+    return;
+  }
   const konto = aktive.find((k) => k.id === gemerkt) ?? aktive[0];
 
   // Monat festlegen und auf den sinnvollen Bereich begrenzen
-  const heute = heuteIso();
   if (ansicht.jahr === null) [ansicht.jahr, ansicht.monat] = monatVon(heute);
-  const kontoBuchungen = buchungen.filter((b) => !b.geloeschtAm && b.kontoId === konto.id);
-  const letztesDatum = kontoBuchungen.reduce((max, b) => (b.datum > max ? b.datum : max), heute);
+  // Vorwärts geht es bis Dezember 2050: Zukunftsmonate zeigen die Prognose (Annahmen)
   const minMonat = monatVon(konto.stichtag);
-  const maxMonat = monatVon(letztesDatum);
+  const maxMonat = monatVon(`${LETZTER_MONAT}-01`);
   const schluessel = ([j, m]) => j * 12 + m;
   if (schluessel([ansicht.jahr, ansicht.monat]) < schluessel(minMonat)) [ansicht.jahr, ansicht.monat] = minMonat;
   if (schluessel([ansicht.jahr, ansicht.monat]) > schluessel(maxMonat)) [ansicht.jahr, ansicht.monat] = maxMonat;
 
   const m = monatsuebersicht(konto, buchungen, ansicht.jahr, ansicht.monat);
   const istAktuellerMonat = isoMonatsanfang(ansicht.jahr, ansicht.monat) === isoMonatsanfang(...monatVon(heute));
+  const istZukunft = schluessel([ansicht.jahr, ansicht.monat]) > schluessel(monatVon(heute));
 
-  // Etappe 4: Kennzahlen, Budgethinweise; je Konto: offene Termine und Budgets
-  const prognose = monatsprognose(daten, heute);
-  const hinweise = budgetHinweise(daten, heute);
   const kd = prognose.jeKonto.get(konto.id);
-  // Fällige Termine (bis 7 Tage im Voraus) je Konto zählen – als Zahl an den Kontoknöpfen
-  const faelligJeKonto = new Map();
-  for (const t of faelligListe(daten, heute)) {
-    faelligJeKonto.set(t.wiederkehrend.kontoId, (faelligJeKonto.get(t.wiederkehrend.kontoId) ?? 0) + 1);
-  }
+  const zlKonto = zl.jeKonto.get(konto.id) ?? [];
 
   // filter(Boolean): leere Bereiche (null/false) weglassen – sonst stünde "null" als Text da
   container.replaceChildren(...[
-    h('h1', { class: 'seitentitel' }, 'Übersicht'),
-    kennzahlenBereich(prognose, daten, heute),
-    hinweisBereich(hinweise, daten),
-    h('h2', { class: 'zwischentitel' }, 'Konten'),
-    kontoAuswahl(aktive, konto, faelligJeKonto, (id) => { geraet.schreib('ansicht-konto', id); neu(); }),
+    ...oben,
+    kontoAuswahl(aktive, konto, faelligJeKonto, waehle),
     kontoKopf(konto, buchungen, abstimmungen, kd?.prognose),
     monatsNavigation({
       zurueck: schluessel([ansicht.jahr, ansicht.monat]) > schluessel(minMonat),
@@ -85,23 +119,73 @@ export async function zeigeUebersicht(container) {
         neu();
       },
     }),
-    summenKarte(konto, m, istAktuellerMonat ? kd : null),
-    buchungsliste(m, konto, konten, kategorien),
-    istAktuellerMonat && erwartetBereich(kd, daten),
-    h('p', { class: 'hinweis zentriert' }, 'Zukunftsmonate bis 2050 folgen in Etappe 5.'),
+    ...(istZukunft
+      ? zukunftsMonat(zlKonto, isoMonatsanfang(ansicht.jahr, ansicht.monat).slice(0, 7), kd?.prognose ?? 0, m, konto, konten, kategorien, aendern)
+      : [
+        summenKarte(konto, m, istAktuellerMonat ? kd : null),
+        buchungsliste(m, konto, konten, kategorien),
+        istAktuellerMonat && erwartetBereich(kd, daten),
+        istAktuellerMonat && zeitleisteBereich(zlKonto, konto.id, aendern),
+        !istAktuellerMonat && h('p', { class: 'hinweis zentriert' }, 'Die Zukunft bis 2050 steht unter dem aktuellen Monat („Heute“).'),
+      ]),
   ].filter(Boolean));
+}
+
+/* ---------- Zukunftsmonat: Prognose statt echter Monatsabschluss ---------- */
+
+/**
+ * Ein Monat nach dem laufenden. Zahlen und Posten kommen aus der Zeitleiste
+ * (wiederkehrende, geplante, Budgets und schon erfasste Buchungen mit Zukunftsdatum).
+ * Alles ist Annahme – kursiv auf getöntem Hintergrund.
+ */
+function zukunftsMonat(zeilen, monat, startStand, m, konto, konten, kategorien, aendern) {
+  const i = zeilen.findIndex((z) => z.monat === monat);
+  const z = zeilen[i];
+  if (!z) return [h('p', { class: 'leer' }, 'Für diesen Monat gibt es keine Prognose.')];
+  const anfang = i > 0 ? zeilen[i - 1].stand : startStand;
+  const zeile = (label, cent, klasse = '', vorzeichen = false) => h('div', { class: `summe ${klasse}` },
+    h('span', {}, label),
+    h('span', { class: 'betrag annahme' + (cent < 0 ? ' negativ' : '') }, (vorzeichen && cent > 0 ? '+' : '') + formatEuro(cent)));
+  const unterMindest = konto.mindestsaldoCent != null && z.stand < konto.mindestsaldoCent;
+  const annahmen = z.posten.filter((p) => p.quelle !== 'gebucht');
+
+  return [
+    h('section', { class: 'bereich summen zukunft' },
+      h('div', { class: 'bereich-kopf' },
+        h('h2', {}, 'Prognose'),
+        h('span', { class: 'marke annahme-marke' }, 'Annahme')),
+      zeile('Erwarteter Stand am Monatsanfang', anfang),
+      zeile('Einnahmen', z.einnahmen, 'plus', true),
+      zeile('Ausgaben', -z.ausgaben, '', true),
+      z.umbuchungen !== 0 && zeile('Umbuchungen (saldiert)', z.umbuchungen, 'gedaempft', true),
+      zeile('Erwarteter Stand Monatsende', z.stand, 'ergebnis'),
+      unterMindest && h('p', { class: 'warn-text klein' }, `Unter dem Mindestsaldo von ${formatEuro(konto.mindestsaldoCent)}.`)),
+    h('section', { class: 'bereich zukunft' },
+      // Schon erfasste Buchungen stehen darunter in der normalen Liste – hier nur die Annahmen
+      h('div', { class: 'tag-kopf liste-kopf' }, h('span', {}, `${annahmen.length} erwartete Posten`)),
+      postenListe(annahmen, aendern),
+      h('p', { class: 'hinweis' }, 'Posten antippen, um sie nur für diesen Monat zu ändern. Ganze Serien änderst du unter „Annahmen“.')),
+    // Schon erfasste Buchungen mit Datum in diesem Monat bleiben anklickbar
+    m.anzahl > 0 && buchungsliste(m, konto, konten, kategorien),
+  ];
 }
 
 /* ---------- Kontoauswahl ---------- */
 
 function kontoAuswahl(konten, aktiv, faelligJeKonto, beiWahl) {
   return h('div', { class: 'chips', role: 'group', 'aria-label': 'Konto wählen' },
+    h('button', {
+      type: 'button',
+      class: 'chip',
+      'aria-pressed': String(!aktiv),
+      onclick: () => beiWahl(ALLE),
+    }, 'Alle Konten'),
     konten.map((k) => {
       const anzahl = faelligJeKonto.get(k.id) ?? 0;
       return h('button', {
         type: 'button',
         class: 'chip',
-        'aria-pressed': String(k.id === aktiv.id),
+        'aria-pressed': String(k.id === aktiv?.id),
         'aria-label': anzahl ? `${k.name}, ${anzahl} fällige Buchung${anzahl === 1 ? '' : 'en'}` : k.name,
         title: anzahl ? `${anzahl} fällige wiederkehrende Buchung${anzahl === 1 ? '' : 'en'}` : null,
         onclick: () => beiWahl(k.id),
@@ -230,7 +314,8 @@ function buchungsZeile(b, katName, kontoName) {
   } else {
     const unter = katName.get(b.kategorieId);
     const haupt = unter && katName.get(unter.elternId);
-    titel = unter?.name ?? 'Unbekannte Kategorie';
+    // Empfänger/Absender steht immer vor der Kategorie
+    titel = [b.partner, unter?.name ?? 'Unbekannte Kategorie'].filter(Boolean).join(' · ');
     unterzeile = [haupt?.name, b.notiz].filter(Boolean).join(' · ');
   }
   const wirkung = b.art === 'einnahme' || b.richtung === 'zu' ? b.betragCent : -b.betragCent;

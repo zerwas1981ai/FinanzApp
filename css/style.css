@@ -137,6 +137,12 @@ svg { stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; 
 :root[data-theme="dunkel"] .icon-sonne { display: block; }
 :root[data-theme="dunkel"] .icon-mond { display: none; }
 
+/* Schmale Fenster (Tablet): 5 Tabs passen nur ohne Symbole in die Kopfzeile */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .nav a { padding: 8px 10px; }
+  .nav a svg { display: none; }
+}
+
 /* Handy: Navigation als Leiste unten */
 @media (max-width: 767px) {
   /* Weichzeichner würde die feste Leiste an die Kopfzeile "kleben" – auf dem Handy daher aus */
@@ -157,9 +163,12 @@ svg { stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; 
     flex: 1;
     flex-direction: column;
     gap: 2px;
+    min-width: 0;
     padding: 6px 2px;
-    font-size: .72rem;
+    font-size: .7rem;
+    line-height: 1.15;
     text-align: center;
+    white-space: normal; /* 5 Tabs: "Alle Buchungen" darf umbrechen */
   }
   .nav a svg { width: 22px; height: 22px; }
   .nav a[aria-current="page"] { background: transparent; }
@@ -783,6 +792,8 @@ fieldset.feld { border: none; padding: 0; margin: 0 0 14px; }
 }
 .kat-tabelle details[open] > summary .kat-zeile-name::before { transform: rotate(90deg); }
 .kat-zeile:hover { background: var(--flaeche-2); }
+.kat-zeile-knopf { width: 100%; text-align: left; font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+.segmente + .segmente { margin-top: 6px; }
 .kat-zeile.ebene-1 .kat-zeile-name { font-weight: 600; }
 .kat-zeile.ebene-2 { font-size: .85rem; color: var(--text-2); }
 .kat-zeile.ebene-2 .kat-zeile-name { padding-left: 1.2em; }
@@ -894,6 +905,66 @@ fieldset.feld { border: none; padding: 0; margin: 0 0 14px; }
 
 .feld-schalter { margin: 0 0 10px; color: var(--text); }
 .liste-kopf { padding-top: 2px; text-transform: none; letter-spacing: 0; font-weight: 500; }
+
+/* =========================================================
+   Etappe 5: Zeitleiste, Ein/Aus-Schalter, Projekte
+   Zukunftswerte: kursiv + dezent getönter Hintergrund (Entscheidung des Nutzers)
+   ========================================================= */
+:root { --zukunft: #f3f6fc; }
+:root[data-theme="dunkel"] { --zukunft: #161c27; }
+
+.zukunft { background: var(--zukunft); }
+
+.zl-kopf, .zl-zeile {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1.2fr);
+  gap: 8px;
+  align-items: baseline;
+}
+.zl-kopf { font-size: .75rem; color: var(--text-2); text-transform: uppercase; letter-spacing: .04em; padding: 4px 6px; border-bottom: 1px solid var(--rand); }
+.zl-kopf span:not(:first-child), .zl-wert { text-align: right; }
+.zukunft details > summary { list-style: none; cursor: pointer; }
+.zukunft details > summary::-webkit-details-marker { display: none; }
+.zl-zeile { padding: 6px; border-bottom: 1px solid var(--rand); border-radius: 6px; }
+.zl-zeile:hover { background: var(--flaeche); }
+.zl-name { font-weight: 500; }
+.zl-name::before { content: "▸"; display: inline-block; width: 1em; color: var(--text-2); transition: transform .15s; }
+details[open] > .zl-zeile > .zl-name::before { transform: rotate(90deg); }
+.zl-jahr > .zl-zeile .zl-name { font-weight: 700; }
+.zl-wert { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.zl-monate { padding-left: 14px; }
+.zl-monat > .zl-zeile .zl-name { font-weight: 500; }
+.zl-details { padding: 4px 6px 8px 22px; }
+.zl-posten { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: baseline; padding: 3px 0; border-top: 1px solid var(--rand); font-size: .88rem; }
+.zl-posten .marke { margin-left: 6px; }
+.zl-posten-knopf {
+  width: 100%; text-align: left; font: inherit; color: inherit; background: none; cursor: pointer;
+  border: 0; border-top: 1px solid var(--rand); border-radius: 0; padding: 5px 4px;
+}
+.zl-posten-knopf:hover { background: var(--flaeche-2); }
+.zl-posten-knopf .zl-posten-text { text-decoration: underline dotted var(--text-2); text-underline-offset: 3px; }
+
+/* Ein/Aus-Schalter vor Annahmen */
+.annahme-zeile { display: flex; align-items: center; gap: 6px; border-top: 1px solid var(--rand); }
+.liste > .annahme-zeile:first-child { border-top: none; }
+.annahme-zeile > .buchung { flex: 1; min-width: 0; margin: 0; width: auto; }
+.annahme-schalter { display: grid; place-items: center; width: 32px; height: 32px; flex: none; cursor: pointer; }
+.annahme-schalter input { width: 18px; height: 18px; accent-color: var(--akzent); cursor: pointer; }
+.annahme-zeile.aus .buchung { opacity: .5; }
+.marke-projekt { background: var(--akzent-leicht); color: var(--akzent); }
+.erledigt-liste > summary { cursor: pointer; color: var(--akzent); font-size: .9rem; padding: 6px 0; }
+
+/* Tab Projekte */
+.seitenkopf { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.seitenkopf .seitentitel { margin-bottom: 0; }
+.projekt h2 .marke { margin-left: 8px; vertical-align: middle; }
+.projekt-zahlen { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; margin: 4px 0 8px; }
+.projekt-zahlen .kz { padding: 6px 10px; border-radius: var(--radius-klein); background: var(--flaeche-2); }
+.kz-wert.stark { color: var(--akzent); }
+.projekt .tag-kopf { margin-top: 10px; }
+.projekt .knopfreihe { margin-top: 10px; }
+.erledigt-liste > .projekt { margin-top: 8px; }
+@media (max-width: 480px) { .projekt-zahlen { grid-template-columns: 1fr 1fr; } }
 
 /* Kompakte Budgethinweise */
 .hinweiskarte { padding: 10px 14px; }

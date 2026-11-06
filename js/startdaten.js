@@ -2,6 +2,10 @@
 // Alles lässt sich danach unter "Stammdaten" ändern, archivieren oder löschen.
 // Gebucht wird später immer auf eine Unterkategorie, Budgets gelten je Hauptkategorie.
 
+// Seit Datenversion 6 eigene Hauptkategorien (vorher: Unterkategorie "Sonstiges › Bargeldabhebung")
+export const INVESTITIONEN_UNTER = ['ETF & Fonds', 'Aktien', 'Edelmetalle', 'Altersvorsorge', 'Sonstige Investitionen'];
+export const BARGELD_UNTER = ['Geldautomat'];
+
 export const STANDARD_KATEGORIEN = [
   { name: 'Einkommen', art: 'einnahme', unter: ['Gehalt', 'Nebeneinkünfte', 'Kindergeld', 'Erstattungen', 'Sonstige Einnahmen'] },
 
@@ -13,7 +17,9 @@ export const STANDARD_KATEGORIEN = [
   { name: 'Gesundheit & Pflege', art: 'ausgabe', unter: ['Apotheke', 'Arzt & Zuzahlungen', 'Drogerie'] },
   { name: 'Kleidung', art: 'ausgabe', unter: ['Kleidung', 'Schuhe'] },
   { name: 'Kinder & Bildung', art: 'ausgabe', unter: ['Kita & Schule', 'Kurse & Bücher', 'Taschengeld'] },
-  { name: 'Sonstiges', art: 'ausgabe', unter: ['Geschenke', 'Spenden', 'Bankgebühren', 'Bargeldabhebung', 'Sonstige Ausgaben'] },
+  { name: 'Investitionen', art: 'ausgabe', unter: INVESTITIONEN_UNTER },
+  { name: 'Bargeldabhebung', art: 'ausgabe', unter: BARGELD_UNTER },
+  { name: 'Sonstiges', art: 'ausgabe', unter: ['Geschenke', 'Spenden', 'Bankgebühren', 'Sonstige Ausgaben'] },
 ];
 
 /** Wandelt den Startsatz in einzelne Kategorie-Datensätze um. */

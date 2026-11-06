@@ -4,6 +4,7 @@ import { initialisiere } from './db.js';
 import { h } from './dom.js';
 import { zeigeAnnahmen } from './views/annahmen.js';
 import { zeigeBuchungen } from './views/alle-buchungen.js';
+import { zeigeProjekte } from './views/projekte.js';
 import { zeigeUebersicht } from './views/uebersicht.js';
 import { zeigeStammdaten } from './views/stammdaten.js';
 import { oeffneBuchungsdialog } from './views/buchung-dialog.js';
@@ -11,6 +12,7 @@ import { oeffneBuchungsdialog } from './views/buchung-dialog.js';
 const TABS = {
   uebersicht: { titel: 'Übersicht', zeige: zeigeUebersicht },
   buchungen: { titel: 'Alle Buchungen', zeige: zeigeBuchungen },
+  projekte: { titel: 'Projekte', zeige: zeigeProjekte },
   annahmen: { titel: 'Annahmen', zeige: zeigeAnnahmen },
   stammdaten: { titel: 'Stammdaten', zeige: zeigeStammdaten },
 };

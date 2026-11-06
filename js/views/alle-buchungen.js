@@ -7,6 +7,7 @@ import { schalter } from '../ui.js';
 import {
   STANDARD_FILTER, STANDARD_SORTIERUNG, filtere, sortiere, summen, zeitraumFuer,
   monateDerAuswertung, ersterErfassterTag, abgeschlosseneMonate, verlaufJeMonat, summenJeKategorie, schoeneObergrenze,
+  OHNE_PARTNER, partnerListe, partnerSchluessel, summenJePartner,
 } from '../auswertung.js';
 import { oeffneBuchungsdialog } from './buchung-dialog.js';
 
@@ -19,6 +20,7 @@ const zustand = {
   sortierung: { ...STANDARD_SORTIERUNG },
   modus: 'liste', // liste | analyse
   analyseArt: 'ausgabe',
+  analyseGruppe: 'kategorie', // kategorie | partner
   alsTabelle: false,
   sichtbar: SEITE,
   offen: new Set(), // aufgeklappte Kategorien in der Analyse
@@ -57,7 +59,7 @@ function filterGeaendert() {
   return Object.keys(STANDARD_FILTER).some((k) => zustand.filter[k] !== STANDARD_FILTER[k]);
 }
 
-function filterBereich({ konten, kategorien }, aktualisiere, neuZeichnen) {
+function filterBereich({ konten, kategorien, buchungen }, aktualisiere, neuZeichnen) {
   const f = zustand.filter;
   const setze = (schluessel, wert, ganzNeu = false) => {
     f[schluessel] = wert;
@@ -104,11 +106,22 @@ function filterBereich({ konten, kategorien }, aktualisiere, neuZeichnen) {
           .map((u) => h('option', { value: u.id }, u.name + (u.archiviert ? ' (archiviert)' : '')))))));
   kategorieAuswahl.value = f.kategorieId;
 
+  // Empfänger/Absender: alle bisher verwendeten Namen, häufigste zuerst
+  const partner = partnerListe(buchungen);
+  const partnerAuswahl = auswahlListe(
+    [
+      { wert: '', text: 'Alle' },
+      { wert: OHNE_PARTNER, text: 'Ohne Angabe' },
+      ...partner.map((p) => ({ wert: p.name, text: `${p.name} (${p.anzahl})` })),
+    ],
+    f.partner === OHNE_PARTNER ? OHNE_PARTNER : (partner.find((p) => partnerSchluessel(p.name) === partnerSchluessel(f.partner))?.name ?? ''),
+    (w) => setze('partner', w));
+
   // Suche: bei jeder Eingabe, leicht verzögert
   let timer;
   const suche = h('input', {
     type: 'search',
-    placeholder: 'Suchen in Notiz, Kategorie, Konto …',
+    placeholder: 'Suchen in An/Von, Notiz, Kategorie, Konto …',
     value: f.suche,
     'aria-label': 'Suchen',
     oninput: (e) => {
@@ -156,6 +169,7 @@ function filterBereich({ konten, kategorien }, aktualisiere, neuZeichnen) {
       feld('Konto', kontoAuswahl),
       feld('Art', artAuswahl),
       feld('Kategorie', kategorieAuswahl),
+      feld('Empfänger/Absender', partnerAuswahl),
       feld('Suche', suche),
     ),
     h('details', { class: 'weitere-filter', open: weitereOffen },
@@ -237,7 +251,7 @@ function liste(eintraege, daten, neu) {
   const kontoName = new Map(daten.konten.map((k) => [k.id, k.name]));
 
   const sortFeld = auswahlListe(
-    [{ wert: 'datum', text: 'Datum' }, { wert: 'betrag', text: 'Betrag' }, { wert: 'kategorie', text: 'Kategorie' }, { wert: 'konto', text: 'Konto' }],
+    [{ wert: 'datum', text: 'Datum' }, { wert: 'betrag', text: 'Betrag' }, { wert: 'partner', text: 'Empfänger/Absender' }, { wert: 'kategorie', text: 'Kategorie' }, { wert: 'konto', text: 'Konto' }],
     zustand.sortierung.feld,
     (w) => { zustand.sortierung.feld = w; neu(); });
   const absteigend = zustand.sortierung.richtung === 'ab';
@@ -265,7 +279,8 @@ function liste(eintraege, daten, neu) {
         teile = [formatDatum(b.datum), b.notiz];
       } else {
         const unter = kat.get(b.kategorieId);
-        titel = unter?.name ?? 'Unbekannte Kategorie';
+        // Empfänger/Absender steht immer vor der Kategorie
+        titel = [b.partner, unter?.name ?? 'Unbekannte Kategorie'].filter(Boolean).join(' · ');
         teile = [formatDatum(b.datum), kontoName.get(b.kontoId), kat.get(unter?.elternId)?.name, b.notiz];
       }
       // Umbuchung ohne Kontofilter: neutral ohne Vorzeichen
@@ -299,7 +314,96 @@ function analyse(eintraege, daten, heute, neu) {
   }
   return h('div', {},
     verlaufBereich(verlaufJeMonat(eintraege, monate), neu),
-    kategorieBereich(eintraege, daten.kategorien, monate, heute, neu),
+    zustand.analyseGruppe === 'partner'
+      ? partnerBereich(eintraege, monate, heute, neu)
+      : kategorieBereich(eintraege, daten.kategorien, monate, heute, neu),
+  );
+}
+
+/** Umschalter: Analyse nach Kategorien oder nach Empfänger/Absender */
+function gruppeWahl(neu) {
+  return h('div', { class: 'segmente', role: 'group', 'aria-label': 'Gruppieren nach' },
+    [['kategorie', 'Nach Kategorien'], ['partner', 'Nach Empfänger/Absender']].map(([wert, text]) => h('button', {
+      type: 'button',
+      class: 'segment',
+      'aria-pressed': String(zustand.analyseGruppe === wert),
+      onclick: () => { zustand.analyseGruppe = wert; neu(); },
+    }, text)));
+}
+
+/** Ausgaben/Einnahmen-Umschalter der Analyse */
+function artWahlAnalyse(neu) {
+  return h('div', { class: 'segmente', role: 'group', 'aria-label': 'Art' },
+    [['ausgabe', 'Ausgaben'], ['einnahme', 'Einnahmen']].map(([wert, text]) => h('button', {
+      type: 'button',
+      class: 'segment',
+      'aria-pressed': String(zustand.analyseArt === wert),
+      onclick: () => { zustand.analyseArt = wert; neu(); },
+    }, text)));
+}
+
+const MAX_PARTNER = 25; // so viele Empfänger/Absender einzeln, der Rest als "Weitere"
+
+/** Summen je Empfänger/Absender mit Anteil und Ø pro Monat. Antippen filtert die Liste. */
+function partnerBereich(eintraege, monate, heute, neu) {
+  const schnittMonate = abgeschlosseneMonate(monate, heute);
+  const anzahlMonate = schnittMonate.length;
+  const art = zustand.analyseArt;
+  const alle = summenJePartner(eintraege, art, schnittMonate);
+  const gesamt = alle.reduce((s, g) => s + g.summe, 0);
+  const max = Math.max(...alle.map((g) => g.summe), 1);
+  const mitSchnitt = anzahlMonate > 0 && monate.length > 1;
+  const gezeigt = alle.slice(0, MAX_PARTNER);
+  const rest = alle.slice(MAX_PARTNER);
+  const schnittVon = (liste) => (anzahlMonate ? Math.round(liste.reduce((s, g) => s + g.schnittSumme, 0) / anzahlMonate) : null);
+
+  const zeile = (x, klickbar) => {
+    const inhalt = [
+      h('span', { class: 'kat-zeile-name' }, x.name, h('span', { class: 'klein' }, ` (${x.anzahl})`)),
+      h('span', { class: 'kat-balken-spur', 'aria-hidden': 'true' },
+        h('span', { class: `kat-balken ${art}`, style: `width:${(x.summe / max) * 100}%` })),
+      h('span', { class: 'betrag' }, formatEuro(x.summe)),
+      h('span', { class: 'kat-anteil' }, formatProzent(x.anteil)),
+      mitSchnitt && h('span', { class: 'kat-schnitt' }, x.schnitt == null ? '' : `Ø ${formatEuro(x.schnitt)}`),
+    ];
+    return klickbar
+      ? h('button', {
+        type: 'button',
+        class: 'kat-zeile ebene-1 kat-zeile-knopf',
+        title: 'Liste nach diesem Empfänger/Absender filtern',
+        onclick: () => {
+          zustand.filter.partner = x.id === OHNE_PARTNER ? OHNE_PARTNER : x.name;
+          zustand.modus = 'liste';
+          window.dispatchEvent(new Event('daten-geaendert'));
+        },
+      }, inhalt)
+      : h('div', { class: 'kat-zeile ebene-1' }, inhalt);
+  };
+
+  const restSumme = rest.reduce((s, g) => s + g.summe, 0);
+  return h('section', { class: 'bereich' },
+    h('div', { class: 'bereich-kopf' }, h('h2', {}, 'Nach Empfänger/Absender')),
+    gruppeWahl(neu),
+    artWahlAnalyse(neu),
+    alle.length === 0
+      ? h('p', { class: 'leer' }, art === 'ausgabe' ? 'Keine Ausgaben in der Auswahl.' : 'Keine Einnahmen in der Auswahl.')
+      : h('div', { class: 'kat-tabelle' + (mitSchnitt ? ' mit-schnitt' : '') },
+        gezeigt.map((g) => zeile(g, true)),
+        rest.length > 0 && zeile({
+          name: `Weitere ${rest.length}`,
+          anzahl: rest.reduce((s, g) => s + g.anzahl, 0),
+          summe: restSumme,
+          anteil: gesamt ? restSumme / gesamt : 0,
+          schnitt: schnittVon(rest),
+        }, false),
+        h('div', { class: 'kat-zeile summe-zeile' },
+          h('span', { class: 'kat-zeile-name' }, 'Gesamt'),
+          h('span', {}),
+          h('span', { class: 'betrag' }, formatEuro(gesamt)),
+          h('span', { class: 'kat-anteil' }, '100 %'),
+          mitSchnitt && h('span', { class: 'kat-schnitt' }, `Ø ${formatEuro(schnittVon(alle))}`))),
+    h('p', { class: 'hinweis' }, 'Eine Zeile antippen, um die Liste nach diesem Empfänger/Absender zu filtern. ' +
+      'Groß-/Kleinschreibung spielt keine Rolle. Der Ø zählt wie bei den Kategorien nur abgeschlossene Monate.'),
   );
 }
 
@@ -393,13 +497,7 @@ function kategorieBereich(eintraege, kategorien, monate, heute, neu) {
   const mitSchnitt = anzahlMonate > 0 && monate.length > 1;
   const laufenderAusgelassen = schnittMonate.length < monate.length;
 
-  const artWahl = h('div', { class: 'segmente', role: 'group', 'aria-label': 'Art' },
-    [['ausgabe', 'Ausgaben'], ['einnahme', 'Einnahmen']].map(([wert, text]) => h('button', {
-      type: 'button',
-      class: 'segment',
-      'aria-pressed': String(art === wert),
-      onclick: () => { zustand.analyseArt = wert; neu(); },
-    }, text)));
+  const artWahl = artWahlAnalyse(neu);
 
   const zeile = (x, ebene) => h('div', { class: `kat-zeile ebene-${ebene}` },
     h('span', { class: 'kat-zeile-name' }, x.name),
@@ -411,6 +509,7 @@ function kategorieBereich(eintraege, kategorien, monate, heute, neu) {
 
   return h('section', { class: 'bereich' },
     h('div', { class: 'bereich-kopf' }, h('h2', {}, 'Nach Kategorien')),
+    gruppeWahl(neu),
     artWahl,
     gruppen.length === 0
       ? h('p', { class: 'leer' }, art === 'ausgabe' ? 'Keine Ausgaben in der Auswahl.' : 'Keine Einnahmen in der Auswahl.')

@@ -10,7 +10,7 @@ import { dialog, eingabe, toast, datenGeaendert, auswahl } from '../ui.js';
 import { plusMonate, plusTage, summenJeHauptkategorie, kennzahlKategorien } from '../prognose.js';
 import { budgetMitVorschlag, haeufigstesKonto, merkeHinweis } from '../annahmen.js';
 import { oeffneBuchungsdialog } from './buchung-dialog.js';
-import { speichereAusnahme } from './annahmen.js';
+import { speichereAusnahme, aendereGeplant } from './annahmen.js';
 
 const monatText = (m) => formatMonat(Number(m.slice(0, 4)), Number(m.slice(5, 7)));
 const kurzMonat = (m) => new Intl.DateTimeFormat('de-DE', { month: 'short' }).format(new Date(Number(m.slice(0, 4)), Number(m.slice(5, 7)) - 1, 1)).replace('.', '');
@@ -18,18 +18,28 @@ const mitVorzeichen = (cent) => (cent > 0 ? '+' : '') + formatEuro(cent);
 
 /* =========================== Kennzahlen oben =========================== */
 
-export function kennzahlenBereich(p, daten, heute) {
+export function kennzahlenBereich(p, daten, heute, warnungen = p.warnungen) {
   const monat = monatText(p.monat);
   const summen = summenJeHauptkategorie(daten.buchungen, daten.kategorien, p.monat);
   const gewaehlt = kennzahlKategorien(daten.einstellungen, daten.kategorien, summen);
+  // Die angezeigte Wahl immer speichern (auch die automatisch vorgeschlagene), damit beim
+  // nächsten Öffnen dieselben drei Kategorien erscheinen und nichts mit den Ausgaben "wandert".
+  // Ohne Neuzeichnen – es ändert sich ja nichts Sichtbares.
+  const gespeichert = daten.einstellungen.find((e) => e.id === 'uebersicht')?.kategorien ?? [];
+  if (gewaehlt.some((id, i) => id && id !== gespeichert[i])) {
+    db.speichere('einstellungen', { id: 'uebersicht', kategorien: gewaehlt }).catch((err) => console.warn(err));
+  }
 
   return h('section', { class: 'kennzahlen', 'aria-label': 'Kennzahlen' },
-    p.warnungen.length > 0 && h('div', { class: 'warnkarte', role: 'status' },
+    warnungen.length > 0 && h('div', { class: 'warnkarte', role: 'status' },
       h('strong', {}, '⚠ Mindestsaldo'),
-      p.warnungen.map((w) => h('p', {}, w.wann === 'heute'
-        ? `${w.konto.name} liegt heute unter dem Mindestsaldo: ${formatEuro(w.standCent)} (Mindestsaldo ${formatEuro(w.konto.mindestsaldoCent)}).`
-        : `${w.konto.name} fällt voraussichtlich zum Monatsende (${monat}) unter den Mindestsaldo: ` +
-          `Prognose ${formatEuro(w.standCent)}, Mindestsaldo ${formatEuro(w.konto.mindestsaldoCent)}.`))),
+      warnungen.map((w) => h('p', {}, {
+        heute: () => `${w.konto.name} liegt heute unter dem Mindestsaldo: ${formatEuro(w.standCent)} (Mindestsaldo ${formatEuro(w.konto.mindestsaldoCent)}).`,
+        monatsende: () => `${w.konto.name} fällt voraussichtlich zum Monatsende (${monat}) unter den Mindestsaldo: ` +
+          `Prognose ${formatEuro(w.standCent)}, Mindestsaldo ${formatEuro(w.konto.mindestsaldoCent)}.`,
+        zukunft: () => `${w.konto.name} fällt voraussichtlich erstmals im ${monatText(w.monat)} unter den Mindestsaldo: ` +
+          `Prognose ${formatEuro(w.standCent)}, Mindestsaldo ${formatEuro(w.konto.mindestsaldoCent)}.`,
+      }[w.wann]()))),
 
     h('div', { class: 'bereich kz-leiste' },
       h('div', { class: 'kz' },
@@ -92,13 +102,14 @@ export function erwartetBereich(kd, daten) {
     const w = t.wiederkehrend;
     const zuordnung = w.art === 'umbuchung'
       ? (t.wirkung < 0 ? `Umbuchung → ${kontoName.get(w.gegenkontoId) ?? '?'}` : `Umbuchung ← ${kontoName.get(w.kontoId) ?? '?'}`)
-      : `${kat.get(kat.get(w.kategorieId)?.elternId)?.name ?? '?'} › ${kat.get(w.kategorieId)?.name ?? '?'}`;
+      : (w.partner ? `${w.partner} · ` : '') + `${kat.get(kat.get(w.kategorieId)?.elternId)?.name ?? '?'} › ${kat.get(w.kategorieId)?.name ?? '?'}`;
     const status = t.datum === heute ? 'heute fällig' : t.ueberfaellig ? 'überfällig' : null;
     return h('li', {},
       h('button', { type: 'button', class: 'buchung geplant', onclick: () => terminDialog(t) },
         h('span', { class: 'buchung-text' },
           h('span', { class: 'buchung-titel' },
             h('span', { class: 'datum-klein' }, formatTag(t.datum)), w.bezeichnung,
+            t.quelle === 'geplant' && h('span', { class: 'marke' }, 'einmalig'),
             status && h('span', { class: 'marke' + (t.ueberfaellig ? ' marke-warn' : '') }, status)),
           h('span', { class: 'buchung-unter' }, zuordnung + (t.verschoben ? ` · verschoben vom ${formatDatum(t.termin)}` : ''))),
         h('span', { class: 'betrag annahme' + (t.wirkung > 0 ? ' plus' : '') }, mitVorzeichen(t.wirkung))));
@@ -132,7 +143,7 @@ export function erwartetBereich(kd, daten) {
       h('h2', { id: 'titel-erwartet' }, 'Noch erwartet bis Monatsende'),
       h('span', { class: 'marke annahme-marke' }, 'Annahme')),
     terminZeilen.length > 0 && h('div', {},
-      h('div', { class: 'tag-kopf' }, h('span', {}, 'Wiederkehrende Buchungen'), h('span', { class: 'tag-stand annahme' }, mitVorzeichen(kd.offenWirkung))),
+      h('div', { class: 'tag-kopf' }, h('span', {}, 'Wiederkehrende und geplante Buchungen'), h('span', { class: 'tag-stand annahme' }, mitVorzeichen(kd.offenWirkung))),
       h('ul', { class: 'liste' }, terminZeilen)),
     budgetZeilen.length > 0 && h('div', {},
       h('div', { class: 'tag-kopf' }, h('span', {}, 'Budgets (belasten dieses Konto)'), h('span', { class: 'tag-stand annahme' }, formatEuro(-kd.rest))),
@@ -140,9 +151,13 @@ export function erwartetBereich(kd, daten) {
   );
 }
 
-/** Kleiner Dialog für einen offenen Termin: Buchen, Verschieben oder Überspringen */
+/**
+ * Kleiner Dialog für einen offenen Posten: Buchen, Verschieben oder Überspringen.
+ * t.quelle: 'wiederkehrend' (Termin einer wiederkehrenden Buchung) oder 'geplant' (Einmalbuchung).
+ */
 function terminDialog(t) {
   const w = t.wiederkehrend;
+  const istGeplant = t.quelle === 'geplant';
   const betrag = w.art === 'umbuchung' ? formatEuro(t.betragCent) : mitVorzeichen(w.art === 'einnahme' ? t.betragCent : -t.betragCent);
   let dlg;
   const verschieben = h('button', { type: 'button', class: 'knopf', onclick: () => { dlg.close(); verschiebenDialog(t); } }, 'Verschieben');
@@ -150,19 +165,27 @@ function terminDialog(t) {
     type: 'button',
     class: 'knopf',
     onclick: async () => {
-      await speichereAusnahme(w, t.termin, 'ueberspringen');
+      if (istGeplant) {
+        await aendereGeplant(w, { erledigtAm: new Date().toISOString() });
+        toast(`${w.bezeichnung} als schon gebucht markiert (rückgängig unter Annahmen)`);
+      } else {
+        await speichereAusnahme(w, t.termin, 'ueberspringen');
+        toast(`${w.bezeichnung} am ${formatDatum(t.termin)} übersprungen (rückgängig unter Annahmen)`);
+      }
       dlg.close();
-      toast(`${w.bezeichnung} am ${formatDatum(t.termin)} übersprungen (rückgängig unter Annahmen)`);
       datenGeaendert();
     },
-  }, 'Überspringen');
+  }, istGeplant ? 'Schon gebucht' : 'Überspringen');
 
   dlg = dialog({
     titel: w.bezeichnung,
     inhalt: [
       h('p', {}, `${betrag} · fällig ${t.datum === t.termin ? 'am' : 'verschoben auf'} ${formatDatum(t.datum)}`),
-      h('p', { class: 'hinweis' },
-        '„Buchen“ öffnet den vorausgefüllten Buchungsdialog. „Überspringen“ passt auch, wenn du die Buchung schon von Hand erfasst hast.'),
+      h('p', { class: 'hinweis' }, istGeplant
+        ? 'Geplante Einmalbuchung. „Buchen“ öffnet den vorausgefüllten Buchungsdialog – den Betrag kannst du dort anpassen. ' +
+          '„Schon gebucht“ wählst du, wenn du sie bereits von Hand erfasst hast' +
+          (w.projektId ? ' (ordne diese Buchung dann bitte selbst dem Projekt zu).' : '.')
+        : '„Buchen“ öffnet den vorausgefüllten Buchungsdialog. „Überspringen“ passt auch, wenn du die Buchung schon von Hand erfasst hast.'),
       h('div', { class: 'knopfreihe' }, verschieben, ueberspringen),
     ],
     speichernText: 'Buchen',
@@ -176,8 +199,8 @@ function terminDialog(t) {
         kategorieId: w.kategorieId,
         datum: t.datum,
         notiz: w.bezeichnung,
-        wiederkehrendId: w.id,
-        faelligAm: t.termin,
+        partner: w.partner ?? '',
+        ...(istGeplant ? { geplantId: w.id, projektId: w.projektId ?? null } : { wiederkehrendId: w.id, faelligAm: t.termin }),
       }), 0);
     },
   });
@@ -188,11 +211,14 @@ function verschiebenDialog(t) {
   const datum = eingabe({ label: 'Neues Datum', type: 'date', value: plusTage(t.datum, 1) });
   dialog({
     titel: `${w.bezeichnung} verschieben`,
-    inhalt: [h('p', { class: 'hinweis' }, `Regulärer Termin: ${formatDatum(t.termin)}. Nur dieser eine Termin wird verschoben.`), datum.feld],
+    inhalt: [h('p', { class: 'hinweis' }, t.quelle === 'geplant'
+      ? `Bisher geplant am ${formatDatum(t.datum)}.`
+      : `Regulärer Termin: ${formatDatum(t.termin)}. Nur dieser eine Termin wird verschoben.`), datum.feld],
     speichernText: 'Verschieben',
     onSpeichern: async () => {
       if (!istGueltigesDatum(datum.input.value)) throw new Error('Bitte ein gültiges Datum wählen.');
-      await speichereAusnahme(w, t.termin, 'verschieben', datum.input.value);
+      if (t.quelle === 'geplant') await aendereGeplant(w, { datum: datum.input.value });
+      else await speichereAusnahme(w, t.termin, 'verschieben', datum.input.value);
       toast(`Verschoben auf ${formatDatum(datum.input.value)}`);
       datenGeaendert();
     },

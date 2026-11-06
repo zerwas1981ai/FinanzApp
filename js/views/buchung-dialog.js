@@ -5,16 +5,19 @@ import * as db from '../db.js';
 import { parseEuro, centZuEingabe, heuteIso } from '../format.js';
 import { dialog, toast, eingabe, auswahl, optionsGruppe, datenGeaendert, geraet } from '../ui.js';
 import { speichereBuchung, gruppeVon, inPapierkorb } from '../buchungen.js';
+import { partnerListe, partnerSchluessel } from '../auswertung.js';
 
 const nachName = (a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base' });
 
 /**
  * buchung: beim Bearbeiten eine bestehende Buchung (bei Umbuchung eine der beiden Hälften)
- * vorgaben (nur neue Buchungen): { kontoId, art, betragCent, kategorieId, gegenkontoId, datum, notiz,
+ * vorgaben (nur neue Buchungen): { kontoId, art, betragCent, kategorieId, gegenkontoId, datum, notiz, partner,
  *   titel, wiederkehrendId, faelligAm } – z. B. beim Buchen eines fälligen Termins
  */
 export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
-  const [konten, kategorien, alle] = await Promise.all([db.alle('konten'), db.alle('kategorien'), db.alle('buchungen')]);
+  const [konten, kategorien, alle, projekte] = await Promise.all(
+    ['konten', 'kategorien', 'buchungen', 'projekte'].map((s) => db.alle(s)),
+  );
   const gruppe = buchung ? gruppeVon(buchung, alle) : [];
   // Bei Umbuchungen ist die "ab"-Hälfte maßgeblich (Von-Konto)
   const ref = gruppe.find((b) => b.richtung === 'ab') ?? buchung;
@@ -48,6 +51,12 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
   });
 
   const kategorie = auswahl({ label: 'Kategorie', optionen: [] });
+  // Bekannter Empfänger/Absender bei neuer Buchung: Kategorie der letzten Buchung vorschlagen
+  const partner = partnerFeld(alle, ref?.partner ?? vorgaben.partner ?? '', art, (name) => {
+    if (buchung || kategorie.select.value) return;
+    const vorschlag = letzteKategorieVon(alle, name, art);
+    if (vorschlag && [...kategorie.select.options].some((o) => o.value === vorschlag)) kategorie.select.value = vorschlag;
+  });
 
   const zuletzt = geraet.lies('letztes-konto');
   const kontoOptionen = waehlbareKonten.map((k) => ({ wert: k.id, text: k.name + (k.archiviert ? ' (archiviert)' : '') }));
@@ -68,10 +77,13 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
     wert: ref?.status ?? 'gebucht',
   });
   const notiz = eingabe({ label: 'Notiz (optional)', maxlength: 200, value: ref?.notiz ?? vorgaben.notiz ?? '', placeholder: 'z. B. Wocheneinkauf' });
+  const projekt = projektFeld(projekte, ref?.projektId ?? vorgaben.projektId ?? null);
 
   function aktualisiere() {
     const istUmbuchung = art === 'umbuchung';
     kategorie.feld.hidden = istUmbuchung;
+    if (projekt) projekt.feld.hidden = istUmbuchung;
+    partner.setzeArt(art);
     gegenkonto.feld.hidden = !istUmbuchung;
     konto.feld.querySelector('label').textContent = istUmbuchung ? 'Von Konto' : 'Konto';
     if (!istUmbuchung) fuelleKategorien(kategorie.select, kategorien, art, startKategorie);
@@ -81,7 +93,7 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
   // ---------- Dialog ----------
   const dlg = dialog({
     titel: buchung ? (ref.art === 'umbuchung' ? 'Umbuchung bearbeiten' : 'Buchung bearbeiten') : (vorgaben.titel ?? 'Neue Buchung'),
-    inhalt: [artKnoepfe, betrag.feld, kategorie.feld, konto.feld, gegenkonto.feld, datum.feld, status.feld, notiz.feld],
+    inhalt: [artKnoepfe, betrag.feld, partner.feld, kategorie.feld, konto.feld, gegenkonto.feld, datum.feld, status.feld, notiz.feld, projekt?.feld].filter(Boolean),
     speichernText: buchung ? 'Speichern' : 'Erfassen',
     zusatz: buchung && {
       text: 'In den Papierkorb',
@@ -102,10 +114,13 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
         gegenkontoId: gegenkonto.select.value,
         kategorieId: kategorie.select.value || null,
         notiz: notiz.input.value,
+        partner: partner.input.value,
         status: status.wert(),
         // Verknüpfung mit dem Termin einer wiederkehrenden Buchung (nur beim Neuanlegen)
         wiederkehrendId: buchung ? undefined : vorgaben.wiederkehrendId,
         faelligAm: buchung ? undefined : vorgaben.faelligAm,
+        geplantId: buchung ? undefined : vorgaben.geplantId,
+        projektId: projekt ? projekt.select.value : undefined,
       };
       await speichereBuchung(werte, gruppe);
       geraet.schreib('letztes-konto', werte.kontoId);
@@ -114,6 +129,58 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
     },
   });
   return dlg;
+}
+
+const PARTNER_LABEL = { ausgabe: 'An (Empfänger, optional)', einnahme: 'Von (Absender, optional)' };
+let listenZaehler = 0;
+
+/**
+ * Feld "An" / "Von" (Empfänger bzw. Absender) mit Vorschlägen aus allen bisherigen Buchungen.
+ * Die Beschriftung passt sich der Art an (setzeArt); bei Umbuchungen ist das Feld ausgeblendet.
+ * beiWahl(name): wird aufgerufen, wenn ein bekannter Name gewählt/eingetippt wurde.
+ */
+export function partnerFeld(buchungen, wert, art, beiWahl = null) {
+  const id = `partner-vorschlaege-${++listenZaehler}`;
+  const vorschlaege = partnerListe(buchungen);
+  const feld = eingabe({ label: PARTNER_LABEL[art] ?? PARTNER_LABEL.ausgabe, value: wert ?? '', maxlength: 80, list: id, placeholder: 'z. B. Supermarkt Muster' });
+  feld.feld.append(h('datalist', { id }, vorschlaege.map((p) => h('option', { value: p.name }))));
+  if (beiWahl) {
+    feld.input.addEventListener('change', () => {
+      const name = feld.input.value.trim();
+      if (vorschlaege.some((p) => partnerSchluessel(p.name) === partnerSchluessel(name))) beiWahl(name);
+    });
+  }
+  return {
+    ...feld,
+    setzeArt(neueArt) {
+      feld.feld.hidden = neueArt === 'umbuchung';
+      if (PARTNER_LABEL[neueArt]) feld.feld.querySelector('label').textContent = PARTNER_LABEL[neueArt];
+    },
+  };
+}
+
+/** Kategorie der letzten Buchung mit diesem Empfänger/Absender (und dieser Art) – für die Schnellerfassung */
+export function letzteKategorieVon(buchungen, name, art) {
+  const k = partnerSchluessel(name);
+  return [...buchungen]
+    .filter((b) => !b.geloeschtAm && b.art === art && b.kategorieId && partnerSchluessel(b.partner) === k)
+    .sort((a, b) => b.datum.localeCompare(a.datum))[0]?.kategorieId ?? null;
+}
+
+/**
+ * Auswahlliste "Projekt (optional)" – auch für geplante Einmalbuchungen.
+ * Abgeschlossene Projekte stehen nur zur Wahl, wenn sie schon zugeordnet sind.
+ * Ohne Projekte gibt es kein Feld (null).
+ */
+export function projektFeld(projekte, wert) {
+  const waehlbar = projekte.filter((p) => !p.abgeschlossen || p.id === wert).sort(nachName);
+  if (waehlbar.length === 0) return null;
+  return auswahl({
+    label: 'Projekt (optional)',
+    optionen: [{ wert: '', text: 'Kein Projekt' }, ...waehlbar.map((p) => ({ wert: p.id, text: p.name + (p.abgeschlossen ? ' (abgeschlossen)' : '') }))],
+    wert: wert ?? '',
+    hilfe: 'Projektausgaben zählen nicht gegen das Monatsbudget ihrer Kategorie.',
+  });
 }
 
 /** Umschalter Ausgabe / Einnahme / Umbuchung */

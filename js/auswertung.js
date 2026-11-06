@@ -17,12 +17,35 @@ export const STANDARD_FILTER = Object.freeze({
   kontoId: '',
   art: '', // einnahme | ausgabe | umbuchung
   kategorieId: '', // Haupt- oder Unterkategorie
+  partner: '', // Empfänger/Absender: '' = alle, OHNE_PARTNER = ohne Angabe, sonst der Name
   status: '', // gebucht | vorgemerkt
   betragMin: null, // Cent
   betragMax: null, // Cent
   suche: '',
   ohneBeleg: false,
 });
+
+/** Filterwert für "Buchungen ohne Empfänger/Absender" */
+export const OHNE_PARTNER = '__ohne';
+
+/** Vergleichsschlüssel für Empfänger/Absender: ohne Leerzeichen am Rand, Groß/klein egal */
+export const partnerSchluessel = (name) => (name ?? '').trim().toLocaleLowerCase('de');
+
+/**
+ * Alle bisher verwendeten Empfänger/Absender (für Vorschläge und den Filter),
+ * häufigste zuerst. Als Name gilt die zuletzt verwendete Schreibweise.
+ */
+export function partnerListe(buchungen) {
+  const gruppen = new Map();
+  for (const b of [...buchungen].sort((x, y) => y.datum.localeCompare(x.datum))) {
+    if (b.geloeschtAm || b.art === 'umbuchung') continue;
+    const k = partnerSchluessel(b.partner);
+    if (!k) continue;
+    if (!gruppen.has(k)) gruppen.set(k, { name: b.partner.trim(), anzahl: 0 });
+    gruppen.get(k).anzahl += 1;
+  }
+  return [...gruppen.values()].sort((a, b) => b.anzahl - a.anzahl || a.name.localeCompare(b.name, 'de', { sensitivity: 'base' }));
+}
 
 export const STANDARD_SORTIERUNG = Object.freeze({ feld: 'datum', richtung: 'ab' });
 
@@ -75,6 +98,13 @@ export function filtere(buchungen, filter, { kategorien = [], konten = [], heute
     if (filter.betragMax != null && b.betragCent > filter.betragMax) continue;
     if (filter.ohneBeleg && b.belege?.length) continue;
 
+    if (filter.partner) {
+      // Umbuchungen haben keinen Empfänger/Absender und fallen bei diesem Filter weg
+      if (b.art === 'umbuchung') continue;
+      const k = partnerSchluessel(b.partner);
+      if (filter.partner === OHNE_PARTNER ? k !== '' : k !== partnerSchluessel(filter.partner)) continue;
+    }
+
     if (filter.kategorieId) {
       const unter = kat.get(b.kategorieId);
       if (!unter || (unter.id !== filter.kategorieId && unter.elternId !== filter.kategorieId)) continue;
@@ -83,6 +113,7 @@ export function filtere(buchungen, filter, { kategorien = [], konten = [], heute
     if (suche) {
       const unter = kat.get(b.kategorieId);
       const text = [
+        b.partner,
         b.notiz,
         unter?.name,
         kat.get(unter?.elternId)?.name,
@@ -98,7 +129,7 @@ export function filtere(buchungen, filter, { kategorien = [], konten = [], heute
   return ergebnis;
 }
 
-/** Sortiert Einträge. feld: datum | betrag | kategorie | konto, richtung: auf | ab */
+/** Sortiert Einträge. feld: datum | betrag | partner | kategorie | konto, richtung: auf | ab */
 export function sortiere(eintraege, { feld, richtung }, { kategorien = [], konten = [] } = {}) {
   const kat = new Map(kategorien.map((k) => [k.id, k]));
   const kontoName = new Map(konten.map((k) => [k.id, k.name]));
@@ -110,6 +141,8 @@ export function sortiere(eintraege, { feld, richtung }, { kategorien = [], konte
   const vergleiche = {
     datum: () => 0,
     betrag: (a, b) => a.buchung.betragCent - b.buchung.betragCent,
+    // Ohne Angabe ans Ende (bei aufsteigender Sortierung)
+    partner: (a, b) => (partnerSchluessel(a.buchung.partner) || '￿').localeCompare(partnerSchluessel(b.buchung.partner) || '￿', 'de'),
     kategorie: (a, b) => katText(a.buchung).localeCompare(katText(b.buchung), 'de', { sensitivity: 'base' }),
     konto: (a, b) => (kontoName.get(a.buchung.kontoId) ?? '').localeCompare(kontoName.get(b.buchung.kontoId) ?? '', 'de', { sensitivity: 'base' }),
   }[feld] ?? (() => 0);
@@ -238,6 +271,30 @@ export function summenJeKategorie(eintraege, kategorien, art, schnittMonate = []
   });
   return [...haupt.values()]
     .map((h) => ({ ...mitAnteil(h), unter: [...h.unter.values()].map(mitAnteil).sort((a, b) => b.summe - a.summe) }))
+    .sort((a, b) => b.summe - a.summe);
+}
+
+/**
+ * Summen je Empfänger/Absender für eine Art, absteigend.
+ * [{ id (Schlüssel bzw. OHNE_PARTNER), name, anzahl, summe, anteil, schnitt }] – schnitt wie bei summenJeKategorie.
+ */
+export function summenJePartner(eintraege, art, schnittMonate = []) {
+  const schnittSchluessel = new Set(schnittMonate.map(([j, m]) => isoMonatsanfang(j, m).slice(0, 7)));
+  const gruppen = new Map();
+  let gesamt = 0;
+  for (const { buchung: b } of [...eintraege].sort((x, y) => y.buchung.datum.localeCompare(x.buchung.datum))) {
+    if (b.art !== art) continue;
+    const k = partnerSchluessel(b.partner) || OHNE_PARTNER;
+    if (!gruppen.has(k)) gruppen.set(k, { id: k, name: k === OHNE_PARTNER ? 'Ohne Angabe' : b.partner.trim(), anzahl: 0, summe: 0, schnittSumme: 0 });
+    const g = gruppen.get(k);
+    g.anzahl += 1;
+    g.summe += b.betragCent;
+    if (schnittSchluessel.has(b.datum.slice(0, 7))) g.schnittSumme += b.betragCent;
+    gesamt += b.betragCent;
+  }
+  const n = schnittMonate.length;
+  return [...gruppen.values()]
+    .map((g) => ({ ...g, anteil: gesamt ? g.summe / gesamt : 0, schnitt: n ? Math.round(g.schnittSumme / n) : null }))
     .sort((a, b) => b.summe - a.summe);
 }
 
