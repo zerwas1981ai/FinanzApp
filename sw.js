@@ -3,7 +3,7 @@
 // Nur wenn das Netz fehlt, wird die zuletzt gespeicherte Kopie verwendet.
 // Finanzdaten werden hier NICHT gespeichert – nur Programmdateien.
 
-const CACHE = 'finanzapp-v9';
+const CACHE = 'finanzapp-v10';
 
 const APP_DATEIEN = [
   './',
@@ -30,6 +30,13 @@ const APP_DATEIEN = [
   './js/views/kennzahlen.js',
   './js/views/zeitleiste.js',
   './js/views/posten-dialog.js',
+  './js/views/belege.js',
+  './js/views/sync-dialoge.js',
+  './js/views/drive-bereich.js',
+  './js/sync/zusammenfuehren.js',
+  './js/sync/drive.js',
+  './js/sync/abgleich.js',
+  './js/export.js',
   './js/views/stammdaten.js',
   './js/views/uebersicht.js',
   './js/views/buchung-dialog.js',

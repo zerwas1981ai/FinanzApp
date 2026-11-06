@@ -7,7 +7,7 @@
 //   kontoId,
 //   kategorieId,            // Unterkategorie; bei Umbuchung null
 //   notiz, status: 'gebucht' | 'vorgemerkt',
-//   belege: [],             // ab Etappe 6 (Google Drive)
+//   belege: [{ id, name, mime, groesse, driveId, hinzugefuegtAm }],  // Etappe 6, Dateien in Google Drive
 //   umbuchungId,            // nur Umbuchung: gemeinsame ID beider Hälften
 //   richtung,               // nur Umbuchung: 'ab' (Abgang) | 'zu' (Zugang)
 //   gegenkontoId,           // nur Umbuchung: das andere Konto
@@ -60,6 +60,8 @@ export function baueBuchungen(eingabe, { konten, bestehende = [], jetzt = new Da
     faelligAm: eingabe.faelligAm ?? bestehende[0]?.faelligAm ?? null,
     // Verknüpfung mit einer geplanten Einmalbuchung (Etappe 5)
     geplantId: eingabe.geplantId ?? bestehende[0]?.geplantId ?? null,
+    // Belege (Etappe 6): undefined = unverändert
+    belege: eingabe.belege ?? bestehende[0]?.belege ?? [],
     // Projekt (Datenversion 5): undefined = unverändert lassen, '' oder null = kein Projekt.
     // Umbuchungen gehören nie zu einem Projekt (sie sind keine Ausgabe).
     projektId: art === 'umbuchung' ? null

@@ -868,3 +868,107 @@ Wird eine Entscheidung geändert, den alten Eintrag nicht löschen, sondern als
 - **Testdaten:** erfundene Namen wie „Supermarkt Muster“, „Discounter Beispiel“,
   „Vermietung Beispiel“, „Muster GmbH“; ein Supermarkt-Einkauf je Monat bleibt ohne Angabe.
 
+---
+
+# Etappe 6
+
+## D60 – Abgleich mit Google Drive: Drei-Wege-Zusammenführung
+*Entscheidung des Nutzers: zusammenführen, nur bei Widerspruch fragen*
+
+- **Ablage:** In Drive ein Ordner `Finanzapp` mit `finanzapp-daten.json` (der komplette
+  Datenstand mit Versionsnummer), `Belege/` und `Backups/`. Die App markiert ihre Dateien mit
+  `appProperties` und findet sie so wieder.
+- **Lokal zuerst:** Die App arbeitet immer mit IndexedDB und funktioniert offline. Abgeglichen
+  wird nach der Anmeldung, 4 Sekunden nach jeder Änderung (Signal `db-geaendert` aus
+  `db.speichere`/`db.loesche`), wenn das Gerät wieder online ist und wenn die App wieder in den
+  Vordergrund kommt (höchstens einmal pro Minute).
+- **Basis:** Nach jedem erfolgreichen Abgleich merkt sich das Gerät den abgeglichenen Stand und
+  die Drive-Dateiversion (meta `syncBasis`). Ist die Drive-Datei seitdem unverändert, wird nur
+  hochgeladen, falls hier etwas geändert wurde.
+- **Zusammenführen** (`js/sync/zusammenfuehren.js`, reine Funktionen mit Tests): je Datensatz
+  Basis/Gerät/Drive vergleichen. Nur auf einer Seite geändert (auch gelöscht) → diese Seite.
+  Auf beiden Seiten verschieden geändert → **Konflikt**: Die App zeigt beide Fassungen
+  (verständlich beschrieben, mit Änderungszeit) und der Nutzer wählt je Eintrag oder „überall“.
+  „Später“ lässt den Abgleich offen (Wolken-Knopf zeigt „Entscheiden“). Nie wird still
+  überschrieben (CLAUDE.md).
+- **Kein Verlust:** Hatte das Gerät noch nicht abgeglichene Änderungen und wird sein Stand
+  ersetzt oder verändert, legt die App vorher ein Backup `…-geraet.json` an. Die Drive-Fassung
+  liegt ohnehin in den Backups des anderen Geräts.
+- **Erstes Verbinden** eines Geräts (noch keine Basis): Ist der Gerätestand „frisch“ (nur
+  unveränderter Startsatz), wird der Drive-Stand ohne Rückfrage übernommen – sonst gäbe es die
+  Start-Kategorien doppelt (andere IDs). Liegen auf beiden Seiten eigene Daten, fragt die App:
+  „Drive-Stand übernehmen“ (empfohlen) oder „Zusammenführen“.
+- **Gleichzeitiges Hochladen:** Kurz vor dem Hochladen prüft die App die Drive-Version. Hat ein
+  anderes Gerät inzwischen hochgeladen, führt sie zuerst dessen Stand zusammen. Ändert der
+  Nutzer während des Abgleichs etwas, beginnt der Abgleich von vorn.
+- **Versionen:** Der Drive-Stand wird beim Laden migriert. Stammt er aus einer neueren
+  App-Version, bricht der Abgleich mit einer Meldung ab (nichts wird überschrieben).
+- Auch die Einstellungen (Hinweis-Schwellen, die drei Übersichts-Kategorien) werden abgeglichen.
+- Die Client-ID, „verbunden“ und der Zeitpunkt des letzten Abgleichs liegen nur auf dem Gerät
+  (localStorage).
+
+## D61 – Anmeldung und Berechtigung
+- Google Identity Services im **Token-Verfahren** (reine Web-App, kein Server, kein
+  Client-Geheimnis). Die Bibliothek wird erst geladen, wenn Drive genutzt wird.
+- Berechtigung **`drive.file`**: Die App sieht nur Dateien, die sie selbst angelegt hat – nicht
+  den Rest des Drives. Diese Berechtigung gilt bei Google als unkritisch.
+- Das Zugangs-Token gilt ca. 1 Stunde und liegt **nur im Arbeitsspeicher**. Nach einem Neustart
+  zeigt der Wolken-Knopf oben „Anmelden“; ein Antippen genügt (Browser erlauben das
+  Google-Fenster nur nach einem Klick).
+- Die Client-ID trägt der Nutzer in den Stammdaten ein – sie steht nicht im Code (CLAUDE.md:
+  keine Zugangsdaten im Repository).
+- Wolken-Knopf oben rechts: ☁ Anmelden · ⟳ läuft · ✓ abgeglichen · ⚡ offline · ? Entscheiden ·
+  ! Fehler. Ohne eingerichtetes Drive ist er ausgeblendet.
+
+## D62 – Backups
+*Entscheidung des Nutzers: letzte 30 + je Tag*
+
+- Nach jedem Hochladen entsteht in `Backups/` eine Kopie (`backup-JJJJ-MM-TTTHH-MM-SS.json`).
+- Behalten werden die **30 neuesten** und **je Kalendertag der letzten 30 Tage das neueste**;
+  die übrigen kommen in den Drive-Papierkorb (dort von Google nach 30 Tagen gelöscht).
+- Stammdaten → Google Drive → „Backups in Drive anzeigen“ → **Wiederherstellen**: ersetzt den
+  Stand auf dem Gerät und in Drive. Der bisherige Stand wird vorher als
+  `…-vor-wiederherstellung.json` gesichert.
+
+## D63 – Belege
+- An Einnahmen und Ausgaben (nicht an Umbuchungen) lassen sich mehrere Fotos/PDFs hängen:
+  „📷 Foto aufnehmen“ (Kamera am Handy) oder „+ Datei wählen“.
+- Bilder werden vor dem Speichern verkleinert (längste Seite 1600 px, JPEG 80 %); PDFs bleiben
+  unverändert. Höchstens 15 MB je Datei.
+- Neue Belege liegen zuerst nur auf dem Gerät (Schublade `belegDateien`, wird nicht
+  abgeglichen) und werden beim nächsten Abgleich in `Belege/` hochgeladen
+  (Name: Datum + Empfänger/Absender bzw. Kategorie). An der Buchung steht
+  `belege: [{ id, name, mime, groesse, driveId, hinzugefuegtAm }]`.
+- Ansehen: Bilder in einem Dialog, PDFs in einem neuen Fenster. Auf einem anderen Gerät lädt die
+  App die Datei bei Bedarf aus Drive und speichert sie zwischen.
+- Entfernte Belege und Belege endgültig gelöschter Buchungen kommen in den **Drive-Papierkorb**
+  (vorgemerkt, falls gerade offline).
+- Der Filter „ohne Beleg“ (Etappe 3) wirkt jetzt.
+- DB-Struktur Version 6 (Schublade `belegDateien`). Das Datenmodell bleibt Version 8 (das Feld
+  `belege` gab es schon).
+
+## D64 – Export
+*Entscheidung des Nutzers: CSV für Excel*
+
+- CSV mit Semikolon, Dezimalkomma, Datum TT.MM.JJJJ, UTF-8 mit BOM und CRLF – so öffnet Excel
+  (deutsch) die Datei per Doppelklick richtig, ohne Zusatzprogramm und offline.
+- Spalten: Datum, Konto, Art, Empfänger/Absender, Hauptkategorie, Unterkategorie, Betrag (€,
+  Ausgaben negativ), Status, Notiz, Projekt, Gegenkonto, Belege (Anzahl). Umbuchungen einmal
+  (vom Abgangskonto), Papierkorb nicht.
+- Texte, die mit `=`, `+`, `-` oder `@` beginnen, bekommen ein `'` davor, damit Excel sie nicht als
+  Formel ausführt.
+- Stammdaten → Export: alle Buchungen als CSV und der komplette Datenstand als JSON.
+  Alle Buchungen → Liste: „Als CSV (Excel)“ exportiert die gefilterte Liste.
+
+## D65 – Veröffentlichung mit GitHub Pages
+*Entscheidung des Nutzers*
+
+- Statisches Hosting des Codes unter `https://NAME.github.io/FinanzApp/` (öffentliches
+  Repository, weil GitHub Pages für kostenlose Konten nur so geht). Im Repository liegen nur
+  Code, Dokumentation und erfundene Testdaten – keine Finanzdaten, keine Zugangsdaten.
+- Alle Pfade sind relativ, Service Worker und Manifest funktionieren daher auch im
+  Unterordner `/FinanzApp/`. `.nojekyll` sorgt dafür, dass GitHub die Dateien unverändert
+  ausliefert.
+- Die Pages-Adresse muss beim Google-Client als „Autorisierte JavaScript-Quelle“ eingetragen
+  werden.
+

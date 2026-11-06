@@ -8,6 +8,7 @@ import { zeigeProjekte } from './views/projekte.js';
 import { zeigeUebersicht } from './views/uebersicht.js';
 import { zeigeStammdaten } from './views/stammdaten.js';
 import { oeffneBuchungsdialog } from './views/buchung-dialog.js';
+import { richteSyncEin } from './views/sync-dialoge.js';
 
 const TABS = {
   uebersicht: { titel: 'Übersicht', zeige: zeigeUebersicht },
@@ -88,6 +89,8 @@ async function start() {
     oeffneBuchungsdialog().catch(zeigeFehler);
   });
   await zeigeTab();
+  // Etappe 6: Abgleich mit Google Drive (Statusanzeige oben rechts)
+  richteSyncEin();
 }
 
 if ('serviceWorker' in navigator) {

@@ -11,8 +11,8 @@ import { erzeugeStartKategorien } from './startdaten.js';
 
 const DB_NAME = 'finanzapp';
 // 2 = Etappe 2: buchungen, abstimmungen; 3 = Etappe 4: budgets usw.; 4 = Etappe 5: geplant, szenarien;
-// 5 = Projekte statt Szenarien
-const DB_STRUKTUR_VERSION = 5;
+// 5 = Projekte statt Szenarien; 6 = Etappe 6: belegDateien (lokaler Zwischenspeicher für Belege)
+const DB_STRUKTUR_VERSION = 6;
 
 /** Schubladen mit Nutzdaten. "meta" kommt zusätzlich dazu (Versionsnummer usw.). */
 export const SAMMLUNGEN = [
@@ -27,6 +27,13 @@ export const SAMMLUNGEN = [
  */
 const ALTE_SAMMLUNGEN = ['szenarien'];
 
+/**
+ * Nur auf diesem Gerät (wird NICHT mit Drive abgeglichen):
+ * belegDateien = { id (lokale Beleg-ID), blob, name, mime } – Belegdatei, bis sie in Drive liegt,
+ * danach als Zwischenspeicher zum schnellen Anzeigen.
+ */
+export const LOKALE_SAMMLUNGEN = ['belegDateien'];
+
 let dbVersprechen = null;
 
 function oeffne() {
@@ -34,7 +41,7 @@ function oeffne() {
     const anfrage = indexedDB.open(DB_NAME, DB_STRUKTUR_VERSION);
     anfrage.onupgradeneeded = () => {
       const db = anfrage.result;
-      for (const name of SAMMLUNGEN) {
+      for (const name of [...SAMMLUNGEN, ...LOKALE_SAMMLUNGEN]) {
         if (!db.objectStoreNames.contains(name)) db.createObjectStore(name, { keyPath: 'id' });
       }
       if (!db.objectStoreNames.contains('meta')) db.createObjectStore('meta', { keyPath: 'schluessel' });
@@ -68,6 +75,14 @@ export async function alle(sammlung) {
   return alsVersprechen(db.transaction(sammlung).objectStore(sammlung).getAll());
 }
 
+/**
+ * Signal "Nutzdaten wurden geändert" – darauf hört der Abgleich mit Drive (Etappe 6).
+ * Nur für abgeglichene Sammlungen, nicht für meta und lokale Zwischenspeicher.
+ */
+function meldeAenderung(sammlung) {
+  if (SAMMLUNGEN.includes(sammlung) && typeof window !== 'undefined') window.dispatchEvent(new Event('db-geaendert'));
+}
+
 /** Einen oder mehrere Datensätze speichern (neu oder überschreiben) */
 export async function speichere(sammlung, datensaetze) {
   const liste = Array.isArray(datensaetze) ? datensaetze : [datensaetze];
@@ -75,6 +90,7 @@ export async function speichere(sammlung, datensaetze) {
   const tx = db.transaction(sammlung, 'readwrite');
   for (const d of liste) tx.objectStore(sammlung).put(d);
   await abgeschlossen(tx);
+  meldeAenderung(sammlung);
 }
 
 /** Einen oder mehrere Datensätze per ID endgültig löschen */
@@ -84,9 +100,23 @@ export async function loesche(sammlung, ids) {
   const tx = db.transaction(sammlung, 'readwrite');
   for (const id of liste) tx.objectStore(sammlung).delete(id);
   await abgeschlossen(tx);
+  meldeAenderung(sammlung);
 }
 
-async function leseMeta(schluessel) {
+/** Einen Datensatz per ID lesen (oder undefined) */
+export async function hole(sammlung, id) {
+  const db = await oeffne();
+  return alsVersprechen(db.transaction(sammlung).objectStore(sammlung).get(id));
+}
+
+export async function schreibeMeta(schluessel, wert) {
+  const db = await oeffne();
+  const tx = db.transaction('meta', 'readwrite');
+  tx.objectStore('meta').put({ schluessel, wert });
+  await abgeschlossen(tx);
+}
+
+export async function leseMeta(schluessel) {
   const db = await oeffne();
   const eintrag = await alsVersprechen(db.transaction('meta').objectStore('meta').get(schluessel));
   return eintrag?.wert;
@@ -111,7 +141,7 @@ async function leseDatenstandMitAltem() {
 }
 
 /** Ersetzt den kompletten Datenstand in EINEM Schritt (alles oder nichts). */
-async function schreibeDatenstand(daten) {
+export async function schreibeDatenstand(daten) {
   const db = await oeffne();
   const alte = ALTE_SAMMLUNGEN.filter((s) => db.objectStoreNames.contains(s));
   const tx = db.transaction([...SAMMLUNGEN, ...alte, 'meta'], 'readwrite');

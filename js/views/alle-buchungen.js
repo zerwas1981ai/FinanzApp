@@ -3,7 +3,8 @@
 import { h } from '../dom.js';
 import * as db from '../db.js';
 import { formatEuro, formatEuroRund, formatProzent, formatDatum, formatMonat, heuteIso, parseEuro } from '../format.js';
-import { schalter } from '../ui.js';
+import { schalter, herunterladen } from '../ui.js';
+import { buchungenAlsCsv, exportName } from '../export.js';
 import {
   STANDARD_FILTER, STANDARD_SORTIERUNG, filtere, sortiere, summen, zeitraumFuer,
   monateDerAuswertung, ersterErfassterTag, abgeschlosseneMonate, verlaufJeMonat, summenJeKategorie, schoeneObergrenze,
@@ -36,8 +37,8 @@ const ZEITRAEUME = [
 ];
 
 export async function zeigeBuchungen(container) {
-  const [konten, kategorien, buchungen] = await Promise.all(['konten', 'kategorien', 'buchungen'].map((s) => db.alle(s)));
-  const daten = { konten, kategorien, buchungen };
+  const [konten, kategorien, buchungen, projekte] = await Promise.all(['konten', 'kategorien', 'buchungen', 'projekte'].map((s) => db.alle(s)));
+  const daten = { konten, kategorien, buchungen, projekte };
   const ergebnis = h('div', { class: 'ergebnis' });
   const neuZeichnen = () => zeigeBuchungen(container);
   const aktualisiere = () => {
@@ -180,7 +181,7 @@ function filterBereich({ konten, kategorien, buchungen }, aktualisiere, neuZeich
         betragFeld('betragMax', 'Betrag bis'),
       ),
       schalter('Nur Buchungen ohne Beleg', f.ohneBeleg, (an) => setze('ohneBeleg', an)),
-      h('p', { class: 'hinweis' }, 'Belege lassen sich erst ab Etappe 6 anhängen – bis dahin hat noch keine Buchung einen Beleg.'),
+      h('p', { class: 'hinweis' }, 'Belege hängst du im Buchungsdialog an (Foto oder PDF).'),
     ),
     h('div', { class: 'filter-fuss' }, resetKnopf),
   );
@@ -267,8 +268,18 @@ function liste(eintraege, daten, neu) {
   }
 
   const zeigen = sortiert.slice(0, zustand.sichtbar);
+  // Export der gefilterten Liste (Etappe 6). Bei Umbuchungen kommen beide Hälften mit, damit die CSV vollständig ist.
+  const exportKnopf = h('button', {
+    type: 'button',
+    class: 'knopf knopf-klein',
+    onclick: () => {
+      const ids = new Set(sortiert.map((e) => e.buchung.umbuchungId ?? e.buchung.id));
+      const auswahl = daten.buchungen.filter((b) => ids.has(b.umbuchungId ?? b.id));
+      herunterladen(buchungenAlsCsv(auswahl, daten), exportName('auswahl', heuteIso()), 'text/csv;charset=utf-8');
+    },
+  }, 'Als CSV (Excel)');
   return h('section', { class: 'bereich buchungen' },
-    h('div', { class: 'sortierung' }, h('span', { class: 'klein' }, 'Sortieren nach'), sortFeld, richtung),
+    h('div', { class: 'sortierung' }, h('span', { class: 'klein' }, 'Sortieren nach'), sortFeld, richtung, exportKnopf),
     h('ul', { class: 'liste' }, zeigen.map(({ buchung: b, wirkung }) => {
       let titel;
       let teile;

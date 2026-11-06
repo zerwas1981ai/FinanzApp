@@ -10,6 +10,8 @@ import { DATENMODELL_VERSION } from '../migrationen.js';
 import { anzahlFuerKonto, anzahlFuerKategorien, gruppeVon, wiederherstellen, endgueltigLoeschen } from '../buchungen.js';
 import { wirkungCent } from '../rechnen.js';
 import { leseEinstellungen, speichereEinstellungen } from '../annahmen.js';
+import { belegeEntfernen } from './belege.js';
+import { driveBereich, exportBereich } from './drive-bereich.js';
 
 // Alle Buchungen (auch im Papierkorb) – für die Löschsperre. Wird bei jedem Zeichnen neu geladen.
 let buchungen = [];
@@ -64,6 +66,8 @@ export async function zeigeStammdaten(container) {
     kontenBereich(konten, neu),
     kategorienBereich(kategorien, neu),
     schwellenBereich(await leseEinstellungen()),
+    driveBereich(neu),
+    exportBereich(),
     papierkorbBereich(konten, kategorien, neu),
     testdatenBereich(konten, kategorien, neu),
     infoBereich(),
@@ -416,6 +420,7 @@ function papierkorbBereich(konten, kategorien, neu) {
             gefahr: true,
           });
           if (!ok) return;
+          await belegeEntfernen(buchungen.filter((b) => b.geloeschtAm));
           await endgueltigLoeschen(buchungen.filter((b) => b.geloeschtAm));
           toast('Papierkorb geleert');
           neu();
@@ -440,6 +445,7 @@ function papierkorbBereich(konten, kategorien, neu) {
             knopf('Endgültig löschen', async () => {
               const ok = await frage({ titel: 'Endgültig löschen?', text: 'Die Buchung kann danach nicht wiederhergestellt werden.', jaText: 'Endgültig löschen', gefahr: true });
               if (!ok) return;
+              await belegeEntfernen(gruppeVon(b, buchungen));
               await endgueltigLoeschen(gruppeVon(b, buchungen));
               toast('Buchung endgültig gelöscht');
               neu();
@@ -491,8 +497,8 @@ function infoBereich() {
   return h('section', { class: 'bereich', 'aria-labelledby': 'titel-info' },
     h('h2', { id: 'titel-info' }, 'Über die Daten'),
     h('p', { class: 'hinweis' },
-      'Deine Daten liegen im Moment nur in diesem Browser auf diesem Gerät. ' +
-      'Der Abgleich mit Google Drive folgt in einer späteren Etappe.'),
+      'Deine Daten liegen in diesem Browser auf diesem Gerät und – wenn verbunden – in deinem Google Drive. ' +
+      'Der Programmcode enthält keine Finanzdaten und keine Zugangsdaten.'),
     h('p', { class: 'hinweis' }, `Datenmodell-Version: ${DATENMODELL_VERSION}`),
   );
 }

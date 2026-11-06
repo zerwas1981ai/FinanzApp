@@ -6,6 +6,7 @@ import { parseEuro, centZuEingabe, heuteIso } from '../format.js';
 import { dialog, toast, eingabe, auswahl, optionsGruppe, datenGeaendert, geraet } from '../ui.js';
 import { speichereBuchung, gruppeVon, inPapierkorb } from '../buchungen.js';
 import { partnerListe, partnerSchluessel } from '../auswertung.js';
+import { belegeFeld } from './belege.js';
 
 const nachName = (a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base' });
 
@@ -18,6 +19,9 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
   const [konten, kategorien, alle, projekte] = await Promise.all(
     ['konten', 'kategorien', 'buchungen', 'projekte'].map((s) => db.alle(s)),
   );
+  // Immer die aktuelle Fassung aus der Datenbank nehmen – der Abgleich kann sie im Hintergrund
+  // geändert haben (z. B. Drive-Kennung eines hochgeladenen Belegs)
+  if (buchung) buchung = alle.find((b) => b.id === buchung.id) ?? buchung;
   const gruppe = buchung ? gruppeVon(buchung, alle) : [];
   // Bei Umbuchungen ist die "ab"-Hälfte maßgeblich (Von-Konto)
   const ref = gruppe.find((b) => b.richtung === 'ab') ?? buchung;
@@ -78,11 +82,17 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
   });
   const notiz = eingabe({ label: 'Notiz (optional)', maxlength: 200, value: ref?.notiz ?? vorgaben.notiz ?? '', placeholder: 'z. B. Wocheneinkauf' });
   const projekt = projektFeld(projekte, ref?.projektId ?? vorgaben.projektId ?? null);
+  // Belege: Dateiname aus Datum und Empfänger/Absender bzw. Kategorie
+  const belege = belegeFeld(ref?.belege ?? [], () => [
+    datum.input.value,
+    partner.input.value.trim() || kategorie.select.selectedOptions[0]?.textContent || 'Beleg',
+  ].filter(Boolean).join(' '));
 
   function aktualisiere() {
     const istUmbuchung = art === 'umbuchung';
     kategorie.feld.hidden = istUmbuchung;
     if (projekt) projekt.feld.hidden = istUmbuchung;
+    belege.feld.hidden = istUmbuchung;
     partner.setzeArt(art);
     gegenkonto.feld.hidden = !istUmbuchung;
     konto.feld.querySelector('label').textContent = istUmbuchung ? 'Von Konto' : 'Konto';
@@ -93,7 +103,7 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
   // ---------- Dialog ----------
   const dlg = dialog({
     titel: buchung ? (ref.art === 'umbuchung' ? 'Umbuchung bearbeiten' : 'Buchung bearbeiten') : (vorgaben.titel ?? 'Neue Buchung'),
-    inhalt: [artKnoepfe, betrag.feld, partner.feld, kategorie.feld, konto.feld, gegenkonto.feld, datum.feld, status.feld, notiz.feld, projekt?.feld].filter(Boolean),
+    inhalt: [artKnoepfe, betrag.feld, partner.feld, kategorie.feld, konto.feld, gegenkonto.feld, datum.feld, status.feld, notiz.feld, projekt?.feld, belege.feld].filter(Boolean),
     speichernText: buchung ? 'Speichern' : 'Erfassen',
     zusatz: buchung && {
       text: 'In den Papierkorb',
@@ -122,7 +132,9 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
         geplantId: buchung ? undefined : vorgaben.geplantId,
         projektId: projekt ? projekt.select.value : undefined,
       };
+      werte.belege = art === 'umbuchung' ? undefined : belege.liste();
       await speichereBuchung(werte, gruppe);
+      if (art !== 'umbuchung') await belege.uebernehme(); // neue Dateien ablegen, entfernte vormerken
       geraet.schreib('letztes-konto', werte.kontoId);
       toast(buchung ? 'Buchung gespeichert' : 'Buchung erfasst');
       datenGeaendert();

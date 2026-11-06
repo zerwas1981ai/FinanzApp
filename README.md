@@ -1,9 +1,10 @@
 # Finanzen – private Finanz-App (PWA)
 
-Stand: **Etappe 5** (Zeitleiste bis 2050, geplante Einmalbuchungen, Projekte, Ein/Aus-Schalter für Annahmen).
-Davor: Etappe 4 (Budgets, wiederkehrende Buchungen, Kennzahlen, Budgethinweise), Etappe 3 (Alle Buchungen: Filter, Sortierung, Analyse), Etappe 2 (Buchungen,
-Monatsansicht, Umbuchungen, Papierkorb, Kontoabstimmung) und Etappe 1 (Grundgerüst,
-Design, Hell/Dunkel, Stammdaten).
+Stand: **Etappe 6** (Google-Drive-Abgleich mit Konfliktabfrage, Belege, Backups, Export).
+Davor: Etappe 5 (Zeitleiste bis 2050, geplante Einmalbuchungen, Projekte, Empfänger/Absender),
+Etappe 4 (Budgets, wiederkehrende Buchungen, Kennzahlen, Budgethinweise), Etappe 3 (Alle
+Buchungen: Filter, Sortierung, Analyse), Etappe 2 (Buchungen, Monatsansicht, Umbuchungen,
+Papierkorb, Kontoabstimmung) und Etappe 1 (Grundgerüst, Design, Hell/Dunkel, Stammdaten).
 Ziele und Etappen: siehe `CLAUDE.md`. Technische Entscheidungen: siehe `DECISIONS.md`.
 
 ## App starten (Windows)
@@ -22,11 +23,73 @@ Ziele und Etappen: siehe `CLAUDE.md`. Technische Entscheidungen: siehe `DECISION
 > Falls `npm` nicht gefunden wird: Terminal einmal schließen und neu öffnen
 > (Node.js ist installiert, das Terminal kennt es nur noch nicht).
 
+## Google Drive einrichten (einmalig, ca. 10 Minuten)
+
+Die App braucht eine **Client-ID** von Google. Sie ist kein Passwort, sondern sagt Google nur,
+welche App sich anmelden möchte. Du trägst sie in der App ein; sie steht nicht im Code.
+
+1. **Projekt anlegen:** <https://console.cloud.google.com> öffnen, mit deinem Google-Konto
+   anmelden. Oben auf die Projektauswahl → **Neues Projekt** → Name z. B. `Finanzapp` → Erstellen.
+   Danach sicherstellen, dass oben dieses Projekt ausgewählt ist.
+2. **Drive-Schnittstelle einschalten:** Menü ☰ → **APIs und Dienste → Bibliothek** →
+   „Google Drive API“ suchen → **Aktivieren**.
+3. **Anmeldebildschirm einrichten:** Menü ☰ → **Google Auth Platform** (früher
+   „OAuth-Zustimmungsbildschirm“) → **Jetzt starten**:
+   - App-Name: `Finanzapp`, Support-E-Mail: deine Adresse
+   - Zielgruppe: **Extern**
+   - Kontakt-E-Mail: deine Adresse → Richtlinie akzeptieren → **Erstellen**
+4. **Dich als Testnutzer eintragen:** In der Google Auth Platform → **Zielgruppe** →
+   Testnutzer → **+ Nutzer hinzufügen** → deine Gmail-Adresse → Speichern.
+   *(Optional: Unter „Zielgruppe“ auf **App veröffentlichen** klicken. Weil die App nur die
+   unkritische Berechtigung „drive.file“ nutzt, ist dafür keine Prüfung durch Google nötig, und
+   du musst die Freigabe nicht jede Woche neu bestätigen.)*
+5. **Client-ID erstellen:** Google Auth Platform → **Clients** → **+ Client erstellen**:
+   - Anwendungstyp: **Webanwendung**, Name: `Finanzapp Web`
+   - **Autorisierte JavaScript-Quellen** → URI hinzufügen: `http://localhost:8080`
+     (später zusätzlich die GitHub-Pages-Adresse, siehe unten)
+   - Weiterleitungs-URIs: leer lassen → **Erstellen**
+   - Die angezeigte **Client-ID** kopieren (endet auf `.apps.googleusercontent.com`).
+     Ein „Clientschlüssel“ wird nicht gebraucht.
+6. **In der App:** Stammdaten → **Google Drive** → Client-ID einfügen → **Mit Google Drive
+   verbinden**. Im Google-Fenster dein Konto wählen. Erscheint „Google hat diese App nicht
+   überprüft“: auf **Weiter** (es ist ja deine eigene App) → Zugriff erlauben.
+
+Danach legt die App in deinem Drive den Ordner **Finanzapp** an (Datendatei, `Belege/`,
+`Backups/`). Sie sieht in deinem Drive **nur** Dateien, die sie selbst angelegt hat.
+
+**Zweites Gerät (z. B. Handy):** Dort ebenfalls die Client-ID eintragen und verbinden. Die App
+fragt dann, ob sie den Stand aus Drive übernehmen soll.
+
+**Nach jedem Neustart der App** zeigt oben rechts ein Wolken-Knopf „Anmelden“. Einmal antippen –
+danach gleicht die App automatisch ab (beim Speichern, wenn das Gerät wieder online ist und wenn
+die App in den Vordergrund kommt). Ohne Anmeldung arbeitet sie ganz normal auf dem Gerät weiter.
+
+## Veröffentlichen mit GitHub Pages (für Android)
+
+Damit die App auf dem Handy läuft, muss der **Programmcode** im Internet liegen (nur Code und
+erfundene Testdaten – keine Finanzdaten, keine Zugangsdaten).
+
+1. Auf <https://github.com> ein kostenloses Konto anlegen.
+2. **New repository** → Name `FinanzApp` → **Public** (GitHub Pages ist für kostenlose Konten nur
+   bei öffentlichen Repositorys möglich) → ohne README → **Create repository**.
+3. Den Code hochladen (macht Claude nach deiner Freigabe; beim ersten Mal öffnet sich ein
+   GitHub-Anmeldefenster).
+4. Im Repository: **Settings → Pages** → Source **Deploy from a branch** → Branch `main`,
+   Ordner `/ (root)` → **Save**. Nach 1–2 Minuten ist die App unter
+   `https://DEINNAME.github.io/FinanzApp/` erreichbar.
+5. In der Google Cloud Console beim Client unter **Autorisierte JavaScript-Quellen**
+   `https://DEINNAME.github.io` ergänzen (ohne `/FinanzApp` am Ende).
+6. **Android:** Die Adresse in Chrome öffnen → Menü ⋮ → **App installieren** bzw. **Zum
+   Startbildschirm hinzufügen**. Dann in der App die Client-ID eintragen und verbinden.
+
+Neue Versionen: Nach jeder Änderung wird der Code wieder hochgeladen (`git push`); die App holt
+sich die neue Version beim nächsten Öffnen mit Internet.
+
 ## Weitere Befehle
 
 | Befehl | Was er tut |
 |---|---|
-| `npm test` | automatische Tests (Beträge, Datum, Migrationen) |
+| `npm test` | automatische Tests (Beträge, Datum, Migrationen, Prognose, Abgleich, Export) |
 | `npm run icons` | App-Symbole neu erzeugen |
 
 ## Ordner
@@ -41,15 +104,19 @@ js/format.js                               Euro- und Datumsformat
 js/buchungen.js, js/rechnen.js             Buchungsregeln, Kontostände, Monatssummen
 js/auswertung.js                           Filter, Sortierung, Analysen
 js/prognose.js, js/annahmen.js             Budgets, wiederkehrende/geplante Buchungen, Projekte, Prognose, Hinweise
+js/sync/                                   Google Drive: Anmeldung, Abgleich, Zusammenführen, Backups
+js/export.js                               CSV-Export für Excel
 js/startdaten.js, js/testdaten.js          Kategorie-Startsatz, Testdaten
 js/ui.js, js/dom.js                        Bausteine der Oberfläche
-js/views/                                  die Tabs
+js/views/                                  die Tabs und Dialoge
 tests/                                     automatische Tests
 tools/                                     Hilfsskripte
 ```
 
 ## Wo liegen die Daten?
 
-Im Moment nur im Browser auf diesem Gerät (IndexedDB). Wer die Browserdaten für
-`localhost` löscht, löscht auch die App-Daten. Sync mit Google Drive und Backups
-folgen in Etappe 6.
+- **Auf dem Gerät** im Browser (IndexedDB) – die App funktioniert auch offline.
+- **In deinem Google Drive** (wenn verbunden): Ordner `Finanzapp` mit der Datendatei, den
+  Belegen und den Backups (die letzten 30 Stände und je einer pro Tag der letzten 30 Tage).
+- Unter Stammdaten → **Export** gibt es die Buchungen als CSV für Excel und den kompletten
+  Datenstand als JSON-Datei.

@@ -76,6 +76,16 @@ export function hinweis({ titel, text }) {
   });
 }
 
+/** Datei zum Speichern anbieten (Export) */
+export function herunterladen(inhalt, name, typ) {
+  const url = URL.createObjectURL(inhalt instanceof Blob ? inhalt : new Blob([inhalt], { type: typ }));
+  const a = h('a', { href: url, download: name, hidden: true });
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 30000);
+}
+
 /** Meldet der App, dass sich Daten geändert haben → aktueller Tab zeichnet sich neu */
 export function datenGeaendert() {
   window.dispatchEvent(new Event('daten-geaendert'));

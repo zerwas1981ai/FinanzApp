@@ -1049,3 +1049,36 @@ details[open] > .zl-zeile > .zl-name::before { transform: rotate(90deg); }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
 }
+
+/* =========================================================
+   Etappe 6: Google Drive, Belege, Export
+   ========================================================= */
+.sync-knopf {
+  display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px;
+  border-radius: 18px; border: 1px solid var(--rand); background: var(--flaeche); color: var(--text-2);
+  font: inherit; font-size: .85rem; cursor: pointer;
+}
+.sync-knopf:hover { background: var(--flaeche-2); }
+.sync-symbol { font-size: 1.05rem; line-height: 1; }
+.sync-text:empty { display: none; }
+.sync-knopf[data-zustand="ok"] { color: var(--einnahme); }
+.sync-knopf[data-zustand="laeuft"] .sync-symbol { display: inline-block; animation: drehen 1s linear infinite; }
+.sync-knopf[data-zustand="anmelden"], .sync-knopf[data-zustand="konflikt"] { color: var(--akzent); border-color: var(--akzent); }
+.sync-knopf[data-zustand="fehler"] { color: var(--warnung); border-color: currentColor; }
+@keyframes drehen { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .sync-knopf[data-zustand="laeuft"] .sync-symbol { animation: none; } }
+
+.wahl-karte { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; border: 1px solid var(--rand); border-radius: var(--radius-klein); margin-top: 6px; cursor: pointer; }
+.wahl-karte > span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.wahl-karte input { margin-top: 3px; accent-color: var(--akzent); }
+.wahl-karte:has(input:checked) { border-color: var(--akzent); background: var(--akzent-leicht); }
+.konflikt { border: 0; padding: 0; margin: 12px 0 0; }
+.konflikt legend { font-weight: 600; font-size: .9rem; }
+
+.belege-liste { list-style: none; margin: 4px 0; padding: 0; }
+.belege-liste li { display: flex; align-items: center; gap: 8px; padding: 4px 0; border-top: 1px solid var(--rand); font-size: .9rem; }
+.belege-liste li:first-child { border-top: 0; }
+.belege-liste .beleg-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.beleg-vorschau { max-width: 100%; max-height: 70vh; display: block; margin: 0 auto; border-radius: var(--radius-klein); }
+.backup-liste { max-height: 320px; overflow-y: auto; }
+
