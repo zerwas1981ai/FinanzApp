@@ -14,11 +14,12 @@ export const STANDARD_FILTER = Object.freeze({
   zeitraum: 'monat', // monat | vormonat | jahr | vorjahr | alles | eigen
   von: '',
   bis: '',
-  kontoId: '',
-  art: '', // einnahme | ausgabe | umbuchung
-  kategorieId: '', // Haupt- oder Unterkategorie
-  partner: '', // Empfänger/Absender: '' = alle, OHNE_PARTNER = ohne Angabe, sonst der Name
-  status: '', // gebucht | vorgemerkt
+  // Mehrfachauswahl (D72): leere Liste = alle
+  kontoIds: Object.freeze([]),
+  arten: Object.freeze([]), // einnahme | ausgabe | umbuchung
+  kategorieIds: Object.freeze([]), // Haupt- oder Unterkategorien
+  partner: Object.freeze([]), // Empfänger/Absender: Namen oder OHNE_PARTNER
+  status: Object.freeze([]), // gebucht | vorgemerkt
   betragMin: null, // Cent
   betragMax: null, // Cent
   suche: '',
@@ -78,36 +79,46 @@ export function filtere(buchungen, filter, { kategorien = [], konten = [], heute
   const kat = new Map(kategorien.map((k) => [k.id, k]));
   const kontoName = new Map(konten.map((k) => [k.id, k.name]));
   const suche = filter.suche.trim().toLocaleLowerCase('de');
+  const konten_ = new Set(filter.kontoIds);
+  const arten = new Set(filter.arten);
+  const status = new Set(filter.status);
+  const kategorienGewaehlt = new Set(filter.kategorieIds);
+  const partnerGewaehlt = new Set(filter.partner.map((p) => (p === OHNE_PARTNER ? '' : partnerSchluessel(p))));
 
   const ergebnis = [];
   for (const b of buchungen) {
     if (!istAktiv(b)) continue;
 
-    // Kontofilter / Umbuchung nur einmal
-    if (filter.kontoId) {
-      if (b.kontoId !== filter.kontoId) continue;
+    // Kontofilter / Umbuchung nur einmal. Umbuchung zwischen zwei gewählten Konten: einmal, ohne Wirkung.
+    let intern = false;
+    if (konten_.size) {
+      if (!konten_.has(b.kontoId)) continue;
+      if (b.art === 'umbuchung' && konten_.has(b.gegenkontoId)) {
+        if (b.richtung === 'zu') continue;
+        intern = true;
+      }
     } else if (b.richtung === 'zu') {
       continue;
     }
 
     if (von && b.datum < von) continue;
     if (bis && b.datum > bis) continue;
-    if (filter.art && b.art !== filter.art) continue;
-    if (filter.status && b.status !== filter.status) continue;
+    if (arten.size && !arten.has(b.art)) continue;
+    if (status.size && !status.has(b.status)) continue;
     if (filter.betragMin != null && b.betragCent < filter.betragMin) continue;
     if (filter.betragMax != null && b.betragCent > filter.betragMax) continue;
     if (filter.ohneBeleg && b.belege?.length) continue;
 
-    if (filter.partner) {
+    if (partnerGewaehlt.size) {
       // Umbuchungen haben keinen Empfänger/Absender und fallen bei diesem Filter weg
       if (b.art === 'umbuchung') continue;
-      const k = partnerSchluessel(b.partner);
-      if (filter.partner === OHNE_PARTNER ? k !== '' : k !== partnerSchluessel(filter.partner)) continue;
+      if (!partnerGewaehlt.has(partnerSchluessel(b.partner))) continue;
     }
 
-    if (filter.kategorieId) {
+    if (kategorienGewaehlt.size) {
+      // Eine gewählte Hauptkategorie umfasst alle ihre Unterkategorien
       const unter = kat.get(b.kategorieId);
-      if (!unter || (unter.id !== filter.kategorieId && unter.elternId !== filter.kategorieId)) continue;
+      if (!unter || (!kategorienGewaehlt.has(unter.id) && !kategorienGewaehlt.has(unter.elternId))) continue;
     }
 
     if (suche) {
@@ -123,7 +134,7 @@ export function filtere(buchungen, filter, { kategorien = [], konten = [], heute
       if (!text.includes(suche)) continue;
     }
 
-    const wirkung = b.art === 'umbuchung' && !filter.kontoId ? 0 : wirkungCent(b);
+    const wirkung = b.art === 'umbuchung' && (!konten_.size || intern) ? 0 : wirkungCent(b);
     ergebnis.push({ buchung: b, wirkung });
   }
   return ergebnis;
@@ -182,7 +193,7 @@ export function monateZwischen(vonIso, bisIso) {
 
 /**
  * Ab wann wird erfasst? Datum der frühesten (nicht gelöschten) Buchung –
- * bei Kontofilter nur dieses Kontos. Kategorie-, Such- und andere Filter spielen
+ * bei Kontofilter nur der gewählten Konten. Kategorie-, Such- und andere Filter spielen
  * bewusst keine Rolle: Eine seltene Kategorie (z. B. Urlaub) soll über alle
  * erfassten Monate gemittelt werden, nicht erst ab ihrer ersten Buchung.
  */
@@ -190,7 +201,7 @@ export function ersterErfassterTag(buchungen, filter = {}) {
   let erster = null;
   for (const b of buchungen) {
     if (!istAktiv(b)) continue;
-    if (filter.kontoId && b.kontoId !== filter.kontoId) continue;
+    if (filter.kontoIds?.length && !filter.kontoIds.includes(b.kontoId)) continue;
     if (erster === null || b.datum < erster) erster = b.datum;
   }
   return erster;

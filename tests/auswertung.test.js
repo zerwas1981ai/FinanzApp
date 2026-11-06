@@ -58,17 +58,17 @@ test('Standard: dieser Monat, Papierkorb fehlt, Umbuchung einmal mit Wirkung 0',
 });
 
 test('Kontofilter zeigt Umbuchung aus Sicht des Kontos', () => {
-  const e = filtere(daten, f({ zeitraum: 'alles', kontoId: 'tg' }), ctx);
+  const e = filtere(daten, f({ zeitraum: 'alles', kontoIds: ['tg'] }), ctx);
   assert.equal(e.length, 1);
   assert.equal(e[0].wirkung, 20000);
 });
 
 test('Einzelne Filter', () => {
   const alles = { zeitraum: 'alles' };
-  assert.equal(filtere(daten, f({ ...alles, art: 'einnahme' }), ctx).length, 2);
-  assert.equal(filtere(daten, f({ ...alles, kategorieId: 'wohnen' }), ctx).length, 3, 'Hauptkategorie umfasst Unterkategorien');
-  assert.equal(filtere(daten, f({ ...alles, kategorieId: 'strom' }), ctx).length, 1);
-  assert.equal(filtere(daten, f({ ...alles, status: 'vorgemerkt' }), ctx).length, 1);
+  assert.equal(filtere(daten, f({ ...alles, arten: ['einnahme'] }), ctx).length, 2);
+  assert.equal(filtere(daten, f({ ...alles, kategorieIds: ['wohnen'] }), ctx).length, 3, 'Hauptkategorie umfasst Unterkategorien');
+  assert.equal(filtere(daten, f({ ...alles, kategorieIds: ['strom'] }), ctx).length, 1);
+  assert.equal(filtere(daten, f({ ...alles, status: ['vorgemerkt'] }), ctx).length, 1);
   assert.equal(filtere(daten, f({ ...alles, betragMin: 5000, betragMax: 10000 }), ctx).length, 2);
   assert.equal(filtere(daten, f({ ...alles, suche: 'WOCHEN' }), ctx).length, 1, 'Suche in Notiz, ohne Groß/klein');
   assert.equal(filtere(daten, f({ ...alles, suche: 'lebensmittel' }), ctx).length, 2, 'Suche im Kategorienamen');
@@ -96,7 +96,7 @@ test('Sortierung', () => {
 test('Summen ohne Umbuchungen', () => {
   const s = summen(filtere(daten, f({}), ctx));
   assert.deepEqual(s, { anzahl: 5, einnahmen: 300000, ausgaben: 107500, saldo: 192500, umbuchungen: 0 });
-  const giro = summen(filtere(daten, f({ kontoId: 'giro' }), ctx));
+  const giro = summen(filtere(daten, f({ kontoIds: ['giro'] }), ctx));
   assert.equal(giro.umbuchungen, -20000);
   assert.equal(giro.ausgaben, 107500);
 });
@@ -113,7 +113,7 @@ test('Monate und Verlauf', () => {
   // "Dieses Jahr": beginnt beim ersten erfassten Monat, endet beim aktuellen Monat
   assert.deepEqual(monateDerAuswertung(e, f({ zeitraum: 'jahr' }), heute, erster), [[2026, 10], [2026, 11]]);
   // Seltene Kategorie: Monate trotzdem ab Erfassungsbeginn
-  const nurStrom = filtere(daten, f({ zeitraum: 'alles', kategorieId: 'strom' }), ctx);
+  const nurStrom = filtere(daten, f({ zeitraum: 'alles', kategorieIds: ['strom'] }), ctx);
   assert.deepEqual(monateDerAuswertung(nurStrom, f({ zeitraum: 'alles' }), heute, erster), [[2026, 10], [2026, 11]]);
   // Eigener Zeitraum innerhalb der Daten bleibt unverändert
   assert.deepEqual(monateDerAuswertung(e, f({ zeitraum: 'eigen', von: '2026-11-01', bis: '2026-11-30' }), heute, erster), [[2026, 11]]);
@@ -122,7 +122,7 @@ test('Monate und Verlauf', () => {
   // Nach 14 erfassten Monaten umfasst "Alles" 14 Monate
   assert.equal(monateDerAuswertung(e, f({ zeitraum: 'alles' }), heute, '2025-10-15').length, 14);
   // Kontofilter: Erfassungsbeginn dieses Kontos
-  assert.equal(ersterErfassterTag(daten, { kontoId: 'tg' }), '2026-11-02');
+  assert.equal(ersterErfassterTag(daten, { kontoIds: ['tg'] }), '2026-11-02');
 
   const v = verlaufJeMonat(e, monate);
   assert.deepEqual(v[0], { jahr: 2026, monat: 10, einnahmen: 300000, ausgaben: 101000, saldo: 199000 });
@@ -168,8 +168,8 @@ test('Empfänger/Absender: Filter, Suche, Sortierung, Liste und Summen', async (
   ];
   const ctx = { heute: '2026-10-20' };
   const mit = (f) => filtere(buchungen, { ...STANDARD_FILTER, zeitraum: 'alles', ...f }, ctx).map((e) => e.buchung.id);
-  assert.deepEqual(mit({ partner: 'SUPERMARKT muster' }).sort(), ['1', '2'], 'Groß/klein und Leerzeichen egal');
-  assert.deepEqual(mit({ partner: OHNE_PARTNER }), ['3'], 'ohne Angabe – Umbuchungen nicht');
+  assert.deepEqual(mit({ partner: ['SUPERMARKT muster'] }).sort(), ['1', '2'], 'Groß/klein und Leerzeichen egal');
+  assert.deepEqual(mit({ partner: [OHNE_PARTNER] }), ['3'], 'ohne Angabe – Umbuchungen nicht');
   assert.deepEqual(mit({ suche: 'gmbh' }), ['4']);
   const sortiert = sortiere(filtere(buchungen, { ...STANDARD_FILTER, zeitraum: 'alles' }, ctx), { feld: 'partner', richtung: 'auf' });
   assert.deepEqual(sortiert.map((e) => e.buchung.id).slice(0, 3), ['4', '1', '2']);
@@ -182,3 +182,30 @@ test('Empfänger/Absender: Filter, Suche, Sortierung, Liste und Summen', async (
   assert.equal(s[1].name, 'Ohne Angabe');
   assert.equal(s[0].schnitt, 3000);
 });
+
+test('Mehrfachauswahl in den Filtern (D72)', () => {
+  const alles = { zeitraum: 'alles' };
+  const n = (x) => filtere(daten, f({ ...alles, ...x }), ctx).length;
+  assert.equal(n({ arten: ['einnahme', 'umbuchung'] }), 3, 'zwei Arten');
+  assert.equal(n({ kategorieIds: ['strom', 'super'] }), 3, 'zwei Unterkategorien');
+  assert.equal(n({ kategorieIds: ['wohnen', 'gehalt'] }), 5, 'Hauptkategorie + Unterkategorie');
+  assert.equal(n({ status: ['gebucht', 'vorgemerkt'] }), 8, 'beide Status = alle');
+  // Beide Konten gewählt: Umbuchung zwischen ihnen einmal und ohne Wirkung
+  const beide = filtere(daten, f({ ...alles, kontoIds: ['giro', 'tg'] }), ctx);
+  const u = beide.filter((x) => x.buchung.art === 'umbuchung');
+  assert.equal(u.length, 1);
+  assert.equal(u[0].wirkung, 0);
+  assert.equal(beide.length, 8);
+  assert.equal(summen(beide).umbuchungen, 0);
+  assert.equal(ersterErfassterTag(daten, { kontoIds: ['giro', 'tg'] }), '2026-10-01');
+});
+
+test('Mehrfachauswahl Empfänger/Absender', async () => {
+  const { OHNE_PARTNER } = await import('../js/auswertung.js');
+  const b = (id, partner) => ({ id, datum: '2026-10-02', art: 'ausgabe', betragCent: 100, partner, kontoId: 'giro', kategorieId: 'super', status: 'gebucht', belege: [], notiz: '' });
+  const buchungen = [b('1', 'Bäcker'), b('2', 'Metzger'), b('3', ''), b('4', 'Kiosk')];
+  const ids = (partner) => filtere(buchungen, { ...STANDARD_FILTER, zeitraum: 'alles', partner }, { heute: '2026-10-20' }).map((e) => e.buchung.id);
+  assert.deepEqual(ids(['bäcker', 'Metzger']), ['1', '2']);
+  assert.deepEqual(ids(['Kiosk', OHNE_PARTNER]), ['3', '4']);
+});
+

@@ -1094,3 +1094,21 @@ Wird eine Entscheidung geändert, den alten Eintrag nicht löschen, sondern als
 - Beide nehmen die Werte, die gerade im Dialog stehen. Die ursprüngliche Buchung bleibt
   unverändert (ungespeicherte Änderungen an ihr werden verworfen).
 
+## D72 – Mehrfachauswahl in den Filtern, Zukunft ohne eigene Hintergrundfarbe
+*Wunsch des Nutzers*
+
+- **Filter „Alle Buchungen“:** Konto, Art, Kategorie, Empfänger/Absender und Status sind
+  Aufklapplisten mit Häkchen. Nichts angehakt = alle. Innerhalb eines Filters gilt „oder“
+  (z. B. Giro oder Tagesgeld), zwischen den Filtern „und“. „Auswahl aufheben“ setzt einen
+  Filter zurück; ein Tipp daneben schließt die Liste.
+- **Kategorie:** Eine angehakte Hauptkategorie umfasst alle ihre Unterkategorien (diese
+  erscheinen dann angehakt und gesperrt). Haupt- und einzelne Unterkategorien anderer
+  Gruppen lassen sich mischen.
+- **Mehrere Konten:** Eine Umbuchung zwischen zwei gewählten Konten erscheint einmal und
+  ohne Wirkung (Geld bleibt in der Auswahl). Eine Umbuchung zu einem nicht gewählten Konto
+  zählt mit + / − aus Sicht des gewählten Kontos.
+- Antippen einer Zeile in der Analyse „Nach Empfänger/Absender“ wählt genau diesen einen aus.
+- **Zukunft bis 2050 und Zukunftsmonate:** gleiche Kartenfarbe wie alle anderen Bereiche
+  (ersetzt den getönten Hintergrund aus Etappe 5). Als Annahme gekennzeichnet bleiben die
+  Werte durch Kursivschrift.
+

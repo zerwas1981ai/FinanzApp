@@ -115,7 +115,77 @@ export async function zeigeBuchungen(container, { archivAnmelden = false } = {})
 /* =========================== Filter =========================== */
 
 function filterGeaendert() {
-  return Object.keys(STANDARD_FILTER).some((k) => zustand.filter[k] !== STANDARD_FILTER[k]);
+  return Object.keys(STANDARD_FILTER).some((k) => JSON.stringify(zustand.filter[k]) !== JSON.stringify(STANDARD_FILTER[k]));
+}
+
+// Offene Mehrfachauswahl schließen, wenn daneben getippt wird (einmal für die ganze App)
+document.addEventListener('click', (e) => {
+  for (const d of document.querySelectorAll('details.mehrfach[open]')) {
+    if (!d.contains(e.target)) d.open = false;
+  }
+});
+
+/**
+ * Aufklappliste mit Häkchen (Mehrfachauswahl, D72). Nichts angehakt = alle.
+ * optionen: [{ wert, text, kurz?, gruppe?, eltern? }] – gruppe = Hauptkategorie (umfasst ihre
+ * Unterkategorien), eltern = wert der zugehörigen Hauptkategorie, kurz = Text für die Anzeige.
+ */
+function mehrfachAuswahl({ optionen, gewaehlt, alleText, gleich = (a, b) => a === b, beiAenderung }) {
+  let auswahl = [...gewaehlt];
+  const istGewaehlt = (wert) => auswahl.some((w) => gleich(w, wert));
+  const anzeige = h('span', { class: 'mehrfach-text' });
+  const kaesten = [];
+
+  const leeren = h('button', {
+    type: 'button',
+    class: 'mehrfach-leeren',
+    onclick: () => {
+      auswahl = [];
+      aktualisiereAnzeige();
+      beiAenderung(auswahl);
+    },
+  }, 'Auswahl aufheben');
+
+  function aktualisiereAnzeige() {
+    const namen = optionen.filter((o) => istGewaehlt(o.wert)).map((o) => o.kurz ?? o.text);
+    anzeige.textContent = namen.length === 0 ? alleText
+      : namen.length <= 2 ? namen.join(', ')
+        : `${namen.length} ausgewählt`;
+    for (const { o, input } of kaesten) {
+      // Unterkategorie ist schon enthalten, wenn ihre Hauptkategorie angehakt ist
+      const durchEltern = o.eltern != null && istGewaehlt(o.eltern);
+      input.checked = durchEltern || istGewaehlt(o.wert);
+      input.disabled = durchEltern;
+    }
+    leeren.hidden = auswahl.length === 0;
+  }
+
+  const zeilen = optionen.map((o) => {
+    const input = h('input', {
+      type: 'checkbox',
+      onchange: () => {
+        auswahl = input.checked
+          ? [...auswahl, o.wert]
+          : auswahl.filter((w) => !gleich(w, o.wert));
+        // Hauptkategorie angehakt: einzeln gewählte Unterkategorien sind darin schon enthalten
+        if (o.gruppe && input.checked) {
+          const unter = optionen.filter((u) => u.eltern === o.wert).map((u) => u.wert);
+          auswahl = auswahl.filter((w) => !unter.includes(w));
+        }
+        aktualisiereAnzeige();
+        beiAenderung(auswahl);
+      },
+    });
+    kaesten.push({ o, input });
+    const klasse = 'mehrfach-option' + (o.gruppe ? ' gruppe' : '') + (o.eltern != null ? ' unter' : '');
+    return h('label', { class: klasse }, input, h('span', {}, o.text));
+  });
+
+  const d = h('details', { class: 'mehrfach' },
+    h('summary', { class: 'mehrfach-knopf' }, anzeige),
+    h('div', { class: 'mehrfach-liste' }, leeren, zeilen));
+  aktualisiereAnzeige();
+  return d;
 }
 
 function filterBereich({ konten, kategorien, buchungen }, aktualisiere, neuZeichnen) {
@@ -143,38 +213,54 @@ function filterBereich({ konten, kategorien, buchungen }, aktualisiere, neuZeich
     feld('Bis', h('input', { type: 'date', value: f.bis, onchange: (e) => setze('bis', e.target.value) })),
   );
 
-  // Auswahllisten
-  const kontoAuswahl = auswahlListe(
-    [{ wert: '', text: 'Alle Konten' }, ...[...konten].sort(nachName).map((k) => ({ wert: k.id, text: k.name + (k.archiviert ? ' (archiviert)' : '') }))],
-    f.kontoId, (w) => setze('kontoId', w));
-  const artAuswahl = auswahlListe(
-    [{ wert: '', text: 'Alle Arten' }, { wert: 'ausgabe', text: 'Ausgaben' }, { wert: 'einnahme', text: 'Einnahmen' }, { wert: 'umbuchung', text: 'Umbuchungen' }],
-    f.art, (w) => setze('art', w));
-  const statusAuswahl = auswahlListe(
-    [{ wert: '', text: 'Jeder Status' }, { wert: 'gebucht', text: 'Gebucht' }, { wert: 'vorgemerkt', text: 'Vorgemerkt' }],
-    f.status, (w) => setze('status', w));
+  // Auswahllisten mit Häkchen (Mehrfachauswahl, D72)
+  const kontoAuswahl = mehrfachAuswahl({
+    optionen: [...konten].sort(nachName).map((k) => ({ wert: k.id, text: k.name + (k.archiviert ? ' (archiviert)' : ''), kurz: k.name })),
+    gewaehlt: f.kontoIds,
+    alleText: 'Alle Konten',
+    beiAenderung: (w) => setze('kontoIds', w),
+  });
+  const artAuswahl = mehrfachAuswahl({
+    optionen: [{ wert: 'ausgabe', text: 'Ausgaben' }, { wert: 'einnahme', text: 'Einnahmen' }, { wert: 'umbuchung', text: 'Umbuchungen' }],
+    gewaehlt: f.arten,
+    alleText: 'Alle Arten',
+    beiAenderung: (w) => setze('arten', w),
+  });
+  const statusAuswahl = mehrfachAuswahl({
+    optionen: [{ wert: 'gebucht', text: 'Gebucht' }, { wert: 'vorgemerkt', text: 'Vorgemerkt' }],
+    gewaehlt: f.status,
+    alleText: 'Jeder Status',
+    beiAenderung: (w) => setze('status', w),
+  });
 
-  const kategorieAuswahl = h('select', { onchange: (e) => setze('kategorieId', e.target.value) },
-    h('option', { value: '' }, 'Alle Kategorien'),
-    ['einnahme', 'ausgabe'].map((art) => kategorien
-      .filter((k) => !k.elternId && k.art === art)
-      .sort(nachName)
-      .map((hk) => h('optgroup', { label: `${hk.name} (${art === 'einnahme' ? 'Einnahme' : 'Ausgabe'})` },
-        h('option', { value: hk.id }, `${hk.name} – alle`),
-        kategorien.filter((u) => u.elternId === hk.id).sort(nachName)
-          .map((u) => h('option', { value: u.id }, u.name + (u.archiviert ? ' (archiviert)' : '')))))));
-  kategorieAuswahl.value = f.kategorieId;
+  const katOptionen = ['einnahme', 'ausgabe'].flatMap((art) => kategorien
+    .filter((k) => !k.elternId && k.art === art)
+    .sort(nachName)
+    .flatMap((hk) => [
+      { wert: hk.id, text: `${hk.name} – alle (${art === 'einnahme' ? 'Einnahme' : 'Ausgabe'})`, kurz: hk.name, gruppe: true },
+      ...kategorien.filter((u) => u.elternId === hk.id).sort(nachName)
+        .map((u) => ({ wert: u.id, text: u.name + (u.archiviert ? ' (archiviert)' : ''), kurz: u.name, eltern: hk.id })),
+    ]));
+  const kategorieAuswahl = mehrfachAuswahl({
+    optionen: katOptionen,
+    gewaehlt: f.kategorieIds,
+    alleText: 'Alle Kategorien',
+    beiAenderung: (w) => setze('kategorieIds', w),
+  });
 
   // Empfänger/Absender: alle bisher verwendeten Namen, häufigste zuerst
   const partner = partnerListe(buchungen);
-  const partnerAuswahl = auswahlListe(
-    [
-      { wert: '', text: 'Alle' },
+  const partnerGleich = (a, b) => (a === OHNE_PARTNER || b === OHNE_PARTNER ? a === b : partnerSchluessel(a) === partnerSchluessel(b));
+  const partnerAuswahl = mehrfachAuswahl({
+    optionen: [
       { wert: OHNE_PARTNER, text: 'Ohne Angabe' },
-      ...partner.map((p) => ({ wert: p.name, text: `${p.name} (${p.anzahl})` })),
+      ...partner.map((p) => ({ wert: p.name, text: `${p.name} (${p.anzahl})`, kurz: p.name })),
     ],
-    f.partner === OHNE_PARTNER ? OHNE_PARTNER : (partner.find((p) => partnerSchluessel(p.name) === partnerSchluessel(f.partner))?.name ?? ''),
-    (w) => setze('partner', w));
+    gewaehlt: f.partner,
+    alleText: 'Alle',
+    gleich: partnerGleich,
+    beiAenderung: (w) => setze('partner', w),
+  });
 
   // Suche: bei jeder Eingabe, leicht verzögert
   let timer;
@@ -220,7 +306,7 @@ function filterBereich({ konten, kategorien, buchungen }, aktualisiere, neuZeich
     },
   }, 'Filter zurücksetzen');
 
-  const weitereOffen = f.betragMin != null || f.betragMax != null || f.ohneBeleg || f.status !== '';
+  const weitereOffen = f.betragMin != null || f.betragMax != null || f.ohneBeleg || f.status.length > 0;
   return h('section', { class: 'bereich filter' },
     zeitraum,
     eigenerZeitraum,
@@ -297,7 +383,7 @@ function summenKarte(s, von, bis) {
       kachel('Einnahmen', s.einnahmen, 'plus', true),
       kachel('Ausgaben', -s.ausgaben),
       kachel('Saldo', s.saldo, '', true),
-      zustand.filter.kontoId && s.umbuchungen !== 0 && kachel('Umbuchungen', s.umbuchungen, 'gedaempft', true),
+      zustand.filter.kontoIds.length > 0 && s.umbuchungen !== 0 && kachel('Umbuchungen', s.umbuchungen, 'gedaempft', true),
     ),
   );
 }
@@ -445,7 +531,7 @@ function partnerBereich(eintraege, monate, heute, neu) {
         class: 'kat-zeile ebene-1 kat-zeile-knopf',
         title: 'Liste nach diesem Empfänger/Absender filtern',
         onclick: () => {
-          zustand.filter.partner = x.id === OHNE_PARTNER ? OHNE_PARTNER : x.name;
+          zustand.filter.partner = [x.id === OHNE_PARTNER ? OHNE_PARTNER : x.name];
           zustand.modus = 'liste';
           window.dispatchEvent(new Event('daten-geaendert'));
         },
