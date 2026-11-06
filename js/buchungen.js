@@ -12,6 +12,8 @@
 //   richtung,               // nur Umbuchung: 'ab' (Abgang) | 'zu' (Zugang)
 //   gegenkontoId,           // nur Umbuchung: das andere Konto
 //   geloeschtAm,            // null = aktiv, sonst Zeitpunkt (= im Papierkorb)
+//   wiederkehrendId,        // ab Version 3: aus welcher wiederkehrenden Buchung (oder null)
+//   faelligAm,              // ab Version 3: welcher Termin damit erledigt ist ("JJJJ-MM-TT")
 //   erstelltAm, geaendertAm, testdaten?
 // }
 
@@ -47,6 +49,9 @@ export function baueBuchungen(eingabe, { konten, bestehende = [], jetzt = new Da
     art,
     notiz: (eingabe.notiz ?? '').trim(),
     status: eingabe.status === 'vorgemerkt' ? 'vorgemerkt' : 'gebucht',
+    // Verknüpfung mit einer wiederkehrenden Buchung (Etappe 4) – bleibt beim Bearbeiten erhalten
+    wiederkehrendId: eingabe.wiederkehrendId ?? bestehende[0]?.wiederkehrendId ?? null,
+    faelligAm: eingabe.faelligAm ?? bestehende[0]?.faelligAm ?? null,
     geaendertAm: jetzt,
   };
   const basis = (alt) => ({

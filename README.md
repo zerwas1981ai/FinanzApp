@@ -1,8 +1,9 @@
 # Finanzen – private Finanz-App (PWA)
 
-Stand: **Etappe 3** (Tab „Alle Buchungen“: Filter, Sortierung, Analyse).
-Davor: Etappe 2 (Buchungen, Monatsansicht, Umbuchungen, Papierkorb, Kontoabstimmung)
-und Etappe 1 (Grundgerüst, Design, Hell/Dunkel, Stammdaten).
+Stand: **Etappe 4** (Budgets, wiederkehrende Buchungen, Kennzahlen, Budgethinweise).
+Davor: Etappe 3 (Alle Buchungen: Filter, Sortierung, Analyse), Etappe 2 (Buchungen,
+Monatsansicht, Umbuchungen, Papierkorb, Kontoabstimmung) und Etappe 1 (Grundgerüst,
+Design, Hell/Dunkel, Stammdaten).
 Ziele und Etappen: siehe `CLAUDE.md`. Technische Entscheidungen: siehe `DECISIONS.md`.
 
 ## App starten (Windows)
@@ -39,6 +40,7 @@ js/db.js, js/migrationen.js                Datenbank, Versionen, Migrationen
 js/format.js                               Euro- und Datumsformat
 js/buchungen.js, js/rechnen.js             Buchungsregeln, Kontostände, Monatssummen
 js/auswertung.js                           Filter, Sortierung, Analysen
+js/prognose.js, js/annahmen.js             Budgets, wiederkehrende Buchungen, Prognose, Hinweise
 js/startdaten.js, js/testdaten.js          Kategorie-Startsatz, Testdaten
 js/ui.js, js/dom.js                        Bausteine der Oberfläche
 js/views/                                  die Tabs

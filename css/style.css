@@ -52,10 +52,13 @@
 
 html, body { margin: 0; }
 
+/* Kompakt: Grundschrift 15 statt 16 px (alle rem-Werte schrumpfen mit) */
+html { font-size: 93.75%; }
+
 body {
   background: var(--bg);
   color: var(--text);
-  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font: 1rem/1.45 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
 }
@@ -81,7 +84,7 @@ svg { stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; 
 .kopf-innen {
   max-width: 980px;
   margin: 0 auto;
-  padding: 10px 16px;
+  padding: 8px 16px;
   display: flex;
   align-items: center;
   gap: 16px;
@@ -118,8 +121,8 @@ svg { stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; 
 .icon-knopf {
   display: grid;
   place-items: center;
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   border: 1px solid var(--rand);
   background: var(--flaeche);
@@ -167,7 +170,7 @@ svg { stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; 
 main {
   max-width: 980px;
   margin: 0 auto;
-  padding: 20px 16px calc(var(--nav-hoehe) + 110px + env(safe-area-inset-bottom));
+  padding: 14px 16px calc(var(--nav-hoehe) + 100px + env(safe-area-inset-bottom));
   outline: none;
 }
 
@@ -175,7 +178,7 @@ main {
   main { padding-bottom: 110px; }
 }
 
-.seitentitel { font-size: 1.6rem; margin: 4px 0 18px; }
+.seitentitel { font-size: 1.35rem; margin: 2px 0 12px; }
 
 .laden { color: var(--text-2); }
 
@@ -184,8 +187,8 @@ main {
   border: 1px solid var(--rand);
   border-radius: var(--radius);
   box-shadow: var(--schatten);
-  padding: 18px;
-  margin-bottom: 18px;
+  padding: 14px;
+  margin-bottom: 12px;
 }
 
 .bereich > h2, .bereich-kopf h2 { font-size: 1.15rem; }
@@ -195,10 +198,10 @@ main {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 
-.hinweis { color: var(--text-2); font-size: .9rem; margin: 0 0 14px; }
+.hinweis { color: var(--text-2); font-size: .9rem; margin: 0 0 10px; }
 .leer { color: var(--text-2); margin: 8px 0; }
 
 .warnhinweis {
@@ -252,7 +255,7 @@ main {
   grid-template-columns: 1fr auto;
   gap: 4px 16px;
   align-items: center;
-  padding: 12px 0;
+  padding: 8px 0;
   border-top: 1px solid var(--rand);
 }
 .liste > .zeile:first-child { border-top: none; }
@@ -286,7 +289,7 @@ main {
 
 /* ---------- Kategorien ---------- */
 
-.kat-gruppe { margin-top: 18px; }
+.kat-gruppe { margin-top: 12px; }
 .kat-gruppe h3 {
   font-size: .8rem;
   text-transform: uppercase;
@@ -319,7 +322,7 @@ main {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 14px;
+  padding: 9px 12px;
   user-select: none;
 }
 .kat > summary::-webkit-details-marker { display: none; }
@@ -357,8 +360,8 @@ main {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  min-height: 40px;
-  padding: 8px 16px;
+  min-height: 36px;
+  padding: 6px 14px;
   border-radius: var(--radius-klein);
   border: 1px solid var(--rand);
   background: var(--flaeche);
@@ -371,7 +374,7 @@ main {
 .knopf:hover { background: var(--flaeche-2); }
 .knopf:disabled { opacity: .45; cursor: not-allowed; }
 
-.knopf-klein { min-height: 32px; padding: 4px 10px; font-size: .85rem; }
+.knopf-klein { min-height: 30px; padding: 3px 10px; font-size: .85rem; }
 
 .knopf-primaer { background: var(--akzent); color: var(--auf-akzent); border-color: transparent; }
 .knopf-primaer:hover { background: var(--akzent-hover); }
@@ -412,13 +415,13 @@ main {
 }
 .dialog::backdrop { background: rgba(10, 12, 16, .5); }
 
-.dialog-form { padding: 20px; }
+.dialog-form { padding: 16px; }
 .dialog-titel { font-size: 1.2rem; margin-bottom: 16px; }
 .dialog-inhalt p { margin: 0 0 8px; }
 .dialog-fehler { color: var(--gefahr); font-size: .9rem; margin: 4px 0 0; min-height: 1.2em; }
 .dialog-fuss { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
 
-.feld { margin-bottom: 14px; }
+.feld { margin-bottom: 10px; }
 .feld label, .feld legend { display: block; font-weight: 500; font-size: .9rem; margin-bottom: 6px; padding: 0; }
 .feld-hilfe { display: block; color: var(--text-2); font-size: .8rem; margin-top: 4px; }
 
@@ -426,7 +429,7 @@ main {
 .feld input[type="date"],
 .feld select {
   width: 100%;
-  min-height: 44px;
+  min-height: 40px;
   padding: 10px 12px;
   border: 1px solid var(--rand);
   border-radius: var(--radius-klein);
@@ -486,7 +489,7 @@ fieldset.feld { border: none; padding: 0; margin: 0 0 14px; }
 
 .zentriert { text-align: center; }
 .klein { color: var(--text-2); font-size: .85rem; }
-.gross { font-size: 1.7rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.2; margin: 2px 0; }
+.gross { font-size: 1.45rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.2; margin: 2px 0; }
 .warn-text { color: var(--warnung); }
 .erfolg-text { color: var(--einnahme); font-weight: 600; }
 .plus { color: var(--einnahme); }
@@ -544,14 +547,14 @@ fieldset.feld { border: none; padding: 0; margin: 0 0 14px; }
 .feld[hidden] { display: none; }
 
 /* Kontoauswahl */
-.chips { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 14px; scrollbar-width: thin; }
+.chips { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 10px; scrollbar-width: thin; }
 .chip {
   flex: none;
   border: 1px solid var(--rand);
   background: var(--flaeche);
   color: var(--text);
   border-radius: 999px;
-  padding: 7px 14px;
+  padding: 5px 12px;
   font: inherit;
   font-size: .9rem;
   font-weight: 500;
@@ -564,15 +567,15 @@ fieldset.feld { border: none; padding: 0; margin: 0 0 14px; }
 .abstimm-info { margin-top: 4px; }
 
 /* Monatsnavigation */
-.monat-nav { display: flex; align-items: center; gap: 8px; margin: 4px 0 12px; }
+.monat-nav { display: flex; align-items: center; gap: 8px; margin: 2px 0 8px; }
 .monat-nav .icon-knopf { font-size: 1.5rem; line-height: 1; }
 .monat-titel { font-size: 1.2rem; min-width: 0; flex: 0 1 auto; text-align: center; padding: 0 4px; }
 .monat-nav .knopf { margin-left: auto; }
 
 /* Zwischensummen */
-.summen { display: grid; gap: 6px; }
+.summen { display: grid; gap: 3px; }
 .summe { display: flex; justify-content: space-between; gap: 12px; }
-.summe.ergebnis { border-top: 1px solid var(--rand); padding-top: 8px; margin-top: 2px; font-weight: 700; }
+.summe.ergebnis { border-top: 1px solid var(--rand); padding-top: 5px; margin-top: 2px; font-weight: 700; }
 .dialog .summen { margin-bottom: 12px; }
 
 /* Buchungsliste */
@@ -582,8 +585,8 @@ fieldset.feld { border: none; padding: 0; margin: 0 0 14px; }
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  padding: 12px 0 4px;
-  font-size: .8rem;
+  padding: 8px 0 2px;
+  font-size: .78rem;
   font-weight: 600;
   color: var(--text-2);
   text-transform: uppercase;
@@ -597,7 +600,7 @@ fieldset.feld { border: none; padding: 0; margin: 0 0 14px; }
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 10px 8px;
+  padding: 6px 8px;
   margin: 0 -8px;
   width: calc(100% + 16px);
   border: none;
@@ -643,7 +646,7 @@ fieldset.feld { border: none; padding: 0; margin: 0 0 14px; }
 .feld-fehler { display: block; color: var(--gefahr); font-size: .8rem; margin-top: 4px; }
 .feld input[type="search"] {
   width: 100%;
-  min-height: 44px;
+  min-height: 40px;
   padding: 10px 12px;
   border: 1px solid var(--rand);
   border-radius: var(--radius-klein);
@@ -805,6 +808,172 @@ fieldset.feld { border: none; padding: 0; margin: 0 0 14px; }
   .kat-anteil { grid-area: anteil; }
   .kat-schnitt { grid-area: schnitt; font-size: .78rem; }
 }
+
+/* =========================================================
+   Etappe 4: Kennzahlen, Budgets, wiederkehrende Buchungen
+   ========================================================= */
+
+/* Zukunftswerte/Prognosen sind Annahmen: kursiv (CLAUDE.md) */
+.annahme { font-style: italic; }
+.annahme-marke { font-style: italic; margin-left: 4px; }
+
+.zwischentitel { font-size: 1.1rem; margin: 16px 0 8px; }
+.abstand-oben { margin-top: 10px; }
+.mittel { font-size: 1.25rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.kacheln-gross {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 0 16px;
+}
+.kachel-gross .summe { margin-top: 6px; }
+.kachel-gross .gross { margin-bottom: 10px; }
+
+.warnkarte {
+  background: var(--warnung-leicht);
+  color: var(--warnung);
+  border-radius: var(--radius);
+  padding: 14px 18px;
+  margin-bottom: 18px;
+}
+.warnkarte p { margin: 4px 0 0; color: var(--text); }
+
+.budget-zeile { margin-top: 12px; }
+.budget-text { display: flex; justify-content: space-between; gap: 8px; font-weight: 500; }
+.meter {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--flaeche-2);
+  overflow: hidden;
+  margin: 5px 0 3px;
+}
+.meter > span { display: block; height: 100%; border-radius: 999px; background: var(--akzent); }
+.meter.ueber > span { background: var(--warnung); }
+
+.marke-warn { background: var(--warnung-leicht); color: var(--warnung); }
+
+.hinweiskarten { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 0 16px; }
+.hinweiskarte { border-left: 4px solid var(--akzent); }
+.hinweiskarte h2 { font-size: 1.1rem; margin: 2px 0 8px; }
+.hinweiskarte p { margin: 0 0 10px; }
+.hinweiskarte .tabelle { font-size: .85rem; margin-bottom: 10px; }
+.hinweiskarte .feld { max-width: 320px; margin-bottom: 4px; }
+
+.feld-paar { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+.feld input[type="month"],
+.feld input[type="number"] {
+  width: 100%;
+  min-height: 40px;
+  padding: 10px 12px;
+  border: 1px solid var(--rand);
+  border-radius: var(--radius-klein);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+.stufen { display: grid; gap: 6px; margin-bottom: 8px; }
+.stufe { display: grid; grid-template-columns: 1fr 1fr 40px; gap: 6px; align-items: center; }
+.stufe input {
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid var(--rand);
+  border-radius: var(--radius-klein);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+.stufe-ab { color: var(--text-2); font-size: .9rem; padding-left: 4px; }
+.feld-paar > *, .stufe > * { min-width: 0; }
+@media (max-width: 480px) {
+  .feld-paar { grid-template-columns: 1fr; }
+  .stufe { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) 40px; }
+}
+.ausnahme { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 6px 0; border-top: 1px solid var(--rand); font-size: .9rem; }
+.bereich > .summe.ergebnis { margin-top: 8px; }
+
+.feld-schalter { margin: 0 0 10px; color: var(--text); }
+.liste-kopf { padding-top: 2px; text-transform: none; letter-spacing: 0; font-weight: 500; }
+
+/* Kompakte Budgethinweise */
+.hinweiskarte { padding: 10px 14px; }
+.hinweiskarte h2 { font-size: 1rem; margin: 0 0 4px; }
+.hinweiskarte p { margin: 0 0 6px; font-size: .9rem; }
+.hinweis-aktionen { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.hinweis-aktionen select {
+  min-height: 36px;
+  padding: 4px 8px;
+  border: 1px solid var(--rand);
+  border-radius: var(--radius-klein);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: .9rem;
+}
+
+/* Kompakte Kennzahlen-Leiste oben */
+.kz-leiste {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px 16px;
+}
+.kz-wert { font-size: 1.2rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.25; }
+.kz-fuss {
+  grid-column: 1 / -1;
+  border-top: 1px solid var(--rand);
+  padding-top: 8px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px 16px;
+}
+.kz-kategorie select {
+  width: 100%;
+  max-width: 100%;
+  min-height: 30px;
+  padding: 2px 6px;
+  margin-bottom: 2px;
+  border: 1px solid var(--rand);
+  border-radius: var(--radius-klein);
+  background: var(--bg);
+  color: var(--text-2);
+  font: inherit;
+  font-size: .8rem;
+}
+.kz-kategorie .kz-wert { font-size: 1.05rem; }
+@media (max-width: 480px) {
+  .kz-fuss { grid-template-columns: 1fr; }
+  .kz-kategorie { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 0 8px; }
+  .kz-kategorie > .klein { grid-column: 1 / -1; }
+}
+@media (max-width: 480px) {
+  .kz-leiste { grid-template-columns: 1fr 1fr; }
+  .kz-wert { font-size: 1.05rem; }
+}
+
+/* Zahl fälliger Termine am Kontoknopf */
+.chip-zahl {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.3em;
+  height: 1.3em;
+  margin-left: 6px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--warnung-leicht);
+  color: var(--warnung);
+  font-size: .75rem;
+  font-weight: 700;
+}
+
+/* Je Konto: noch erwartet bis Monatsende */
+.erwartet { border-style: dashed; }
+.erwartet .bereich-kopf { margin-bottom: 2px; }
+.buchung.geplant .buchung-titel { font-style: italic; }
+.datum-klein { color: var(--text-2); font-size: .8rem; font-style: normal; margin-right: 8px; font-variant-numeric: tabular-nums; }
+.budget-eintrag { padding: 6px 0; border-top: 1px solid var(--rand); }
+.liste > .budget-eintrag:first-child { border-top: none; }
+.budget-kopf { display: flex; justify-content: space-between; gap: 12px; }
+.budget-eintrag .meter { margin: 4px 0 2px; height: 6px; }
 
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }

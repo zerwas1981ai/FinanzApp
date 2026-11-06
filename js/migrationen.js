@@ -20,7 +20,10 @@
 //   { version, konten: [...], kategorien: [...] } – unabhängig von IndexedDB.
 //   So lassen sie sich mit derselben Funktion auf die Drive-JSON-Datei anwenden.
 
-export const DATENMODELL_VERSION = 2;
+export const DATENMODELL_VERSION = 3;
+
+/** Standard-Schwellen für Budgethinweise (in den Stammdaten änderbar) */
+export const STANDARD_EINSTELLUNGEN = Object.freeze({ id: 'hinweise', monate: 3, prozent: 10 });
 
 export const MIGRATIONEN = [
   {
@@ -29,6 +32,23 @@ export const MIGRATIONEN = [
     migriere(daten) {
       daten.buchungen ??= [];
       daten.abstimmungen ??= [];
+      return daten;
+    },
+  },
+  {
+    nach: 3,
+    beschreibung: 'Etappe 4: Budgets, wiederkehrende Buchungen, Hinweis-Status, Einstellungen; ' +
+      'Buchungen bekommen die Verknüpfung zur wiederkehrenden Buchung',
+    migriere(daten) {
+      daten.budgets ??= [];
+      daten.wiederkehrend ??= [];
+      daten.hinweise ??= [];
+      daten.einstellungen ??= [];
+      if (!daten.einstellungen.some((e) => e.id === 'hinweise')) daten.einstellungen.push({ ...STANDARD_EINSTELLUNGEN });
+      for (const b of daten.buchungen ?? []) {
+        b.wiederkehrendId ??= null;
+        b.faelligAm ??= null;
+      }
       return daten;
     },
   },

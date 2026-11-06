@@ -395,3 +395,202 @@ Wird eine Entscheidung geändert, den alten Eintrag nicht löschen, sondern als
   weiterhin, ohne Programmänderung.
 - In bereits bestehenden Datenständen wird der Startsatz nicht nachträglich ergänzt. Dort legt
   der Nutzer die Unterkategorie selbst an.
+
+---
+
+# Etappe 4
+
+## D33 – Datenmodell Version 3
+*Etappe 4*
+
+- Neue Sammlungen: `budgets`, `wiederkehrend`, `hinweise` (Entscheidungen zu Budgethinweisen)
+  und `einstellungen` (Schwellen, ein Datensatz `{ id: 'hinweise', monate: 3, prozent: 10 }`).
+  Einstellungen sind Nutzerdaten und werden später mit Drive abgeglichen, deshalb stehen sie
+  nicht in `localStorage`.
+- Buchungen bekommen `wiederkehrendId` und `faelligAm`, die Verknüpfung mit einem Termin.
+- `DB_STRUKTUR_VERSION` = 3, `DATENMODELL_VERSION` = 3. Die Migration 2 → 3 ergänzt leere
+  Sammlungen, die Standard-Einstellungen und die neuen Buchungsfelder (`null`). Das wurde im
+  Browser mit einem echten Stand der Version 2 geprüft.
+- Feldbeschreibungen: `js/annahmen.js` (Budget, wiederkehrende Buchung) und `js/buchungen.js`.
+
+## D34 – Budgets
+*Etappe 4*
+
+- Budgets gibt es nur für **Ausgaben-Hauptkategorien**. Alle Buchungen der
+  Unterkategorien verbrauchen sie, ein Rest verfällt am Monatsende (CLAUDE.md).
+- **Wiederkehrend:** gilt ab einem Startmonat, optional bis zu einem Endmonat. Spätere
+  Betragsänderungen werden als „Stufen“ `{ ab: 'JJJJ-MM', betragCent }` gespeichert. Pro
+  Hauptkategorie gibt es höchstens **ein** wiederkehrendes Budget, Änderungen laufen über
+  Stufen.
+- **Einmalig:** gilt für genau einen Monat und kommt zum wiederkehrenden Budget hinzu
+  (Zusatzbudget, z. B. Weihnachten).
+- **Belastetes Konto** (Entscheidung des Nutzers): Jedes Budget hat ein Konto. Der offene
+  Budgetrest wird in der Prognose von diesem Konto abgezogen. Vorbelegt ist das Konto, auf
+  dem die Kategorie am häufigsten gebucht wird. Bei mehreren Budgets im Monat zählt das Konto
+  des wiederkehrenden.
+- Monatsfelder nutzen `<input type="month">` (Chrome/Edge/Android). Firefox zeigt dort nur
+  ein Textfeld. Laut CLAUDE.md sind Windows-Browser und Android vorgesehen.
+
+## D35 – Prognose für den laufenden Monat
+*Etappe 4 – Entscheidung des Nutzers: „Budget umfasst alles“*
+
+- Je Ausgaben-Hauptkategorie gilt:
+  `Prognose = mit Budget: max(Budget, Ist + offene wiederkehrende) · ohne Budget: Ist + offene`.
+  Das erfüllt die CLAUDE.md-Regel „echte Buchungen + offener Budgetrest, mindestens die echten
+  Buchungen“. Auch Fixkosten wie die Miete verbrauchen das Budget ihrer Kategorie, und es wird
+  nichts doppelt gezählt.
+- `Rest = max(0, Budget − Ist − offene wiederkehrende)`.
+- Je Konto: `Stand Monatsende aus echten Buchungen + offene Termine (Wirkung auf dieses Konto,
+  inkl. überfälliger aus dem Vormonat) − Budgetreste, die dieses Konto belasten`.
+- Gesamt = Summe der aktiven (nicht archivierten) Konten.
+- Prognosewerte sind **kursiv** und mit „Annahme“ markiert (CLAUDE.md: Zukunftswerte klar
+  als Annahme kennzeichnen).
+- Die Rechenlogik steht in `js/prognose.js` (reine Funktionen, `tests/prognose.test.js`).
+
+## D36 – Wiederkehrende Buchungen und Fällig-Liste
+*Etappe 4 – Entscheidung des Nutzers: Fällig-Liste mit Ein-Klick-Buchen*
+
+- Arten: Einnahme, Ausgabe oder Umbuchung. Intervall monatlich, vierteljährlich oder
+  jährlich. Der Tag des ersten Termins gilt für alle Termine. Gibt es den Tag in einem Monat
+  nicht (z. B. den 31.), gilt der Monatsletzte.
+- Wertänderungen sind Stufen `{ ab: 'JJJJ-MM-TT', betragCent }`. Ausnahmen pro Termin:
+  `ueberspringen` oder `verschieben` (mit `neuesDatum`). Ein Termin wird über sein
+  **reguläres** Datum erkannt (`termin`), auch wenn er verschoben wurde.
+- **Es entsteht nie automatisch eine Buchung.** Offene Termine erscheinen in der Übersicht
+  unter „Fällige wiederkehrende Buchungen“, bis 7 Tage im Voraus. Es gibt drei Knöpfe:
+  - **Buchen** öffnet den vorausgefüllten Buchungsdialog. Die gespeicherte Buchung trägt
+    `wiederkehrendId` und `faelligAm`, damit ist der Termin erledigt.
+  - **Verschieben** verschiebt nur diesen Termin.
+  - **Überspringen** ist auch für den Fall gedacht, dass man schon von Hand gebucht hat.
+    Rückgängig machen kann man das im Bearbeiten-Dialog unter Annahmen („Zurücknehmen“).
+- Beobachtet wird ab dem Anfang des Vormonats, aber nie vor dem Monat, in dem die
+  wiederkehrende Buchung angelegt wurde, und nie vor dem Stichtag der Konten. Wer eine
+  wiederkehrende Buchung mit Start in der Vergangenheit anlegt, bekommt also keine Flut alter
+  „fälliger“ Termine.
+- Wird eine verknüpfte Buchung gelöscht (Papierkorb), ist der Termin wieder offen.
+
+## D37 – Verwaltung im Tab „Annahmen“
+*Etappe 4 – Entscheidung des Nutzers*
+
+- Budgets und wiederkehrende Buchungen werden schon jetzt im Tab „Annahmen“ verwaltet.
+  Etappe 5 ergänzt dort die Zeitleiste bis 2050, geplante Einmalbuchungen und den
+  Szenario-Schalter.
+- Löschen ist nach einer Rückfrage endgültig. Das sind Annahmen, keine Buchungen, deshalb
+  gibt es keinen Papierkorb. Bereits gebuchte Buchungen bleiben beim Löschen einer
+  wiederkehrenden Buchung erhalten.
+- Die Löschsperre (D22) zählt jetzt auch Budgets und wiederkehrende Buchungen, die an einem
+  Konto oder einer Kategorie hängen.
+
+## D38 – Budgethinweise
+*Etappe 4*
+
+- Betrachtet werden die letzten N **abgeschlossenen** Monate (Standard 3). Ein Hinweis
+  entsteht, wenn die Kategorie in **jedem** dieser Monate ein Budget hatte und jedes Mal
+  darüber (oder jedes Mal darunter) lag, und wenn die durchschnittliche relative Abweichung
+  größer als P % ist (Standard 10 %). N und P sind unter Stammdaten einstellbar (2–12 Monate,
+  1–100 %).
+- Ausgewertet wird erst, wenn für das ganze Zeitfenster Buchungen erfasst sind.
+- **Vorschlag:** Durchschnitt der Ist-Ausgaben im Fenster, auf 10 € gerundet (mindestens 10 €).
+- Die Karten sind ruhig (kein Pop-up), es erscheinen höchstens 2, die mit der stärksten
+  Abweichung zuerst. Sie stehen in der Übersicht unter den Kennzahlen.
+- Knöpfe:
+  - **Übernehmen ab** (nächster, dieser oder übernächster Monat): Beim wiederkehrenden
+    Budget kommt eine Stufe dazu. Gibt es keins, entsteht eins.
+  - **Ablehnen.**
+  - **Später erinnern** (in 7 Tagen).
+  Jede Entscheidung wird in `hinweise` gespeichert. Die App ändert nie selbst ein Budget.
+- **Unterdrückung:** Nach „Übernehmen“ oder „Ablehnen“ erscheint für diese Kategorie erst
+  wieder ein Hinweis, wenn das neue Fenster sich nicht mehr mit dem entschiedenen
+  überschneidet (also nach N neuen Monaten). Sonst käme derselbe Hinweis jeden Monat wieder,
+  weil die alten Monate weiter im Fenster liegen.
+
+## D39 – Kennzahlen in der Übersicht
+*Etappe 4*
+
+- Ganz oben stehen folgende Kennzahlen:
+  - Gesamtstand heute und die Prognose zum Monatsende über alle aktiven Konten
+  - Einnahmen, Ausgaben und Saldo des Monats (ohne Umbuchungen)
+  - die größte Ausgabenkategorie
+  - Budgetauslastung der bis zu 4 größten Budgets, mit Balken. Ist ein Budget überschritten,
+    wird das mit Warnfarbe **und** dem Text „überschritten um …“ gezeigt.
+- **Mindestsaldo-Warnung** je Konto: Sie erscheint, wenn der Stand heute oder die Prognose zum
+  Monatsende unter dem Mindestsaldo liegt. Den „ersten betroffenen Zukunftsmonat“ nennt sie
+  erst ab Etappe 5, wenn die Zeitleiste bis 2050 kommt.
+- Der Kontokopf zeigt zusätzlich die Prognose zum Monatsende für das gewählte Konto.
+
+## D40 – Testdaten Etappe 4
+*Etappe 4*
+
+- Die Testdaten umfassen drei abgeschlossene Monate und den laufenden Monat. Der Stichtag ist
+  der Anfang des drittletzten Monats.
+- Neun wiederkehrende Buchungen: Gehalt, Sparrate, Miete (mit Erhöhung ab Januar), Strom,
+  Internet, Streaming, Ausgleich Kreditkarte, Rundfunkbeitrag (vierteljährlich) und
+  Kfz-Versicherung (jährlich). Die passenden Testbuchungen sind mit ihnen verknüpft.
+  „Internet & Telefon“ ist im laufenden Monat absichtlich **nicht** gebucht und erscheint
+  deshalb als fällig.
+- Budgets: Lebensmittel 150 € (deutlich über), Freizeit 100 € (deutlich unter), Mobilität
+  60 € und Wohnen 1.100 € (knapp, daher kein Hinweis). Dazu ein einmaliges Budget Sonstiges
+  im nächsten Monat. So erscheinen genau zwei Budgethinweise.
+- „Testdaten löschen“ entfernt auch Test-Budgets, wiederkehrende Testbuchungen und
+  Hinweis-Entscheidungen zu deren Kategorien.
+
+## D41 – Übersicht umgebaut: Budgets und wiederkehrende Buchungen je Konto, kompakteres Design
+*Etappe 4 – Wunsch des Nutzers nach dem ersten Test (ersetzt Teile von D36 und D39)*
+
+- **Oben** steht nur noch eine kompakte Kennzahlen-Leiste: alle Konten heute, Prognose zum
+  Monatsende (Annahme), Einnahmen und Ausgaben des Monats und die größte
+  Ausgabenkategorie. Darunter folgen die Mindestsaldo-Warnung und die Budgethinweise (kompakt,
+  ohne Tabelle). Budgetbalken und die Fällig-Liste stehen nicht mehr oben.
+- **Je Konto**, nur im laufenden Monat:
+  - **Zwischensummen** mit Aufschlüsselung der Prognose: Stand nach erfassten Buchungen,
+    noch offene wiederkehrende Buchungen, noch offener Budgetrest und daraus die Prognose
+    zum Monatsende. Die Annahmen stehen kursiv.
+  - **„Noch erwartet bis Monatsende“** listet die offenen Termine dieses Kontos (inkl.
+    überfälliger). Ein Klick öffnet einen kleinen Dialog mit Buchen, Verschieben und
+    Überspringen. Darunter stehen die Budgets, die dieses Konto belasten (D34), mit Balken
+    und ihrem Rest in der Prognose.
+- Eine Umbuchung erscheint bei beiden Konten, jeweils mit ihrer Wirkung (− bzw. +).
+- Die Kontoknöpfe zeigen die Zahl der fälligen Termine (bis 7 Tage im Voraus). So geht auf
+  anderen Konten nichts verloren.
+- `monatsprognose().jeKonto` liefert dafür je Konto: `endeEcht`, `offenWirkung`, `rest`,
+  `termine`, `budgets`.
+- **Kompakteres Design:** Grundschrift 15 statt 16 px (`html { font-size: 93.75% }`, alle
+  rem-Werte schrumpfen mit), dazu kleinere Abstände in Karten, Listen, Knöpfen und
+  Eingabefeldern. Eingabefelder sind 40 px hoch, Knöpfe 36 px. Das ist auf dem Handy weiterhin
+  gut zu treffen.
+
+## D42 – Feinschliff Übersicht und Monatsletzter
+*Etappe 4 – Wünsche des Nutzers nach dem zweiten Test (ergänzt D36, D41)*
+
+- **Drei frei wählbare Kategorien** statt „größte Ausgabenkategorie“: In der Kennzahlen-Leiste
+  stehen drei Auswahllisten (alle aktiven Hauptkategorien, Einnahmen und Ausgaben) mit dem
+  Betrag des laufenden Monats und, falls vorhanden, dem Budget. Die Wahl wird in
+  `einstellungen` gespeichert (`{ id: 'uebersicht', kategorien: [id, id, id] }`), damit sie
+  später über Drive auf allen Geräten gleich ist. Ohne gespeicherte Wahl oder bei
+  archivierten Kategorien werden die Plätze mit den größten Ausgaben-Hauptkategorien des
+  Monats gefüllt (`kennzahlKategorien` in `js/prognose.js`).
+- Die Marke „Annahme“ unter „Prognose Monatsende“ ist entfernt. Die Prognose bleibt kursiv.
+- Der Bereich „Noch erwartet bis Monatsende“ steht jetzt **unter** den Buchungen des Kontos.
+- **Fehler behoben:** Zwischen „Übersicht“ und „Konten“ stand das Wort „null“, wenn kein
+  Budgethinweis vorlag. `replaceChildren` schreibt `null` als Text, deshalb werden leere
+  Bereiche jetzt vorher herausgefiltert.
+- **Monatsletzter als Standard:** Wiederkehrende Buchungen haben das neue Feld
+  `monatsletzter` (fehlt = `false`, deshalb ist keine Migration nötig). Ist es `true`,
+  liegt **jeder** Termin am letzten Tag seines Monats (30.11., 31.12., 28.02. …), und der Start
+  wird auf den Monatsletzten gesetzt.
+  - Im Dialog ist „Immer am Monatsletzten“ bei neuen Einträgen vorausgewählt, und der erste
+    Termin steht auf dem Monatsende des aktuellen Monats.
+  - Wählt man bewusst ein anderes Datum, wird das Häkchen automatisch entfernt.
+  - Bestehende Einträge (auch die Testdaten mit festen Tagen wie Gehalt am 1.) bleiben
+    unverändert.
+
+## D43 – Monatsansicht zeigt standardmäßig die letzten 10 Buchungen
+*Etappe 4 – Wunsch des Nutzers*
+
+- Je Konto und Monat erscheinen zunächst nur die **letzten 10 Buchungen** (neueste zuerst,
+  Tagesköpfe mit Kontostand bleiben). Darüber steht „Letzte 10 von N Buchungen“.
+- Der Knopf „Alle N Buchungen von <Monat> anzeigen“ zeigt den ganzen Monat, „Nur die letzten
+  10 anzeigen“ klappt wieder zu. Die Zwischensummen gelten immer für den ganzen Monat.
+- Die Einstellung gilt nur für das gerade gezeigte Konto und den gezeigten Monat. Beim
+  Wechsel von Konto oder Monat sind es wieder 10. Die Zahl steht als `MAX_BUCHUNGEN` in
+  `js/views/uebersicht.js`.

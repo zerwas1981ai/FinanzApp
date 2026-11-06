@@ -6,14 +6,17 @@
 // 2. DATENMODELL_VERSION (in migrationen.js): Wie die Datensätze aufgebaut sind.
 //    Wird erhöht, wenn sich Felder ändern; dann laufen die Migrationen.
 
-import { DATENMODELL_VERSION, migriereDaten } from './migrationen.js';
+import { DATENMODELL_VERSION, STANDARD_EINSTELLUNGEN, migriereDaten } from './migrationen.js';
 import { erzeugeStartKategorien } from './startdaten.js';
 
 const DB_NAME = 'finanzapp';
-const DB_STRUKTUR_VERSION = 2; // 2 = Etappe 2: buchungen, abstimmungen
+const DB_STRUKTUR_VERSION = 3; // 2 = Etappe 2: buchungen, abstimmungen; 3 = Etappe 4: budgets usw.
 
 /** Schubladen mit Nutzdaten. "meta" kommt zusätzlich dazu (Versionsnummer usw.). */
-export const SAMMLUNGEN = ['konten', 'kategorien', 'buchungen', 'abstimmungen'];
+export const SAMMLUNGEN = [
+  'konten', 'kategorien', 'buchungen', 'abstimmungen',
+  'budgets', 'wiederkehrend', 'hinweise', 'einstellungen',
+];
 
 let dbVersprechen = null;
 
@@ -118,6 +121,10 @@ export async function initialisiere() {
       kategorien: erzeugeStartKategorien(),
       buchungen: [],
       abstimmungen: [],
+      budgets: [],
+      wiederkehrend: [],
+      hinweise: [],
+      einstellungen: [{ ...STANDARD_EINSTELLUNGEN }],
     });
     return { ersterStart: true, version: DATENMODELL_VERSION };
   }

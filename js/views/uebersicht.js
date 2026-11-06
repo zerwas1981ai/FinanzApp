@@ -10,16 +10,22 @@ import {
 import { monatsuebersicht, kontostand, vorgemerktBis } from '../rechnen.js';
 import { dialog, eingabe, hinweis, toast, geraet, datenGeaendert } from '../ui.js';
 import { oeffneBuchungsdialog } from './buchung-dialog.js';
+import { monatsprognose, faelligListe, budgetHinweise } from '../prognose.js';
+import { kennzahlenBereich, erwartetBereich, hinweisBereich } from './kennzahlen.js';
 
 const nachName = (a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base' });
-const ansicht = { jahr: null, monat: null };
+// alleAnzeigen: "kontoId|JJJJ-MM-01", wenn für dieses Konto/diesen Monat alle Buchungen gezeigt werden
+const ansicht = { jahr: null, monat: null, alleAnzeigen: null };
+const MAX_BUCHUNGEN = 10; // so viele Buchungen zeigt die Monatsansicht standardmäßig
 
 const monatVon = (iso) => [Number(iso.slice(0, 4)), Number(iso.slice(5, 7))];
 
 export async function zeigeUebersicht(container) {
-  const [konten, kategorien, buchungen, abstimmungen] = await Promise.all(
-    ['konten', 'kategorien', 'buchungen', 'abstimmungen'].map((s) => db.alle(s)),
-  );
+  const namen = ['konten', 'kategorien', 'buchungen', 'abstimmungen', 'budgets', 'wiederkehrend', 'hinweise', 'einstellungen'];
+  const werte = await Promise.all(namen.map((s) => db.alle(s)));
+  const daten = Object.fromEntries(namen.map((n, i) => [n, werte[i]]));
+  daten.wiederkehrende = daten.wiederkehrend; // Name, den prognose.js erwartet
+  const { konten, kategorien, buchungen, abstimmungen } = daten;
   const neu = () => zeigeUebersicht(container);
   const aktive = konten.filter((k) => !k.archiviert).sort(nachName);
 
@@ -51,10 +57,24 @@ export async function zeigeUebersicht(container) {
   const m = monatsuebersicht(konto, buchungen, ansicht.jahr, ansicht.monat);
   const istAktuellerMonat = isoMonatsanfang(ansicht.jahr, ansicht.monat) === isoMonatsanfang(...monatVon(heute));
 
-  container.replaceChildren(
+  // Etappe 4: Kennzahlen, Budgethinweise; je Konto: offene Termine und Budgets
+  const prognose = monatsprognose(daten, heute);
+  const hinweise = budgetHinweise(daten, heute);
+  const kd = prognose.jeKonto.get(konto.id);
+  // Fällige Termine (bis 7 Tage im Voraus) je Konto zählen – als Zahl an den Kontoknöpfen
+  const faelligJeKonto = new Map();
+  for (const t of faelligListe(daten, heute)) {
+    faelligJeKonto.set(t.wiederkehrend.kontoId, (faelligJeKonto.get(t.wiederkehrend.kontoId) ?? 0) + 1);
+  }
+
+  // filter(Boolean): leere Bereiche (null/false) weglassen – sonst stünde "null" als Text da
+  container.replaceChildren(...[
     h('h1', { class: 'seitentitel' }, 'Übersicht'),
-    kontoAuswahl(aktive, konto, (id) => { geraet.schreib('ansicht-konto', id); neu(); }),
-    kontoKopf(konto, buchungen, abstimmungen),
+    kennzahlenBereich(prognose, daten, heute),
+    hinweisBereich(hinweise, daten),
+    h('h2', { class: 'zwischentitel' }, 'Konten'),
+    kontoAuswahl(aktive, konto, faelligJeKonto, (id) => { geraet.schreib('ansicht-konto', id); neu(); }),
+    kontoKopf(konto, buchungen, abstimmungen, kd?.prognose),
     monatsNavigation({
       zurueck: schluessel([ansicht.jahr, ansicht.monat]) > schluessel(minMonat),
       vor: schluessel([ansicht.jahr, ansicht.monat]) < schluessel(maxMonat),
@@ -65,27 +85,33 @@ export async function zeigeUebersicht(container) {
         neu();
       },
     }),
-    summenKarte(konto, m, istAktuellerMonat),
+    summenKarte(konto, m, istAktuellerMonat ? kd : null),
     buchungsliste(m, konto, konten, kategorien),
-    h('p', { class: 'hinweis zentriert' }, 'Kennzahlen, Budgets und Zukunftsmonate folgen in späteren Etappen.'),
-  );
+    istAktuellerMonat && erwartetBereich(kd, daten),
+    h('p', { class: 'hinweis zentriert' }, 'Zukunftsmonate bis 2050 folgen in Etappe 5.'),
+  ].filter(Boolean));
 }
 
 /* ---------- Kontoauswahl ---------- */
 
-function kontoAuswahl(konten, aktiv, beiWahl) {
+function kontoAuswahl(konten, aktiv, faelligJeKonto, beiWahl) {
   return h('div', { class: 'chips', role: 'group', 'aria-label': 'Konto wählen' },
-    konten.map((k) => h('button', {
-      type: 'button',
-      class: 'chip',
-      'aria-pressed': String(k.id === aktiv.id),
-      onclick: () => beiWahl(k.id),
-    }, k.name)));
+    konten.map((k) => {
+      const anzahl = faelligJeKonto.get(k.id) ?? 0;
+      return h('button', {
+        type: 'button',
+        class: 'chip',
+        'aria-pressed': String(k.id === aktiv.id),
+        'aria-label': anzahl ? `${k.name}, ${anzahl} fällige Buchung${anzahl === 1 ? '' : 'en'}` : k.name,
+        title: anzahl ? `${anzahl} fällige wiederkehrende Buchung${anzahl === 1 ? '' : 'en'}` : null,
+        onclick: () => beiWahl(k.id),
+      }, k.name, anzahl > 0 && h('span', { class: 'chip-zahl', 'aria-hidden': 'true' }, String(anzahl)));
+    }));
 }
 
 /* ---------- Kopf: Stand heute, Abstimmung ---------- */
 
-function kontoKopf(konto, buchungen, abstimmungen) {
+function kontoKopf(konto, buchungen, abstimmungen, prognoseCent) {
   const heute = heuteIso();
   const stand = kontostand(konto, buchungen, heute);
   const vorgemerkt = vorgemerktBis(konto, buchungen, heute);
@@ -106,6 +132,9 @@ function kontoKopf(konto, buchungen, abstimmungen) {
       h('div', { class: 'klein' }, `Kontostand heute (${formatDatum(heute)})`),
       h('div', { class: 'gross' + (stand < 0 ? ' negativ' : '') }, formatEuro(stand)),
       vorgemerkt !== 0 && h('div', { class: 'klein' }, `davon vorgemerkt: ${formatEuro(vorgemerkt)}`),
+      prognoseCent !== undefined && h('div', { class: 'klein' }, 'Prognose Monatsende: ',
+        h('span', { class: 'annahme' + (prognoseCent < 0 ? ' negativ' : '') }, formatEuro(prognoseCent)),
+        konto.mindestsaldoCent != null && prognoseCent < konto.mindestsaldoCent && h('span', { class: 'warn-text' }, ' – unter Mindestsaldo')),
       h('div', { class: 'klein abstimm-info' + (letzte && letzte.bankstandCent !== kontostand(konto, buchungen, letzte.datum) ? ' warn-text' : '') }, abstimmText),
     ),
     h('button', { type: 'button', class: 'knopf', onclick: () => abstimmungsDialog(konto, buchungen) }, 'Abstimmen'),
@@ -125,7 +154,8 @@ function monatsNavigation({ zurueck, vor, istAktuellerMonat, wechsel }) {
 
 /* ---------- Zwischensummen ---------- */
 
-function summenKarte(konto, m, istAktuellerMonat) {
+/** kd: nur im laufenden Monat – Aufschlüsselung der Prognose für dieses Konto */
+function summenKarte(konto, m, kd) {
   const zeile = (label, cent, klasse = '', vorzeichen = false) => h('div', { class: `summe ${klasse}` },
     h('span', {}, label),
     h('span', { class: 'betrag' + (cent < 0 ? ' negativ' : '') }, (vorzeichen && cent > 0 ? '+' : '') + formatEuro(cent)));
@@ -135,7 +165,10 @@ function summenKarte(konto, m, istAktuellerMonat) {
     zeile('Einnahmen', m.einnahmen, 'plus', true),
     zeile('Ausgaben', -m.ausgaben, '', true),
     m.umbuchungen !== 0 && zeile('Umbuchungen (saldiert)', m.umbuchungen, 'gedaempft', true),
-    zeile(istAktuellerMonat ? 'Stand Monatsende (bisher erfasst)' : 'Stand Monatsende', m.ende, 'ergebnis'),
+    zeile(kd ? 'Stand nach erfassten Buchungen' : 'Stand Monatsende', m.ende, 'ergebnis'),
+    kd && kd.offenWirkung !== 0 && zeile('Noch offene wiederkehrende Buchungen', kd.offenWirkung, 'annahme', true),
+    kd && kd.rest !== 0 && zeile('Noch offener Budgetrest', -kd.rest, 'annahme', true),
+    kd && zeile('Prognose Monatsende', kd.prognose, 'ergebnis annahme'),
   );
 }
 
@@ -152,13 +185,39 @@ function buchungsliste(m, konto, konten, kategorien) {
 
   // Neueste zuerst: Tage absteigend, innerhalb eines Tages die zuletzt erfasste oben.
   // Der "Stand" je Tag bleibt der Kontostand am Ende dieses Tages.
-  return h('section', { class: 'bereich buchungen' },
-    [...m.tage].reverse().map((tag) => h('div', { class: 'tag' },
+  // Standardmäßig nur die letzten 10 Buchungen; "Alle anzeigen" zeigt den ganzen Monat.
+  const schluessel = `${konto.id}|${m.erster}`;
+  const alle = ansicht.alleAnzeigen === schluessel;
+  let rest = alle ? Infinity : MAX_BUCHUNGEN;
+  const tage = [];
+  for (const tag of [...m.tage].reverse()) {
+    if (rest <= 0) break;
+    const zeilen = [...tag.buchungen].reverse().slice(0, rest);
+    rest -= zeilen.length;
+    tage.push(h('div', { class: 'tag' },
       h('div', { class: 'tag-kopf' },
         h('span', {}, formatTag(tag.datum)),
         h('span', { class: 'tag-stand' + (tag.standAbend < 0 ? ' negativ' : '') }, `Stand ${formatEuro(tag.standAbend)}`)),
-      h('ul', { class: 'liste' }, [...tag.buchungen].reverse().map((b) => buchungsZeile(b, katName, kontoName))),
-    )),
+      h('ul', { class: 'liste' }, zeilen.map((b) => buchungsZeile(b, katName, kontoName)))));
+  }
+
+  const umschalten = m.anzahl > MAX_BUCHUNGEN && h('div', { class: 'mehr' },
+    h('button', {
+      type: 'button',
+      class: 'knopf knopf-klein',
+      onclick: () => {
+        ansicht.alleAnzeigen = alle ? null : schluessel;
+        datenGeaendert(); // neu zeichnen, Scrollposition bleibt
+      },
+    }, alle
+      ? `Nur die letzten ${MAX_BUCHUNGEN} anzeigen`
+      : `Alle ${m.anzahl} Buchungen von ${formatMonat(...monatVon(m.erster))} anzeigen`));
+
+  return h('section', { class: 'bereich buchungen' },
+    h('div', { class: 'tag-kopf liste-kopf' },
+      h('span', {}, alle || m.anzahl <= MAX_BUCHUNGEN ? `${m.anzahl} Buchungen` : `Letzte ${MAX_BUCHUNGEN} von ${m.anzahl} Buchungen`)),
+    tage,
+    umschalten,
   );
 }
 

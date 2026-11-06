@@ -2,7 +2,7 @@
 
 import { initialisiere } from './db.js';
 import { h } from './dom.js';
-import { zeigeAnnahmen } from './views/platzhalter.js';
+import { zeigeAnnahmen } from './views/annahmen.js';
 import { zeigeBuchungen } from './views/alle-buchungen.js';
 import { zeigeUebersicht } from './views/uebersicht.js';
 import { zeigeStammdaten } from './views/stammdaten.js';

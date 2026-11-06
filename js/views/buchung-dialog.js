@@ -10,7 +10,8 @@ const nachName = (a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'ba
 
 /**
  * buchung: beim Bearbeiten eine bestehende Buchung (bei Umbuchung eine der beiden Hälften)
- * vorgaben: z. B. { kontoId } für neue Buchungen
+ * vorgaben (nur neue Buchungen): { kontoId, art, betragCent, kategorieId, gegenkontoId, datum, notiz,
+ *   titel, wiederkehrendId, faelligAm } – z. B. beim Buchen eines fälligen Termins
  */
 export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
   const [konten, kategorien, alle] = await Promise.all([db.alle('konten'), db.alle('kategorien'), db.alle('buchungen')]);
@@ -27,7 +28,9 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
     return;
   }
 
-  let art = ref?.art ?? 'ausgabe';
+  let art = ref?.art ?? vorgaben.art ?? 'ausgabe';
+  const startBetrag = ref?.betragCent ?? vorgaben.betragCent ?? null;
+  const startKategorie = ref?.kategorieId ?? vorgaben.kategorieId;
 
   // ---------- Felder ----------
   const artKnoepfe = artWahl(ref, art, (neueArt) => {
@@ -39,7 +42,7 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
     label: 'Betrag in €',
     inputmode: 'decimal',
     placeholder: '0,00',
-    value: ref ? centZuEingabe(ref.betragCent) : '',
+    value: startBetrag != null ? centZuEingabe(startBetrag) : '',
     autofocus: true,
     class: 'eingabe-betrag',
   });
@@ -55,7 +58,7 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
   const gegenkonto = auswahl({
     label: 'Auf Konto',
     optionen: kontoOptionen,
-    wert: ref?.gegenkontoId ?? waehlbareKonten.find((k) => k.id !== startKonto && !k.archiviert)?.id,
+    wert: ref?.gegenkontoId ?? vorgaben.gegenkontoId ?? waehlbareKonten.find((k) => k.id !== startKonto && !k.archiviert)?.id,
   });
 
   const datum = eingabe({ label: 'Datum', type: 'date', value: ref?.datum ?? vorgaben.datum ?? heuteIso() });
@@ -64,20 +67,20 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
     optionen: [{ wert: 'gebucht', text: 'Gebucht' }, { wert: 'vorgemerkt', text: 'Vorgemerkt' }],
     wert: ref?.status ?? 'gebucht',
   });
-  const notiz = eingabe({ label: 'Notiz (optional)', maxlength: 200, value: ref?.notiz ?? '', placeholder: 'z. B. Wocheneinkauf' });
+  const notiz = eingabe({ label: 'Notiz (optional)', maxlength: 200, value: ref?.notiz ?? vorgaben.notiz ?? '', placeholder: 'z. B. Wocheneinkauf' });
 
   function aktualisiere() {
     const istUmbuchung = art === 'umbuchung';
     kategorie.feld.hidden = istUmbuchung;
     gegenkonto.feld.hidden = !istUmbuchung;
     konto.feld.querySelector('label').textContent = istUmbuchung ? 'Von Konto' : 'Konto';
-    if (!istUmbuchung) fuelleKategorien(kategorie.select, kategorien, art, ref?.kategorieId);
+    if (!istUmbuchung) fuelleKategorien(kategorie.select, kategorien, art, startKategorie);
   }
   aktualisiere();
 
   // ---------- Dialog ----------
   const dlg = dialog({
-    titel: buchung ? (ref.art === 'umbuchung' ? 'Umbuchung bearbeiten' : 'Buchung bearbeiten') : 'Neue Buchung',
+    titel: buchung ? (ref.art === 'umbuchung' ? 'Umbuchung bearbeiten' : 'Buchung bearbeiten') : (vorgaben.titel ?? 'Neue Buchung'),
     inhalt: [artKnoepfe, betrag.feld, kategorie.feld, konto.feld, gegenkonto.feld, datum.feld, status.feld, notiz.feld],
     speichernText: buchung ? 'Speichern' : 'Erfassen',
     zusatz: buchung && {
@@ -100,6 +103,9 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
         kategorieId: kategorie.select.value || null,
         notiz: notiz.input.value,
         status: status.wert(),
+        // Verknüpfung mit dem Termin einer wiederkehrenden Buchung (nur beim Neuanlegen)
+        wiederkehrendId: buchung ? undefined : vorgaben.wiederkehrendId,
+        faelligAm: buchung ? undefined : vorgaben.faelligAm,
       };
       await speichereBuchung(werte, gruppe);
       geraet.schreib('letztes-konto', werte.kontoId);
@@ -111,7 +117,7 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
 }
 
 /** Umschalter Ausgabe / Einnahme / Umbuchung */
-function artWahl(ref, aktuell, beiWahl) {
+export function artWahl(ref, aktuell, beiWahl) {
   let optionen = [
     { wert: 'ausgabe', text: 'Ausgabe' },
     { wert: 'einnahme', text: 'Einnahme' },
@@ -135,7 +141,7 @@ function artWahl(ref, aktuell, beiWahl) {
 }
 
 /** Füllt die Kategorieauswahl mit den Unterkategorien passend zur Art, gruppiert nach Hauptkategorie */
-function fuelleKategorien(select, kategorien, art, aktuelleId) {
+export function fuelleKategorien(select, kategorien, art, aktuelleId) {
   const vorher = select.value || aktuelleId || '';
   const haupt = kategorien
     .filter((k) => !k.elternId && k.art === art)

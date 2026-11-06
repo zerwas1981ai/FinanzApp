@@ -1,41 +1,44 @@
 // Erfundene Testdaten zum Ausprobieren. Alle Testdatensätze tragen das Feld
 // testdaten: true; Konten und Kategorien zusätzlich "(Test)" im Namen.
-// "Testdaten löschen" entfernt genau diese Datensätze (plus Buchungen auf Testkonten),
-// eigene Einträge bleiben unberührt.
+// "Testdaten löschen" entfernt genau diese Datensätze (plus alles, was an Testkonten
+// und Testkategorien hängt), eigene Einträge bleiben unberührt.
+//
+// Etappe 4: Die Daten decken die letzten drei abgeschlossenen Monate plus den laufenden
+// Monat ab. Budgets sind so gewählt, dass zwei Budgethinweise erscheinen
+// (Lebensmittel deutlich über, Freizeit deutlich unter Budget), und ein Termin
+// ("Internet & Telefon") ist im laufenden Monat bewusst noch nicht gebucht.
 
 import * as db from './db.js';
 import { neueKategorie } from './startdaten.js';
 import { baueBuchungen } from './buchungen.js';
-import { heuteIso, isoMonatsanfang, vorigerMonat } from './format.js';
+import { heuteIso } from './format.js';
+import { plusMonate } from './prognose.js';
+
+const SAMMLUNGEN_MIT_TESTDATEN = ['konten', 'kategorien', 'buchungen', 'budgets', 'wiederkehrend'];
 
 function konto(name, anfangssaldoCent, stichtag, mindestsaldoCent, archiviert = false) {
   const jetzt = new Date().toISOString();
   return {
-    id: crypto.randomUUID(),
-    name,
-    anfangssaldoCent,
-    stichtag,
-    mindestsaldoCent,
-    archiviert,
-    erstelltAm: jetzt,
-    geaendertAm: jetzt,
-    testdaten: true,
+    id: crypto.randomUUID(), name, anfangssaldoCent, stichtag, mindestsaldoCent, archiviert,
+    erstelltAm: jetzt, geaendertAm: jetzt, testdaten: true,
   };
 }
 
-export function hatTestdaten(konten, kategorien, buchungen = []) {
-  return [konten, kategorien, buchungen].some((liste) => liste.some((x) => x.testdaten));
+export function hatTestdaten(...listen) {
+  return listen.some((liste) => (liste ?? []).some((x) => x.testdaten));
 }
 
 export async function ladeTestdaten() {
-  const [konten, kategorien, buchungen] = await Promise.all([db.alle('konten'), db.alle('kategorien'), db.alle('buchungen')]);
-  if (hatTestdaten(konten, kategorien, buchungen)) return false;
+  const alt = await Promise.all(SAMMLUNGEN_MIT_TESTDATEN.map((s) => db.alle(s)));
+  if (hatTestdaten(...alt)) return false;
+  const kategorien = alt[1];
+  const jetzt = new Date().toISOString();
 
-  // Zeitraum: die letzten drei Monate bis heute (Stichtag = Anfang des vorletzten Monats)
+  // Zeitraum: drei abgeschlossene Monate + laufender Monat
   const heute = heuteIso();
-  const aktuell = [Number(heute.slice(0, 4)), Number(heute.slice(5, 7))];
-  const monate = [vorigerMonat(...vorigerMonat(...aktuell)), vorigerMonat(...aktuell), aktuell];
-  const stichtag = isoMonatsanfang(...monate[0]);
+  const aktuell = heute.slice(0, 7);
+  const monate = [-3, -2, -1, 0].map((n) => plusMonate(aktuell, n));
+  const stichtag = `${monate[0]}-01`;
 
   const giro = konto('Girokonto (Test)', 245000, stichtag, 50000);
   const tagesgeld = konto('Tagesgeld (Test)', 800000, stichtag, null);
@@ -45,53 +48,85 @@ export async function ladeTestdaten() {
 
   const extra = { testdaten: true };
   const haustier = neueKategorie({ name: 'Haustier (Test)', art: 'ausgabe', extra });
-  const futter = neueKategorie({ name: 'Futter', elternId: haustier.id, extra });
-  const neueKats = [haustier, futter, neueKategorie({ name: 'Tierarzt', elternId: haustier.id, extra })];
+  const neueKats = [
+    haustier,
+    neueKategorie({ name: 'Futter', elternId: haustier.id, extra }),
+    neueKategorie({ name: 'Tierarzt', elternId: haustier.id, extra }),
+  ];
   const einkommen = kategorien.find((k) => !k.elternId && k.name === 'Einkommen');
   if (einkommen) neueKats.push(neueKategorie({ name: 'Flohmarkt (Test)', elternId: einkommen.id, extra }));
   await db.speichere('kategorien', neueKats);
 
-  // Unterkategorie aus dem Startsatz suchen (fehlt sie, wird die Buchung übersprungen)
   const alleKats = [...kategorien, ...neueKats];
+  const hauptId = (name) => alleKats.find((k) => !k.elternId && k.name === name)?.id;
   const kat = (haupt, unter) => {
-    const hk = alleKats.find((k) => !k.elternId && k.name === haupt);
-    return hk && alleKats.find((k) => k.elternId === hk.id && k.name === unter)?.id;
+    const hk = hauptId(haupt);
+    return hk && alleKats.find((k) => k.elternId === hk && k.name === unter)?.id;
   };
 
+  /* ---------- Wiederkehrende Buchungen ---------- */
+  const wk = {};
+  const wiederkehrend = (schluessel, bezeichnung, art, k, betragCent, intervall, start, extraFelder = {}) => {
+    if (art !== 'umbuchung' && !extraFelder.kategorieId) return; // Kategorie fehlt → weglassen
+    wk[schluessel] = {
+      id: crypto.randomUUID(), bezeichnung, art, kontoId: k.id, gegenkontoId: null, kategorieId: null,
+      intervall, start, ende: null, stufen: [{ ab: start, betragCent }], ausnahmen: [],
+      erstelltAm: jetzt, geaendertAm: jetzt, testdaten: true, ...extraFelder,
+    };
+  };
+  const tag = (monat, t) => `${monat}-${String(t).padStart(2, '0')}`;
+  wiederkehrend('gehalt', 'Gehalt', 'einnahme', giro, 320000, 'monatlich', tag(monate[0], 1), { kategorieId: kat('Einkommen', 'Gehalt') });
+  wiederkehrend('spar', 'Sparrate', 'umbuchung', giro, 20000, 'monatlich', tag(monate[0], 2), { gegenkontoId: tagesgeld.id });
+  wiederkehrend('miete', 'Miete', 'ausgabe', giro, 95000, 'monatlich', tag(monate[0], 3), { kategorieId: kat('Wohnen', 'Miete') });
+  if (wk.miete) wk.miete.stufen.push({ ab: `${Number(heute.slice(0, 4)) + 1}-01-03`, betragCent: 99000 }); // Mieterhöhung
+  wiederkehrend('strom', 'Strom-Abschlag', 'ausgabe', giro, 8500, 'monatlich', tag(monate[0], 3), { kategorieId: kat('Wohnen', 'Strom') });
+  wiederkehrend('internet', 'Internet & Telefon', 'ausgabe', giro, 3999, 'monatlich', tag(monate[0], 5), { kategorieId: kat('Wohnen', 'Internet & Telefon') });
+  wiederkehrend('streaming', 'Streaming-Abo', 'ausgabe', kredit, 1299, 'monatlich', tag(monate[0], 14), { kategorieId: kat('Freizeit', 'Abos & Streaming') });
+  wiederkehrend('ausgleich', 'Ausgleich Kreditkarte', 'umbuchung', giro, 25000, 'monatlich', tag(monate[0], 15), { gegenkontoId: kredit.id });
+  wiederkehrend('rundfunk', 'Rundfunkbeitrag', 'ausgabe', giro, 5508, 'vierteljaehrlich', tag(aktuell, 15), { kategorieId: kat('Wohnen', 'Rundfunkbeitrag') });
+  wiederkehrend('kfz', 'Kfz-Versicherung', 'ausgabe', giro, 48000, 'jaehrlich', `${Number(heute.slice(0, 4)) + 1}-01-10`, { kategorieId: kat('Versicherungen', 'Kfz-Versicherung') });
+  await db.speichere('wiederkehrend', Object.values(wk));
+
+  /* ---------- Buchungen ---------- */
   const vorlagen = [
-    // [Tag, Art, Konto, Betrag in Cent, Hauptkategorie, Unterkategorie, Notiz]
-    [1, 'einnahme', giro, 320000, 'Einkommen', 'Gehalt', 'Muster GmbH'],
-    [2, 'umbuchung', giro, 20000, null, tagesgeld, 'Sparrate'],
-    [3, 'ausgabe', giro, 95000, 'Wohnen', 'Miete', ''],
-    [3, 'ausgabe', giro, 8500, 'Wohnen', 'Strom', 'Abschlag'],
+    // [Tag, Art, Konto, Cent, Hauptkategorie, Unterkategorie / Gegenkonto, Notiz, wiederkehrend, nur abgeschlossene Monate]
+    [1, 'einnahme', giro, 320000, 'Einkommen', 'Gehalt', 'Muster GmbH', 'gehalt'],
+    [2, 'umbuchung', giro, 20000, null, tagesgeld, 'Sparrate', 'spar'],
+    [3, 'ausgabe', giro, 95000, 'Wohnen', 'Miete', '', 'miete'],
+    [3, 'ausgabe', giro, 8500, 'Wohnen', 'Strom', 'Abschlag', 'strom'],
+    [5, 'ausgabe', giro, 3999, 'Wohnen', 'Internet & Telefon', '', 'internet', true],
     [6, 'ausgabe', giro, 6240, 'Lebensmittel', 'Supermarkt', ''],
     [8, 'ausgabe', kredit, 4580, 'Freizeit', 'Restaurant & Café', 'Pizzeria Beispiel'],
     [10, 'ausgabe', giro, 5800, 'Mobilität', 'Kraftstoff & Laden', ''],
     [12, 'ausgabe', giro, 2390, 'Haustier (Test)', 'Futter', ''],
     [13, 'ausgabe', giro, 4815, 'Lebensmittel', 'Supermarkt', ''],
-    [14, 'ausgabe', kredit, 1299, 'Freizeit', 'Abos & Streaming', ''],
-    [15, 'umbuchung', giro, 25000, null, kredit, 'Ausgleich Kreditkarte'],
+    [14, 'ausgabe', kredit, 1299, 'Freizeit', 'Abos & Streaming', '', 'streaming'],
+    [15, 'umbuchung', giro, 25000, null, kredit, 'Ausgleich Kreditkarte', 'ausgleich'],
     [18, 'ausgabe', giro, 2450, 'Freizeit', 'Lieferdienste (Pizza & Co.)', ''],
     [20, 'ausgabe', giro, 7190, 'Lebensmittel', 'Supermarkt', ''],
     [27, 'ausgabe', giro, 3999, 'Lebensmittel', 'Supermarkt', ''],
   ];
 
-  const pad = (n) => String(n).padStart(2, '0');
   const datensaetze = [];
-  for (const [j, m] of monate) {
-    for (const [tag, art, k, betragCent, haupt, unter, notiz] of vorlagen) {
-      const datum = `${j}-${pad(m)}-${pad(tag)}`;
+  for (const monat of monate) {
+    for (const [t, art, k, betragCent, haupt, unter, notiz, wkSchluessel, nurAbgeschlossen] of vorlagen) {
+      const datum = tag(monat, t);
       if (datum > heute) continue;
+      if (nurAbgeschlossen && monat === aktuell) continue; // bleibt im laufenden Monat "fällig"
       const eingabe = { art, betragCent, datum, kontoId: k.id, notiz, status: 'gebucht' };
       if (art === 'umbuchung') eingabe.gegenkontoId = unter.id;
       else {
         eingabe.kategorieId = kat(haupt, unter);
         if (!eingabe.kategorieId) continue;
       }
+      const vorlage = wk[wkSchluessel];
+      if (vorlage) {
+        eingabe.wiederkehrendId = vorlage.id;
+        eingabe.faelligAm = datum;
+      }
       datensaetze.push(...baueBuchungen(eingabe, { konten: neueKonten }));
     }
   }
-  // Eine vorgemerkte Kartenzahlung von heute
   const baecker = kat('Lebensmittel', 'Bäcker & Markt');
   if (baecker) {
     datensaetze.push(...baueBuchungen(
@@ -99,27 +134,63 @@ export async function ladeTestdaten() {
       { konten: neueKonten },
     ));
   }
-
   await db.speichere('buchungen', datensaetze.map((b) => ({ ...b, testdaten: true })));
+
+  /* ---------- Budgets ---------- */
+  const budget = (hauptName, k, betragCent) => {
+    const id = hauptId(hauptName);
+    return id && {
+      id: crypto.randomUUID(), kategorieId: id, kontoId: k.id, typ: 'wiederkehrend', notiz: '',
+      startMonat: monate[0], endMonat: null, stufen: [{ ab: monate[0], betragCent }],
+      erstelltAm: jetzt, geaendertAm: jetzt, testdaten: true,
+    };
+  };
+  const budgets = [
+    budget('Lebensmittel', giro, 15000), // Ist ca. 222 € → deutlich drüber → Hinweis
+    budget('Freizeit', kredit, 10000), // Ist ca. 59–83 € → deutlich drunter → Hinweis
+    budget('Mobilität', giro, 6000), // Ist 58 € → knapp drunter → kein Hinweis
+    budget('Wohnen', giro, 110000), // Ist ca. 1.075 € → knapp drunter → kein Hinweis
+  ];
+  const sonstiges = hauptId('Sonstiges');
+  if (sonstiges) {
+    budgets.push({
+      id: crypto.randomUUID(), kategorieId: sonstiges, kontoId: giro.id, typ: 'einmalig', notiz: 'Weihnachtsgeschenke',
+      monat: plusMonate(aktuell, 1), betragCent: 30000, erstelltAm: jetzt, geaendertAm: jetzt, testdaten: true,
+    });
+  }
+  await db.speichere('budgets', budgets.filter(Boolean));
   return true;
 }
 
 export async function loescheTestdaten() {
-  const [konten, kategorien, buchungen] = await Promise.all([db.alle('konten'), db.alle('kategorien'), db.alle('buchungen')]);
+  const [konten, kategorien, buchungen, budgets, wiederkehrend, hinweise] = await Promise.all(
+    [...SAMMLUNGEN_MIT_TESTDATEN, 'hinweise'].map((s) => db.alle(s)),
+  );
   const kontoIds = new Set(konten.filter((k) => k.testdaten).map((k) => k.id));
   const katIds = new Set(kategorien.filter((k) => k.testdaten).map((k) => k.id));
-  // Auch selbst angelegte Unterkategorien unter einer Test-Hauptkategorie entfernen,
-  // sonst blieben sie ohne Hauptkategorie zurück.
+  // Auch selbst angelegte Unterkategorien unter einer Test-Hauptkategorie entfernen
   for (const k of kategorien) if (k.elternId && katIds.has(k.elternId)) katIds.add(k.id);
 
-  // Buchungen: Testbuchungen und alles, was an Testkonten/-kategorien hängt (inkl. Umbuchungs-Partner)
+  // Buchungen: Testbuchungen und alles an Testkonten/-kategorien (inkl. Umbuchungs-Partner)
   const weg = buchungen.filter((b) => b.testdaten || kontoIds.has(b.kontoId) || kontoIds.has(b.gegenkontoId) || katIds.has(b.kategorieId));
   const umbuchungIds = new Set(weg.map((b) => b.umbuchungId).filter(Boolean));
   const buchungIds = new Set(weg.map((b) => b.id));
   for (const b of buchungen) if (b.umbuchungId && umbuchungIds.has(b.umbuchungId)) buchungIds.add(b.id);
 
+  const budgetWeg = budgets.filter((b) => b.testdaten || kontoIds.has(b.kontoId) || katIds.has(b.kategorieId));
+  const wkWeg = wiederkehrend.filter((w) => w.testdaten || kontoIds.has(w.kontoId) || kontoIds.has(w.gegenkontoId) || katIds.has(w.kategorieId));
+  // Entscheidungen zu Budgethinweisen, die sich auf Test-Budgets bezogen
+  const budgetKats = new Set(budgetWeg.map((b) => b.kategorieId));
+  const hinweisWeg = hinweise.filter((x) => katIds.has(x.kategorieId) || budgetKats.has(x.kategorieId));
+
   await db.loesche('buchungen', [...buchungIds]);
+  await db.loesche('budgets', budgetWeg.map((b) => b.id));
+  await db.loesche('wiederkehrend', wkWeg.map((w) => w.id));
+  await db.loesche('hinweise', hinweisWeg.map((x) => x.id));
   await db.loesche('konten', [...kontoIds]);
   await db.loesche('kategorien', [...katIds]);
-  return { konten: kontoIds.size, kategorien: katIds.size, buchungen: buchungIds.size };
+  return {
+    konten: kontoIds.size, kategorien: katIds.size, buchungen: buchungIds.size,
+    budgets: budgetWeg.length, wiederkehrend: wkWeg.length,
+  };
 }
