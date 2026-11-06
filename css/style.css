@@ -614,6 +614,198 @@ fieldset.feld { border: none; padding: 0; margin: 0 0 14px; }
 .buchung-titel .marke { background: var(--warnung-leicht); color: var(--warnung); }
 .buchung-unter { color: var(--text-2); font-size: .85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+/* =========================================================
+   Etappe 3: Alle Buchungen – Filter, Liste, Analyse
+   Diagrammfarben: Blau = Einnahmen, Orange = Ausgaben
+   (farbfehlsichtig-sicher geprüft, siehe DECISIONS.md D30)
+   ========================================================= */
+
+:root {
+  --serie-einnahme: #2a78d6;
+  --serie-ausgabe: #eb6834;
+  --gitter: #e9ebef;
+}
+:root[data-theme="dunkel"] {
+  --serie-einnahme: #3987e5;
+  --serie-ausgabe: #d95926;
+  --gitter: #262a31;
+}
+
+.filter .chips { margin-bottom: 12px; }
+.filter-raster {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 0 12px;
+}
+.filter-reihe { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+.filter .feld { margin-bottom: 10px; }
+.feld-label { display: block; font-weight: 500; font-size: .85rem; margin-bottom: 4px; color: var(--text-2); }
+.feld-fehler { display: block; color: var(--gefahr); font-size: .8rem; margin-top: 4px; }
+.feld input[type="search"] {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--rand);
+  border-radius: var(--radius-klein);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+.weitere-filter { margin-top: 2px; }
+.weitere-filter > summary { cursor: pointer; color: var(--akzent); font-weight: 500; font-size: .9rem; padding: 4px 0 10px; }
+.weitere-filter .schalter { margin-top: 0; }
+.weitere-filter .hinweis { margin: 6px 0 0; font-size: .8rem; }
+.filter-fuss { display: flex; justify-content: flex-end; }
+.filter-fuss:has(> [hidden]:only-child) { display: none; }
+
+.summen-kopf .kacheln {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 12px;
+  margin-top: 8px;
+}
+.kachel .betrag { font-size: 1.15rem; }
+
+.sortierung { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 6px 0 4px; }
+.sortierung select {
+  min-height: 32px;
+  padding: 4px 8px;
+  border: 1px solid var(--rand);
+  border-radius: var(--radius-klein);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: .85rem;
+}
+.mehr { display: flex; justify-content: center; padding: 12px 0 8px; }
+
+/* Legende */
+.legende { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; font-size: .85rem; margin-bottom: 10px; }
+.legende > span { display: inline-flex; align-items: center; gap: 6px; }
+.legende-punkt { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: middle; }
+.legende > span > .legende-punkt { margin-right: 0; }
+.legende-punkt.einnahme { background: var(--serie-einnahme); }
+.legende-punkt.ausgabe { background: var(--serie-ausgabe); }
+
+/* Balkendiagramm */
+.diagramm { display: flex; gap: 8px; }
+.achse {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 180px;
+  font-size: .72rem;
+  color: var(--text-2);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  transform: translateY(-.5em);
+}
+.diagramm-flaeche { position: relative; flex: 1; min-width: 0; overflow-x: auto; overflow-y: hidden; }
+.gitter { position: absolute; left: 0; right: 0; top: 0; height: 180px; pointer-events: none; }
+.gitter span { position: absolute; left: 0; right: 0; border-top: 1px solid var(--gitter); }
+.gitter span:first-child { border-top-color: var(--rand); }
+.spalten { position: relative; display: flex; align-items: stretch; }
+.spalte {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border-radius: 6px;
+  outline: none;
+  cursor: default;
+}
+.spalte:hover .balken-paar, .spalte:focus-visible .balken-paar { background: var(--flaeche-2); }
+.spalte:focus-visible { box-shadow: inset 0 0 0 2px var(--akzent); }
+.balken-paar {
+  height: 180px;
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 2px;
+  border-radius: 6px 6px 0 0;
+}
+.balken { width: min(14px, 40%); border-radius: 4px 4px 0 0; min-height: 0; }
+.balken.einnahme { background: var(--serie-einnahme); }
+.balken.ausgabe { background: var(--serie-ausgabe); }
+.spalte-label { font-size: .72rem; color: var(--text-2); padding-top: 6px; white-space: nowrap; height: 1.6em; }
+
+.tooltip {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  min-width: 160px;
+  background: var(--flaeche);
+  border: 1px solid var(--rand);
+  border-radius: var(--radius-klein);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .18);
+  padding: 8px 10px;
+  font-size: .82rem;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  z-index: 2;
+}
+.tooltip[hidden] { display: none; }
+.tooltip strong { display: block; margin-bottom: 4px; }
+.tooltip-saldo { border-top: 1px solid var(--rand); margin-top: 4px; padding-top: 4px; font-weight: 600; }
+
+/* Tabelle */
+.tabelle-rahmen { overflow-x: auto; }
+.tabelle { width: 100%; border-collapse: collapse; font-size: .9rem; font-variant-numeric: tabular-nums; }
+.tabelle th, .tabelle td { padding: 8px 10px; border-bottom: 1px solid var(--rand); white-space: nowrap; }
+.tabelle th { text-align: right; color: var(--text-2); font-weight: 600; font-size: .8rem; }
+.tabelle td { text-align: right; }
+.tabelle th:first-child, .tabelle td:first-child { text-align: left; }
+
+/* Kategorien-Auswertung */
+.kat-tabelle details > summary { list-style: none; cursor: pointer; }
+.kat-tabelle details > summary::-webkit-details-marker { display: none; }
+.kat-zeile {
+  display: grid;
+  grid-template-columns: minmax(90px, 1.3fr) 2fr auto 3.2em;
+  gap: 4px 12px;
+  align-items: center;
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--rand);
+  font-size: .92rem;
+}
+.mit-schnitt .kat-zeile { grid-template-columns: minmax(90px, 1.3fr) 2fr auto 3.2em 7.5em; }
+.kat-tabelle details > summary .kat-zeile-name::before {
+  content: "▸";
+  display: inline-block;
+  width: 1em;
+  color: var(--text-2);
+  transition: transform .15s;
+}
+.kat-tabelle details[open] > summary .kat-zeile-name::before { transform: rotate(90deg); }
+.kat-zeile:hover { background: var(--flaeche-2); }
+.kat-zeile.ebene-1 .kat-zeile-name { font-weight: 600; }
+.kat-zeile.ebene-2 { font-size: .85rem; color: var(--text-2); }
+.kat-zeile.ebene-2 .kat-zeile-name { padding-left: 1.2em; }
+.kat-zeile-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kat-balken-spur { display: block; height: 10px; }
+.kat-balken { display: block; height: 100%; border-radius: 0 4px 4px 0; min-width: 2px; }
+.kat-balken.ausgabe { background: var(--serie-ausgabe); }
+.kat-balken.einnahme { background: var(--serie-einnahme); }
+.ebene-2 .kat-balken { opacity: .55; }
+.kat-zeile .betrag { text-align: right; }
+.kat-anteil, .kat-schnitt { text-align: right; color: var(--text-2); font-variant-numeric: tabular-nums; font-size: .85rem; white-space: nowrap; }
+.summe-zeile { font-weight: 700; border-bottom: none; }
+
+/* Handy: Balken unter den Namen, Zahlen rechts */
+@media (max-width: 600px) {
+  .kat-zeile, .mit-schnitt .kat-zeile {
+    grid-template-columns: 1fr auto auto;
+    grid-template-areas: "name betrag anteil" "balken balken schnitt";
+  }
+  .kat-zeile-name { grid-area: name; }
+  .kat-balken-spur { grid-area: balken; height: 6px; }
+  .kat-zeile .betrag { grid-area: betrag; }
+  .kat-anteil { grid-area: anteil; }
+  .kat-schnitt { grid-area: schnitt; font-size: .78rem; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
 }

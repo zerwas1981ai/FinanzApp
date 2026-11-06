@@ -15,13 +15,6 @@ export function platzhalter({ titel, text, kommt, etappe }) {
   };
 }
 
-export const zeigeBuchungen = platzhalter({
-  titel: 'Alle Buchungen',
-  text: 'Hier siehst du später alle Buchungen über alle Konten. Dieser Bereich ist noch ein Platzhalter.',
-  kommt: ['Filtern und Sortieren', 'Auswertungen', 'Filter „ohne Beleg“'],
-  etappe: 'Kommt in Etappe 3',
-});
-
 export const zeigeAnnahmen = platzhalter({
   titel: 'Annahmen',
   text: 'Hier pflegst du später alles, was die Zukunftsprognose bestimmt. Dieser Bereich ist noch ein Platzhalter.',

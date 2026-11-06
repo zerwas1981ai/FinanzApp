@@ -2,7 +2,8 @@
 
 import { initialisiere } from './db.js';
 import { h } from './dom.js';
-import { zeigeBuchungen, zeigeAnnahmen } from './views/platzhalter.js';
+import { zeigeAnnahmen } from './views/platzhalter.js';
+import { zeigeBuchungen } from './views/alle-buchungen.js';
 import { zeigeUebersicht } from './views/uebersicht.js';
 import { zeigeStammdaten } from './views/stammdaten.js';
 import { oeffneBuchungsdialog } from './views/buchung-dialog.js';

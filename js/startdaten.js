@@ -13,7 +13,7 @@ export const STANDARD_KATEGORIEN = [
   { name: 'Gesundheit & Pflege', art: 'ausgabe', unter: ['Apotheke', 'Arzt & Zuzahlungen', 'Drogerie'] },
   { name: 'Kleidung', art: 'ausgabe', unter: ['Kleidung', 'Schuhe'] },
   { name: 'Kinder & Bildung', art: 'ausgabe', unter: ['Kita & Schule', 'Kurse & Bücher', 'Taschengeld'] },
-  { name: 'Sonstiges', art: 'ausgabe', unter: ['Geschenke', 'Spenden', 'Bankgebühren', 'Sonstige Ausgaben'] },
+  { name: 'Sonstiges', art: 'ausgabe', unter: ['Geschenke', 'Spenden', 'Bankgebühren', 'Bargeldabhebung', 'Sonstige Ausgaben'] },
 ];
 
 /** Wandelt den Startsatz in einzelne Kategorie-Datensätze um. */

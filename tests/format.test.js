@@ -42,6 +42,7 @@ test('formatEuro und centZuEingabe', () => {
   assert.equal(formatEuro(123456), `1.234,56${nbsp}€`);
   assert.equal(formatEuro(-32050), `-320,50${nbsp}€`);
   assert.equal(formatEuro(0), `0,00${nbsp}€`);
+  assert.equal(formatEuro(-0), `0,00${nbsp}€`);
   assert.equal(centZuEingabe(123456), '1.234,56');
   assert.equal(parseEuro(centZuEingabe(-150000)), -150000);
 });

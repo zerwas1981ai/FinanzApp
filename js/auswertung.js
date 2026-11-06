@@ -1,0 +1,252 @@
+// Filtern, Sortieren und Auswerten von Buchungen (Tab "Alle Buchungen").
+// Reine Funktionen ohne Datenbank – mit `npm test` geprüft.
+//
+// Ein "Eintrag" ist eine Zeile der Liste:
+//   { buchung, wirkung }   wirkung = Cent aus Sicht des Kontos (+/−), bei Umbuchung ohne
+//                          Kontofilter 0 (sie verschiebt nur Geld zwischen eigenen Konten)
+// Umbuchungen erscheinen als EINE Zeile (die "ab"-Hälfte). Ist nach einem Konto gefiltert,
+// wird die Hälfte dieses Kontos genommen, damit + / − aus dessen Sicht stimmt.
+
+import { wirkungCent, istAktiv } from './rechnen.js';
+import { isoMonatsanfang, naechsterMonat, vorigerMonat } from './format.js';
+
+export const STANDARD_FILTER = Object.freeze({
+  zeitraum: 'monat', // monat | vormonat | jahr | vorjahr | alles | eigen
+  von: '',
+  bis: '',
+  kontoId: '',
+  art: '', // einnahme | ausgabe | umbuchung
+  kategorieId: '', // Haupt- oder Unterkategorie
+  status: '', // gebucht | vorgemerkt
+  betragMin: null, // Cent
+  betragMax: null, // Cent
+  suche: '',
+  ohneBeleg: false,
+});
+
+export const STANDARD_SORTIERUNG = Object.freeze({ feld: 'datum', richtung: 'ab' });
+
+const letzterTag = (jahr, monat) => {
+  const [nj, nm] = naechsterMonat(jahr, monat);
+  const d = new Date(nj, nm - 1, 0);
+  return `${jahr}-${String(monat).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+/** Zeitraum als { von, bis } (beide einschließlich, '' = offen) */
+export function zeitraumFuer(filter, heute) {
+  const j = Number(heute.slice(0, 4));
+  const m = Number(heute.slice(5, 7));
+  switch (filter.zeitraum) {
+    case 'monat': return { von: isoMonatsanfang(j, m), bis: letzterTag(j, m) };
+    case 'vormonat': {
+      const [vj, vm] = vorigerMonat(j, m);
+      return { von: isoMonatsanfang(vj, vm), bis: letzterTag(vj, vm) };
+    }
+    case 'jahr': return { von: `${j}-01-01`, bis: `${j}-12-31` };
+    case 'vorjahr': return { von: `${j - 1}-01-01`, bis: `${j - 1}-12-31` };
+    case 'eigen': return { von: filter.von || '', bis: filter.bis || '' };
+    default: return { von: '', bis: '' };
+  }
+}
+
+/** Wendet alle Filter an und liefert die Einträge (unsortiert) */
+export function filtere(buchungen, filter, { kategorien = [], konten = [], heute }) {
+  const { von, bis } = zeitraumFuer(filter, heute);
+  const kat = new Map(kategorien.map((k) => [k.id, k]));
+  const kontoName = new Map(konten.map((k) => [k.id, k.name]));
+  const suche = filter.suche.trim().toLocaleLowerCase('de');
+
+  const ergebnis = [];
+  for (const b of buchungen) {
+    if (!istAktiv(b)) continue;
+
+    // Kontofilter / Umbuchung nur einmal
+    if (filter.kontoId) {
+      if (b.kontoId !== filter.kontoId) continue;
+    } else if (b.richtung === 'zu') {
+      continue;
+    }
+
+    if (von && b.datum < von) continue;
+    if (bis && b.datum > bis) continue;
+    if (filter.art && b.art !== filter.art) continue;
+    if (filter.status && b.status !== filter.status) continue;
+    if (filter.betragMin != null && b.betragCent < filter.betragMin) continue;
+    if (filter.betragMax != null && b.betragCent > filter.betragMax) continue;
+    if (filter.ohneBeleg && b.belege?.length) continue;
+
+    if (filter.kategorieId) {
+      const unter = kat.get(b.kategorieId);
+      if (!unter || (unter.id !== filter.kategorieId && unter.elternId !== filter.kategorieId)) continue;
+    }
+
+    if (suche) {
+      const unter = kat.get(b.kategorieId);
+      const text = [
+        b.notiz,
+        unter?.name,
+        kat.get(unter?.elternId)?.name,
+        kontoName.get(b.kontoId),
+        kontoName.get(b.gegenkontoId),
+      ].filter(Boolean).join(' ').toLocaleLowerCase('de');
+      if (!text.includes(suche)) continue;
+    }
+
+    const wirkung = b.art === 'umbuchung' && !filter.kontoId ? 0 : wirkungCent(b);
+    ergebnis.push({ buchung: b, wirkung });
+  }
+  return ergebnis;
+}
+
+/** Sortiert Einträge. feld: datum | betrag | kategorie | konto, richtung: auf | ab */
+export function sortiere(eintraege, { feld, richtung }, { kategorien = [], konten = [] } = {}) {
+  const kat = new Map(kategorien.map((k) => [k.id, k]));
+  const kontoName = new Map(konten.map((k) => [k.id, k.name]));
+  const katText = (b) => {
+    if (b.art === 'umbuchung') return 'Umbuchung';
+    const unter = kat.get(b.kategorieId);
+    return `${kat.get(unter?.elternId)?.name ?? ''} ${unter?.name ?? ''}`;
+  };
+  const vergleiche = {
+    datum: () => 0,
+    betrag: (a, b) => a.buchung.betragCent - b.buchung.betragCent,
+    kategorie: (a, b) => katText(a.buchung).localeCompare(katText(b.buchung), 'de', { sensitivity: 'base' }),
+    konto: (a, b) => (kontoName.get(a.buchung.kontoId) ?? '').localeCompare(kontoName.get(b.buchung.kontoId) ?? '', 'de', { sensitivity: 'base' }),
+  }[feld] ?? (() => 0);
+  const faktor = richtung === 'auf' ? 1 : -1;
+  // Bei Gleichstand immer nach Datum (in derselben Richtung), dann nach Erfassungszeit
+  const nachDatum = (a, b) => a.buchung.datum.localeCompare(b.buchung.datum)
+    || (a.buchung.erstelltAm ?? '').localeCompare(b.buchung.erstelltAm ?? '');
+  return [...eintraege].sort((a, b) => faktor * (vergleiche(a, b) || nachDatum(a, b)));
+}
+
+/** Summen über die Einträge. Umbuchungen zählen nie als Einnahme/Ausgabe. */
+export function summen(eintraege) {
+  let einnahmen = 0;
+  let ausgaben = 0;
+  let umbuchungen = 0;
+  for (const { buchung: b, wirkung } of eintraege) {
+    if (b.art === 'einnahme') einnahmen += b.betragCent;
+    else if (b.art === 'ausgabe') ausgaben += b.betragCent;
+    else umbuchungen += wirkung;
+  }
+  return { anzahl: eintraege.length, einnahmen, ausgaben, saldo: einnahmen - ausgaben, umbuchungen };
+}
+
+/** Monate (als [jahr, monat]) von–bis einschließlich */
+export function monateZwischen(vonIso, bisIso) {
+  const ergebnis = [];
+  let j = Number(vonIso.slice(0, 4));
+  let m = Number(vonIso.slice(5, 7));
+  const zielJ = Number(bisIso.slice(0, 4));
+  const zielM = Number(bisIso.slice(5, 7));
+  while (j < zielJ || (j === zielJ && m <= zielM)) {
+    ergebnis.push([j, m]);
+    [j, m] = naechsterMonat(j, m);
+  }
+  return ergebnis;
+}
+
+/**
+ * Ab wann wird erfasst? Datum der frühesten (nicht gelöschten) Buchung –
+ * bei Kontofilter nur dieses Kontos. Kategorie-, Such- und andere Filter spielen
+ * bewusst keine Rolle: Eine seltene Kategorie (z. B. Urlaub) soll über alle
+ * erfassten Monate gemittelt werden, nicht erst ab ihrer ersten Buchung.
+ */
+export function ersterErfassterTag(buchungen, filter = {}) {
+  let erster = null;
+  for (const b of buchungen) {
+    if (!istAktiv(b)) continue;
+    if (filter.kontoId && b.kontoId !== filter.kontoId) continue;
+    if (erster === null || b.datum < erster) erster = b.datum;
+  }
+  return erster;
+}
+
+/**
+ * Welche Monate deckt die Auswertung ab (für Verlauf und Durchschnitt)?
+ * - Beginn: Anfang des Zeitraums, aber nie vor dem ersten erfassten Monat.
+ *   (Bei "Dieses Jahr" mit Daten erst ab September also September, nicht Januar.)
+ * - Ende: Ende des Zeitraums, aber nie nach dem aktuellen Monat – außer es gibt
+ *   schon spätere Buchungen.
+ * Leere Monate dazwischen zählen mit.
+ */
+export function monateDerAuswertung(eintraege, filter, heute, erster) {
+  if (!erster) return [];
+  const { von, bis } = zeitraumFuer(filter, heute);
+  const letzteBuchung = eintraege.reduce((max, e) => (e.buchung.datum > max ? e.buchung.datum : max), heute);
+  const start = von && von > erster ? von : erster;
+  const ende = bis && bis < letzteBuchung ? bis : letzteBuchung;
+  if (start > ende) return [];
+  return monateZwischen(start, ende);
+}
+
+/** Einnahmen, Ausgaben und Saldo je Monat */
+export function verlaufJeMonat(eintraege, monate) {
+  const index = new Map(monate.map(([j, m], i) => [isoMonatsanfang(j, m).slice(0, 7), i]));
+  const zeilen = monate.map(([jahr, monat]) => ({ jahr, monat, einnahmen: 0, ausgaben: 0, saldo: 0 }));
+  for (const { buchung: b } of eintraege) {
+    const i = index.get(b.datum.slice(0, 7));
+    if (i === undefined || b.art === 'umbuchung') continue;
+    if (b.art === 'einnahme') zeilen[i].einnahmen += b.betragCent;
+    else zeilen[i].ausgaben += b.betragCent;
+  }
+  for (const z of zeilen) z.saldo = z.einnahmen - z.ausgaben;
+  return zeilen;
+}
+
+/** Nur die abgeschlossenen Monate (vor dem aktuellen Monat) – Grundlage für den Ø */
+export function abgeschlosseneMonate(monate, heute) {
+  const aktuell = heute.slice(0, 7);
+  return monate.filter(([j, m]) => isoMonatsanfang(j, m).slice(0, 7) < aktuell);
+}
+
+/**
+ * Summen je Hauptkategorie (mit Unterkategorien) für eine Art.
+ * Liefert absteigend sortiert: [{ id, name, summe, anteil, schnittSumme, schnitt, unter: [...] }]
+ * - anteil = 0..1 an der Gesamtsumme (alle Einträge)
+ * - schnitt = Durchschnitt pro Monat, NUR aus den übergebenen schnittMonaten
+ *   (abgeschlossene Monate). Der laufende Monat würde den Ø verfälschen, weil er
+ *   noch nicht vorbei ist. Ohne schnittMonate ist schnitt = null.
+ */
+export function summenJeKategorie(eintraege, kategorien, art, schnittMonate = []) {
+  const kat = new Map(kategorien.map((k) => [k.id, k]));
+  const schnittSchluessel = new Set(schnittMonate.map(([j, m]) => isoMonatsanfang(j, m).slice(0, 7)));
+  const haupt = new Map();
+  let gesamt = 0;
+  for (const { buchung: b } of eintraege) {
+    if (b.art !== art) continue;
+    const zaehltFuerSchnitt = schnittSchluessel.has(b.datum.slice(0, 7));
+    const unter = kat.get(b.kategorieId);
+    const hk = kat.get(unter?.elternId);
+    const hId = hk?.id ?? 'unbekannt';
+    if (!haupt.has(hId)) haupt.set(hId, { id: hId, name: hk?.name ?? 'Unbekannte Kategorie', summe: 0, schnittSumme: 0, unter: new Map() });
+    const h = haupt.get(hId);
+    const uId = unter?.id ?? 'unbekannt';
+    if (!h.unter.has(uId)) h.unter.set(uId, { id: uId, name: unter?.name ?? 'Unbekannt', summe: 0, schnittSumme: 0 });
+    for (const ziel of [h, h.unter.get(uId)]) {
+      ziel.summe += b.betragCent;
+      if (zaehltFuerSchnitt) ziel.schnittSumme += b.betragCent;
+    }
+    gesamt += b.betragCent;
+  }
+  const n = schnittMonate.length;
+  const mitAnteil = (x) => ({
+    ...x,
+    anteil: gesamt ? x.summe / gesamt : 0,
+    schnitt: n ? Math.round(x.schnittSumme / n) : null,
+  });
+  return [...haupt.values()]
+    .map((h) => ({ ...mitAnteil(h), unter: [...h.unter.values()].map(mitAnteil).sort((a, b) => b.summe - a.summe) }))
+    .sort((a, b) => b.summe - a.summe);
+}
+
+/** "Schöne" Obergrenze für eine Diagrammachse, z. B. 3.712 → 4.000 */
+export function schoeneObergrenze(wert) {
+  if (wert <= 0) return 1;
+  const potenz = 10 ** Math.floor(Math.log10(wert));
+  for (const schritt of [1, 2, 2.5, 5, 10]) {
+    if (schritt * potenz >= wert) return schritt * potenz;
+  }
+  return 10 * potenz;
+}

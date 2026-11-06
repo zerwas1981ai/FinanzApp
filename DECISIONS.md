@@ -305,3 +305,93 @@ Wird eine Entscheidung geändert, den alten Eintrag nicht löschen, sondern als
 - Nach jedem Speichern ruft man `datenGeaendert()` (ui.js) auf. `app.js` zeichnet dann den
   aktuellen Tab neu, ohne nach oben zu springen. So bleiben Ansichten aktuell, egal wo der
   Dialog geöffnet wurde.
+
+---
+
+# Etappe 3
+
+## D27 – Filter- und Auswertungslogik in `js/auswertung.js`
+*Etappe 3*
+
+- Reine Funktionen (`filtere`, `sortiere`, `summen`, `verlaufJeMonat`,
+  `summenJeKategorie`, `zeitraumFuer` …), mit `tests/auswertung.test.js` geprüft.
+- Am Datenmodell ändert sich nichts, deshalb gibt es keine Migration. Die Datenversion bleibt 2.
+- Der Filterzustand gilt nur, solange die App offen ist. Nach dem Neuladen ist wieder
+  „Dieser Monat“ eingestellt (Entscheidung des Nutzers).
+
+## D28 – Filter
+*Etappe 3*
+
+- Zeitraum mit Schnellwahl: dieser Monat, Vormonat, dieses Jahr, Vorjahr, alles oder
+  eigener Zeitraum (von/bis einzeln möglich).
+- Weitere Filter: Konto, Art, Kategorie (eine Hauptkategorie umfasst alle ihre
+  Unterkategorien), Status, Betrag von/bis (immer der positive Betrag), Suche.
+- Die Suche ignoriert Groß- und Kleinschreibung. Sie durchsucht Notiz, Unter- und
+  Hauptkategorie sowie die Namen von Konto und Gegenkonto.
+- Der Filter „ohne Beleg“ ist eingebaut (`belege` ist leer). Bis Etappe 6 trifft er auf alle
+  Buchungen zu, ein Hinweis erklärt das (Entscheidung des Nutzers).
+- Buchungen im Papierkorb erscheinen nie.
+
+## D29 – Umbuchungen in Liste und Summen
+*Etappe 3 – Entscheidung des Nutzers: eine Zeile pro Umbuchung*
+
+- Ohne Kontofilter: eine Zeile „Umbuchung A → B“ mit neutralem Betrag (ohne Vorzeichen,
+  Wirkung 0).
+- Mit Kontofilter: die Hälfte dieses Kontos, mit + oder − aus dessen Sicht. Die Summe der
+  Umbuchungen erscheint dann als eigene Kachel.
+- Umbuchungen zählen nie zu Einnahmen, Ausgaben, Saldo oder in den Analysen.
+- Sortieren nach Betrag nutzt den positiven Betrag. Bei Gleichstand wird immer nach
+  Datum und dann nach Erfassungszeit sortiert, in derselben Richtung.
+- Die Liste zeigt 200 Zeilen auf einmal, darunter steht „Weitere anzeigen“.
+
+## D30 – Analyse und Diagrammfarben
+*Etappe 3 – Entscheidung des Nutzers: alle drei Auswertungen*
+
+- **Verlauf je Monat:** Balkendiagramm mit Einnahmen und Ausgaben je Monat, einer Legende
+  und einem Tooltip beim Überfahren oder Antippen (inkl. Saldo). Eine Tabellenansicht ist
+  umschaltbar. Leere Monate werden mit 0 gezeigt. Welche Monate erscheinen, regelt
+  `monateDerAuswertung` (siehe Ø unten).
+- **Nach Kategorien:** Ausgaben oder Einnahmen je Hauptkategorie mit Balken, Betrag und
+  Anteil, aufklappbar auf Unterkategorien.
+- **Durchschnitt pro Monat (Ø):** Summe geteilt durch die Zahl der **erfassten** Monate
+  im Zeitraum (Wunsch des Nutzers):
+  - Der Beginn ist der Anfang des Zeitraums, aber nie vor dem ersten Monat mit erfassten
+    Buchungen (`ersterErfassterTag`: früheste nicht gelöschte Buchung, bei einem Kontofilter
+    nur dieses Kontos). Beispiel: „Dieses Jahr“ mit Daten ab September ergibt September bis
+    heute, nicht Januar bis Dezember. Über 12 Monate wird also erst gemittelt, wenn
+    12 Monate erfasst sind.
+  - Das Ende ist das Ende des Zeitraums, aber nie nach dem aktuellen Monat, außer es gibt
+    schon spätere Buchungen.
+  - Kategorie- und Suchfilter verschieben den Beginn **nicht**. Eine seltene Kategorie wie
+    Urlaub wird über alle erfassten Monate gemittelt, nicht erst ab ihrer ersten Buchung.
+  - **Der laufende Monat zählt beim Ø nicht mit** (Wunsch des Nutzers), weil er noch nicht
+    vorbei ist und den Schnitt nach unten ziehen würde. Spätere Monate (Buchungen mit
+    Zukunftsdatum) zählen ebenfalls nicht. Summe und Anteil enthalten weiterhin alle Monate,
+    der Ø nutzt nur Buchungen aus abgeschlossenen Monaten (`abgeschlosseneMonate`).
+  - Der Ø wird nur gezeigt, wenn der Zeitraum mehr als einen Monat umfasst und mindestens
+    ein Monat abgeschlossen ist. Der Hinweis darunter nennt Anzahl und Spanne der
+    abgeschlossenen Monate. Der Monatsverlauf zeigt den laufenden Monat weiterhin an.
+- **Farben:** Blau = Einnahmen, Orange = Ausgaben (hell `#2a78d6`/`#eb6834`, dunkel
+  `#3987e5`/`#d95926`, CSS-Variablen `--serie-einnahme`/`--serie-ausgabe`).
+  **Warum nicht Grün/Rot:** Das Paar ist für Menschen mit Rot-Grün-Sehschwäche kaum
+  unterscheidbar (mit einem Prüfskript getestet: durchgefallen). Blau/Orange besteht alle
+  Prüfungen im hellen und dunklen Modus. Beträge als Text bleiben wie bisher grün/rot,
+  dort steht immer auch ein Vorzeichen.
+- Diagramme bestehen aus reinem HTML/CSS, ohne Bibliothek (D01). Es gibt nur eine
+  Y-Achse mit einer „runden“ Obergrenze (`schoeneObergrenze`).
+
+## D31 – Kleinkorrektur Euro-Format
+*Etappe 3*
+
+- `formatEuro(-0)` zeigte „-0,00 €“. Das ist behoben, jetzt erscheint immer „0,00 €“.
+
+## D32 – Bargeldabhebungen
+*Etappe 3 – Entscheidung des Nutzers*
+
+- Eine Bargeldabhebung wird als **Ausgabe** gebucht, mit der Unterkategorie
+  „Sonstiges › Bargeldabhebung“. Sie ist im Startsatz enthalten (`js/startdaten.js`).
+- Folge: Wofür das Bargeld später ausgegeben wird, erfasst die App nicht. Die bewusst
+  verworfene Alternative wäre ein Konto „Bargeld“ mit Umbuchungen. Sie ginge technisch
+  weiterhin, ohne Programmänderung.
+- In bereits bestehenden Datenständen wird der Startsatz nicht nachträglich ergänzt. Dort legt
+  der Nutzer die Unterkategorie selbst an.

@@ -9,7 +9,19 @@ const MAX_CENT = 99_999_999_999; // 999.999.999,99 €
 
 /** 123456 → "1.234,56 €" */
 export function formatEuro(cent) {
-  return euroFormat.format(cent / 100);
+  return euroFormat.format((cent || 0) / 100); // "|| 0" verhindert "-0,00 €"
+}
+
+const euroRundFormat = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
+
+/** 123456 → "1.235 €" (für Diagrammachsen) */
+export function formatEuroRund(cent) {
+  return euroRundFormat.format(cent / 100);
+}
+
+/** 0.2345 → "23 %" */
+export function formatProzent(anteil) {
+  return `${Math.round(anteil * 100)} %`;
 }
 
 /** 123456 → "1.234,56" (für Eingabefelder) */
