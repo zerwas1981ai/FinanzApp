@@ -3,7 +3,8 @@
 import { h } from '../dom.js';
 import * as db from '../db.js';
 import { formatEuro, formatEuroRund, formatProzent, formatDatum, formatMonat, heuteIso, parseEuro } from '../format.js';
-import { schalter, herunterladen } from '../ui.js';
+import { schalter, herunterladen, toast } from '../ui.js';
+import { archivInhalt } from '../sync/abgleich.js';
 import { buchungenAlsCsv, exportName } from '../export.js';
 import {
   STANDARD_FILTER, STANDARD_SORTIERUNG, filtere, sortiere, summen, zeitraumFuer,
@@ -27,6 +28,12 @@ const zustand = {
   offen: new Set(), // aufgeklappte Kategorien in der Analyse
 };
 
+/** "Ansehen" eines archivierten Jahres (aus den Stammdaten): Filter auf dieses Jahr stellen */
+function zeigeJahr(jahr) {
+  zustand.sichtbar = SEITE;
+  zustand.filter = { ...STANDARD_FILTER, zeitraum: 'eigen', von: `${jahr}-01-01`, bis: `${jahr}-12-31` };
+}
+
 const ZEITRAEUME = [
   ['monat', 'Dieser Monat'],
   ['vormonat', 'Vormonat'],
@@ -36,9 +43,48 @@ const ZEITRAEUME = [
   ['eigen', 'Eigener Zeitraum'],
 ];
 
-export async function zeigeBuchungen(container) {
-  const [konten, kategorien, buchungen, projekte] = await Promise.all(['konten', 'kategorien', 'buchungen', 'projekte'].map((s) => db.alle(s)));
-  const daten = { konten, kategorien, buchungen, projekte };
+/**
+ * Archivierte Jahre (D68/D69) zählen in Liste und Analyse ganz normal mit – nur bearbeiten lassen
+ * sie sich nicht. Ihre Buchungen kommen aus dem Zwischenspeicher bzw. aus Google Drive und
+ * tragen zur Kennzeichnung das (nicht gespeicherte) Feld archivJahr.
+ * anmelden: true nur aus einem Klick heraus (Google-Fenster)
+ */
+async function ladeArchive(archive, anmelden) {
+  const geladen = [];
+  const fehlend = [];
+  for (const eintrag of [...archive].sort((a, b) => a.jahr - b.jahr)) {
+    try {
+      const inhalt = await archivInhalt(eintrag, { anmelden });
+      if (inhalt) geladen.push({ eintrag, inhalt });
+      else fehlend.push(eintrag.jahr);
+    } catch (err) {
+      console.warn(err);
+      fehlend.push(eintrag.jahr);
+    }
+  }
+  return { geladen, fehlend };
+}
+
+export async function zeigeBuchungen(container, { archivAnmelden = false } = {}) {
+  const [konten, kategorien, buchungen, projekte, archive] = await Promise.all(
+    ['konten', 'kategorien', 'buchungen', 'projekte', 'archive'].map((s) => db.alle(s)),
+  );
+  const gewuenscht = sessionStorage.getItem('finanzapp-bestand');
+  if (gewuenscht) {
+    sessionStorage.removeItem('finanzapp-bestand');
+    zeigeJahr(Number(gewuenscht));
+  }
+
+  const { geladen, fehlend } = await ladeArchive(archive, archivAnmelden);
+  // Namen aus den Archiven, falls Konten/Kategorien/Projekte inzwischen gelöscht wurden
+  const vereint = (aktuell, alt) => [...aktuell, ...alt.filter((x) => !aktuell.some((y) => y.id === x.id))];
+  const daten = {
+    konten: vereint(konten, geladen.flatMap((a) => a.inhalt.konten ?? [])),
+    kategorien: vereint(kategorien, geladen.flatMap((a) => a.inhalt.kategorien ?? [])),
+    projekte: vereint(projekte, geladen.flatMap((a) => a.inhalt.projekte ?? [])),
+    buchungen: [...geladen.flatMap(({ eintrag, inhalt }) => inhalt.buchungen.map((b) => ({ ...b, archivJahr: eintrag.jahr }))), ...buchungen],
+  };
+
   const ergebnis = h('div', { class: 'ergebnis' });
   const neuZeichnen = () => zeigeBuchungen(container);
   const aktualisiere = () => {
@@ -46,11 +92,23 @@ export async function zeigeBuchungen(container) {
     zeigeErgebnis(ergebnis, daten);
   };
 
-  container.replaceChildren(
+  const archivInfo = fehlend.length > 0
+    ? h('p', { class: 'hinweis archiv-hinweis warn-text' },
+      `Archivierte Jahre ${fehlend.join(', ')} sind auf diesem Gerät noch nicht geladen und fehlen in Liste und Analyse. `,
+      h('button', {
+        type: 'button',
+        class: 'knopf knopf-klein',
+        onclick: () => zeigeBuchungen(container, { archivAnmelden: true }),
+      }, 'Aus Google Drive laden'))
+    : geladen.length > 0 && h('p', { class: 'hinweis archiv-hinweis' },
+      `Enthält auch die archivierten Jahre ${geladen.map((a) => a.eintrag.jahr).join(', ')} (nur lesen, Kennzeichnung „Archiv“).`);
+
+  container.replaceChildren(...[
     h('h1', { class: 'seitentitel' }, 'Alle Buchungen'),
+    archivInfo,
     filterBereich(daten, aktualisiere, neuZeichnen),
     ergebnis,
-  );
+  ].filter(Boolean));
   zeigeErgebnis(ergebnis, daten);
 }
 
@@ -300,9 +358,13 @@ function liste(eintraege, daten, neu) {
         : (wirkung > 0 ? '+' : '') + formatEuro(wirkung);
       const klasse = b.art === 'umbuchung' ? 'gedaempft' : wirkung > 0 ? 'plus' : '';
       return h('li', {},
-        h('button', { type: 'button', class: 'buchung', onclick: () => oeffneBuchungsdialog(b) },
+        h('button', {
+          type: 'button',
+          class: 'buchung',
+          onclick: () => (b.archivJahr ? toast(`Archiv ${b.archivJahr}: nur lesen. Zum Ändern das Jahr in den Stammdaten zurückholen.`) : oeffneBuchungsdialog(b)),
+        },
           h('span', { class: 'buchung-text' },
-            h('span', { class: 'buchung-titel' }, titel, b.status === 'vorgemerkt' && h('span', { class: 'marke' }, 'vorgemerkt')),
+            h('span', { class: 'buchung-titel' }, titel, b.status === 'vorgemerkt' && h('span', { class: 'marke' }, 'vorgemerkt'), b.archivJahr && h('span', { class: 'marke' }, 'Archiv')),
             h('span', { class: 'buchung-unter' }, teile.filter(Boolean).join(' · '))),
           h('span', { class: `betrag ${klasse}` }, betragText)));
     })),

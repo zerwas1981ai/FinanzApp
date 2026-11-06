@@ -9,6 +9,7 @@ import { zeigeUebersicht } from './views/uebersicht.js';
 import { zeigeStammdaten } from './views/stammdaten.js';
 import { oeffneBuchungsdialog } from './views/buchung-dialog.js';
 import { richteSyncEin } from './views/sync-dialoge.js';
+import { richteSperreEin } from './views/sperre-ui.js';
 
 const TABS = {
   uebersicht: { titel: 'Übersicht', zeige: zeigeUebersicht },
@@ -82,6 +83,8 @@ async function start() {
     zeigeFehler(err);
     return;
   }
+  // App-Sperre (D67): erst nach dem Entsperren etwas anzeigen
+  await richteSperreEin();
   window.addEventListener('hashchange', () => zeigeTab());
   // Nach dem Speichern irgendwo: aktuellen Tab neu zeichnen, Scrollposition behalten
   window.addEventListener('daten-geaendert', () => zeigeTab({ nachOben: false }));

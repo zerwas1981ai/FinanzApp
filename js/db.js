@@ -11,14 +11,15 @@ import { erzeugeStartKategorien } from './startdaten.js';
 
 const DB_NAME = 'finanzapp';
 // 2 = Etappe 2: buchungen, abstimmungen; 3 = Etappe 4: budgets usw.; 4 = Etappe 5: geplant, szenarien;
-// 5 = Projekte statt Szenarien; 6 = Etappe 6: belegDateien (lokaler Zwischenspeicher für Belege)
-const DB_STRUKTUR_VERSION = 6;
+// 5 = Projekte statt Szenarien; 6 = Etappe 6: belegDateien (lokaler Zwischenspeicher für Belege);
+// 7 = Archiv: archive (abgeglichen), archivDateien (lokaler Zwischenspeicher)
+const DB_STRUKTUR_VERSION = 7;
 
 /** Schubladen mit Nutzdaten. "meta" kommt zusätzlich dazu (Versionsnummer usw.). */
 export const SAMMLUNGEN = [
   'konten', 'kategorien', 'buchungen', 'abstimmungen',
   'budgets', 'wiederkehrend', 'hinweise', 'einstellungen',
-  'geplant', 'projekte',
+  'geplant', 'projekte', 'archive',
 ];
 
 /**
@@ -31,8 +32,9 @@ const ALTE_SAMMLUNGEN = ['szenarien'];
  * Nur auf diesem Gerät (wird NICHT mit Drive abgeglichen):
  * belegDateien = { id (lokale Beleg-ID), blob, name, mime } – Belegdatei, bis sie in Drive liegt,
  * danach als Zwischenspeicher zum schnellen Anzeigen.
+ * archivDateien = { id ("archiv-JJJJ"), inhalt } – Inhalt einer Archivdatei zum Anzeigen ohne Netz.
  */
-export const LOKALE_SAMMLUNGEN = ['belegDateien'];
+export const LOKALE_SAMMLUNGEN = ['belegDateien', 'archivDateien'];
 
 let dbVersprechen = null;
 
@@ -156,6 +158,42 @@ export async function schreibeDatenstand(daten) {
 }
 
 /**
+ * Die komplette Datenbank dieses Geräts löschen ("PIN vergessen", D67).
+ * Danach muss die Seite neu geladen werden.
+ */
+export async function datenbankLoeschen() {
+  if (dbVersprechen) {
+    const db = await dbVersprechen;
+    db.onversionchange = null;
+    db.close();
+    dbVersprechen = null;
+  }
+  await new Promise((resolve, reject) => {
+    const anfrage = indexedDB.deleteDatabase(DB_NAME);
+    anfrage.onsuccess = () => resolve();
+    anfrage.onerror = () => reject(anfrage.error);
+    anfrage.onblocked = () => reject(new Error('Bitte die App in allen anderen Tabs schließen und erneut versuchen.'));
+  });
+}
+
+/** Ein frischer Datenstand: nur der Kategorie-Startsatz und die Standard-Einstellungen */
+export function leererStand() {
+  const daten = { version: DATENMODELL_VERSION };
+  for (const s of SAMMLUNGEN) daten[s] = [];
+  daten.kategorien = erzeugeStartKategorien();
+  daten.einstellungen = [{ ...STANDARD_EINSTELLUNGEN }];
+  return daten;
+}
+
+/** Eine Schublade komplett leeren (ohne Änderungs-Signal) */
+export async function leere(sammlung) {
+  const db = await oeffne();
+  const tx = db.transaction(sammlung, 'readwrite');
+  tx.objectStore(sammlung).clear();
+  await abgeschlossen(tx);
+}
+
+/**
  * Beim App-Start aufrufen:
  * - Erster Start: Startsatz an Kategorien anlegen.
  * - Älterer Datenstand: automatisch migrieren.
@@ -166,19 +204,7 @@ export async function initialisiere() {
   const version = await leseMeta('datenVersion');
 
   if (version === undefined) {
-    await schreibeDatenstand({
-      version: DATENMODELL_VERSION,
-      konten: [],
-      kategorien: erzeugeStartKategorien(),
-      buchungen: [],
-      abstimmungen: [],
-      budgets: [],
-      wiederkehrend: [],
-      hinweise: [],
-      einstellungen: [{ ...STANDARD_EINSTELLUNGEN }],
-      geplant: [],
-      projekte: [],
-    });
+    await schreibeDatenstand(leererStand());
     return { ersterStart: true, version: DATENMODELL_VERSION };
   }
   if (version !== DATENMODELL_VERSION) {

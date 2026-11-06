@@ -15,6 +15,7 @@ import * as db from '../db.js';
 import { DATENMODELL_VERSION, migriereDaten } from '../migrationen.js';
 import { geraet } from '../ui.js';
 import * as drive from './drive.js';
+import { archiviere, holeZurueck } from '../archiv.js';
 import {
   gleicherStand, fuehreZusammen, loeseKonflikte, istFrischerStand, backupsZumLoeschen, standKurz,
 } from './zusammenfuehren.js';
@@ -22,6 +23,7 @@ import {
 const VERZOEGERUNG = 4000; // ms nach dem letzten Speichern
 const BASIS = 'syncBasis'; // meta: { dateiId, version, daten, zeit }
 const ZU_LOESCHEN = 'belegeZumLoeschen'; // meta: [driveId, …]
+const NEUSTART = 'neustartId'; // meta: Kennung des letzten "Alles löschen und neu beginnen" (D66)
 
 /* ---------- Einstellungen (nur auf diesem Gerät) ---------- */
 
@@ -45,6 +47,8 @@ let fragen = {
   erstesVerbinden: async () => null,
   // (konflikte, daten) → Map("sammlung|id" → 'lokal'|'remote') | null (später)
   konflikte: async () => null,
+  // () → true (dieses Gerät auch leeren) | null (später)
+  neustart: async () => null,
 };
 export const setzeFragen = (f) => { fragen = { ...fragen, ...f }; };
 
@@ -131,11 +135,19 @@ async function einDurchlauf() {
   }
 
   // Drive hat sich geändert (oder dieses Gerät gleicht zum ersten Mal ab)
-  const remote = migriereDaten(await drive.ladeJson(datei.id)).daten; // wirft bei neuerer App-Version
+  const remoteRoh = await drive.ladeJson(datei.id);
+  // Wurde auf einem anderen Gerät "Alles löschen und neu beginnen" gewählt? (D66)
+  if (basis && (remoteRoh.neustartId ?? null) !== (basis.neustartId ?? null)) {
+    await neustartUebernehmen(remoteRoh, datei);
+    return fertig();
+  }
+  if (!basis) await db.schreibeMeta(NEUSTART, remoteRoh.neustartId ?? null);
+  const remote = migriereDaten(remoteRoh).daten; // wirft bei neuerer App-Version
   let ergebnis;
   if (!basis) {
     if (istFrischerStand(lokal) || gleicherStand(lokal, remote)) ergebnis = remote;
-    else if (istFrischerStand(remote)) ergebnis = lokal;
+    // Leerer Drive-Stand: lokal übernehmen – außer er ist leer, weil bewusst neu begonnen wurde
+    else if (istFrischerStand(remote) && !remoteRoh.neustartId) ergebnis = lokal;
     else {
       setzeStatus('konflikt', 'Bitte entscheiden: Drive-Stand übernehmen oder zusammenführen?');
       const wahl = await fragen.erstesVerbinden({ lokal: standKurz(lokal), remote: standKurz(remote) });
@@ -162,8 +174,79 @@ async function einDurchlauf() {
     window.dispatchEvent(new Event('daten-geaendert'));
   }
   if (!gleicherStand(ergebnis, remote)) await hochladen(datei, ergebnis);
-  else await db.schreibeMeta(BASIS, { dateiId: datei.id, version: datei.version, daten: ergebnis, zeit: new Date().toISOString() });
+  else await merkeBasis(datei.id, datei.version, ergebnis);
   return fertig();
+}
+
+/** Basis merken – mit der Neustart-Kennung, die dieses Gerät gerade kennt */
+async function merkeBasis(dateiId, version, daten) {
+  await db.schreibeMeta(BASIS, { dateiId, version, daten, neustartId: (await db.leseMeta(NEUSTART)) ?? null, zeit: new Date().toISOString() });
+}
+
+/** Ein anderes Gerät hat neu begonnen: nach Rückfrage dieses Gerät ebenfalls leeren */
+async function neustartUebernehmen(remoteRoh, datei) {
+  setzeStatus('konflikt', 'Auf einem anderen Gerät wurde neu begonnen – bitte bestätigen');
+  const ok = await fragen.neustart();
+  if (!ok) throw new Abbruch('konflikt', 'Neubeginn auf einem anderen Gerät – bitte oben auf das Wolken-Symbol tippen.');
+  const daten = { ...migriereDaten(remoteRoh).daten, version: DATENMODELL_VERSION };
+  await db.schreibeDatenstand(daten);
+  await db.leere('belegDateien');
+  await db.schreibeMeta(ZU_LOESCHEN, []);
+  await db.schreibeMeta(NEUSTART, remoteRoh.neustartId ?? null);
+  await merkeBasis(datei.id, datei.version, daten);
+  window.dispatchEvent(new Event('daten-geaendert'));
+}
+
+/**
+ * "Alles löschen und neu beginnen" (D66): Auf diesem Gerät bleibt nur der Kategorie-Startsatz.
+ * Ist Drive verbunden, werden dort Belege, Backups und Archive ENDGÜLTIG gelöscht und die
+ * Datendatei mit dem leeren Stand und einer neuen Neustart-Kennung überschrieben. Andere Geräte
+ * erkennen die Kennung beim nächsten Abgleich und leeren sich nach Rückfrage ebenfalls.
+ */
+export async function allesNeuBeginnen() {
+  const mitDrive = istEingerichtet();
+  if (mitDrive) {
+    if (!navigator.onLine) throw new Error('Bitte mit dem Internet verbinden – die Daten in Google Drive werden ebenfalls gelöscht.');
+    if (!drive.istAngemeldet()) await drive.anmelden(clientId(), { stumm: true });
+  }
+  if (laeuft) await laeuft;
+  let fertigMeldung;
+  laeuft = (async () => {
+    setzeStatus('laeuft', 'Lösche alle Daten …');
+    if (mitDrive) {
+      for (const art of ['beleg', 'backup', 'archiv']) {
+        for (const f of await drive.dateienVon(art)) await drive.endgueltigLoeschen(f.id);
+      }
+    }
+    const neu = db.leererStand();
+    const neustartId = crypto.randomUUID();
+    await db.schreibeDatenstand(neu);
+    await db.leere('belegDateien');
+    await db.leere('archivDateien');
+    await db.schreibeMeta(ZU_LOESCHEN, []);
+    await db.schreibeMeta(NEUSTART, neustartId);
+    if (mitDrive) {
+      const datei = await drive.datenDatei();
+      const { haupt } = await drive.ordner();
+      const gespeichert = await drive.speichereDatei({
+        id: datei?.id ?? null, name: 'finanzapp-daten.json', mimeType: 'application/json',
+        inhalt: JSON.stringify({ ...neu, neustartId }), art: 'daten', elternId: haupt,
+      });
+      await merkeBasis(gespeichert.id, gespeichert.version, neu);
+      fertigMeldung = 'Alles gelöscht – auch in Google Drive';
+    } else {
+      await db.schreibeMeta(BASIS, null);
+      fertigMeldung = 'Alles auf diesem Gerät gelöscht';
+    }
+  })();
+  try {
+    await laeuft;
+  } finally {
+    laeuft = null;
+  }
+  window.dispatchEvent(new Event('daten-geaendert'));
+  if (mitDrive) fertig();
+  return fertigMeldung;
 }
 
 async function zusammenfuehren(basis, lokal, remote) {
@@ -192,11 +275,11 @@ async function hochladen(datei, daten) {
     }
   }
   const { haupt } = await drive.ordner();
-  const text = JSON.stringify({ ...daten, version: DATENMODELL_VERSION });
+  const text = JSON.stringify({ ...daten, version: DATENMODELL_VERSION, neustartId: (await db.leseMeta(NEUSTART)) ?? null });
   const neu = await drive.speichereDatei({
     id: datei?.id ?? null, name: 'finanzapp-daten.json', mimeType: 'application/json', inhalt: text, art: 'daten', elternId: haupt,
   });
-  await db.schreibeMeta(BASIS, { dateiId: neu.id, version: neu.version, daten, zeit: new Date().toISOString() });
+  await merkeBasis(neu.id, neu.version, daten);
   await backup(text);
 }
 
@@ -231,9 +314,10 @@ export async function wiederherstellen(backupId) {
   const datei = await drive.datenDatei();
   const { haupt } = await drive.ordner();
   const neu = await drive.speichereDatei({
-    id: datei?.id ?? null, name: 'finanzapp-daten.json', mimeType: 'application/json', inhalt: JSON.stringify(daten), art: 'daten', elternId: haupt,
+    id: datei?.id ?? null, name: 'finanzapp-daten.json', mimeType: 'application/json',
+    inhalt: JSON.stringify({ ...daten, neustartId: (await db.leseMeta(NEUSTART)) ?? null }), art: 'daten', elternId: haupt,
   });
-  await db.schreibeMeta(BASIS, { dateiId: neu.id, version: neu.version, daten, zeit: new Date().toISOString() });
+  await merkeBasis(neu.id, neu.version, daten);
   window.dispatchEvent(new Event('daten-geaendert'));
   fertig();
 }
@@ -326,3 +410,77 @@ export function starteAutomatik() {
     if (drive.istAngemeldet()) gleicheAb();
   });
 }
+
+/* ---------- Archiv alter Jahre (D68) ---------- */
+
+/** Für Archivieren und Zurückholen: Drive muss verbunden, online und abgeglichen sein */
+async function vorbereitenFuerArchiv() {
+  if (!istEingerichtet()) throw new Error('Das Archiv wird in Google Drive gespeichert. Bitte zuerst unter „Google Drive“ verbinden.');
+  if (!navigator.onLine) throw new Error('Bitte mit dem Internet verbinden.');
+  if (!drive.istAngemeldet()) await drive.anmelden(clientId(), { stumm: true });
+  await gleicheAb();
+  if (status.zustand !== 'ok') throw new Error(`Bitte zuerst den Abgleich abschließen: ${status.text}`);
+  if (laeuft) await laeuft;
+}
+
+/** Unter der Sperre des Abgleichs etwas am Datenstand ändern, danach abgleichen */
+async function exklusiv(arbeit) {
+  laeuft = arbeit();
+  try {
+    await laeuft;
+  } finally {
+    laeuft = null;
+  }
+  window.dispatchEvent(new Event('daten-geaendert'));
+  await gleicheAb();
+}
+
+/** Ein Jahr archivieren: Archivdatei in Drive anlegen, dann den Datenstand verkleinern */
+export async function archiviereJahr(jahr) {
+  await vorbereitenFuerArchiv();
+  await exklusiv(async () => {
+    setzeStatus('laeuft', `Archiviere ${jahr} …`);
+    const daten = { ...(await db.leseDatenstand()), version: DATENMODELL_VERSION };
+    const { daten: neu, inhalt, eintrag } = archiviere(daten, jahr);
+    const { haupt } = await drive.ordner();
+    const datei = await drive.speichereDatei({
+      name: `finanzapp-archiv-${jahr}.json`, mimeType: 'application/json', inhalt: JSON.stringify(inhalt), art: 'archiv', elternId: haupt,
+    });
+    eintrag.driveId = datei.id; // eintrag steckt auch in neu.archive
+    await db.speichere('archivDateien', { id: eintrag.id, inhalt });
+    await db.schreibeDatenstand(neu);
+  });
+}
+
+/** Das zuletzt archivierte Jahr zurückholen; die Archivdatei kommt in den Drive-Papierkorb */
+export async function holeArchivZurueck(eintrag) {
+  await vorbereitenFuerArchiv();
+  const inhalt = await archivInhalt(eintrag);
+  await exklusiv(async () => {
+    setzeStatus('laeuft', `Hole ${eintrag.jahr} zurück …`);
+    const daten = { ...(await db.leseDatenstand()), version: DATENMODELL_VERSION };
+    await db.schreibeDatenstand(holeZurueck(daten, eintrag, inhalt));
+    await db.loesche('archivDateien', eintrag.id);
+    if (eintrag.driveId) await drive.inPapierkorb(eintrag.driveId);
+  });
+}
+
+/**
+ * Inhalt eines archivierten Jahres: aus dem Zwischenspeicher oder aus Drive.
+ * Ohne Anmeldung bei Google gibt es null zurück – außer anmelden ist true (nur aus einem Klick
+ * heraus, weil sich dann das Google-Fenster öffnen kann).
+ */
+export async function archivInhalt(eintrag, { anmelden = true } = {}) {
+  const lokal = await db.hole('archivDateien', eintrag.id);
+  if (lokal) return lokal.inhalt;
+  if (!eintrag.driveId) throw new Error('Die Archivdatei ist noch nicht in Google Drive angekommen.');
+  if (!istEingerichtet()) throw new Error('Zum Laden des Archivs bitte unter Stammdaten mit Google Drive verbinden.');
+  if (!drive.istAngemeldet()) {
+    if (!anmelden) return null;
+    await drive.anmelden(clientId(), { stumm: true });
+  }
+  const inhalt = await drive.ladeJson(eintrag.driveId);
+  await db.speichere('archivDateien', { id: eintrag.id, inhalt });
+  return inhalt;
+}
+

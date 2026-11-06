@@ -249,7 +249,7 @@ export function baueProjekt(eingabe, { projekte, alt = null, jetzt = new Date().
  *   vergangen = Datum vor heute (in den Listen ausgeblendet, zählt aber weiter mit)
  * Ergebnis: { istCent, offenCent, gesamtCent, restCent (null ohne Rahmen), ist, offen }
  */
-export function projektZahlen(projekt, { buchungen, geplant }, heute) {
+export function projektZahlen(projekt, { buchungen, geplant, archive = [] }, heute) {
   const kosten = (art, cent) => (art === 'einnahme' ? -cent : cent);
   const geplantNach = new Map(geplant.map((g) => [g.id, g]));
   const ist = buchungen
@@ -260,11 +260,13 @@ export function projektZahlen(projekt, { buchungen, geplant }, heute) {
     .filter((g) => g.projektId === projekt.id && g.aktiv !== false && !geplantErledigt(g, buchungen))
     .map((g) => ({ geplant: g, kostenCent: kosten(g.art, g.betragCent), vergangen: g.datum < heute }))
     .sort((a, b) => a.geplant.datum.localeCompare(b.geplant.datum));
-  const istCent = ist.reduce((s, x) => s + x.kostenCent, 0);
+  // Kosten aus archivierten Jahren (D68) zählen mit, auch wenn die Buchungen nicht mehr hier liegen
+  const archivCent = archive.reduce((s, a) => s + (a.projekte?.[projekt.id] ?? 0), 0);
+  const istCent = ist.reduce((s, x) => s + x.kostenCent, 0) + archivCent;
   const offenCent = offen.reduce((s, x) => s + x.kostenCent, 0);
   const gesamtCent = istCent + offenCent;
   return {
-    istCent, offenCent, gesamtCent,
+    istCent, offenCent, gesamtCent, archivCent,
     restCent: projekt.rahmenCent != null ? projekt.rahmenCent - gesamtCent : null,
     ist, offen,
   };

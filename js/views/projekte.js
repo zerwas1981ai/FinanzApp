@@ -13,7 +13,7 @@ import { geplantDialog } from './annahmen.js';
 const nachName = (a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base' });
 
 export async function zeigeProjekte(container) {
-  const namen = ['konten', 'kategorien', 'buchungen', 'geplant', 'projekte'];
+  const namen = ['konten', 'kategorien', 'buchungen', 'geplant', 'projekte', 'archive'];
   const werte = await Promise.all(namen.map((n) => db.alle(n)));
   const daten = Object.fromEntries(namen.map((n, i) => [n, werte[i]]));
   const heute = heuteIso();
@@ -83,7 +83,7 @@ function projektKarte(p, daten, heute) {
     p.notiz && h('p', { class: 'hinweis' }, p.notiz),
 
     h('div', { class: 'projekt-zahlen' },
-      kachel('Gebucht (Ist)', formatEuro(z.istCent)),
+      kachel('Gebucht (Ist)', formatEuro(z.istCent), '', z.archivCent ? `davon ${formatEuro(z.archivCent)} archiviert` : null),
       kachel('Noch geplant', formatEuro(z.offenCent), 'annahme',
         vergangen.length > 0 && `davon ${formatEuro(vergangen.reduce((s, x) => s + x.kostenCent, 0))} überfällig`),
       kachel('Gesamt', formatEuro(z.gesamtCent), 'stark'),
@@ -123,7 +123,7 @@ function kachel(titel, wert, klasse = '', zusatz = null) {
   return h('div', { class: 'kz' },
     h('div', { class: 'klein' }, titel),
     h('div', { class: `kz-wert ${klasse}`.trim() }, wert),
-    zusatz && h('div', { class: 'klein warn-text' }, zusatz));
+    zusatz && h('div', { class: 'klein' + (klasse === 'annahme' ? ' warn-text' : '') }, zusatz));
 }
 
 /* =========================== Dialog =========================== */

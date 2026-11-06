@@ -972,3 +972,90 @@ Wird eine Entscheidung geändert, den alten Eintrag nicht löschen, sondern als
 - Die Pages-Adresse muss beim Google-Client als „Autorisierte JavaScript-Quelle“ eingetragen
   werden.
 
+---
+
+# Nach Etappe 6: sauberer Start, App-Sperre, Archiv
+
+## D66 – Alles löschen und neu beginnen
+*Wunsch des Nutzers: vor dem Start mit echten Daten wirklich alles löschen; Startsatz frisch*
+
+- Stammdaten → „Alles löschen und neu beginnen“, mit doppelter Rückfrage (zweites Mal
+  „LÖSCHEN“ eintippen).
+- Auf dem Gerät: alle abgeglichenen Sammlungen werden geleert, danach gibt es nur den frischen
+  Kategorie-Startsatz und die Standard-Einstellungen (`leererStand()` in `js/db.js`). Auch die
+  zwischengespeicherten Belege und Archive werden gelöscht.
+- In Google Drive (wenn verbunden): Belege, Backups und Archive werden **endgültig** gelöscht
+  (nicht in den Papierkorb). Die Datendatei wird mit dem leeren Stand überschrieben.
+- **Neustart-Kennung:** Die Datendatei bekommt eine neue `neustartId`. Jedes Gerät merkt sich
+  die Kennung beim Abgleich. Ein anderes Gerät erkennt beim nächsten Abgleich die neue Kennung,
+  fragt „Hier auch löschen?“ und übernimmt dann den leeren Stand – es lädt seine alten Daten
+  also nicht wieder hoch. Auch ein Gerät, das zum ersten Mal verbindet, übernimmt einen bewusst
+  geleerten Drive-Stand nicht stillschweigend mit seinen eigenen Daten, sondern fragt.
+- Bleiben: Client-ID und Drive-Verbindung, App-Sperre.
+- Die Testdaten-Knöpfe erscheinen nur noch beim Entwickeln am PC (`localhost`), nicht in der
+  veröffentlichten App.
+
+## D67 – App-Sperre
+*Entscheidungen des Nutzers: PIN + Fingerabdruck; beim Öffnen und nach 5 Minuten im Hintergrund*
+
+- PIN mit 4–8 Ziffern. Gespeichert wird nur ein Hash (PBKDF2-SHA-256, 150.000 Runden, Salz),
+  nie die PIN selbst.
+- Zusätzlich Fingerabdruck/Gesicht bzw. Windows Hello über WebAuthn (eingebauter
+  „Plattform-Authentifikator“, Nutzerprüfung erforderlich). Ohne Server wird das Ergebnis nur
+  lokal ausgewertet – das reicht für einen Sichtschutz.
+- Sperrt beim Öffnen und, wenn die App mindestens die eingestellte Zeit (sofort, 1, 5, 15,
+  30 Minuten; Standard 5) im Hintergrund war. Beim Sperren werden offene Dialoge geschlossen
+  (ungespeicherte Eingaben gehen verloren) und der Inhalt verborgen.
+- Nach 5 falschen PINs Wartezeit von 30 Sekunden, danach jeweils doppelt so lang.
+- **PIN vergessen:** Die komplette Datenbank dieses Geräts wird gelöscht (auch die PIN). Die
+  Daten kommen nach dem Verbinden aus Google Drive zurück; nicht abgeglichene Änderungen gehen
+  verloren.
+- Die Einstellungen gelten nur auf diesem Gerät (meta `sperre`, nicht abgeglichen).
+- **Grenze:** Die Sperre ist ein Sichtschutz, keine Verschlüsselung. Wer technisch versiert
+  ist und das entsperrte Gerät hat, kommt über die Entwicklerwerkzeuge des Browsers an die
+  Daten.
+
+## D68 – Archivierung alter Jahre (Datenmodell Version 9)
+*Entscheidung des Nutzers: archivierte Jahre bleiben lesend ansehbar*
+
+- Archiviert wird immer das **älteste** Jahr mit Buchungen, und nur Jahre vor dem laufenden.
+  Liegen Buchungen dieses Jahres im Papierkorb, muss er erst geleert werden.
+- Beim Archivieren (`js/archiv.js`, reine Funktionen mit Tests):
+  - Buchungen (beide Hälften von Umbuchungen) und Kontoabstimmungen des Jahres kommen in die
+    Drive-Datei `finanzapp-archiv-JJJJ.json` (mit Kopie der Konten, Kategorien und Projekte für
+    die Namen) und werden aus dem Datenstand entfernt.
+  - Jedes Konto, das vorher begann, startet am 01.01. des Folgejahres mit dem Kontostand vom
+    31.12. als Anfangssaldo – alle Kontostände bleiben gleich.
+  - Geplante Einmalbuchungen, die durch eine archivierte Buchung erledigt sind, werden als
+    erledigt markiert.
+  - Projektkosten des Jahres werden im Archiv-Eintrag gemerkt und zählen weiter in der
+    Projektsumme („davon … archiviert“).
+  - Ein Eintrag in der neuen, abgeglichenen Sammlung `archive` hält fest, was zum Zurückholen
+    nötig ist (alte Anfangssalden/Stichtage, Markierungen).
+- Archivieren und Zurückholen gehen nur mit verbundenem, abgeglichenem Google Drive.
+- **Ansehen:** siehe D69 – archivierte Jahre sind in „Alle Buchungen“ immer mit enthalten.
+- **Zurückholen:** nur das zuletzt archivierte Jahr. Buchungen, Abstimmungen, Anfangssalden und
+  Markierungen werden wiederhergestellt, die Archivdatei kommt in den Drive-Papierkorb.
+- Hinweis: Die Budgethinweise der Übersicht rechnen nur mit nicht archivierten Buchungen –
+  deshalb der Tipp, erst im Frühjahr zu archivieren.
+- Migration 8 → 9: `archive: []`. DB-Struktur 7 (Schubladen `archive` und lokal
+  `archivDateien`).
+- `tools/fake-drive.js` ersetzt beim Testen im Browser Google-Anmeldung und Drive durch eine
+  Attrappe; die App selbst lädt die Datei nie.
+
+## D69 – Archiv nur von Hand, Auswertungen über alle Jahre
+*Wunsch des Nutzers*
+
+- Archivieren und Zurückholen passieren **ausschließlich** über die Knöpfe in den Stammdaten,
+  jeweils mit Rückfrage. Es gibt keine Automatik (kein Zeitplan, kein Archivieren beim Start
+  oder Abgleich).
+- „Alle Buchungen“ zeigt immer **alle Jahre von Beginn an**: Die Buchungen archivierter Jahre
+  werden (aus dem Zwischenspeicher oder aus Drive) dazugeladen und zählen in Liste, Filtern,
+  Sortierung, Analyse, Durchschnitten, Empfänger-Auswertung und CSV-Export ganz normal mit.
+  Sie tragen die Marke „Archiv“ und lassen sich nicht bearbeiten (Hinweis: Jahr zurückholen).
+- Das frühere Auswahlfeld „Datenbestand“ entfällt. „Ansehen“ in den Stammdaten stellt den
+  Filter auf das archivierte Jahr.
+- Ist ein Archiv auf einem Gerät noch nicht geladen (anderes Gerät, nicht bei Google
+  angemeldet), steht oben ein Hinweis mit „Aus Google Drive laden“ – so fehlt nie still ein Jahr.
+- Projektsummen enthalten archivierte Kosten weiterhin (D68).
+

@@ -1,6 +1,7 @@
 # Finanzen – private Finanz-App (PWA)
 
-Stand: **Etappe 6** (Google-Drive-Abgleich mit Konfliktabfrage, Belege, Backups, Export).
+Stand: **Etappe 6** (Google-Drive-Abgleich mit Konfliktabfrage, Belege, Backups, Export) plus
+App-Sperre, Archiv alter Jahre und „Alles löschen und neu beginnen“.
 Davor: Etappe 5 (Zeitleiste bis 2050, geplante Einmalbuchungen, Projekte, Empfänger/Absender),
 Etappe 4 (Budgets, wiederkehrende Buchungen, Kennzahlen, Budgethinweise), Etappe 3 (Alle
 Buchungen: Filter, Sortierung, Analyse), Etappe 2 (Buchungen, Monatsansicht, Umbuchungen,
@@ -85,11 +86,34 @@ erfundene Testdaten – keine Finanzdaten, keine Zugangsdaten).
 Neue Versionen: Nach jeder Änderung wird der Code wieder hochgeladen (`git push`); die App holt
 sich die neue Version beim nächsten Öffnen mit Internet.
 
+## Mit echten Daten starten
+
+1. Auf **einem** Gerät (z. B. PC): Stammdaten → ganz unten **„Alles löschen und neu beginnen“**.
+   Das löscht auf diesem Gerät und in Google Drive alle bisherigen Daten (auch Backups und Belege).
+2. Auf den **anderen** Geräten die App öffnen und oben auf den Wolken-Knopf tippen. Die App meldet
+   „Auf einem anderen Gerät wurde neu begonnen“ → **„Ja, hier auch löschen“**.
+3. Unter Stammdaten Konten anlegen, Kategorien prüfen, dann unter Annahmen wiederkehrende Buchungen
+   und Budgets anlegen.
+
+## App-Sperre
+
+Stammdaten → **App-Sperre** → „PIN festlegen“. Danach lässt sich dort Fingerabdruck/Gesicht bzw.
+Windows Hello einrichten und die Zeit wählen, nach der die App im Hintergrund sperrt. Die Sperre
+gilt je Gerät – also auf PC und Handy jeweils einrichten. PIN vergessen: Auf dem Sperrbildschirm
+„PIN vergessen?“ setzt das Gerät zurück; danach mit Google Drive verbinden, die Daten kommen zurück.
+
+## Archiv alter Jahre
+
+Stammdaten → **Archiv alter Jahre**: Ein abgeschlossenes Jahr wandert – nur wenn du es auslöst –
+in eine eigene Datei in Google Drive; die Konten starten danach mit dem Jahresendstand. Unter
+„Alle Buchungen“ sind archivierte Jahre weiter in Liste und Analyse enthalten (nur lesen). Das
+zuletzt archivierte Jahr lässt sich von Hand zurückholen.
+
 ## Weitere Befehle
 
 | Befehl | Was er tut |
 |---|---|
-| `npm test` | automatische Tests (Beträge, Datum, Migrationen, Prognose, Abgleich, Export) |
+| `npm test` | automatische Tests (Beträge, Datum, Migrationen, Prognose, Abgleich, Export, Archiv) |
 | `npm run icons` | App-Symbole neu erzeugen |
 
 ## Ordner
@@ -106,6 +130,7 @@ js/auswertung.js                           Filter, Sortierung, Analysen
 js/prognose.js, js/annahmen.js             Budgets, wiederkehrende/geplante Buchungen, Projekte, Prognose, Hinweise
 js/sync/                                   Google Drive: Anmeldung, Abgleich, Zusammenführen, Backups
 js/export.js                               CSV-Export für Excel
+js/sperre.js, js/archiv.js                 App-Sperre, Archiv alter Jahre
 js/startdaten.js, js/testdaten.js          Kategorie-Startsatz, Testdaten
 js/ui.js, js/dom.js                        Bausteine der Oberfläche
 js/views/                                  die Tabs und Dialoge

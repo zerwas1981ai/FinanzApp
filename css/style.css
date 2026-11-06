@@ -1081,4 +1081,23 @@ details[open] > .zl-zeile > .zl-name::before { transform: rotate(90deg); }
 .belege-liste .beleg-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .beleg-vorschau { max-width: 100%; max-height: 70vh; display: block; margin: 0 auto; border-radius: var(--radius-klein); }
 .backup-liste { max-height: 320px; overflow-y: auto; }
+.gefahrenzone { border-color: var(--ausgabe); }
+.gefahrenzone h2 { color: var(--ausgabe); }
+
+/* App-Sperre (D67): Inhalt verbergen, solange gesperrt */
+body.gesperrt .kopf, body.gesperrt main, body.gesperrt .fab, body.gesperrt #neue-buchung { visibility: hidden; }
+.sperre-dialog { border: 0; padding: 0; background: transparent; max-width: 340px; width: calc(100% - 32px); }
+.sperre-dialog::backdrop { background: var(--bg); }
+.sperre-form {
+  display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center;
+  padding: 24px 20px; border-radius: var(--radius); background: var(--flaeche); border: 1px solid var(--rand);
+}
+.sperre-form h2 { margin: 0; font-size: 1.15rem; }
+.sperre-form .knopf { width: 100%; justify-content: center; }
+.sperre-form .dialog-fehler { margin: 0; min-height: 1.2em; }
+.sperre-pin { width: 100%; font-size: 1.4rem; text-align: center; letter-spacing: .4em; padding: 10px; }
+.link-knopf { background: none; border: 0; color: var(--akzent); cursor: pointer; font: inherit; font-size: .9rem; text-decoration: underline; padding: 4px; }
+
+/* Archiv (D68) */
+.archiv-hinweis { padding: 6px 10px; border-radius: var(--radius-klein); background: var(--zukunft); }
 

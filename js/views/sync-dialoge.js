@@ -96,12 +96,32 @@ function konflikte(liste, lokal) {
   });
 }
 
+/** Ein anderes Gerät hat "Alles löschen und neu beginnen" gewählt */
+function neustart() {
+  return new Promise((resolve) => {
+    let ok = null;
+    const dlg = dialog({
+      titel: 'Auf einem anderen Gerät wurde neu begonnen',
+      inhalt: [
+        h('p', {}, 'Auf einem deiner anderen Geräte wurden alle Daten gelöscht („Alles löschen und neu beginnen“).'),
+        h('p', {}, 'Sollen die Daten auf diesem Gerät ebenfalls gelöscht und der neue Stand aus Google Drive übernommen werden? ' +
+          'Noch nicht abgeglichene Änderungen auf diesem Gerät gehen dabei verloren.'),
+      ],
+      speichernText: 'Ja, hier auch löschen',
+      gefahr: true,
+      abbrechenText: 'Später',
+      onSpeichern: () => { ok = true; },
+    });
+    dlg.addEventListener('close', () => resolve(ok));
+  });
+}
+
 /* ---------- Statusanzeige oben rechts ---------- */
 
 const SYMBOL = { aus: '☁', anmelden: '☁', laeuft: '⟳', ok: '✓', offline: '⚡', fehler: '!', konflikt: '?' };
 
 export function richteSyncEin() {
-  abgleich.setzeFragen({ erstesVerbinden, konflikte });
+  abgleich.setzeFragen({ erstesVerbinden, konflikte, neustart });
   const knopf = document.getElementById('sync-status');
   const zeige = (s) => {
     knopf.hidden = s.zustand === 'aus';

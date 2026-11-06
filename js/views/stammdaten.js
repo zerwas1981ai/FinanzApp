@@ -11,7 +11,8 @@ import { anzahlFuerKonto, anzahlFuerKategorien, gruppeVon, wiederherstellen, end
 import { wirkungCent } from '../rechnen.js';
 import { leseEinstellungen, speichereEinstellungen } from '../annahmen.js';
 import { belegeEntfernen } from './belege.js';
-import { driveBereich, exportBereich } from './drive-bereich.js';
+import { driveBereich, exportBereich, neuBeginnenBereich, archivBereich } from './drive-bereich.js';
+import { sperreBereich } from './sperre-ui.js';
 
 // Alle Buchungen (auch im Papierkorb) – für die Löschsperre. Wird bei jedem Zeichnen neu geladen.
 let buchungen = [];
@@ -53,6 +54,7 @@ const nachName = (a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'ba
 const gleicherName = (a, b) => a.trim().toLocaleLowerCase('de') === b.trim().toLocaleLowerCase('de');
 const jetzt = () => new Date().toISOString();
 const ART_TEXT = { einnahme: 'Einnahme', ausgabe: 'Ausgabe' };
+const IST_ENTWICKLUNG = ['localhost', '127.0.0.1'].includes(location.hostname);
 
 export async function zeigeStammdaten(container) {
   const [konten, kategorien, alleBuchungen, budgets, wiederkehrend, geplant, projekte] = await Promise.all(
@@ -61,17 +63,22 @@ export async function zeigeStammdaten(container) {
   buchungen = alleBuchungen;
   testAnnahmen = [budgets, wiederkehrend, geplant, projekte];
   const neu = () => zeigeStammdaten(container);
-  container.replaceChildren(
+  // filter(Boolean): ausgeblendete Bereiche (false) weglassen – sonst stünde "false" als Text da
+  container.replaceChildren(...[
     h('h1', { class: 'seitentitel' }, 'Stammdaten'),
     kontenBereich(konten, neu),
     kategorienBereich(kategorien, neu),
     schwellenBereich(await leseEinstellungen()),
     driveBereich(neu),
+    await sperreBereich(neu),
     exportBereich(),
     papierkorbBereich(konten, kategorien, neu),
-    testdatenBereich(konten, kategorien, neu),
+    await archivBereich(neu),
+    // Testdaten nur beim Entwickeln am PC (localhost), nicht in der veröffentlichten App (D66)
+    IST_ENTWICKLUNG && testdatenBereich(konten, kategorien, neu),
+    neuBeginnenBereich(),
     infoBereich(),
-  );
+  ].filter(Boolean));
 }
 
 async function setzeArchiv(sammlung, datensatz, archiviert, neu) {

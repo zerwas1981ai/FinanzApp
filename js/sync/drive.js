@@ -180,6 +180,14 @@ export async function inPapierkorb(id) {
   });
 }
 
+/** Alle (nicht gelöschten) Dateien einer Art, egal in welchem Ordner */
+export const dateienVon = (art) => suche(art);
+
+/** Datei ENDGÜLTIG löschen (nicht in den Papierkorb) – nur für "Alles löschen und neu beginnen" */
+export async function endgueltigLoeschen(id) {
+  await anfrage(`${API}/files/${id}`, { method: 'DELETE' });
+}
+
 export async function backupListe() {
   const { backups } = await ordner();
   return suche('backup', backups);
