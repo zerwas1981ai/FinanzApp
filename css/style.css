@@ -1272,7 +1272,11 @@ body:not(.umbuchungen-sichtbar) .ub-ausblendbar { display: none; }
 }
 
 /* Übersicht am PC: Tageszeilen mit Tagesstand in der Tabelle (D79) */
-.btab-konto .btab-tag .tag-kopf { padding: 10px 8px 4px; }
+.btab-konto .btab-tag .tag-kopf { padding: 7px 8px; }
+/* D82: Tageszeile leicht getönt, damit sie sich von den Buchungen abhebt */
+.btab-konto .btab-tag { background: var(--flaeche-2); border-radius: 6px; margin-top: 6px; }
+.btab-konto .btab-liste > li.btab-tag { border-top: none; }
+.btab-konto .btab-tag .tag-kopf, .btab-konto .btab-tag .tag-stand { color: var(--text); font-weight: 600; }
 .btab-konto .btab-liste > li:nth-child(even) .btab-zeile { background: none; }
 .btab-konto .btab-liste > li.btab-tag + li { border-top: none; }
 

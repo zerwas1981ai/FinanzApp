@@ -1261,3 +1261,11 @@ Belege unbedingt (eigener Drive-Ordner), Anzeige nach Jahren mit Summen*
 - Geräte mit der alten Version bekommen diese Verbesserung beim nächsten Update automatisch; bis
   dahin hilft Strg+F5 bzw. App schließen und nach einigen Minuten neu öffnen.
 
+## D82 – Tageszeilen in der PC-Tabelle farblich abgehoben
+*Wunsch des Nutzers*
+
+- Die Tageszeile mit Datum und Tagesstand (D79/D80) hat in der PC-Tabelle der Übersicht einen
+  leicht getönten Hintergrund (Farbe `--flaeche-2`, im hellen und dunklen Modus passend), runde
+  Ecken, etwas Abstand nach oben und kräftigere Schrift. So trennt sie die Tage sichtbar von den
+  Buchungen. Am Handy unverändert.
+
