@@ -1247,3 +1247,17 @@ Belege unbedingt (eigener Drive-Ordner), Anzeige nach Jahren mit Summen*
   Tageszeile rechtsbündig unter der Spalte „Betrag“ (D79). Spalten jetzt: Datum ·
   Empfänger/Absender · Kategorie · Notiz · Betrag.
 
+## D81 – Updates sofort sichtbar: Service Worker umgeht den Browser-Zwischenspeicher
+*Anlass: Nach dem Hochladen zeigte der PC noch die alte Spalte „Stand“*
+
+- **Ursache:** GitHub Pages erlaubt Browsern, jede Datei bis zu 10 Minuten aufzuheben
+  (`Cache-Control: max-age=600`). Der Service Worker holte Dateien „Netz zuerst“, aber über diesen
+  Browser-Zwischenspeicher – und füllte bei einem Update sogar seinen Offline-Speicher damit. So
+  konnte kurz nach dem Hochladen noch die alte Version erscheinen.
+- **Lösung:** Der Service Worker fragt jetzt bei jeder Datei mit `cache: 'no-cache'` beim Server
+  nach (ist nichts geändert, antwortet der Server nur kurz „unverändert“), und beim Installieren
+  einer neuen Version lädt er alle Dateien mit `cache: 'reload'` frisch. Offline bleibt alles wie
+  bisher (gespeicherte Kopie).
+- Geräte mit der alten Version bekommen diese Verbesserung beim nächsten Update automatisch; bis
+  dahin hilft Strg+F5 bzw. App schließen und nach einigen Minuten neu öffnen.
+

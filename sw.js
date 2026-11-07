@@ -3,7 +3,7 @@
 // Nur wenn das Netz fehlt, wird die zuletzt gespeicherte Kopie verwendet.
 // Finanzdaten werden hier NICHT gespeichert – nur Programmdateien.
 
-const CACHE = 'finanzapp-v23';
+const CACHE = 'finanzapp-v24';
 
 const APP_DATEIEN = [
   './',
@@ -51,8 +51,15 @@ const APP_DATEIEN = [
   './icons/icon-maskable-512.png',
 ];
 
+// Den Browser-Zwischenspeicher umgehen (D81): GitHub Pages erlaubt Browsern, Dateien bis zu
+// 10 Minuten aufzuheben. Ohne "no-cache" käme nach einem Update kurz noch die alte Version.
+// "no-cache" fragt jedes Mal beim Server nach – ist nichts geändert, kommt nur eine kurze Antwort.
+const frisch = (req) => (req.mode === 'navigate'
+  ? fetch(req.url, { cache: 'no-cache', credentials: 'same-origin' })
+  : fetch(req, { cache: 'no-cache' }));
+
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(CACHE).then((c) => c.addAll(APP_DATEIEN)));
+  event.waitUntil(caches.open(CACHE).then((c) => c.addAll(APP_DATEIEN.map((url) => new Request(url, { cache: 'reload' })))));
   self.skipWaiting();
 });
 
@@ -69,7 +76,7 @@ self.addEventListener('fetch', (event) => {
   if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return;
 
   event.respondWith(
-    fetch(req)
+    frisch(req)
       .then((antwort) => {
         if (antwort.ok) {
           const kopie = antwort.clone();
