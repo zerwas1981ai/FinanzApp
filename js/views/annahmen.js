@@ -63,14 +63,48 @@ function budgetBereich(daten) {
   const monat = heuteIso().slice(0, 7);
   const kat = new Map(kategorien.map((k) => [k.id, k]));
   const kontoName = new Map(konten.map((k) => [k.id, k.name]));
-  const sortiert = [...budgets].sort((a, b) =>
+  // D86: nach Konten gruppiert (eigene Konten-Reihenfolge), darin alphabetisch nach Kategorie
+  const nachKategorie = (a, b) =>
     (kat.get(a.kategorieId)?.name ?? '').localeCompare(kat.get(b.kategorieId)?.name ?? '', 'de')
-    || (kontoName.get(a.kontoId) ?? '').localeCompare(kontoName.get(b.kontoId) ?? '', 'de')
     || (a.typ === 'einmalig') - (b.typ === 'einmalig')
-    || (a.monat ?? '').localeCompare(b.monat ?? ''));
+    || (a.monat ?? '').localeCompare(b.monat ?? '');
+  const kontoIds = new Set(budgets.map((b) => b.kontoId));
+  const gruppen = sortiereKonten(konten.filter((k) => kontoIds.has(k.id))).map((k) => ({ id: k.id, name: k.name }));
+  if (budgets.some((b) => !kontoName.has(b.kontoId))) gruppen.push({ id: null, name: 'Unbekanntes Konto' });
+  const imKonto = (g) => budgets.filter((b) => (g.id === null ? !kontoName.has(b.kontoId) : b.kontoId === g.id));
+  // Budget eines Kontos in diesem Monat (wiederkehrend + einmalig)
+  const summeKonto = (liste) => [...new Set(liste.map((b) => b.kategorieId))]
+    .reduce((s, id) => s + budgetFuerMonat(liste, id, monat).betragCent, 0);
 
   const summeMonat = [...new Set(budgets.map((b) => b.kategorieId))]
     .reduce((s, id) => s + budgetFuerMonat(budgets, id, monat).betragCent, 0);
+
+  const zeile = (b) => {
+    const name = kat.get(b.kategorieId)?.name ?? 'Unbekannte Kategorie';
+    let info;
+    let betrag;
+    let zusatz = null;
+    let beendet = false;
+    if (b.typ === 'einmalig') {
+      info = `Einmalig · ${monatText(b.monat)}`;
+      betrag = formatEuro(b.betragCent);
+      beendet = b.monat < monat;
+    } else {
+      const bis = b.endMonat ? ` bis ${monatText(b.endMonat)}` : '';
+      info = `Jeden Monat · ab ${monatText(b.startMonat)}${bis}`;
+      betrag = `${formatEuro(betragAm(b.stufen, b.startMonat > monat ? b.startMonat : monat))} / Monat`;
+      const kuenftig = b.stufen.filter((s) => s.ab > monat);
+      if (kuenftig.length) zusatz = kuenftig.map((s) => `ab ${monatText(s.ab)}: ${formatEuro(s.betragCent)}`).join(' · ');
+      beendet = Boolean(b.endMonat && b.endMonat < monat);
+    }
+    return zeileMitSchalter(b, 'budgets',
+      h('button', { type: 'button', class: 'buchung' + (beendet ? ' archiviert' : ''), onclick: () => budgetDialog(b, daten) },
+        h('span', { class: 'buchung-text' },
+          h('span', { class: 'buchung-titel' }, name, beendet && h('span', { class: 'marke' }, 'abgelaufen')),
+          h('span', { class: 'buchung-unter' }, info),
+          zusatz && h('span', { class: 'buchung-unter annahme' }, zusatz)),
+        h('span', { class: 'betrag' }, betrag)));
+  };
 
   return h('section', { class: 'bereich', 'aria-labelledby': 'titel-budgets' },
     h('div', { class: 'bereich-kopf' },
@@ -79,34 +113,17 @@ function budgetBereich(daten) {
     h('p', { class: 'hinweis' },
       'Ein Budget gilt je Hauptkategorie, Konto und Monat. Nur Ausgaben der Unterkategorien auf diesem Konto ' +
       'verbrauchen es, ein Rest verfällt am Monatsende. Einmalige Budgets kommen im jeweiligen Monat dazu.'),
-    sortiert.length === 0
+    budgets.length === 0
       ? h('p', { class: 'leer' }, 'Noch keine Budgets.')
-      : h('ul', { class: 'liste' }, sortiert.map((b) => {
-        const name = kat.get(b.kategorieId)?.name ?? 'Unbekannte Kategorie';
-        let info;
-        let betrag;
-        let zusatz = null;
-        let beendet = false;
-        if (b.typ === 'einmalig') {
-          info = `Einmalig · ${monatText(b.monat)} · ${kontoName.get(b.kontoId) ?? '?'}`;
-          betrag = formatEuro(b.betragCent);
-          beendet = b.monat < monat;
-        } else {
-          const bis = b.endMonat ? ` bis ${monatText(b.endMonat)}` : '';
-          info = `Jeden Monat · ab ${monatText(b.startMonat)}${bis} · ${kontoName.get(b.kontoId) ?? '?'}`;
-          betrag = `${formatEuro(betragAm(b.stufen, b.startMonat > monat ? b.startMonat : monat))} / Monat`;
-          const kuenftig = b.stufen.filter((s) => s.ab > monat);
-          if (kuenftig.length) zusatz = kuenftig.map((s) => `ab ${monatText(s.ab)}: ${formatEuro(s.betragCent)}`).join(' · ');
-          beendet = Boolean(b.endMonat && b.endMonat < monat);
-        }
-        return zeileMitSchalter(b, 'budgets',
-          h('button', { type: 'button', class: 'buchung' + (beendet ? ' archiviert' : ''), onclick: () => budgetDialog(b, daten) },
-            h('span', { class: 'buchung-text' },
-              h('span', { class: 'buchung-titel' }, name, beendet && h('span', { class: 'marke' }, 'abgelaufen')),
-              h('span', { class: 'buchung-unter' }, info),
-              zusatz && h('span', { class: 'buchung-unter annahme' }, zusatz)),
-            h('span', { class: 'betrag' }, betrag)));
-      })),
+      : gruppen.map((g) => {
+        const liste = imKonto(g);
+        return h('div', { class: 'budget-gruppe' },
+          h('div', { class: 'tag-kopf' }, h('span', {}, g.name)),
+          h('ul', { class: 'liste' }, [...liste].sort(nachKategorie).map(zeile)),
+          h('div', { class: 'summe zwischensumme' },
+            h('span', {}, `Zwischensumme ${g.name} · ${monatText(monat)}`),
+            h('span', { class: 'betrag' }, formatEuro(summeKonto(liste)))));
+      }),
     budgets.length > 0 && h('div', { class: 'summe ergebnis' },
       h('span', {}, `Budgets ${monatText(monat)} zusammen`), h('span', { class: 'betrag' }, formatEuro(summeMonat))),
   );

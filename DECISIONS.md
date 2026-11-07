@@ -1331,3 +1331,13 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
   Konten ein Budget hat. „Nur diesen Monat ändern“ trifft das Budget des richtigen Kontos.
 - Keine neue Datenversion nötig: Jedes Budget hatte schon ein Konto (D34).
 
+## D86 – Budgets im Annahmen-Tab nach Konten gruppiert
+*Wunsch des Nutzers*
+
+- Die Budgetliste ist nach Konten gruppiert, in der eigenen Konten-Reihenfolge (D84). Innerhalb
+  eines Kontos alphabetisch nach Kategorie, wiederkehrende vor einmaligen Budgets.
+- Unter jeder Gruppe steht eine **Zwischensumme** des Kontos für den laufenden Monat
+  (wiederkehrende Beträge dieses Monats + einmalige Budgets dieses Monats). Darunter wie bisher die
+  Gesamtsumme aller Budgets des Monats.
+- Das Konto steht nicht mehr in jeder Zeile, weil es die Gruppenüberschrift nennt.
+

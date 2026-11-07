@@ -902,6 +902,11 @@ fieldset.feld { border: none; padding: 0; margin: 0 0 14px; }
 }
 .ausnahme { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 6px 0; border-top: 1px solid var(--rand); font-size: .9rem; }
 .bereich > .summe.ergebnis { margin-top: 8px; }
+/* Budgets nach Konten gruppiert (D86) */
+.budget-gruppe + .budget-gruppe { margin-top: 10px; }
+.budget-gruppe .tag-kopf { margin-top: 6px; }
+.summe.zwischensumme { padding: 6px 0 2px; border-top: 1px dashed var(--rand); font-size: .9rem; font-weight: 600; color: var(--text-2); }
+.summe.zwischensumme .betrag { color: var(--text); }
 
 .feld-schalter { margin: 0 0 10px; color: var(--text); }
 .liste-kopf { padding-top: 2px; text-transform: none; letter-spacing: 0; font-weight: 500; }
