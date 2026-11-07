@@ -49,7 +49,7 @@ const ZEITRAEUME = [
  * tragen zur Kennzeichnung das (nicht gespeicherte) Feld archivJahr.
  * anmelden: true nur aus einem Klick heraus (Google-Fenster)
  */
-async function ladeArchive(archive, anmelden) {
+export async function ladeArchive(archive, anmelden) {
   const geladen = [];
   const fehlend = [];
   for (const eintrag of [...archive].sort((a, b) => a.jahr - b.jahr)) {

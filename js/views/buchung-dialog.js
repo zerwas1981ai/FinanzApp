@@ -9,17 +9,18 @@ import { partnerListe, partnerSchluessel } from '../auswertung.js';
 import { belegeFeld } from './belege.js';
 import { wiederkehrendDialog } from './annahmen.js';
 import { monatsende, tageImMonat } from '../prognose.js';
+import { relevanteZeilen, gruppenListe, MAX_GRUPPE } from '../relevant.js';
 
 const nachName = (a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base' });
 
 /**
  * buchung: beim Bearbeiten eine bestehende Buchung (bei Umbuchung eine der beiden Hälften)
- * vorgaben (nur neue Buchungen): { kontoId, art, betragCent, kategorieId, gegenkontoId, datum, notiz, partner, projektId,
+ * vorgaben (nur neue Buchungen): { kontoId, art, betragCent, kategorieId, gegenkontoId, datum, notiz, partner, projektId, relevant, relevantGruppe,
  *   titel, wiederkehrendId, faelligAm } – z. B. beim Buchen eines fälligen Termins
  */
 export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
-  const [konten, kategorien, alle, projekte] = await Promise.all(
-    ['konten', 'kategorien', 'buchungen', 'projekte'].map((s) => db.alle(s)),
+  const [konten, kategorien, alle, projekte, relevantListe] = await Promise.all(
+    ['konten', 'kategorien', 'buchungen', 'projekte', 'relevant'].map((s) => db.alle(s)),
   );
   // Immer die aktuelle Fassung aus der Datenbank nehmen – der Abgleich kann sie im Hintergrund
   // geändert haben (z. B. Drive-Kennung eines hochgeladenen Belegs)
@@ -84,6 +85,19 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
   });
   const notiz = eingabe({ label: 'Notiz (optional)', maxlength: 200, value: ref?.notiz ?? vorgaben.notiz ?? '', placeholder: 'z. B. Wocheneinkauf' });
   const projekt = projektFeld(projekte, ref?.projektId ?? vorgaben.projektId ?? null);
+  // Relevante Ausgabe (D74): Häkchen + optionale Gruppe, nur bei Ausgaben
+  const relevantHaken = h('input', { type: 'checkbox', checked: Boolean(ref?.relevant ?? vorgaben.relevant) });
+  const relevantGruppe = gruppeFeld(
+    gruppenListe(relevanteZeilen({ relevant: relevantListe, buchungen: alle })),
+    ref?.relevantGruppe ?? vorgaben.relevantGruppe ?? '',
+  );
+  const zeigeGruppe = () => { relevantGruppe.feld.hidden = !relevantHaken.checked; };
+  relevantHaken.addEventListener('change', zeigeGruppe);
+  zeigeGruppe();
+  const relevantFeld = h('div', { class: 'relevant-feld' },
+    h('label', { class: 'schalter feld-schalter' }, relevantHaken, 'Relevante Ausgabe (erscheint unter Projekte → Relevante Ausgaben, Belege zusätzlich im Drive-Ordner)'),
+    relevantGruppe.feld);
+
   // Belege: Dateiname aus Datum und Empfänger/Absender bzw. Kategorie
   const belege = belegeFeld(ref?.belege ?? [], () => [
     datum.input.value,
@@ -95,6 +109,7 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
     kategorie.feld.hidden = istUmbuchung;
     if (projekt) projekt.feld.hidden = istUmbuchung;
     belege.feld.hidden = istUmbuchung;
+    relevantFeld.hidden = art !== 'ausgabe';
     partner.setzeArt(art);
     gegenkonto.feld.hidden = !istUmbuchung;
     konto.feld.querySelector('label').textContent = istUmbuchung ? 'Von Konto' : 'Konto';
@@ -117,6 +132,8 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
       partner: partner.input.value.trim(),
       notiz: notiz.input.value.trim(),
       projektId: projekt && art !== 'umbuchung' ? projekt.select.value || null : null,
+      relevant: art === 'ausgabe' && relevantHaken.checked,
+      relevantGruppe: relevantGruppe.input.value,
     };
   };
   const kopieren = buchung && h('button', {
@@ -156,7 +173,7 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
   // ---------- Dialog ----------
   const dlg = dialog({
     titel: buchung ? (ref.art === 'umbuchung' ? 'Umbuchung bearbeiten' : 'Buchung bearbeiten') : (vorgaben.titel ?? 'Neue Buchung'),
-    inhalt: [extras, artKnoepfe, betrag.feld, partner.feld, kategorie.feld, konto.feld, gegenkonto.feld, datum.feld, status.feld, notiz.feld, projekt?.feld, belege.feld].filter(Boolean),
+    inhalt: [extras, artKnoepfe, betrag.feld, partner.feld, kategorie.feld, konto.feld, gegenkonto.feld, datum.feld, status.feld, notiz.feld, projekt?.feld, relevantFeld, belege.feld].filter(Boolean),
     speichernText: buchung ? 'Speichern' : 'Erfassen',
     zusatz: buchung && {
       text: 'In den Papierkorb',
@@ -184,6 +201,8 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
         faelligAm: buchung ? undefined : vorgaben.faelligAm,
         geplantId: buchung ? undefined : vorgaben.geplantId,
         projektId: projekt ? projekt.select.value : undefined,
+        relevant: art === 'ausgabe' && relevantHaken.checked,
+        relevantGruppe: relevantGruppe.input.value,
       };
       werte.belege = art === 'umbuchung' ? undefined : belege.liste();
       await speichereBuchung(werte, gruppe);
@@ -222,6 +241,17 @@ export function partnerFeld(buchungen, wert, art, beiWahl = null) {
       if (PARTNER_LABEL[neueArt]) feld.feld.querySelector('label').textContent = PARTNER_LABEL[neueArt];
     },
   };
+}
+
+/** Feld "Gruppe (optional)" für relevante Ausgaben, mit Vorschlägen aus den bisherigen Gruppen (D74) */
+export function gruppeFeld(gruppen, wert) {
+  const id = `gruppen-vorschlaege-${++listenZaehler}`;
+  const feld = eingabe({
+    label: 'Gruppe (optional)', value: wert ?? '', maxlength: MAX_GRUPPE, list: id, placeholder: 'z. B. Haus, Garantie, Steuer',
+    hilfe: 'Zum Filtern der Liste „Relevante Ausgaben“.',
+  });
+  feld.feld.append(h('datalist', { id }, gruppen.map((g) => h('option', { value: g }))));
+  return feld;
 }
 
 /** Kategorie der letzten Buchung mit diesem Empfänger/Absender (und dieser Art) – für die Schnellerfassung */

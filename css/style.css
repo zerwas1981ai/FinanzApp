@@ -1215,3 +1215,28 @@ body.gesperrt .kopf, body.gesperrt main, body.gesperrt .fab, body.gesperrt #neue
   .btab-unter .btab-zelle:not(:empty) ~ .btab-zelle:not(:empty)::before { content: " · "; }
 }
 
+/* Relevante Ausgaben (D74) */
+.relevant .chips { margin: 4px 0 10px; }
+.relevant-gesamt { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 6px 0 8px; border-bottom: 1px solid var(--rand); }
+.relevant-gesamt .stark { font-weight: 600; }
+.relevant-jahr { border-bottom: 1px solid var(--rand); }
+.relevant-jahr > summary {
+  display: grid; grid-template-columns: auto 1fr auto; align-items: baseline; gap: 10px;
+  padding: 10px 4px; cursor: pointer; list-style: none;
+}
+.relevant-jahr > summary::-webkit-details-marker { display: none; }
+.relevant-jahr-name { font-weight: 700; }
+.relevant-jahr-name::before { content: "\25B8"; display: inline-block; width: 1em; color: var(--text-2); transition: transform .15s; }
+.relevant-jahr[open] .relevant-jahr-name::before { transform: rotate(90deg); }
+.relevant-jahr > summary .betrag { font-variant-numeric: tabular-nums; }
+.relevant-jahr > .btab { margin-bottom: 10px; }
+.relevant .btab-kopf { position: static; }
+.btab-fest { cursor: default; }
+.btab-fest:hover { color: var(--text-2); }
+.beleg-zahl { margin-left: 6px; font-size: .85rem; color: var(--text-2); }
+.btab-partner .marke-projekt { background: var(--akzent-leicht); color: var(--akzent); }
+.relevant-feld { margin-bottom: 4px; }
+@media (max-width: 767px) {
+  .relevant .btab-kopf { display: none; }
+}
+

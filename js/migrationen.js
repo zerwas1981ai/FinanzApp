@@ -22,7 +22,7 @@
 
 import { neueKategorie, INVESTITIONEN_UNTER, BARGELD_UNTER } from './startdaten.js';
 
-export const DATENMODELL_VERSION = 9;
+export const DATENMODELL_VERSION = 10;
 
 /** Standard-Schwellen für Budgethinweise (in den Stammdaten änderbar) */
 export const STANDARD_EINSTELLUNGEN = Object.freeze({ id: 'hinweise', monate: 3, prozent: 10 });
@@ -145,6 +145,19 @@ export const MIGRATIONEN = [
     beschreibung: 'Archivierung alter Jahre: Sammlung "archive" (welche Jahre archiviert sind, D68)',
     migriere(daten) {
       daten.archive ??= [];
+      return daten;
+    },
+  },
+  {
+    nach: 10,
+    beschreibung: 'Relevante Ausgaben (D74): Sammlung "relevant" für eigene Einträge; Buchungen bekommen ' +
+      '"relevant" (Häkchen) und "relevantGruppe".',
+    migriere(daten) {
+      daten.relevant ??= [];
+      for (const b of daten.buchungen ?? []) {
+        b.relevant ??= false;
+        b.relevantGruppe ??= '';
+      }
       return daten;
     },
   },

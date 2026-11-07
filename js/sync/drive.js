@@ -9,6 +9,7 @@
 //   Finanzapp/                      (Ordner)
 //     finanzapp-daten.json          (der Datenstand)
 //     Belege/                       (Fotos und PDFs)
+//     Relevante Ausgaben/           (Belege der relevanten Ausgaben, D74)
 //     Backups/                      (backup-JJJJ-MM-TTTHH-MM-SS.json)
 
 const GSI_URL = 'https://accounts.google.com/gsi/client';
@@ -141,13 +142,14 @@ async function neuerOrdner(name, art, elternId = null) {
 
 let ordnerCache = null;
 
-/** Ordner "Finanzapp", "Belege", "Backups" finden oder anlegen */
+/** Ordner "Finanzapp", "Belege", "Backups", "Relevante Ausgaben" finden oder anlegen */
 export async function ordner() {
   if (ordnerCache) return ordnerCache;
   const haupt = (await suche('ordner'))[0] ?? await neuerOrdner('Finanzapp', 'ordner');
   const belege = (await suche('belege-ordner', haupt.id))[0] ?? await neuerOrdner('Belege', 'belege-ordner', haupt.id);
   const backups = (await suche('backup-ordner', haupt.id))[0] ?? await neuerOrdner('Backups', 'backup-ordner', haupt.id);
-  ordnerCache = { haupt: haupt.id, belege: belege.id, backups: backups.id };
+  const relevant = (await suche('relevant-ordner', haupt.id))[0] ?? await neuerOrdner('Relevante Ausgaben', 'relevant-ordner', haupt.id);
+  ordnerCache = { haupt: haupt.id, belege: belege.id, backups: backups.id, relevant: relevant.id };
   return ordnerCache;
 }
 
@@ -185,6 +187,15 @@ export async function speichereDatei({ id = null, name, mimeType, inhalt, art, e
   ]);
   const url = `${UPLOAD}/files${id ? `/${id}` : ''}?uploadType=multipart&fields=id,version,modifiedTime`;
   return json(url, { method: id ? 'PATCH' : 'POST', headers: { 'Content-Type': `multipart/related; boundary=${grenze}` }, body });
+}
+
+/** Kopie einer (von der App angelegten) Datei in einem anderen Ordner anlegen → { id } */
+export async function kopiere(id, { name, elternId, art }) {
+  return json(`${API}/files/${id}/copy?fields=id`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, parents: [elternId], appProperties: { [MARKE]: art } }),
+  });
 }
 
 /** In den Drive-Papierkorb legen (nicht endgültig löschen – dort 30 Tage wiederherstellbar) */

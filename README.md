@@ -56,7 +56,7 @@ welche App sich anmelden möchte. Du trägst sie in der App ein; sie steht nicht
    überprüft“: auf **Weiter** (es ist ja deine eigene App) → Zugriff erlauben.
 
 Danach legt die App in deinem Drive den Ordner **Finanzapp** an (Datendatei, `Belege/`,
-`Backups/`). Sie sieht in deinem Drive **nur** Dateien, die sie selbst angelegt hat.
+`Backups/`, `Relevante Ausgaben/`). Sie sieht in deinem Drive **nur** Dateien, die sie selbst angelegt hat.
 
 **Zweites Gerät (z. B. Handy):** Dort ebenfalls die Client-ID eintragen und verbinden. Die App
 fragt dann, ob sie den Stand aus Drive übernehmen soll.
@@ -134,6 +134,7 @@ js/prognose.js, js/annahmen.js             Budgets, wiederkehrende/geplante Buch
 js/sync/                                   Google Drive: Anmeldung, Abgleich, Zusammenführen, Backups
 js/export.js                               CSV-Export für Excel
 js/sperre.js, js/archiv.js                 App-Sperre, Archiv alter Jahre
+js/relevant.js                             Relevante Ausgaben (Liste unten im Tab Projekte)
 js/startdaten.js, js/testdaten.js          Kategorie-Startsatz, Testdaten
 js/ui.js, js/dom.js                        Bausteine der Oberfläche
 js/views/                                  die Tabs und Dialoge

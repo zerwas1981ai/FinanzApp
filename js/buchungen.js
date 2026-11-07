@@ -17,11 +17,13 @@
 //   geplantId,              // ab Version 4: welche geplante Einmalbuchung damit erledigt ist (oder null)
 //   projektId,              // ab Version 5: zugeordnetes Projekt (oder null)
 //   partner,                // ab Version 8: Empfänger (Ausgabe) bzw. Absender (Einnahme), '' = keine Angabe
+//   relevant, relevantGruppe,  // ab Version 10: Häkchen "Relevante Ausgabe" (nur Ausgaben) und Gruppe (D74)
 //   erstelltAm, geaendertAm, testdaten?
 // }
 
 import * as db from './db.js';
 import { formatDatum, istGueltigesDatum } from './format.js';
+import { normGruppe } from './relevant.js';
 
 /**
  * Baut aus den Formularwerten die zu speichernden Datensätze und prüft sie.
@@ -66,6 +68,10 @@ export function baueBuchungen(eingabe, { konten, bestehende = [], jetzt = new Da
     // Umbuchungen gehören nie zu einem Projekt (sie sind keine Ausgabe).
     projektId: art === 'umbuchung' ? null
       : (eingabe.projektId === undefined ? bestehende[0]?.projektId ?? null : eingabe.projektId || null),
+    // Relevante Ausgabe (Datenversion 10): nur bei Ausgaben; undefined = unverändert
+    relevant: art === 'ausgabe' && (eingabe.relevant === undefined ? Boolean(bestehende[0]?.relevant) : Boolean(eingabe.relevant)),
+    relevantGruppe: art !== 'ausgabe' ? ''
+      : normGruppe(eingabe.relevantGruppe === undefined ? bestehende[0]?.relevantGruppe : eingabe.relevantGruppe),
     geaendertAm: jetzt,
   };
   const basis = (alt) => ({

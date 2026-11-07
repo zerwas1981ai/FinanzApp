@@ -43,6 +43,15 @@ window.fetch = async (url, opt = {}) => {
     touch(f);
     return ok(meta(f));
   }
+  const kopie = u.pathname.match(/files\/([^/]+)\/copy$/);
+  if (kopie && m === 'POST') {
+    const quelle = files.get(kopie[1]);
+    if (!quelle) return ok({ error: { message: 'File not found' } }, 404);
+    const f = { ...quelle, id: `f${n += 1}`, version: 0, ...JSON.parse(opt.body), trashed: false };
+    files.set(f.id, f);
+    touch(f);
+    return ok({ id: f.id });
+  }
   if (idMatch && m === 'DELETE') { files.delete(idMatch[1]); return new Response(null, { status: 204 }); }
   if (idMatch && m === 'PATCH') { const f = files.get(idMatch[1]); Object.assign(f, JSON.parse(opt.body)); touch(f); return ok(meta(f)); }
   if (idMatch && u.searchParams.get('alt') === 'media') return ok(files.get(idMatch[1]).content);

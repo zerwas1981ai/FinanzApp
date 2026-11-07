@@ -10,6 +10,7 @@ const SAMMLUNG_TEXT = {
   konten: 'Konto', kategorien: 'Kategorie', buchungen: 'Buchung', abstimmungen: 'Kontoabstimmung',
   budgets: 'Budget', wiederkehrend: 'Wiederkehrende Buchung', hinweise: 'Budgethinweis',
   einstellungen: 'Einstellung', geplant: 'Geplante Einmalbuchung', projekte: 'Projekt',
+  relevant: 'Relevante Ausgabe',
 };
 
 const zeit = (iso) => (iso ? new Date(iso).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' }) : '');
@@ -29,6 +30,9 @@ function beschreibe(sammlung, x, kategorien) {
     case 'geplant': return [x.bezeichnung, x.partner, formatEuro(x.betragCent ?? x.stufen?.at(-1)?.betragCent ?? 0), x.aktiv === false ? 'ausgeschaltet' : ''].filter(Boolean).join(' · ');
     case 'budgets': return `${kat(x.kategorieId) ?? 'Budget'} · ${formatEuro(x.betragCent ?? x.stufen?.at(-1)?.betragCent ?? 0)}`;
     case 'projekte': return x.name + (x.rahmenCent != null ? ` · Rahmen ${formatEuro(x.rahmenCent)}` : '');
+    case 'relevant':
+      return [formatDatum(x.datum), x.partner, kat(x.kategorieId), `−${formatEuro(x.betragCent)}`, x.gruppe, x.notiz, x.geloeschtAm ? 'im Papierkorb' : '']
+        .filter(Boolean).join(' · ');
     default: return x.name ?? x.id;
   }
 }

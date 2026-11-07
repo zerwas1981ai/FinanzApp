@@ -33,7 +33,7 @@ export async function verkleinere(datei) {
  * bestehende: belege der Buchung. namensVorschlag(): z. B. "2026-11-06 Supermarkt Muster".
  * speichere(): neue Dateien lokal ablegen, entfernte zum Löschen vormerken → neue belege-Liste.
  */
-export function belegeFeld(bestehende = [], namensVorschlag = () => 'Beleg') {
+export function belegeFeld(bestehende = [], namensVorschlag = () => 'Beleg', { label = 'Belege (optional)' } = {}) {
   let liste = [...bestehende];
   const neu = new Map(); // id → Blob (noch nicht gespeichert)
   const entfernt = [];
@@ -92,7 +92,7 @@ export function belegeFeld(bestehende = [], namensVorschlag = () => 'Beleg') {
 
   zeichne();
   const feld = h('div', { class: 'feld' },
-    h('span', { class: 'feld-label' }, 'Belege (optional)'),
+    h('span', { class: 'feld-label' }, label),
     ul,
     h('div', { class: 'knopfreihe' },
       ...auswahl({ accept: 'image/*', capture: 'environment' }, '📷 Foto aufnehmen'),
@@ -112,6 +112,7 @@ export function belegeFeld(bestehende = [], namensVorschlag = () => 'Beleg') {
       for (const b of entfernt) {
         await db.loesche('belegDateien', b.id);
         await belegSpaeterLoeschen(b.driveId);
+        await belegSpaeterLoeschen(b.relevantDriveId); // Kopie unter "Relevante Ausgaben" (D74)
       }
       return liste;
     },
@@ -144,12 +145,13 @@ export async function zeigeBeleg(beleg, blob = null) {
   }
 }
 
-/** Belege von endgültig gelöschten Buchungen auch in Drive entfernen (Papierkorb) */
+/** Belege von endgültig gelöschten Buchungen (oder relevanten Ausgaben) auch in Drive entfernen (Papierkorb) */
 export async function belegeEntfernen(buchungen) {
   for (const b of buchungen) {
     for (const x of b.belege ?? []) {
       await db.loesche('belegDateien', x.id);
       await belegSpaeterLoeschen(x.driveId);
+      await belegSpaeterLoeschen(x.relevantDriveId);
     }
   }
 }

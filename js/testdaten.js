@@ -15,7 +15,7 @@ import { baueBuchungen } from './buchungen.js';
 import { heuteIso } from './format.js';
 import { plusMonate, monatsende } from './prognose.js';
 
-const SAMMLUNGEN_MIT_TESTDATEN = ['konten', 'kategorien', 'buchungen', 'budgets', 'wiederkehrend', 'geplant', 'projekte'];
+const SAMMLUNGEN_MIT_TESTDATEN = ['konten', 'kategorien', 'buchungen', 'budgets', 'wiederkehrend', 'geplant', 'projekte', 'relevant'];
 
 function konto(name, anfangssaldoCent, stichtag, mindestsaldoCent, archiviert = false) {
   const jetzt = new Date().toISOString();
@@ -216,6 +216,7 @@ export async function ladeTestdaten() {
     projektBuchungen.push(...baueBuchungen({
       art: 'ausgabe', betragCent: 95000, datum: tag(monate[2], 20), kontoId: giro.id, kategorieId: reparatur,
       notiz: 'Planung Badumbau', partner: 'Architekturbüro Muster', status: 'gebucht', geplantId: architekt.id, projektId: bad.id,
+      relevant: true, relevantGruppe: 'Haus (Test)',
     }, { konten: neueKonten }));
   }
   if (reise) {
@@ -225,11 +226,22 @@ export async function ladeTestdaten() {
     }, { konten: neueKonten }));
   }
   await db.speichere('buchungen', projektBuchungen.map((b) => ({ ...b, testdaten: true })));
+
+  /* ---------- Relevante Ausgaben (D74): eigene Einträge aus früheren Jahren ---------- */
+  const relevant = (datum, betragCent, partner, kategorieId, gruppe, notiz) => ({
+    id: crypto.randomUUID(), datum, betragCent, partner, kategorieId: kategorieId ?? null, gruppe, notiz,
+    belege: [], geloeschtAm: null, erstelltAm: jetzt, geaendertAm: jetzt, testdaten: true,
+  });
+  await db.speichere('relevant', [
+    relevant('2012-05-03', 650000, 'Küchenstudio Muster', reparatur, 'Haus (Test)', 'Einbauküche'),
+    relevant('2018-09-14', 129900, 'Elektromarkt Beispiel', null, 'Garantie (Test)', 'Waschmaschine, 5 Jahre Garantie'),
+    relevant('2021-03-22', 980000, 'Heizungsbau Muster', reparatur, 'Haus (Test)', 'Neue Heizung'),
+  ]);
   return true;
 }
 
 export async function loescheTestdaten() {
-  const [konten, kategorien, buchungen, budgets, wiederkehrend, geplant, projekte, hinweise] = await Promise.all(
+  const [konten, kategorien, buchungen, budgets, wiederkehrend, geplant, projekte, relevant, hinweise] = await Promise.all(
     [...SAMMLUNGEN_MIT_TESTDATEN, 'hinweise'].map((s) => db.alle(s)),
   );
   const kontoIds = new Set(konten.filter((k) => k.testdaten).map((k) => k.id));
@@ -257,6 +269,7 @@ export async function loescheTestdaten() {
   await db.loesche('wiederkehrend', wkWeg.map((w) => w.id));
   await db.loesche('geplant', geplantWeg.map((g) => g.id));
   await db.loesche('projekte', [...projektWeg]);
+  await db.loesche('relevant', relevant.filter((x) => x.testdaten).map((x) => x.id));
   // Eigene Buchungen/Planungen, die einem Test-Projekt zugeordnet waren, behalten – ohne Projekt
   const geplantIds = new Set(geplantWeg.map((g) => g.id));
   for (const [name, liste, ids] of [['buchungen', buchungen, buchungIds], ['geplant', geplant, geplantIds]]) {

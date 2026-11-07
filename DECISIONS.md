@@ -1133,3 +1133,37 @@ Wird eine Entscheidung geändert, den alten Eintrag nicht löschen, sondern als
   Kategorie, Betrag mit derselben Logik. Ohne Empfänger/Absender steht oben die Kategorie.
 - Die Sortierung bleibt erhalten, solange die App offen ist (wie die Filter).
 
+## D74 – Relevante Ausgaben (Block unten im Tab „Projekte“)
+*Wunsch des Nutzers: allgemeine Sammlung, eine Liste mit Gruppen, Erfassung wie eine Buchung,
+Belege unbedingt (eigener Drive-Ordner), Anzeige nach Jahren mit Summen*
+
+- **Zweck:** eine Sammelliste wichtiger Ausgaben, z. B. für Garantie, Steuer oder als Nachweis –
+  auch aus früheren Jahren (Datum ab 1990 möglich, gedacht ab 2010).
+- **Zwei Quellen:**
+  1. **Eigene Einträge** (neue Sammlung `relevant`, Datenversion 10): Betrag, Empfänger,
+     Kategorie (optional, Ausgaben-Kategorien), Datum, Gruppe, Notiz, Belege. Sie gehören zu
+     keinem Konto und zählen **nirgends** mit – nicht im Kontostand, nicht im Budget, nicht in
+     der Prognose, nicht unter „Alle Buchungen“.
+  2. **Echte Ausgaben mit Häkchen** „Relevante Ausgabe“ im Buchungsdialog (Felder `relevant`,
+     `relevantGruppe` an der Buchung). Sie erscheinen automatisch in der Liste; es wird nichts
+     kopiert. Ändert man die Buchung, ändert sich die Zeile mit. Nur bei Ausgaben.
+     Markierte Buchungen aus archivierten Jahren erscheinen (nur lesen), wenn das Archiv auf
+     dem Gerät geladen ist.
+- **Gruppe:** freier Text mit Vorschlägen (z. B. „Haus“, „Garantie“), Groß/klein egal. Über der
+  Liste kann man nach Gruppe filtern (auch „Ohne Gruppe“).
+- **Anzeige:** Gesamtsumme, darunter je Jahr ein aufklappbarer Block (neuestes Jahr offen) mit
+  Anzahl und Jahressumme; darin eine Tabelle wie unter „Alle Buchungen“ (Datum · Empfänger ·
+  Kategorie · Gruppe · Notiz · Betrag). Markierte Buchungen tragen ihr Konto als Marke, 📎 zeigt
+  Belege. Antippen öffnet den Eintrag bzw. die Buchung. Am Handy zweizeilig.
+- **Belege in Google Drive:** neuer Ordner `Finanzapp/Relevante Ausgaben`.
+  - Belege eigener Einträge werden direkt dort abgelegt.
+  - Belege markierter Buchungen liegen wie immer unter `Belege`; zusätzlich legt der Abgleich
+    eine **Kopie** in `Relevante Ausgaben` an (`beleg.relevantDriveId`). Wird das Häkchen
+    entfernt oder die Buchung in den Papierkorb gelegt, kommt die Kopie in den Drive-Papierkorb
+    (das Original bleibt). Wird ein Beleg entfernt oder die Buchung endgültig gelöscht, gehen
+    Original und Kopie in den Drive-Papierkorb.
+- **Löschen:** eigene Einträge kommen zuerst in den Papierkorb (Stammdaten → Papierkorb,
+  eigener Abschnitt „Relevante Ausgaben“), von dort wiederherstellen oder endgültig löschen.
+- Testdaten (nur localhost): drei erfundene Einträge (2012, 2018, 2021) und die Test-Buchung
+  „Architekturbüro Muster“ mit Häkchen.
+

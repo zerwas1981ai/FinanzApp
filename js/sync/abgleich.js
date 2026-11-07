@@ -13,6 +13,7 @@
 
 import * as db from '../db.js';
 import { DATENMODELL_VERSION, migriereDaten } from '../migrationen.js';
+import { kopienAufgaben } from '../relevant.js';
 import { geraet } from '../ui.js';
 import * as drive from './drive.js';
 import { archiviere, holeZurueck } from '../archiv.js';
@@ -344,10 +345,20 @@ async function belegeAbgleichen() {
   }
   if (zuLoeschen.length) await db.schreibeMeta(ZU_LOESCHEN, []);
 
-  const buchungen = await db.alle('buchungen');
-  const offen = buchungen.filter((b) => (b.belege ?? []).some((x) => !x.driveId));
-  if (!offen.length) return;
-  const { belege: ordnerId } = await drive.ordner();
+  let geaendert = await belegeHochladen('buchungen', 'belege');
+  // Relevante Ausgaben (D74): eigene Einträge in ihren eigenen Ordner, Kopien markierter Buchungen
+  if (await belegeHochladen('relevant', 'relevant')) geaendert = true;
+  if (await kopienAbgleichen()) geaendert = true;
+  // Ansicht neu zeichnen, damit Listen die Drive-Kennungen kennen
+  if (geaendert) window.dispatchEvent(new Event('daten-geaendert'));
+}
+
+/** Wartende Belege einer Sammlung in den Drive-Ordner hochladen. true = etwas geändert */
+async function belegeHochladen(sammlung, ordnerSchluessel) {
+  const eintraege = await db.alle(sammlung);
+  const offen = eintraege.filter((b) => (b.belege ?? []).some((x) => !x.driveId));
+  if (!offen.length) return false;
+  const ordnerId = (await drive.ordner())[ordnerSchluessel];
   for (const b of offen) {
     const belege = [];
     for (const x of b.belege) {
@@ -357,24 +368,62 @@ async function belegeAbgleichen() {
       const neu = await drive.speichereDatei({ name: x.name, mimeType: x.mime, inhalt: datei.blob, art: 'beleg', elternId: ordnerId });
       belege.push({ ...x, driveId: neu.id });
     }
-    // Drive-Kennungen in die AKTUELLE Fassung der Buchung eintragen (sie kann sich während des
+    // Drive-Kennungen in die AKTUELLE Fassung eintragen (sie kann sich während des
     // Hochladens geändert haben; ein inzwischen entfernter Beleg kommt in den Drive-Papierkorb)
     const hochgeladen = new Map(belege.filter((x) => x.driveId).map((x) => [x.id, x.driveId]));
-    const aktuell = await db.hole('buchungen', b.id);
+    const aktuell = await db.hole(sammlung, b.id);
     const nochDa = new Set((aktuell?.belege ?? []).map((x) => x.id));
     for (const [belegId, driveId] of hochgeladen) {
       if (!nochDa.has(belegId) && !b.belege.find((x) => x.id === belegId)?.driveId) await drive.inPapierkorb(driveId);
     }
     if (aktuell) {
-      await db.speichere('buchungen', {
+      await db.speichere(sammlung, {
         ...aktuell,
         belege: aktuell.belege.map((x) => (x.driveId || !hochgeladen.has(x.id) ? x : { ...x, driveId: hochgeladen.get(x.id) })),
         geaendertAm: new Date().toISOString(),
       });
     }
   }
-  // Ansicht neu zeichnen, damit Listen die Drive-Kennungen kennen
-  window.dispatchEvent(new Event('daten-geaendert'));
+  return true;
+}
+
+/**
+ * Belege markierter Buchungen (Häkchen "Relevante Ausgabe") zusätzlich in den Ordner
+ * "Relevante Ausgaben" kopieren; ohne Häkchen (oder im Papierkorb) kommt die Kopie in den
+ * Drive-Papierkorb. Das Original im Ordner "Belege" bleibt immer, wo es ist. true = etwas geändert
+ */
+async function kopienAbgleichen() {
+  const aufgaben = (await db.alle('buchungen'))
+    .map((b) => ({ b, ...kopienAufgaben(b) }))
+    .filter((a) => a.kopieren.length || a.entfernen.length);
+  if (!aufgaben.length) return false;
+  const { relevant: ordnerId } = await drive.ordner();
+  const fehlt = (err) => String(err.message).includes('404');
+  for (const { b, kopieren, entfernen } of aufgaben) {
+    const neu = new Map(); // Beleg-ID → Kennung der Kopie (null = entfernt)
+    for (const x of kopieren) {
+      try {
+        neu.set(x.id, (await drive.kopiere(x.driveId, { name: x.name, elternId: ordnerId, art: 'beleg' })).id);
+      } catch (err) {
+        if (!fehlt(err)) throw err; // Original gibt es nicht mehr: nichts zu kopieren
+      }
+    }
+    for (const x of entfernen) {
+      try { await drive.inPapierkorb(x.relevantDriveId); } catch (err) { if (!fehlt(err)) throw err; }
+      neu.set(x.id, null);
+    }
+    const aktuell = await db.hole('buchungen', b.id);
+    if (!aktuell) {
+      for (const id of neu.values()) if (id) await drive.inPapierkorb(id);
+      continue;
+    }
+    await db.speichere('buchungen', {
+      ...aktuell,
+      belege: (aktuell.belege ?? []).map((x) => (neu.has(x.id) ? { ...x, relevantDriveId: neu.get(x.id) } : x)),
+      geaendertAm: new Date().toISOString(),
+    });
+  }
+  return true;
 }
 
 /** Beleg aus Drive löschen (in den Papierkorb), sobald möglich */

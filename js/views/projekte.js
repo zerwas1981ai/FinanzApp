@@ -9,11 +9,12 @@ import { dialog, frage, toast, eingabe, datenGeaendert } from '../ui.js';
 import { baueProjekt, projektZahlen } from '../annahmen.js';
 import { oeffneBuchungsdialog } from './buchung-dialog.js';
 import { geplantDialog } from './annahmen.js';
+import { relevantBereich } from './relevant.js';
 
 const nachName = (a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base' });
 
 export async function zeigeProjekte(container) {
-  const namen = ['konten', 'kategorien', 'buchungen', 'geplant', 'projekte', 'archive'];
+  const namen = ['konten', 'kategorien', 'buchungen', 'geplant', 'projekte', 'archive', 'relevant'];
   const werte = await Promise.all(namen.map((n) => db.alle(n)));
   const daten = Object.fromEntries(namen.map((n, i) => [n, werte[i]]));
   const heute = heuteIso();
@@ -34,6 +35,8 @@ export async function zeigeProjekte(container) {
     abgeschlossen.length > 0 && h('details', { class: 'erledigt-liste' },
       h('summary', {}, `Abgeschlossene Projekte (${abgeschlossen.length})`),
       ...abgeschlossen.map((p) => projektKarte(p, daten, heute))),
+    // Unten: Sammelliste "Relevante Ausgaben" (D74)
+    await relevantBereich(daten),
   ].filter(Boolean));
 }
 

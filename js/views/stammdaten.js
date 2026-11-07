@@ -16,6 +16,8 @@ import { sperreBereich } from './sperre-ui.js';
 
 // Alle Buchungen (auch im Papierkorb) – für die Löschsperre. Wird bei jedem Zeichnen neu geladen.
 let buchungen = [];
+// Eigene relevante Ausgaben (D74) – für den Papierkorb
+let relevantListe = [];
 // [Budgets, wiederkehrende Buchungen] – für die Löschsperre und um Testdaten zu erkennen
 let testAnnahmen = [[], [], [], []]; // budgets, wiederkehrend, geplant, projekte
 
@@ -57,10 +59,11 @@ const ART_TEXT = { einnahme: 'Einnahme', ausgabe: 'Ausgabe' };
 const IST_ENTWICKLUNG = ['localhost', '127.0.0.1'].includes(location.hostname);
 
 export async function zeigeStammdaten(container) {
-  const [konten, kategorien, alleBuchungen, budgets, wiederkehrend, geplant, projekte] = await Promise.all(
-    ['konten', 'kategorien', 'buchungen', 'budgets', 'wiederkehrend', 'geplant', 'projekte'].map((s) => db.alle(s)),
+  const [konten, kategorien, alleBuchungen, budgets, wiederkehrend, geplant, projekte, relevant] = await Promise.all(
+    ['konten', 'kategorien', 'buchungen', 'budgets', 'wiederkehrend', 'geplant', 'projekte', 'relevant'].map((s) => db.alle(s)),
   );
   buchungen = alleBuchungen;
+  relevantListe = relevant;
   testAnnahmen = [budgets, wiederkehrend, geplant, projekte];
   const neu = () => zeigeStammdaten(container);
   // filter(Boolean): ausgeblendete Bereiche (false) weglassen – sonst stünde "false" als Text da
@@ -407,6 +410,11 @@ function papierkorbBereich(konten, kategorien, neu) {
   const kontoName = new Map(konten.map((k) => [k.id, k.name]));
   const kat = new Map(kategorien.map((k) => [k.id, k]));
 
+  const relevantWeg = relevantListe
+    .filter((x) => x.geloeschtAm)
+    .sort((a, b) => b.geloeschtAm.localeCompare(a.geloeschtAm));
+  const anzahl = geloescht.length + relevantWeg.length;
+
   const beschreibung = (b) => {
     if (b.art === 'umbuchung') return `Umbuchung ${kontoName.get(b.kontoId) ?? '?'} → ${kontoName.get(b.gegenkontoId) ?? '?'}`;
     const unter = kat.get(b.kategorieId);
@@ -415,28 +423,29 @@ function papierkorbBereich(konten, kategorien, neu) {
 
   return h('section', { class: 'bereich', 'aria-labelledby': 'titel-papierkorb' },
     h('div', { class: 'bereich-kopf' },
-      h('h2', { id: 'titel-papierkorb' }, `Papierkorb (${geloescht.length})`),
-      geloescht.length > 0 && h('button', {
+      h('h2', { id: 'titel-papierkorb' }, `Papierkorb (${anzahl})`),
+      anzahl > 0 && h('button', {
         type: 'button',
         class: 'knopf knopf-gefahr',
         onclick: async () => {
           const ok = await frage({
             titel: 'Papierkorb leeren?',
-            text: `${geloescht.length === 1 ? '1 Buchung wird' : `${geloescht.length} Buchungen werden`} endgültig gelöscht.`,
+            text: `${anzahl === 1 ? '1 Eintrag wird' : `${anzahl} Einträge werden`} endgültig gelöscht.`,
             jaText: 'Endgültig löschen',
             gefahr: true,
           });
           if (!ok) return;
           await belegeEntfernen(buchungen.filter((b) => b.geloeschtAm));
           await endgueltigLoeschen(buchungen.filter((b) => b.geloeschtAm));
+          await belegeEntfernen(relevantWeg);
+          await db.loesche('relevant', relevantWeg.map((x) => x.id));
           toast('Papierkorb geleert');
           neu();
         },
       }, 'Leeren'),
     ),
-    geloescht.length === 0
-      ? h('p', { class: 'leer' }, 'Der Papierkorb ist leer. Gelöschte Buchungen landen zuerst hier.')
-      : h('ul', { class: 'liste' }, geloescht.map((b) => {
+    anzahl === 0 && h('p', { class: 'leer' }, 'Der Papierkorb ist leer. Gelöschte Buchungen landen zuerst hier.'),
+    geloescht.length > 0 && h('ul', { class: 'liste' }, geloescht.map((b) => {
         const wirkung = b.art === 'umbuchung' ? b.betragCent : wirkungCent(b);
         return h('li', { class: 'zeile' },
           h('div', {},
@@ -458,6 +467,26 @@ function papierkorbBereich(konten, kategorien, neu) {
               neu();
             }, 'knopf-gefahr')));
       })),
+    relevantWeg.length > 0 && h('div', { class: 'tag-kopf' }, h('span', {}, 'Relevante Ausgaben')),
+    relevantWeg.length > 0 && h('ul', { class: 'liste' }, relevantWeg.map((x) => h('li', { class: 'zeile' },
+      h('div', {},
+        h('div', { class: 'zeile-titel' }, x.partner || x.notiz || 'Relevante Ausgabe'),
+        h('div', { class: 'zeile-info' }, [formatDatum(x.datum), x.gruppe, x.partner && x.notiz].filter(Boolean).join(' · '))),
+      h('div', { class: 'zeile-betrag negativ' }, formatEuro(-x.betragCent)),
+      h('div', { class: 'zeile-aktionen' },
+        knopf('Wiederherstellen', async () => {
+          await db.speichere('relevant', { ...x, geloeschtAm: null, geaendertAm: jetzt() });
+          toast('Wiederhergestellt');
+          neu();
+        }),
+        knopf('Endgültig löschen', async () => {
+          const ok = await frage({ titel: 'Endgültig löschen?', text: 'Der Eintrag kann danach nicht wiederhergestellt werden.', jaText: 'Endgültig löschen', gefahr: true });
+          if (!ok) return;
+          await belegeEntfernen([x]);
+          await db.loesche('relevant', x.id);
+          toast('Endgültig gelöscht');
+          neu();
+        }, 'knopf-gefahr'))))),
   );
 }
 
