@@ -266,38 +266,42 @@ function buchungsliste(m, konto, konten, kategorien) {
   }
   const katName = new Map(kategorien.map((k) => [k.id, k]));
   const kontoName = new Map(konten.map((k) => [k.id, k.name]));
+  const istUmbuchung = (b) => b.art === 'umbuchung';
 
   // Neueste zuerst: Tage absteigend, innerhalb eines Tages die zuletzt erfasste oben.
   // Der "Stand" je Tag bleibt der Kontostand am Ende dieses Tages.
-  // Standardmäßig nur die letzten 10 Buchungen; "Alle anzeigen" zeigt den ganzen Monat.
+  // Standardmäßig nur die letzten 10 Buchungen – Umbuchungen zählen dabei nicht mit (D79);
+  // "Alle anzeigen" zeigt den ganzen Monat.
+  const anzahl = m.tage.reduce((s, t) => s + t.buchungen.filter((b) => !istUmbuchung(b)).length, 0);
   const schluessel = `${konto.id}|${m.erster}`;
   const alle = ansicht.alleAnzeigen === schluessel;
   let rest = alle ? Infinity : MAX_BUCHUNGEN;
-  const tage = [];
-  const gezeigt = []; // für die Tabelle am PC: { buchung, stand } – neueste zuerst
-  let umbuchungen = 0;
+  const auswahl = []; // [{ tag, zeilen: [{ buchung, stand }] }] – stand = Kontostand nach dieser Buchung
   for (const tag of [...m.tage].reverse()) {
     if (rest <= 0) break;
-    // Kontostand nach jeder einzelnen Buchung (rückwärts vom Tagesstand aus gerechnet)
     let stand = tag.standAbend;
+    const zeilen = [];
     for (const b of [...tag.buchungen].reverse()) {
-      gezeigt.push({ buchung: b, stand });
+      if (rest <= 0) break;
+      zeilen.push({ buchung: b, stand });
       stand -= wirkungCent(b);
+      if (!istUmbuchung(b)) rest -= 1;
     }
-    const zeilen = [...tag.buchungen].reverse().slice(0, rest);
-    gezeigt.splice(gezeigt.length - (tag.buchungen.length - zeilen.length));
-    rest -= zeilen.length;
-    umbuchungen += zeilen.filter((b) => b.art === 'umbuchung').length;
-    // Tag nur mit Umbuchungen: am Handy samt Tageszeile ausblendbar (D76)
-    const nurUmbuchungen = zeilen.every((b) => b.art === 'umbuchung');
-    tage.push(h('div', { class: 'tag' + (nurUmbuchungen ? ' ub-ausblendbar' : '') },
-      h('div', { class: 'tag-kopf' },
-        h('span', {}, formatTag(tag.datum)),
-        h('span', { class: 'tag-stand' + (tag.standAbend < 0 ? ' negativ' : '') }, `Stand ${formatEuro(tag.standAbend)}`)),
-      h('ul', { class: 'liste' }, zeilen.map((b) => buchungsZeile(b, katName, kontoName)))));
+    // Tag nur mit Umbuchungen: samt Tageszeile ausblendbar (D76)
+    auswahl.push({ tag, zeilen, nurUmbuchungen: zeilen.every((z) => istUmbuchung(z.buchung)) });
   }
+  const umbuchungen = auswahl.reduce((s, t) => s + t.zeilen.filter((z) => istUmbuchung(z.buchung)).length, 0);
 
-  const umschalten = m.anzahl > MAX_BUCHUNGEN && h('div', { class: 'mehr' },
+  const tagesKopf = (tag) => h('div', { class: 'tag-kopf' },
+    h('span', {}, formatTag(tag.datum)),
+    h('span', { class: 'tag-stand' + (tag.standAbend < 0 ? ' negativ' : '') }, `Stand ${formatEuro(tag.standAbend)}`));
+
+  // Am Handy: Tageszeilen mit einzeiligen Buchungen (D75/D76)
+  const tage = auswahl.map(({ tag, zeilen, nurUmbuchungen }) => h('div', { class: 'tag' + (nurUmbuchungen ? ' ub-ausblendbar' : '') },
+    tagesKopf(tag),
+    h('ul', { class: 'liste' }, zeilen.map((z) => buchungsZeile(z.buchung, katName, kontoName)))));
+
+  const umschalten = anzahl > MAX_BUCHUNGEN && h('div', { class: 'mehr' },
     h('button', {
       type: 'button',
       class: 'knopf knopf-klein',
@@ -307,21 +311,24 @@ function buchungsliste(m, konto, konten, kategorien) {
       },
     }, alle
       ? `Nur die letzten ${MAX_BUCHUNGEN} anzeigen`
-      : `Alle ${m.anzahl} Buchungen von ${formatMonat(...monatVon(m.erster))} anzeigen`));
+      : `Alle ${anzahl} Buchungen von ${formatMonat(...monatVon(m.erster))} anzeigen`));
 
   return h('section', { class: 'bereich buchungen' },
     h('div', { class: 'tag-kopf liste-kopf' },
-      h('span', {}, alle || m.anzahl <= MAX_BUCHUNGEN ? `${m.anzahl} Buchungen` : `Letzte ${MAX_BUCHUNGEN} von ${m.anzahl} Buchungen`),
+      h('span', {}, alle || anzahl <= MAX_BUCHUNGEN
+        ? (anzahl === 1 ? '1 Buchung' : `${anzahl} Buchungen`)
+        : `Letzte ${MAX_BUCHUNGEN} von ${anzahl} Buchungen`),
       umbuchungKnopf(umbuchungen)),
-    // Am Handy: Tageszeilen mit einzeiligen Buchungen (D75/D76); am PC: Tabelle wie "Alle Buchungen" (D78)
+    anzahl === 0 && h('p', { class: 'hinweis' }, 'In diesem Monat gibt es nur Umbuchungen.'),
     h('div', { class: 'nur-handy' }, tage),
-    kontoTabelle(gezeigt, katName, kontoName),
+    // Am PC: Tabelle wie "Alle Buchungen" mit Tageszeilen (D78/D79)
+    kontoTabelle(auswahl, tagesKopf, katName, kontoName),
     umschalten,
   );
 }
 
-/** Tabelle der Buchungen eines Kontos am PC (D78): neueste oben, Stand nach jeder Buchung */
-function kontoTabelle(gezeigt, katName, kontoName) {
+/** Tabelle der Buchungen eines Kontos am PC (D78/D79): neueste oben, Tageszeilen mit Tagesstand, Stand nach jeder Buchung */
+function kontoTabelle(auswahl, tagesKopf, katName, kontoName) {
   const spalten = [['datum', 'Datum'], ['partner', 'Empfänger/Absender'], ['kategorie', 'Kategorie'], ['notiz', 'Notiz'], ['betrag', 'Betrag'], ['stand', 'Stand']];
   const zeile = ({ buchung: b, stand }) => {
     const wirkung = wirkungCent(b);
@@ -351,7 +358,10 @@ function kontoTabelle(gezeigt, katName, kontoName) {
   return h('div', { class: 'btab btab-konto nur-pc', role: 'table', 'aria-label': 'Buchungen dieses Monats' },
     h('div', { class: 'btab-kopf', role: 'row' },
       spalten.map(([feld, text]) => h('span', { class: `btab-sort btab-fest btab-${feld}`, role: 'columnheader' }, text))),
-    h('ul', { class: 'btab-liste', role: 'rowgroup' }, gezeigt.map(zeile)));
+    h('ul', { class: 'btab-liste', role: 'rowgroup' }, auswahl.flatMap(({ tag, zeilen, nurUmbuchungen }) => [
+      h('li', { class: 'btab-tag' + (nurUmbuchungen ? ' ub-ausblendbar' : ''), role: 'row' }, tagesKopf(tag)),
+      ...zeilen.map(zeile),
+    ])));
 }
 
 function buchungsZeile(b, katName, kontoName) {

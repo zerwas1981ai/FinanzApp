@@ -1241,11 +1241,9 @@ body.gesperrt .kopf, body.gesperrt main, body.gesperrt .fab, body.gesperrt #neue
 }
 
 /* Handy-Optik der Übersicht (D75) – nur unter 768 px */
-.zl-mehr-reihe { display: none; }
-@media (max-width: 767px) {
-  .zukunft:not(.alle-jahre) .zl-spaet { display: none; }
-  .zl-mehr-reihe { display: flex; justify-content: center; padding: 10px 0 2px; }
-}
+/* Zukunft bis 2050: laufendes + 3 Folgejahre, Rest per Knopf (D75 Handy, D79 auch am PC) */
+.zukunft:not(.alle-jahre) .zl-spaet { display: none; }
+.zl-mehr-reihe { display: flex; justify-content: center; padding: 10px 0 2px; }
 
 /* Umbuchungen ausblendbar (D76 Handy, D78 auch am PC) */
 .ub-knopf { display: inline-flex; }
@@ -1273,4 +1271,9 @@ body:not(.umbuchungen-sichtbar) .ub-ausblendbar { display: none; }
   .nur-handy { display: block; }
   .nur-pc { display: none !important; }
 }
+
+/* Übersicht am PC: Tageszeilen mit Tagesstand in der Tabelle (D79) */
+.btab-konto .btab-tag .tag-kopf { padding: 10px 8px 4px; }
+.btab-konto .btab-liste > li:nth-child(even) .btab-zeile { background: none; }
+.btab-konto .btab-liste > li.btab-tag + li { border-top: none; }
 

@@ -9,7 +9,7 @@ import { jahresZeilen } from '../prognose.js';
 
 // Welche Jahre und Monate sind aufgeklappt? Bleibt beim Neuzeichnen erhalten.
 const offen = new Set();
-// Am Handy (D75): Bei welchen Zeitleisten sind die späteren Jahre eingeblendet?
+// Bei welchen Zeitleisten sind die späteren Jahre eingeblendet? (D75 Handy, D79 auch am PC)
 const spaeteJahre = new Set();
 const SICHTBARE_JAHRE = 3; // nach dem laufenden Jahr
 
@@ -30,7 +30,7 @@ export function zeitleisteBereich(zeilen, schluessel, beiKlick = null) {
     ? jahre.shift()
     : null; // Rest des laufenden Jahres (falls der nächste Monat nicht schon Januar ist)
 
-  // Am Handy nur das laufende und die nächsten 3 Jahre; der Rest bis 2050 auf Knopfdruck
+  // Nur das laufende und die nächsten 3 Jahre; der Rest bis 2050 auf Knopfdruck
   const frueh = jahre.slice(0, SICHTBARE_JAHRE);
   const spaet = jahre.slice(SICHTBARE_JAHRE);
   const bereich = h('section', { class: 'bereich zukunft' + (spaeteJahre.has(schluessel) ? ' alle-jahre' : ''), 'aria-labelledby': `titel-zukunft-${schluessel}` });

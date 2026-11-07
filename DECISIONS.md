@@ -1227,3 +1227,16 @@ Belege unbedingt (eigener Drive-Ordner), Anzeige nach Jahren mit Summen*
   Budgets sieht man weiter unter „Noch erwartet“ und in den Budgethinweisen). Die früher
   gespeicherte Auswahl (Einstellung „uebersicht“) bleibt unbenutzt liegen und stört nicht.
 
+## D79 – Übersicht: 10er-Grenze ohne Umbuchungen, Tageszeilen am PC, Zukunft auch am PC eingeklappt
+*Wunsch des Nutzers*
+
+- **„Letzte 10 Buchungen“:** Umbuchungen zählen nicht mit. Gezeigt werden die letzten zehn echten
+  Buchungen (Einnahmen/Ausgaben); Umbuchungen dazwischen erscheinen nur, wenn sie eingeblendet
+  sind. Auch die Anzahl in der Kopfzeile („Letzte 10 von N Buchungen“) und „Alle N Buchungen
+  anzeigen“ zählen ohne Umbuchungen. Gilt am Handy und am PC.
+- **PC-Tabelle:** Die Tageszeilen mit Datum und Tagesstand stehen wieder als Zwischenzeilen in
+  der Tabelle (ergänzt D78). Ein Tag mit nur Umbuchungen verschwindet samt Tageszeile, solange
+  Umbuchungen ausgeblendet sind. Die Spalte „Stand“ je Buchung bleibt.
+- **Zukunft bis 2050:** auch am PC nur Rest des laufenden Jahres plus die nächsten drei Jahre;
+  die übrigen Jahre bis 2050 per Knopf „Weitere Jahre bis 2050 anzeigen“ (wie D75 am Handy).
+
