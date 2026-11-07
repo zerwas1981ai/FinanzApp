@@ -163,7 +163,7 @@ export async function ladeTestdaten() {
   };
   const budgets = [
     budget('Lebensmittel', giro, 15000), // Ist ca. 222 € → deutlich drüber → Hinweis
-    budget('Freizeit', kredit, 10000), // Ist ca. 59–83 € → deutlich drunter → Hinweis
+    budget('Freizeit', kredit, 10000), // Ist auf der Kreditkarte ca. 59 € → deutlich drunter → Hinweis (D85: Giro zählt nicht)
     budget('Mobilität', giro, 6000), // Ist 58 € → knapp drunter → kein Hinweis
     budget('Wohnen', giro, 110000), // Ist ca. 1.075 € → knapp drunter → kein Hinweis
   ];

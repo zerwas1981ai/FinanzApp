@@ -1312,3 +1312,22 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
 - Sie wird wie alle Daten über Google Drive abgeglichen (gilt also auf PC und Handy). Ändert man
   sie gleichzeitig auf zwei Geräten, fragt der Abgleich wie bei jedem Widerspruch nach.
 
+## D85 – Budgets gelten je Konto
+*Wunsch des Nutzers; ersetzt in D34 „Belastetes Konto“ die Regel, dass alle Konten das Budget verbrauchen*
+
+- Ein Budget gilt für **eine Hauptkategorie auf einem Konto** und einen Monat. Verbraucht wird es
+  nur von Ausgaben auf diesem Konto: echte Buchungen, offene wiederkehrende Buchungen und (in der
+  Zukunft) geplante Einmalbuchungen. Projektausgaben zählen weiter nicht (D52).
+- **Konto ohne eigenes Budget** (Vorschlag angenommen): Eine Ausgabe dort zählt gegen kein Budget –
+  sie ist eine normale Ausgabe im Kontostand und in der Prognose. Wer auch dieses Konto im Blick
+  haben will, legt dort ein eigenes Budget an.
+- Pro Hauptkategorie ist jetzt **je Konto** ein wiederkehrendes Budget erlaubt
+  (z. B. Lebensmittel: Giro 400 €, Kreditkarte 100 €). Doppelt auf demselben Konto bleibt gesperrt.
+- **Budgethinweise je Konto:** Die Prüfung „N Monate in Folge über/unter Budget“ läuft je Konto und
+  Kategorie; die Karte nennt das Konto („Lebensmittel (Giro)“). „Übernehmen“ ändert das Budget
+  genau dieses Kontos. Entscheidungen (übernommen/abgelehnt/später) speichern das Konto mit; ältere
+  Entscheidungen ohne Konto gelten für alle Konten der Kategorie, bis sie auslaufen.
+- In der Zeitleiste trägt ein Budgetposten das Konto im Namen, wenn die Kategorie auf mehreren
+  Konten ein Budget hat. „Nur diesen Monat ändern“ trifft das Budget des richtigen Kontos.
+- Keine neue Datenversion nötig: Jedes Budget hatte schon ein Konto (D34).
+

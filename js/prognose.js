@@ -66,14 +66,17 @@ export function betragAm(stufen, schluessel) {
 /**
  * Budget einer Hauptkategorie für einen Monat ("JJJJ-MM").
  * Wiederkehrendes Budget (mit Stufen) + alle einmaligen Budgets dieses Monats.
- * kontoId: belastetes Konto – das des wiederkehrenden Budgets, sonst des einmaligen.
+ * Mit nurKonto: nur die Budgets dieses Kontos (D85: Budgets gelten je Konto).
+ * Ohne nurKonto: alle Konten zusammen (nur für Summen in der Anzeige).
+ * kontoId im Ergebnis: das des wiederkehrenden Budgets, sonst des einmaligen.
  */
-export function budgetFuerMonat(budgets, kategorieId, monat) {
+export function budgetFuerMonat(budgets, kategorieId, monat, nurKonto) {
   let betragCent = 0;
   let kontoId = null;
   let vorhanden = false;
   for (const b of budgets) {
     if (b.kategorieId !== kategorieId) continue;
+    if (nurKonto !== undefined && b.kontoId !== nurKonto) continue;
     if (b.typ === 'einmalig') {
       if (b.monat !== monat) continue;
       betragCent += b.betragCent;
@@ -88,6 +91,16 @@ export function budgetFuerMonat(budgets, kategorieId, monat) {
     }
   }
   return { betragCent, kontoId, vorhanden };
+}
+
+/** Schlüssel für „Hauptkategorie auf einem Konto“ (D85) */
+export const budgetSchluessel = (kontoId, kategorieId) => `${kontoId}|${kategorieId}`;
+
+/** Alle Paare aus Konto und Hauptkategorie, für die es ein Budget gibt (D85) */
+export function budgetPaare(budgets) {
+  const paare = new Map();
+  for (const b of budgets) paare.set(budgetSchluessel(b.kontoId, b.kategorieId), { kontoId: b.kontoId, kategorieId: b.kategorieId });
+  return [...paare.values()];
 }
 
 /* ======================= Wiederkehrende Buchungen ======================= */
@@ -208,18 +221,20 @@ export function faelligListe(daten, heute) {
 /* ======================= Monatsprognose ======================= */
 
 /**
- * Ausgaben je Hauptkategorie in einem Monat ("JJJJ-MM"), nur echte Ausgaben –
- * das ist der Budgetverbrauch. Projektbuchungen zählen NICHT gegen das
- * Monatsbudget (D52), im Kontostand natürlich schon.
+ * Ausgaben je Konto und Hauptkategorie in einem Monat ("JJJJ-MM"), nur echte Ausgaben –
+ * das ist der Budgetverbrauch. Schlüssel: budgetSchluessel(kontoId, hauptId), denn ein
+ * Budget wird nur von Ausgaben auf seinem eigenen Konto verbraucht (D85).
+ * Projektbuchungen zählen NICHT gegen das Monatsbudget (D52), im Kontostand natürlich schon.
  */
-export function ausgabenJeHauptkategorie(buchungen, kategorien, monat) {
+export function ausgabenJeKontoUndKategorie(buchungen, kategorien, monat) {
   const kat = new Map(kategorien.map((k) => [k.id, k]));
   const summe = new Map();
   for (const b of buchungen) {
     if (!istAktiv(b) || b.art !== 'ausgabe' || b.projektId || b.datum.slice(0, 7) !== monat) continue;
     const hId = kat.get(b.kategorieId)?.elternId;
     if (!hId) continue;
-    summe.set(hId, (summe.get(hId) ?? 0) + b.betragCent);
+    const s = budgetSchluessel(b.kontoId, hId);
+    summe.set(s, (summe.get(s) ?? 0) + b.betragCent);
   }
   return summe;
 }
@@ -261,9 +276,9 @@ export function kennzahlKategorien(einstellungen, kategorien, summen) {
 }
 
 /**
- * Prognose für den laufenden Monat (Regeln aus CLAUDE.md, Entscheidungen D35):
- * - Je Hauptkategorie mit Budget: Prognose = das Höhere aus Budget und
- *   (Ist + offene wiederkehrende Ausgaben). Ohne Budget: Ist + offene.
+ * Prognose für den laufenden Monat (Regeln aus CLAUDE.md, Entscheidungen D35, D85):
+ * - Je Konto und Hauptkategorie mit Budget: Prognose = das Höhere aus Budget und
+ *   (Ist + offene wiederkehrende Ausgaben – beides nur auf diesem Konto). Ohne Budget: Ist + offene.
  *   Also: echte Buchungen + offener Budgetrest, mindestens aber die echten Buchungen.
  * - Je Konto: Stand am Monatsende aus echten Buchungen
  *   + Wirkung offener wiederkehrender Termine (inkl. überfälliger aus dem Vormonat)
@@ -286,31 +301,33 @@ export function monatsprognose(daten, heute) {
     else if (b.art === 'ausgabe') ausgaben += b.betragCent;
   }
 
-  const istJe = ausgabenJeHauptkategorie(buchungen, kategorien, monat);
+  const istJe = ausgabenJeKontoUndKategorie(buchungen, kategorien, monat);
   const offen = offeneTermine(daten, heute, ende);
   const offenJe = new Map();
   for (const t of offen) {
     if (t.wiederkehrend.art !== 'ausgabe' || t.wiederkehrend.projektId || t.datum < erster) continue;
     const hId = kat.get(t.wiederkehrend.kategorieId)?.elternId;
-    if (hId) offenJe.set(hId, (offenJe.get(hId) ?? 0) + t.betragCent);
+    if (!hId) continue;
+    const s = budgetSchluessel(t.wiederkehrend.kontoId, hId);
+    offenJe.set(s, (offenJe.get(s) ?? 0) + t.betragCent);
   }
 
-  // Kategorien: alle Ausgaben-Hauptkategorien mit Ist, Offenem oder Budget
-  const ids = new Set([...istJe.keys(), ...offenJe.keys(), ...budgets.map((b) => b.kategorieId)]);
+  // Zeilen je Konto und Ausgaben-Hauptkategorie mit Ist, Offenem oder Budget (D85)
+  const schluessel = new Set([...istJe.keys(), ...offenJe.keys(), ...budgets.map((b) => budgetSchluessel(b.kontoId, b.kategorieId))]);
   const kategorieZeilen = [];
-  for (const id of ids) {
+  for (const s of schluessel) {
+    const [kontoId, id] = s.split('|');
     const hk = kat.get(id);
     if (!hk) continue;
-    const budget = budgetFuerMonat(budgets, id, monat);
-    const ist = istJe.get(id) ?? 0;
-    const offenCent = offenJe.get(id) ?? 0;
+    const budget = budgetFuerMonat(budgets, id, monat, kontoId);
+    const ist = istJe.get(s) ?? 0;
+    const offenCent = offenJe.get(s) ?? 0;
     if (!budget.vorhanden && ist === 0 && offenCent === 0) continue;
     const prognose = budget.vorhanden ? Math.max(budget.betragCent, ist + offenCent) : ist + offenCent;
     const rest = budget.vorhanden ? Math.max(0, budget.betragCent - ist - offenCent) : 0;
     kategorieZeilen.push({
-      id, name: hk.name, ist, offen: offenCent, prognose, rest,
+      id, kontoId, name: hk.name, ist, offen: offenCent, prognose, rest,
       budget: budget.vorhanden ? budget.betragCent : null,
-      budgetKontoId: budget.kontoId,
       auslastung: budget.vorhanden && budget.betragCent > 0 ? ist / budget.betragCent : null,
     });
   }
@@ -326,7 +343,7 @@ export function monatsprognose(daten, heute) {
       .map((t) => ({ ...t, wirkung: terminWirkung(t.wiederkehrend, t.betragCent, k.id) }))
       .filter((t) => t.wirkung !== 0);
     const offenWirkung = termineKonto.reduce((s, t) => s + t.wirkung, 0);
-    const budgetsKonto = kategorieZeilen.filter((z) => z.budget !== null && z.budgetKontoId === k.id);
+    const budgetsKonto = kategorieZeilen.filter((z) => z.budget !== null && z.kontoId === k.id);
     const rest = budgetsKonto.reduce((s, z) => s + z.rest, 0);
     zugeordneterRest += rest;
     jeKonto.set(k.id, {
@@ -364,8 +381,8 @@ export function monatsprognose(daten, heute) {
 /* ======================= Budgethinweise ======================= */
 
 /**
- * Budgethinweise (CLAUDE.md "Budgethinweis", Entscheidung D38):
- * Liegt eine Hauptkategorie in den letzten N abgeschlossenen Monaten JEDES Mal über
+ * Budgethinweise (CLAUDE.md "Budgethinweis", Entscheidungen D38, D85) – je Konto:
+ * Liegt eine Hauptkategorie auf einem Konto in den letzten N abgeschlossenen Monaten JEDES Mal über
  * (bzw. jedes Mal unter) dem Budget und weicht sie im Schnitt um mehr als P % ab,
  * entsteht ein Hinweis mit Vorschlag (Ø der Ist-Werte, auf 10 € gerundet).
  * Unterdrückt wird ein Hinweis, wenn
@@ -375,7 +392,7 @@ export function monatsprognose(daten, heute) {
  * Ergebnis absteigend nach Stärke der Abweichung sortiert.
  */
 export function budgetHinweise(daten, heute) {
-  const { kategorien, buchungen, budgets, hinweise = [], einstellungen = [] } = daten;
+  const { kategorien, buchungen, budgets, konten = [], hinweise = [], einstellungen = [] } = daten;
   const e = einstellungen.find((x) => x.id === 'hinweise') ?? {};
   const n = Math.max(1, Number(e.monate) || 3);
   const schwelle = (Number(e.prozent) || 10) / 100;
@@ -388,13 +405,17 @@ export function budgetHinweise(daten, heute) {
   const erste = buchungen.filter(istAktiv).map((b) => b.datum).sort()[0];
   if (!erste || fenster[0] < erste.slice(0, 7)) return [];
 
-  const istJeMonat = new Map(fenster.map((m) => [m, ausgabenJeHauptkategorie(buchungen, kategorien, m)]));
+  const istJeMonat = new Map(fenster.map((m) => [m, ausgabenJeKontoUndKategorie(buchungen, kategorien, m)]));
+  const kat = new Map(kategorien.map((k) => [k.id, k]));
+  const kontoMap = new Map(konten.map((k) => [k.id, k]));
   const ergebnis = [];
-  for (const hk of kategorien) {
-    if (hk.elternId || hk.art !== 'ausgabe') continue;
+  for (const { kontoId, kategorieId } of budgetPaare(budgets)) {
+    const hk = kat.get(kategorieId);
+    const konto = kontoMap.get(kontoId) ?? null;
+    if (!hk || hk.elternId || hk.art !== 'ausgabe' || konto?.archiviert) continue;
     const zeilen = fenster.map((m) => {
-      const b = budgetFuerMonat(budgets, hk.id, m);
-      return { monat: m, budget: b.vorhanden ? b.betragCent : 0, ist: istJeMonat.get(m).get(hk.id) ?? 0 };
+      const b = budgetFuerMonat(budgets, hk.id, m, kontoId);
+      return { monat: m, budget: b.vorhanden ? b.betragCent : 0, ist: istJeMonat.get(m).get(budgetSchluessel(kontoId, hk.id)) ?? 0 };
     });
     if (zeilen.some((z) => z.budget <= 0)) continue;
 
@@ -405,7 +426,8 @@ export function budgetHinweise(daten, heute) {
     if (!(ueber || unter) || Math.abs(schnitt) <= schwelle) continue;
 
     const bisMonat = fenster.at(-1);
-    const unterdrueckt = hinweise.some((x) => x.kategorieId === hk.id && (
+    // Alte Entscheidungen ohne Konto (vor D85) gelten für alle Konten der Kategorie
+    const unterdrueckt = hinweise.some((x) => x.kategorieId === hk.id && (!x.kontoId || x.kontoId === kontoId) && (
       (x.status === 'spaeter' && heute < x.erinnernAb)
       || ((x.status === 'uebernommen' || x.status === 'abgelehnt') && fenster[0] <= x.bisMonat)));
     if (unterdrueckt) continue;
@@ -413,12 +435,14 @@ export function budgetHinweise(daten, heute) {
     const istSchnitt = zeilen.reduce((s, z) => s + z.ist, 0) / zeilen.length;
     ergebnis.push({
       kategorie: hk,
+      konto,
+      kontoId,
       richtung: ueber ? 'ueber' : 'unter',
       zeilen,
       abweichung: schnitt,
       istSchnittCent: Math.round(istSchnitt),
       vorschlagCent: Math.max(1000, Math.round(istSchnitt / 1000) * 1000),
-      aktuellesBudgetCent: budgetFuerMonat(budgets, hk.id, aktuell).betragCent,
+      aktuellesBudgetCent: budgetFuerMonat(budgets, hk.id, aktuell, kontoId).betragCent,
       bisMonat,
     });
   }
@@ -434,8 +458,8 @@ export const LETZTER_MONAT = '2050-12';
  * daten: bereits auf wirksame Annahmen gefiltert (nurWirksam), mit `wiederkehrende` und `geplant`.
  * Startwert je Konto ist die Prognose zum Ende des laufenden Monats (monatsprognose).
  * Je Monat zählen: echte Buchungen mit Zukunftsdatum, Termine wiederkehrender Buchungen,
- * offene geplante Einmalbuchungen und – je Hauptkategorie mit Budget – der Rest bis zur
- * Budgethöhe (Budget umfasst alles, wie im laufenden Monat; belastet das Budgetkonto).
+ * offene geplante Einmalbuchungen und – je Konto und Hauptkategorie mit Budget – der Rest bis
+ * zur Budgethöhe (verbraucht nur von Ausgaben auf diesem Konto, D85; belastet dieses Konto).
  *
  * Ergebnis: { monate, jeKonto: Map(kontoId → [zeile]), gesamt: [zeile], start }
  * zeile = { monat, einnahmen, ausgaben, umbuchungen, stand, posten: [{ datum, text, wirkung, quelle, ref }] }
@@ -456,6 +480,7 @@ export function zeitleiste(daten, heute, bisMonat = LETZTER_MONAT) {
   const aktiveKonten = konten.filter((k) => !k.archiviert);
   const kontoIds = new Set(aktiveKonten.map((k) => k.id));
   const stichtag = new Map(konten.map((k) => [k.id, k.stichtag]));
+  const kontoName = new Map(konten.map((k) => [k.id, k.name]));
 
   // 1. Alle künftigen Bewegungen einsammeln und nach Monat sortieren
   const bewegungen = new Map(monate.map((m) => [m, []]));
@@ -488,7 +513,10 @@ export function zeitleiste(daten, heute, bisMonat = LETZTER_MONAT) {
       projektId: g.projektId ?? null, ref: { geplant: g },
     });
   }
-  const budgetKategorien = [...new Set(budgets.map((b) => b.kategorieId))];
+  const paare = budgetPaare(budgets);
+  // Kategorien mit Budgets auf mehreren Konten: Konto im Text nennen (Gesamtsicht)
+  const zaehler = new Map();
+  for (const p of paare) zaehler.set(p.kategorieId, (zaehler.get(p.kategorieId) ?? 0) + 1);
 
   // 2. Monat für Monat fortschreiben
   const stand = new Map(aktiveKonten.map((k) => [k.id, start.jeKonto.get(k.id)?.prognose ?? 0]));
@@ -523,23 +551,29 @@ export function zeitleiste(daten, heute, bisMonat = LETZTER_MONAT) {
         z.posten.push(posten);
       }
       // Budgetverbrauch – Projektausgaben laufen am Monatsbudget vorbei (D52)
-      if (x.art === 'ausgabe' && x.hauptId && !x.projektId) istJe.set(x.hauptId, (istJe.get(x.hauptId) ?? 0) + x.betragCent);
+      // und nur auf dem eigenen Konto (D85)
+      if (x.art === 'ausgabe' && x.hauptId && !x.projektId) {
+        const s = budgetSchluessel(x.kontoId, x.hauptId);
+        istJe.set(s, (istJe.get(s) ?? 0) + x.betragCent);
+      }
     }
 
-    for (const id of budgetKategorien) {
-      const b = budgetFuerMonat(budgets, id, m);
+    for (const { kontoId, kategorieId: id } of paare) {
+      const b = budgetFuerMonat(budgets, id, m, kontoId);
       if (!b.vorhanden) continue;
-      const rest = Math.max(0, b.betragCent - (istJe.get(id) ?? 0));
+      const verbraucht = istJe.get(budgetSchluessel(kontoId, id)) ?? 0;
+      const rest = Math.max(0, b.betragCent - verbraucht);
       if (rest === 0) continue;
+      const text = `Budget ${kat.get(id)?.name ?? '?'}` + (zaehler.get(id) > 1 ? ` (${kontoName.get(kontoId) ?? '?'})` : '');
       // ref: für "nur diesen Monat ändern" (Budget, Ist/Verplantes und Rest dieses Monats)
       const posten = {
-        datum: monatsende(`${m}-01`), text: `Budget ${kat.get(id)?.name ?? '?'}`, wirkung: -rest, quelle: 'budget',
+        datum: monatsende(`${m}-01`), text, wirkung: -rest, quelle: 'budget',
         ref: { budget: {
-          kategorieId: id, monat: m, betragCent: b.betragCent, verbrauchtCent: istJe.get(id) ?? 0,
-          einzelBetrag: budgets.some((x) => x.kategorieId === id && (x.ausnahmen ?? []).some((a) => a.monat === m)),
+          kategorieId: id, kontoId, monat: m, betragCent: b.betragCent, verbrauchtCent: verbraucht,
+          einzelBetrag: budgets.some((x) => x.kategorieId === id && x.kontoId === kontoId && (x.ausnahmen ?? []).some((a) => a.monat === m)),
         } },
       };
-      const z = zeilen.get(b.kontoId);
+      const z = zeilen.get(kontoId);
       if (z) {
         z.ausgaben += rest;
         z.posten.push(posten);

@@ -8,7 +8,7 @@ import * as db from '../db.js';
 import { formatEuro, formatDatum, formatMonat, formatProzent, formatTag, heuteIso, istGueltigesDatum } from '../format.js';
 import { dialog, eingabe, toast, datenGeaendert, auswahl } from '../ui.js';
 import { plusMonate, plusTage } from '../prognose.js';
-import { budgetMitVorschlag, haeufigstesKonto, merkeHinweis } from '../annahmen.js';
+import { budgetMitVorschlag, merkeHinweis } from '../annahmen.js';
 import { oeffneBuchungsdialog } from './buchung-dialog.js';
 import { speichereAusnahme, aendereGeplant } from './annahmen.js';
 
@@ -242,8 +242,9 @@ export function hinweisBereich(hinweise, daten) {
     const gleichesBudget = x.zeilen.every((z) => z.budget === x.zeilen[0].budget);
     const verlauf = x.zeilen.map((z) => `${kurzMonat(z.monat)} ${formatEuro(z.ist)}` + (gleichesBudget ? '' : ` (Budget ${formatEuro(z.budget)})`)).join(' · ');
 
-    return h('section', { class: 'bereich hinweiskarte', 'aria-label': `Budgethinweis ${x.kategorie.name}` },
-      h('h2', {}, h('span', { class: 'klein' }, 'Budgethinweis · '), x.kategorie.name),
+    const titel = x.kategorie.name + (x.konto ? ` (${x.konto.name})` : '');
+    return h('section', { class: 'bereich hinweiskarte', 'aria-label': `Budgethinweis ${titel}` },
+      h('h2', {}, h('span', { class: 'klein' }, 'Budgethinweis · '), titel),
       h('p', {},
         `${n} Monate in Folge ${x.richtung === 'ueber' ? 'über' : 'unter'} Budget, im Schnitt um ${prozent}: ${verlauf}` +
         (gleichesBudget ? ` bei ${formatEuro(x.zeilen[0].budget)} Budget.` : '.')),
@@ -257,13 +258,11 @@ export function hinweisBereich(hinweise, daten) {
           class: 'knopf knopf-primaer',
           onclick: async () => {
             const budgets = await db.alle('budgets');
-            const kontoId = budgets.find((b) => b.typ === 'wiederkehrend' && b.kategorieId === x.kategorie.id)?.kontoId
-              ?? haeufigstesKonto(x.kategorie.id, daten.kategorien, daten.buchungen, daten.konten);
             await db.speichere('budgets', budgetMitVorschlag(budgets, {
-              kategorieId: x.kategorie.id, abMonat: ab.select.value, betragCent: x.vorschlagCent, kontoId,
+              kategorieId: x.kategorie.id, abMonat: ab.select.value, betragCent: x.vorschlagCent, kontoId: x.kontoId,
             }));
             await merkeHinweis(x, 'uebernommen');
-            toast(`Budget ${x.kategorie.name} ab ${monatText(ab.select.value)}: ${formatEuro(x.vorschlagCent)}`);
+            toast(`Budget ${titel} ab ${monatText(ab.select.value)}: ${formatEuro(x.vorschlagCent)}`);
             datenGeaendert();
           },
         }, 'Übernehmen'),

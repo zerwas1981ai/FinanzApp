@@ -38,7 +38,7 @@ Oberfläche auf Deutsch, Währung Euro, deutsches Datums- und Zahlenformat.
   möglich, PDF/JPG), Status
 - Umbuchung: zwei verknüpfte Buchungen (Abgang Konto A, Zugang Konto B).
   Zählt in Auswertungen NICHT als Einnahme oder Ausgabe.
-- Budget: pro Hauptkategorie, wiederkehrend oder einmalig
+- Budget: pro Hauptkategorie und Konto, wiederkehrend oder einmalig (D85)
 - Wiederkehrende Buchung: Intervall (monatlich/vierteljährlich/jährlich),
   Start, optional Ende, Wertänderungen ab Datum, einzelne Monate
   überspringen oder verschieben
@@ -75,13 +75,15 @@ Oberfläche auf Deutsch, Währung Euro, deutsches Datums- und Zahlenformat.
 
 ## Rechenlogik
 - Zukunftsmonate werden bei jedem Öffnen berechnet, nicht gespeichert.
-- Budget: Es gilt pro Hauptkategorie. Buchungen auf Unterkategorien
-  verbrauchen es. Nicht verbrauchter Rest verfällt am Monatsende.
+- Budget: Es gilt pro Hauptkategorie, Konto und Monat. Nur Buchungen
+  (echte, wiederkehrende, geplante) auf Unterkategorien auf DIESEM Konto
+  verbrauchen es; Ausgaben auf Konten ohne eigenes Budget zählen gegen kein
+  Budget (D85). Nicht verbrauchter Rest verfällt am Monatsende.
 - Zukunft: Das Budget wirkt wie eine wiederkehrende Ausgabe in der vom
   Nutzer vorgegebenen Höhe.
 - Laufender Monat: Prognose = echte Buchungen bisher + noch offener
   Budgetrest, mindestens aber die echten Buchungen.
-- Budgethinweis: Wenn eine Hauptkategorie 3 Monate in Folge über oder unter
+- Budgethinweis (je Konto, D85): Wenn eine Hauptkategorie auf einem Konto 3 Monate in Folge über oder unter
   dem Budget liegt (Durchschnittsabweichung mehr als 10 %, beides einstellbar),
   erscheint eine ruhige Hinweiskarte (kein Pop-up) mit Zahlen und einem
   Vorschlag zur Anpassung. Nutzer wählt: übernehmen (ab welchem Monat),

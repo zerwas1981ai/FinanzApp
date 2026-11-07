@@ -73,8 +73,9 @@ export function baueBudget(eingabe, { kategorien, budgets, alt = null, jetzt = n
   if (!istMonat(eingabe.startMonat)) throw new Error('Bitte den Startmonat wählen.');
   if (eingabe.endMonat && !istMonat(eingabe.endMonat)) throw new Error('Der Endmonat ist ungültig.');
   if (eingabe.endMonat && eingabe.endMonat < eingabe.startMonat) throw new Error('Der Endmonat liegt vor dem Startmonat.');
-  if (budgets.some((b) => b.id !== basis.id && b.typ === 'wiederkehrend' && b.kategorieId === hk.id)) {
-    throw new Error(`Für „${hk.name}“ gibt es schon ein wiederkehrendes Budget. Ändere dort den Betrag ab einem Monat.`);
+  // Je Konto ein wiederkehrendes Budget pro Hauptkategorie (D85)
+  if (budgets.some((b) => b.id !== basis.id && b.typ === 'wiederkehrend' && b.kategorieId === hk.id && b.kontoId === basis.kontoId)) {
+    throw new Error(`Für „${hk.name}“ gibt es auf diesem Konto schon ein wiederkehrendes Budget. Ändere dort den Betrag ab einem Monat.`);
   }
   // Die erste Stufe beginnt immer mit dem Startmonat
   const stufen = [...eingabe.stufen];
@@ -315,11 +316,11 @@ export function budgetMitMonatsAusnahme(budget, monat, betragCent) {
 
 /**
  * Übernimmt einen Budgetvorschlag ab einem Monat: beim wiederkehrenden Budget der
- * Kategorie kommt eine Stufe dazu (gleicher Monat wird ersetzt). Gibt es keins,
+ * Kategorie auf diesem Konto (D85) kommt eine Stufe dazu (gleicher Monat wird ersetzt). Gibt es keins,
  * entsteht ein neues wiederkehrendes Budget ab diesem Monat.
  */
 export function budgetMitVorschlag(budgets, { kategorieId, abMonat, betragCent, kontoId }, jetzt = new Date().toISOString()) {
-  const vorhanden = budgets.find((b) => b.typ === 'wiederkehrend' && b.kategorieId === kategorieId);
+  const vorhanden = budgets.find((b) => b.typ === 'wiederkehrend' && b.kategorieId === kategorieId && b.kontoId === kontoId);
   if (!vorhanden) {
     return {
       id: crypto.randomUUID(), kategorieId, kontoId, typ: 'wiederkehrend', notiz: '',
@@ -357,6 +358,7 @@ export async function merkeHinweis(hinweis, status, erinnernAb = null) {
   await db.speichere('hinweise', {
     id: crypto.randomUUID(),
     kategorieId: hinweis.kategorie.id,
+    kontoId: hinweis.kontoId ?? null, // Hinweise gelten je Konto (D85)
     bisMonat: hinweis.bisMonat,
     status, // uebernommen | abgelehnt | spaeter
     erinnernAb,

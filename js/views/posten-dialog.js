@@ -84,7 +84,8 @@ function terminAendern(posten) {
 function budgetAendern(info, daten) {
   const { kategorieId, monat } = info;
   const name = daten.kategorien.find((k) => k.id === kategorieId)?.name ?? '?';
-  const passend = (daten.budgets ?? []).filter((b) => b.kategorieId === kategorieId);
+  // Nur Budgets dieses Kontos (D85)
+  const passend = (daten.budgets ?? []).filter((b) => b.kategorieId === kategorieId && (!info.kontoId || b.kontoId === info.kontoId));
   const wiederkehrend = passend.find((b) => b.typ === 'wiederkehrend' && b.startMonat <= monat && (!b.endMonat || monat <= b.endMonat));
   const einmalig = passend.filter((b) => b.typ === 'einmalig' && b.monat === monat);
   const einmaligSumme = einmalig.reduce((s, b) => s + b.betragCent, 0);

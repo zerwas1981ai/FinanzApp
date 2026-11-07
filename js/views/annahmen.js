@@ -65,6 +65,7 @@ function budgetBereich(daten) {
   const kontoName = new Map(konten.map((k) => [k.id, k.name]));
   const sortiert = [...budgets].sort((a, b) =>
     (kat.get(a.kategorieId)?.name ?? '').localeCompare(kat.get(b.kategorieId)?.name ?? '', 'de')
+    || (kontoName.get(a.kontoId) ?? '').localeCompare(kontoName.get(b.kontoId) ?? '', 'de')
     || (a.typ === 'einmalig') - (b.typ === 'einmalig')
     || (a.monat ?? '').localeCompare(b.monat ?? ''));
 
@@ -76,8 +77,8 @@ function budgetBereich(daten) {
       h('h2', { id: 'titel-budgets' }, 'Budgets'),
       h('button', { type: 'button', class: 'knopf knopf-primaer', onclick: () => budgetDialog(null, daten) }, '+ Budget')),
     h('p', { class: 'hinweis' },
-      'Ein Budget gilt je Hauptkategorie und Monat. Alle Buchungen der Unterkategorien verbrauchen es, ' +
-      'ein Rest verfällt am Monatsende. Einmalige Budgets kommen im jeweiligen Monat dazu.'),
+      'Ein Budget gilt je Hauptkategorie, Konto und Monat. Nur Ausgaben der Unterkategorien auf diesem Konto ' +
+      'verbrauchen es, ein Rest verfällt am Monatsende. Einmalige Budgets kommen im jeweiligen Monat dazu.'),
     sortiert.length === 0
       ? h('p', { class: 'leer' }, 'Noch keine Budgets.')
       : h('ul', { class: 'liste' }, sortiert.map((b) => {
@@ -137,7 +138,7 @@ function budgetDialog(budget, daten) {
     label: 'Belastet Konto',
     optionen: aktiveKonten.map((k) => ({ wert: k.id, text: k.name })),
     wert: budget?.kontoId ?? haeufigstesKonto(kat.select.value, kategorien, buchungen, konten),
-    hilfe: 'Von diesem Konto geht der noch offene Budgetrest in der Prognose ab.',
+    hilfe: 'Nur Ausgaben auf diesem Konto verbrauchen das Budget. Der noch offene Rest geht in der Prognose von diesem Konto ab.',
   });
   if (!budget) {
     kat.select.addEventListener('change', () => {
