@@ -126,9 +126,9 @@ export async function zeigeUebersicht(container) {
         summenKarte(konto, m, istAktuellerMonat ? kd : null),
         buchungsliste(m, konto, konten, kategorien),
         istAktuellerMonat && erwartetBereich(kd, daten),
-        istAktuellerMonat && zeitleisteBereich(zlKonto, konto.id, aendern),
-        !istAktuellerMonat && h('p', { class: 'hinweis zentriert' }, 'Die Zukunft bis 2050 steht unter dem aktuellen Monat („Heute“).'),
       ]),
+    // D88: "Zukunft bis 2050" steht unter jedem Monat, auch beim Blättern
+    zeitleisteBereich(zlKonto, konto.id, aendern),
   ].filter(Boolean));
 }
 

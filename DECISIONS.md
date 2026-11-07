@@ -1351,3 +1351,12 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
 - Die Beträge in den einzelnen Zeilen bleiben unverändert (wiederkehrend: der Betrag, der jetzt gilt;
   künftige Änderungen stehen darunter).
 
+## D88 – „Zukunft bis 2050“ unter jedem Monat
+*Wunsch des Nutzers*
+
+- In der Übersicht (einzelnes Konto) steht der Bereich „Zukunft bis 2050“ jetzt unter **jedem**
+  Monat – auch beim Blättern in vergangene oder künftige Monate. Bisher stand er nur unter dem
+  aktuellen Monat, sonst ein Hinweis „steht unter dem aktuellen Monat“.
+- Inhalt und Startpunkt bleiben gleich: Die Zeitleiste beginnt immer mit dem Monat nach heute,
+  unabhängig vom angezeigten Monat. Aufgeklappte Jahre/Monate bleiben beim Blättern aufgeklappt.
+
