@@ -1210,3 +1210,20 @@ Belege unbedingt (eigener Drive-Ordner), Anzeige nach Jahren mit Summen*
 - Summen, Zähler, Analyse und CSV-Export bleiben unverändert (sie enthalten die Umbuchungen wie
   bisher; Umbuchungen zählen ohnehin nicht als Einnahme oder Ausgabe).
 
+## D78 – Übersicht am PC als Tabelle, Umbuchungen überall ausblendbar, ohne drei Kategorien
+*Wunsch des Nutzers: Tabelle mit Stand-Spalte, ohne Sortieren per Klick, Umbuchungen zunächst aus*
+
+- **Buchungen eines Kontos am PC (ab 768 px):** Tabelle wie unter „Alle Buchungen“ mit den
+  Spalten Datum · Empfänger/Absender · Kategorie (Haupt › Unter) · Notiz · Betrag · **Stand**.
+  „Stand“ ist der Kontostand nach dieser Buchung. Keine Tageszeilen mehr, neueste Buchung oben,
+  immer nach Datum (kein Sortieren per Spaltenkopf – sonst passte der Stand nicht zur
+  Reihenfolge). Antippen öffnet die Buchung. Am Handy bleibt die Ansicht aus D75/D76.
+- **Umbuchungen:** jetzt auch am PC in der Übersicht (Buchungen und „Noch erwartet“) und unter
+  „Alle Buchungen“ zunächst ausgeblendet, mit dem Knopf „Umbuchungen einblenden (n)“. Ersetzt
+  „am PC unverändert“ aus D76/D77. Der Stand rechnet die ausgeblendeten Umbuchungen mit; Summen,
+  Analyse und CSV-Export bleiben unverändert.
+- **Kennzahlen oben:** Die drei wählbaren Kategorien entfallen auch am PC (ersetzt die in
+  CLAUDE.md genannte „Budgetauslastung der wichtigsten Kategorien“ in der Kennzahlen-Leiste;
+  Budgets sieht man weiter unter „Noch erwartet“ und in den Budgethinweisen). Die früher
+  gespeicherte Auswahl (Einstellung „uebersicht“) bleibt unbenutzt liegen und stört nicht.
+

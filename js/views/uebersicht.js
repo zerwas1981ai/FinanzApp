@@ -8,7 +8,7 @@ import {
   formatEuro, formatDatum, formatMonat, formatTag, heuteIso, parseEuro,
   isoMonatsanfang, naechsterMonat, vorigerMonat, istGueltigesDatum,
 } from '../format.js';
-import { monatsuebersicht, kontostand, vorgemerktBis } from '../rechnen.js';
+import { monatsuebersicht, kontostand, vorgemerktBis, wirkungCent } from '../rechnen.js';
 import { dialog, eingabe, hinweis, toast, geraet, datenGeaendert } from '../ui.js';
 import { oeffneBuchungsdialog } from './buchung-dialog.js';
 import { faelligListe, budgetHinweise, zeitleiste, nurWirksam, mindestsaldoWarnungen, LETZTER_MONAT } from '../prognose.js';
@@ -274,10 +274,18 @@ function buchungsliste(m, konto, konten, kategorien) {
   const alle = ansicht.alleAnzeigen === schluessel;
   let rest = alle ? Infinity : MAX_BUCHUNGEN;
   const tage = [];
+  const gezeigt = []; // für die Tabelle am PC: { buchung, stand } – neueste zuerst
   let umbuchungen = 0;
   for (const tag of [...m.tage].reverse()) {
     if (rest <= 0) break;
+    // Kontostand nach jeder einzelnen Buchung (rückwärts vom Tagesstand aus gerechnet)
+    let stand = tag.standAbend;
+    for (const b of [...tag.buchungen].reverse()) {
+      gezeigt.push({ buchung: b, stand });
+      stand -= wirkungCent(b);
+    }
     const zeilen = [...tag.buchungen].reverse().slice(0, rest);
+    gezeigt.splice(gezeigt.length - (tag.buchungen.length - zeilen.length));
     rest -= zeilen.length;
     umbuchungen += zeilen.filter((b) => b.art === 'umbuchung').length;
     // Tag nur mit Umbuchungen: am Handy samt Tageszeile ausblendbar (D76)
@@ -305,9 +313,45 @@ function buchungsliste(m, konto, konten, kategorien) {
     h('div', { class: 'tag-kopf liste-kopf' },
       h('span', {}, alle || m.anzahl <= MAX_BUCHUNGEN ? `${m.anzahl} Buchungen` : `Letzte ${MAX_BUCHUNGEN} von ${m.anzahl} Buchungen`),
       umbuchungKnopf(umbuchungen)),
-    tage,
+    // Am Handy: Tageszeilen mit einzeiligen Buchungen (D75/D76); am PC: Tabelle wie "Alle Buchungen" (D78)
+    h('div', { class: 'nur-handy' }, tage),
+    kontoTabelle(gezeigt, katName, kontoName),
     umschalten,
   );
+}
+
+/** Tabelle der Buchungen eines Kontos am PC (D78): neueste oben, Stand nach jeder Buchung */
+function kontoTabelle(gezeigt, katName, kontoName) {
+  const spalten = [['datum', 'Datum'], ['partner', 'Empfänger/Absender'], ['kategorie', 'Kategorie'], ['notiz', 'Notiz'], ['betrag', 'Betrag'], ['stand', 'Stand']];
+  const zeile = ({ buchung: b, stand }) => {
+    const wirkung = wirkungCent(b);
+    let partner;
+    let katText;
+    if (b.art === 'umbuchung') {
+      partner = 'Umbuchung';
+      katText = `${b.richtung === 'ab' ? '→' : '←'} ${kontoName.get(b.gegenkontoId) ?? '?'}`;
+    } else {
+      const unter = katName.get(b.kategorieId);
+      partner = b.partner ?? '';
+      katText = [katName.get(unter?.elternId)?.name, unter?.name ?? 'Unbekannte Kategorie'].filter(Boolean).join(' › ');
+    }
+    return h('li', { role: 'row', class: b.art === 'umbuchung' ? 'ub-ausblendbar' : null },
+      h('button', { type: 'button', class: 'btab-zeile' + (b.art === 'umbuchung' ? ' umbuchung' : ''), onclick: () => oeffneBuchungsdialog(b) },
+        h('span', { class: 'btab-zelle btab-partner', title: partner || null },
+          partner ? h('span', { class: 'btab-partner-name' }, partner) : h('span', { class: 'gedaempft' }, '–'),
+          b.status === 'vorgemerkt' && h('span', { class: 'marke' }, 'vorgemerkt')),
+        h('span', { class: 'btab-unter' },
+          h('span', { class: 'btab-zelle btab-datum' }, formatDatum(b.datum)),
+          h('span', { class: 'btab-zelle btab-kategorie', title: katText }, katText),
+          h('span', { class: 'btab-zelle btab-notiz', title: b.notiz || null }, b.notiz ?? '')),
+        h('span', { class: 'btab-zelle btab-betrag betrag ' + (b.art === 'umbuchung' ? 'gedaempft' : wirkung > 0 ? 'plus' : '') },
+          (wirkung > 0 ? '+' : '') + formatEuro(wirkung)),
+        h('span', { class: 'btab-zelle btab-stand' + (stand < 0 ? ' negativ' : '') }, formatEuro(stand))));
+  };
+  return h('div', { class: 'btab btab-konto nur-pc', role: 'table', 'aria-label': 'Buchungen dieses Monats' },
+    h('div', { class: 'btab-kopf', role: 'row' },
+      spalten.map(([feld, text]) => h('span', { class: `btab-sort btab-fest btab-${feld}`, role: 'columnheader' }, text))),
+    h('ul', { class: 'btab-liste', role: 'rowgroup' }, gezeigt.map(zeile)));
 }
 
 function buchungsZeile(b, katName, kontoName) {
