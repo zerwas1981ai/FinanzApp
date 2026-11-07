@@ -308,23 +308,33 @@ function buchungsliste(m, konto, konten, kategorien) {
 function buchungsZeile(b, katName, kontoName) {
   let titel;
   let unterzeile;
+  // Am Handy schlanker (D75): ohne Kategorie – Empfänger/Absender, sonst Notiz, sonst Unterkategorie
+  let titelHandy;
+  let unterHandy = '';
   if (b.art === 'umbuchung') {
     titel = b.richtung === 'ab' ? `Umbuchung → ${kontoName.get(b.gegenkontoId) ?? '?'}` : `Umbuchung ← ${kontoName.get(b.gegenkontoId) ?? '?'}`;
     unterzeile = b.notiz;
+    titelHandy = titel;
+    unterHandy = b.notiz;
   } else {
     const unter = katName.get(b.kategorieId);
     const haupt = unter && katName.get(unter.elternId);
     // Empfänger/Absender steht immer vor der Kategorie
     titel = [b.partner, unter?.name ?? 'Unbekannte Kategorie'].filter(Boolean).join(' · ');
     unterzeile = [haupt?.name, b.notiz].filter(Boolean).join(' · ');
+    titelHandy = b.partner || b.notiz || unter?.name || 'Unbekannte Kategorie';
+    if (b.partner) unterHandy = b.notiz;
   }
   const wirkung = b.art === 'einnahme' || b.richtung === 'zu' ? b.betragCent : -b.betragCent;
 
   return h('li', {},
     h('button', { type: 'button', class: 'buchung', onclick: () => oeffneBuchungsdialog(b) },
       h('span', { class: 'buchung-text' },
-        h('span', { class: 'buchung-titel' }, titel, b.status === 'vorgemerkt' && h('span', { class: 'marke' }, 'vorgemerkt')),
-        unterzeile && h('span', { class: 'buchung-unter' }, unterzeile)),
+        h('span', { class: 'buchung-titel' },
+          h('span', { class: 'nur-breit' }, titel), h('span', { class: 'nur-schmal' }, titelHandy),
+          b.status === 'vorgemerkt' && h('span', { class: 'marke' }, 'vorgemerkt')),
+        unterzeile && h('span', { class: 'buchung-unter nur-breit' }, unterzeile),
+        unterHandy && h('span', { class: 'buchung-unter nur-schmal' }, unterHandy)),
       h('span', { class: 'betrag ' + (b.art === 'umbuchung' ? 'gedaempft' : wirkung > 0 ? 'plus' : '') },
         (wirkung > 0 ? '+' : '') + formatEuro(wirkung)),
     ));

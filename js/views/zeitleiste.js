@@ -9,6 +9,9 @@ import { jahresZeilen } from '../prognose.js';
 
 // Welche Jahre und Monate sind aufgeklappt? Bleibt beim Neuzeichnen erhalten.
 const offen = new Set();
+// Am Handy (D75): Bei welchen Zeitleisten sind die späteren Jahre eingeblendet?
+const spaeteJahre = new Set();
+const SICHTBARE_JAHRE = 3; // nach dem laufenden Jahr
 
 const QUELLE = { wiederkehrend: 'wiederkehrend', geplant: 'geplant', budget: 'Budget', gebucht: 'gebucht' };
 const monatText = (m) => formatMonat(Number(m.slice(0, 4)), Number(m.slice(5, 7)));
@@ -27,15 +30,37 @@ export function zeitleisteBereich(zeilen, schluessel, beiKlick = null) {
     ? jahre.shift()
     : null; // Rest des laufenden Jahres (falls der nächste Monat nicht schon Januar ist)
 
-  return h('section', { class: 'bereich zukunft', 'aria-labelledby': `titel-zukunft-${schluessel}` },
+  // Am Handy nur das laufende und die nächsten 3 Jahre; der Rest bis 2050 auf Knopfdruck
+  const frueh = jahre.slice(0, SICHTBARE_JAHRE);
+  const spaet = jahre.slice(SICHTBARE_JAHRE);
+  const bereich = h('section', { class: 'bereich zukunft' + (spaeteJahre.has(schluessel) ? ' alle-jahre' : ''), 'aria-labelledby': `titel-zukunft-${schluessel}` });
+  const knopfText = () => (bereich.classList.contains('alle-jahre')
+    ? 'Spätere Jahre ausblenden'
+    : `Weitere Jahre bis ${spaet.at(-1)?.jahr} anzeigen (${spaet.length})`);
+  const mehrKnopf = spaet.length > 0 && h('button', {
+    type: 'button',
+    class: 'knopf knopf-klein zl-mehr',
+    onclick: () => {
+      const an = bereich.classList.toggle('alle-jahre');
+      if (an) spaeteJahre.add(schluessel);
+      else spaeteJahre.delete(schluessel);
+      mehrKnopf.textContent = knopfText();
+    },
+  });
+  if (mehrKnopf) mehrKnopf.textContent = knopfText();
+
+  bereich.append(...[
     h('div', { class: 'bereich-kopf' }, h('h2', { id: `titel-zukunft-${schluessel}` }, 'Zukunft bis 2050')),
     h('p', { class: 'hinweis' },
       'Annahmen aus wiederkehrenden Buchungen, Budgets und geplanten Einmalbuchungen – ohne Prozent-Steigerungen. ' +
       'Zum Aufklappen auf eine Zeile tippen, einen Posten antippen zum Ändern.'),
     h('div', { class: 'zl-kopf' }, h('span', {}, 'Zeitraum'), h('span', {}, 'Veränderung'), h('span', {}, 'Stand am Ende')),
-    aktuellesJahr && aktuellesJahr.monate.map((z) => monatZeile(z, schluessel, beiKlick)),
-    jahre.map((j) => jahrZeile(j, schluessel, beiKlick)),
-  );
+    ...(aktuellesJahr ? aktuellesJahr.monate.map((z) => monatZeile(z, schluessel, beiKlick)) : []),
+    ...frueh.map((j) => jahrZeile(j, schluessel, beiKlick)),
+    spaet.length > 0 && h('div', { class: 'zl-spaet' }, spaet.map((j) => jahrZeile(j, schluessel, beiKlick))),
+    mehrKnopf && h('div', { class: 'zl-mehr-reihe' }, mehrKnopf),
+  ].filter(Boolean));
+  return bereich;
 }
 
 function zahlen(veraenderung, stand) {

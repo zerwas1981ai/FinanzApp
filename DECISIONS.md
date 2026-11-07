@@ -1167,3 +1167,18 @@ Belege unbedingt (eigener Drive-Ordner), Anzeige nach Jahren mit Summen*
 - Testdaten (nur localhost): drei erfundene Einträge (2012, 2018, 2021) und die Test-Buchung
   „Architekturbüro Muster“ mit Häkchen.
 
+## D75 – Schlankere Übersicht am Handy
+*Wunsch des Nutzers – gilt nur am Handy (Bildschirm schmaler als 768 px), am PC bleibt alles gleich*
+
+- **Kennzahlen oben:** Die drei wählbaren Kategorien (Auswahlliste + Betrag + Budget) entfallen.
+  Ihre Auswahl bleibt gespeichert und erscheint am PC weiter.
+- **Buchungen eines Kontos (Monatsansicht):** ohne Kategorie. Oben steht der Empfänger/Absender,
+  ohne Angabe die Notiz, ohne beides ausnahmsweise die Unterkategorie. Darunter nur noch die
+  Notiz (wenn es einen Empfänger/Absender gibt). Die Tageszeilen mit Datum und Tagesstand
+  bleiben (Wunsch des Nutzers), die Reihenfolge bleibt chronologisch nach Buchungsdatum.
+- **Noch erwartet bis Monatsende:** ohne Datum und Kategorie; darunter nur Empfänger/Absender
+  bzw. bei Umbuchungen das Zielkonto. Die Reihenfolge bleibt nach Fälligkeitsdatum.
+- **Zukunft bis 2050:** sichtbar sind der Rest des laufenden Jahres und die nächsten drei Jahre.
+  Die späteren Jahre bis 2050 blendet der Knopf „Weitere Jahre bis 2050 anzeigen“ ein (und
+  wieder aus); die Wahl bleibt erhalten, solange die App offen ist.
+

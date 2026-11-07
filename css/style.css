@@ -1240,3 +1240,11 @@ body.gesperrt .kopf, body.gesperrt main, body.gesperrt .fab, body.gesperrt #neue
   .relevant .btab-kopf { display: none; }
 }
 
+/* Handy-Optik der Übersicht (D75) – nur unter 768 px */
+.zl-mehr-reihe { display: none; }
+@media (max-width: 767px) {
+  .kz-fuss { display: none; }
+  .zukunft:not(.alle-jahre) .zl-spaet { display: none; }
+  .zl-mehr-reihe { display: flex; justify-content: center; padding: 10px 0 2px; }
+}
+

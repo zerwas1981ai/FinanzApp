@@ -54,6 +54,7 @@ export function kennzahlenBereich(p, daten, heute, warnungen = p.warnungen) {
       h('div', { class: 'kz' },
         h('div', { class: 'klein' }, `Ausgaben ${kurzMonat(p.monat)}`),
         h('div', { class: 'kz-wert' }, formatEuro(-p.ausgaben))),
+      // Die drei Kategorien entfallen am Handy (D75, per CSS)
       h('div', { class: 'kz-fuss' }, gewaehlt.map((id, platz) => kategorieKachel(id, platz, gewaehlt, summen, p, daten, heute)))),
   );
 }
@@ -104,14 +105,17 @@ export function erwartetBereich(kd, daten) {
       ? (t.wirkung < 0 ? `Umbuchung → ${kontoName.get(w.gegenkontoId) ?? '?'}` : `Umbuchung ← ${kontoName.get(w.kontoId) ?? '?'}`)
       : (w.partner ? `${w.partner} · ` : '') + `${kat.get(kat.get(w.kategorieId)?.elternId)?.name ?? '?'} › ${kat.get(w.kategorieId)?.name ?? '?'}`;
     const status = t.datum === heute ? 'heute fällig' : t.ueberfaellig ? 'überfällig' : null;
+    // Am Handy (D75): ohne Datum und Kategorie – nur Empfänger/Absender bzw. Umbuchung (Reihenfolge bleibt nach Datum)
+    const zuordnungHandy = w.art === 'umbuchung' ? zuordnung : (w.partner ?? '');
     return h('li', {},
       h('button', { type: 'button', class: 'buchung geplant', onclick: () => terminDialog(t) },
         h('span', { class: 'buchung-text' },
           h('span', { class: 'buchung-titel' },
-            h('span', { class: 'datum-klein' }, formatTag(t.datum)), w.bezeichnung,
+            h('span', { class: 'datum-klein nur-breit' }, formatTag(t.datum)), w.bezeichnung,
             t.quelle === 'geplant' && h('span', { class: 'marke' }, 'einmalig'),
             status && h('span', { class: 'marke' + (t.ueberfaellig ? ' marke-warn' : '') }, status)),
-          h('span', { class: 'buchung-unter' }, zuordnung + (t.verschoben ? ` · verschoben vom ${formatDatum(t.termin)}` : ''))),
+          h('span', { class: 'buchung-unter nur-breit' }, zuordnung + (t.verschoben ? ` · verschoben vom ${formatDatum(t.termin)}` : '')),
+          zuordnungHandy && h('span', { class: 'buchung-unter nur-schmal' }, zuordnungHandy)),
         h('span', { class: 'betrag annahme' + (t.wirkung > 0 ? ' plus' : '') }, mitVorzeichen(t.wirkung))));
   });
 
