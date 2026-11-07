@@ -83,7 +83,7 @@ async function start() {
     zeigeFehler(err);
     return;
   }
-  // App-Sperre (D67): erst nach dem Entsperren etwas anzeigen
+  // App-Login (D83): erst nach dem Anmelden (beim ersten Mal: Passwort festlegen) etwas anzeigen
   await richteSperreEin();
   window.addEventListener('hashchange', () => zeigeTab());
   // Nach dem Speichern irgendwo: aktuellen Tab neu zeichnen, Scrollposition behalten

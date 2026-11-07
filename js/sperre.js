@@ -1,67 +1,51 @@
-// App-Sperre: PIN und – wenn vorhanden – Fingerabdruck/Gesicht bzw. Windows Hello.
-// Siehe DECISIONS.md D67.
+// App-Login (D83, ersetzt die PIN-Sperre aus D67): Passwort für alle Geräte + Passkey je Gerät.
 //
-// Wichtig: Die Sperre ist ein Sichtschutz. Sie verschlüsselt die Daten im Browser nicht.
-// Die Einstellungen liegen NUR auf diesem Gerät (meta "sperre", wird nicht abgeglichen):
-//   { pin: { salz, hash, runden }, credentialId (Base64) | null, minuten }
-// Die PIN selbst wird nie gespeichert, nur ein Hash (PBKDF2-SHA-256 mit Salz).
+// - Das Passwort (genauer: sein Prüfwert) liegt in der Sammlung "einstellungen" (Eintrag "login")
+//   und wird mit Google Drive abgeglichen → gilt auf allen Geräten. Siehe js/login.js.
+// - Nur auf diesem Gerät (meta "sperre", wird nicht abgeglichen):
+//   { minuten, credentialId (Base64) | null } – Sperrzeit und Passkey dieses Geräts.
+// Wichtig: Der Login ist ein Zugangsschutz. Er verschlüsselt die Daten im Browser nicht.
 
 import * as db from './db.js';
+import { LOGIN_ID, baueLogin, passwortStimmt as stimmt } from './login.js';
 
 const SCHLUESSEL = 'sperre';
-const RUNDEN = 150000;
 export const STANDARD_MINUTEN = 5;
 
 const b64 = (bytes) => btoa(String.fromCharCode(...new Uint8Array(bytes)));
 const ausB64 = (text) => Uint8Array.from(atob(text), (c) => c.charCodeAt(0));
 const zufall = (n) => crypto.getRandomValues(new Uint8Array(n));
 
-export const leseSperre = async () => (await db.leseMeta(SCHLUESSEL)) ?? null;
-const schreibe = (wert) => db.schreibeMeta(SCHLUESSEL, wert);
-export const istAktiv = async () => Boolean((await leseSperre())?.pin);
+/** Einstellungen dieses Geräts: { minuten, credentialId } */
+export async function leseSperre() {
+  const s = (await db.leseMeta(SCHLUESSEL)) ?? {};
+  return { minuten: s.minuten ?? STANDARD_MINUTEN, credentialId: s.credentialId ?? null };
+}
+const schreibe = async (aenderung) => db.schreibeMeta(SCHLUESSEL, { ...(await leseSperre()), ...aenderung });
 
-/** PIN prüfen: 4 bis 8 Ziffern */
-export function pruefePin(pin) {
-  if (!/^\d{4,8}$/.test(pin ?? '')) throw new Error('Die PIN muss aus 4 bis 8 Ziffern bestehen.');
+/** Der gemeinsame Login-Eintrag (oder null, wenn noch kein Passwort festgelegt ist) */
+export const leseLogin = async () => {
+  const login = await db.hole('einstellungen', LOGIN_ID);
+  return login?.passwort ? login : null;
+};
+export const istEingerichtet = async () => Boolean(await leseLogin());
+
+/** Passwort festlegen oder ändern – gilt nach dem nächsten Abgleich auf allen Geräten */
+export async function setzePasswort(passwort) {
+  await db.speichere('einstellungen', await baueLogin(passwort, { alt: await leseLogin() }));
 }
 
-async function hashe(pin, salz, runden = RUNDEN) {
-  const schluessel = await crypto.subtle.importKey('raw', new TextEncoder().encode(pin), 'PBKDF2', false, ['deriveBits']);
-  const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: salz, iterations: runden }, schluessel, 256);
-  return b64(bits);
-}
+/** Einen Login-Eintrag übernehmen (z. B. aus Google Drive) */
+export const uebernimmLogin = (login) => db.speichere('einstellungen', login);
 
-/** PIN festlegen oder ändern (Fingerabdruck-Einstellung und Zeit bleiben) */
-export async function setzePin(pin) {
-  pruefePin(pin);
-  const salz = zufall(16);
-  const alt = await leseSperre();
-  await schreibe({
-    minuten: STANDARD_MINUTEN, credentialId: null, ...alt,
-    pin: { salz: b64(salz), hash: await hashe(pin, salz), runden: RUNDEN },
-  });
-}
+export const passwortStimmt = async (passwort) => stimmt(passwort, await leseLogin());
 
-export async function pinStimmt(pin) {
-  const s = await leseSperre();
-  if (!s?.pin) return true;
-  return (await hashe(pin, ausB64(s.pin.salz), s.pin.runden)) === s.pin.hash;
-}
+export const setzeMinuten = (minuten) => schreibe({ minuten });
 
-export async function setzeMinuten(minuten) {
-  const s = await leseSperre();
-  if (s) await schreibe({ ...s, minuten });
-}
-
-/** Sperre komplett ausschalten (vorher PIN prüfen) */
-export async function ausschalten() {
-  await schreibe(null);
-}
-
-/* ---------- Fingerabdruck / Gesicht / Windows Hello (WebAuthn) ---------- */
+/* ---------- Passkey: Fingerabdruck / Gesicht / Windows Hello (WebAuthn) ---------- */
 
 /** Gibt es auf diesem Gerät eine eingebaute Entsperrung (Fingerabdruck, Gesicht, Windows Hello)? */
-export async function geraeteEntsperrungMoeglich() {
+export async function passkeyMoeglich() {
   try {
     return Boolean(window.PublicKeyCredential
       && await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable());
@@ -70,36 +54,32 @@ export async function geraeteEntsperrungMoeglich() {
   }
 }
 
-/** Geräteentsperrung einrichten: legt einen Schlüssel im Gerät an (nur für diese App/Adresse) */
-export async function geraeteEntsperrungEinrichten() {
+/** Passkey für dieses Gerät anlegen (nur für diese App/Adresse) */
+export async function passkeyEinrichten() {
   const cred = await navigator.credentials.create({
     publicKey: {
       challenge: zufall(32),
       rp: { name: 'Finanzen' },
-      user: { id: zufall(16), name: 'finanzen', displayName: 'Finanzen' },
+      user: { id: zufall(16), name: 'Finanzen', displayName: 'Finanzen' },
       pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
-      authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'discouraged' },
+      authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'preferred' },
       timeout: 60000,
       attestation: 'none',
     },
   });
-  if (!cred) throw new Error('Die Geräteentsperrung wurde nicht eingerichtet.');
-  const s = await leseSperre();
-  await schreibe({ ...s, credentialId: b64(cred.rawId) });
+  if (!cred) throw new Error('Der Passkey wurde nicht eingerichtet.');
+  await schreibe({ credentialId: b64(cred.rawId) });
 }
 
-export async function geraeteEntsperrungEntfernen() {
-  const s = await leseSperre();
-  if (s) await schreibe({ ...s, credentialId: null });
-}
+export const passkeyEntfernen = () => schreibe({ credentialId: null });
 
 /**
- * Mit Fingerabdruck/Gesicht/Windows Hello entsperren. Das Gerät prüft den Nutzer
+ * Mit dem Passkey dieses Geräts anmelden. Das Gerät prüft den Nutzer
  * (userVerification "required") – kommt eine Antwort zurück, ist er bestätigt.
  */
-export async function mitGeraetEntsperren() {
+export async function mitPasskeyAnmelden() {
   const s = await leseSperre();
-  if (!s?.credentialId) return false;
+  if (!s.credentialId) return false;
   const antwort = await navigator.credentials.get({
     publicKey: {
       challenge: zufall(32),
@@ -116,7 +96,7 @@ export async function mitGeraetEntsperren() {
 let fehlversuche = 0;
 let gesperrtBis = 0;
 
-/** Nach 5 falschen PINs wartet die App 30 s, danach jeweils doppelt so lange */
+/** Nach 5 falschen Passwörtern wartet die App 30 s, danach jeweils doppelt so lange */
 export function versuchErlaubt() {
   return Date.now() >= gesperrtBis ? 0 : Math.ceil((gesperrtBis - Date.now()) / 1000);
 }

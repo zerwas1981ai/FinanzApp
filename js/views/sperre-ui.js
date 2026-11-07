@@ -1,65 +1,86 @@
-// App-Sperre: Sperrbildschirm und Einstellungen in den Stammdaten. Siehe DECISIONS.md D67.
+// App-Login (D83): Anmeldebildschirm, Einrichten beim ersten Start, "Passwort vergessen" und der
+// Bereich in den Stammdaten. Ersetzt die PIN-Sperre aus D67.
 
 import { h } from '../dom.js';
-import * as db from '../db.js';
-import { dialog, frage, toast, eingabe, auswahl, geraet } from '../ui.js';
+import { dialog, toast, eingabe, auswahl, geraet } from '../ui.js';
 import * as sperre from '../sperre.js';
+import { pruefePasswort, loginAusStand, MIN_LAENGE } from '../login.js';
+import * as drive from '../sync/drive.js';
+import { clientId, setzeClientId } from '../sync/abgleich.js';
 
-let offen = null; // Promise, solange der Sperrbildschirm zu sehen ist
+let offen = null; // Promise, solange der Anmeldebildschirm zu sehen ist
 let imHintergrundSeit = null;
 
-/** Beim App-Start: gesperrt anzeigen (falls eingerichtet) und auf das Entsperren warten */
+/** Beim App-Start: anmelden (bzw. beim ersten Mal das Passwort festlegen) und erst dann weiter */
 export async function richteSperreEin() {
   document.addEventListener('visibilitychange', async () => {
     if (document.visibilityState === 'hidden') {
       imHintergrundSeit = Date.now();
       return;
     }
-    const s = await sperre.leseSperre();
-    if (!s?.pin || imHintergrundSeit === null) return;
-    const minuten = s.minuten ?? sperre.STANDARD_MINUTEN;
+    if (imHintergrundSeit === null || !(await sperre.istEingerichtet())) return;
+    const { minuten } = await sperre.leseSperre();
     if (Date.now() - imHintergrundSeit >= minuten * 60000) sperren();
     imHintergrundSeit = null;
   });
-  if (await sperre.istAktiv()) await sperren();
+  // Pflicht (Wunsch des Nutzers): ohne Passwort ist die App nicht nutzbar
+  if (!(await sperre.istEingerichtet())) {
+    document.body.classList.add('gesperrt'); // Inhalt verborgen, bis angemeldet
+    await einrichten();
+  }
+  await sperren();
 }
 
-/** Sperrbildschirm zeigen; erfüllt sich, wenn entsperrt wurde */
+/** Anmeldebildschirm zeigen; erfüllt sich, wenn angemeldet wurde */
 export function sperren() {
   if (offen) return offen;
   offen = (async () => {
-    const s = await sperre.leseSperre();
-    if (!s?.pin) return;
+    if (!(await sperre.istEingerichtet())) return;
     // Offene Dialoge schließen (ungespeicherte Eingaben gehen dabei verloren) und Inhalt verbergen
     document.querySelectorAll('dialog[open]').forEach((d) => d.close());
     document.body.classList.add('gesperrt');
-    await new Promise((resolve) => zeigeSperrbildschirm(s, resolve));
+    await new Promise((resolve) => zeigeAnmeldung(resolve));
     document.body.classList.remove('gesperrt');
+    // Abgleich, der während der Sperre ausgesetzt war, jetzt nachholen
+    window.dispatchEvent(new Event('entsperrt'));
   })().finally(() => { offen = null; });
   return offen;
 }
 
-function zeigeSperrbildschirm(s, entsperrt) {
+/** Ganzseitiger Dialog, den Escape nicht schließen kann */
+function sperrDialog(inhalt, ariaLabel) {
+  const dlg = h('dialog', { class: 'sperre-dialog', 'aria-label': ariaLabel }, inhalt);
+  dlg.addEventListener('cancel', (e) => e.preventDefault());
+  dlg.addEventListener('close', () => dlg.remove());
+  document.body.append(dlg);
+  dlg.showModal();
+  return dlg;
+}
+
+// Unsichtbarer Benutzername, damit Passwort-Manager das Passwort zuordnen und ausfüllen können
+const benutzerFeld = () => h('input', { type: 'text', name: 'username', autocomplete: 'username', value: 'Finanzen', hidden: true, readonly: true, tabindex: '-1', 'aria-hidden': 'true' });
+
+async function zeigeAnmeldung(angemeldet) {
+  const { credentialId } = await sperre.leseSperre();
   const fehler = h('p', { class: 'dialog-fehler', role: 'alert' });
-  const pin = h('input', {
-    type: 'password', inputmode: 'numeric', autocomplete: 'off', maxlength: 8, class: 'sperre-pin',
-    'aria-label': 'PIN', placeholder: 'PIN',
+  const passwort = h('input', {
+    type: 'password', name: 'password', autocomplete: 'current-password', class: 'sperre-pin', 'aria-label': 'Passwort', placeholder: 'Passwort',
   });
   const fertig = () => {
     dlg.close();
-    entsperrt();
+    angemeldet();
   };
-  const mitGeraet = s.credentialId && h('button', {
+  const mitPasskey = credentialId && h('button', {
     type: 'button',
     class: 'knopf',
     onclick: async () => {
       try {
-        if (await sperre.mitGeraetEntsperren()) fertig();
+        if (await sperre.mitPasskeyAnmelden()) fertig();
       } catch (err) {
-        fehler.textContent = err?.name === 'NotAllowedError' ? 'Abgebrochen – bitte erneut versuchen oder PIN eingeben.' : (err.message ?? String(err));
+        fehler.textContent = err?.name === 'NotAllowedError' ? 'Abgebrochen – bitte erneut versuchen oder das Passwort eingeben.' : (err.message ?? String(err));
       }
     },
-  }, '🔓 Fingerabdruck / Windows Hello');
+  }, '🔑 Mit Passkey anmelden');
 
   const form = h('form', {
     class: 'sperre-form',
@@ -71,82 +92,197 @@ function zeigeSperrbildschirm(s, entsperrt) {
         fehler.textContent = `Zu viele Fehlversuche – bitte ${warten} Sekunden warten.`;
         return;
       }
-      const richtig = await sperre.pinStimmt(pin.value);
+      const richtig = await sperre.passwortStimmt(passwort.value);
       sperre.merkeVersuch(richtig);
       if (richtig) fertig();
       else {
-        fehler.textContent = 'Die PIN stimmt nicht.';
-        pin.value = '';
-        pin.focus();
+        fehler.textContent = 'Das Passwort stimmt nicht.';
+        passwort.value = '';
+        passwort.focus();
       }
     },
   },
   h('img', { src: 'icons/icon.svg', alt: '', width: 56, height: 56 }),
-  h('h2', {}, 'Finanzen ist gesperrt'),
-  pin,
+  h('h2', {}, 'Finanzen – Anmelden'),
+  benutzerFeld(),
+  passwort,
   fehler,
-  h('button', { type: 'submit', class: 'knopf knopf-primaer' }, 'Entsperren'),
-  mitGeraet,
-  h('button', { type: 'button', class: 'link-knopf', onclick: () => pinVergessen() }, 'PIN vergessen?'));
+  h('button', { type: 'submit', class: 'knopf knopf-primaer' }, 'Anmelden'),
+  mitPasskey,
+  h('button', { type: 'button', class: 'link-knopf', onclick: () => passwortVergessen(fertig) }, 'Passwort vergessen?'));
 
-  const dlg = h('dialog', { class: 'sperre-dialog', 'aria-label': 'App gesperrt' }, form);
-  // Escape darf die Sperre nicht schließen
-  dlg.addEventListener('cancel', (e) => e.preventDefault());
-  dlg.addEventListener('close', () => dlg.remove());
-  document.body.append(dlg);
-  dlg.showModal();
-  pin.focus();
-  // Geräteentsperrung gleich anbieten (klappt nicht in jedem Browser ohne Antippen – dann per Knopf)
-  if (mitGeraet && document.hasFocus()) mitGeraet.click();
+  const dlg = sperrDialog(form, 'Anmelden');
+  passwort.focus();
+  // Passkey gleich anbieten (klappt nicht in jedem Browser ohne Antippen – dann per Knopf)
+  if (mitPasskey && document.hasFocus()) mitPasskey.click();
 }
 
-async function pinVergessen() {
-  const ok = await frage({
-    titel: 'PIN vergessen?',
-    text: [
-      'Ohne PIN lässt sich die App nur zurücksetzen: Alle Daten auf DIESEM Gerät werden gelöscht, auch die PIN.',
-      'Ist Google Drive verbunden, holst du danach deine Daten einfach wieder aus Drive (Stammdaten → Google Drive → verbinden). ' +
-      'Änderungen, die noch nicht mit Drive abgeglichen wurden, gehen verloren.',
-    ],
-    jaText: 'Gerät zurücksetzen',
-    gefahr: true,
+/* ---------- Erster Start: Passwort festlegen oder aus Google Drive holen ---------- */
+
+function einrichten() {
+  return new Promise((fertig) => {
+    const fehler = h('p', { class: 'dialog-fehler', role: 'alert' });
+    const a = h('input', { type: 'password', name: 'new-password', autocomplete: 'new-password', class: 'sperre-pin', placeholder: `Neues Passwort (mind. ${MIN_LAENGE} Zeichen)`, 'aria-label': 'Neues Passwort' });
+    const b = h('input', { type: 'password', autocomplete: 'new-password', class: 'sperre-pin', placeholder: 'Passwort wiederholen', 'aria-label': 'Passwort wiederholen' });
+    const ende = () => {
+      dlg.close();
+      fertig();
+    };
+
+    const ausDrive = h('button', {
+      type: 'button',
+      class: 'knopf',
+      onclick: async () => {
+        fehler.textContent = '';
+        try {
+          const id = clientId() || await clientIdErfragen();
+          if (!id) return;
+          const daten = await driveStand(id);
+          const login = loginAusStand(daten);
+          if (!login) {
+            fehler.textContent = 'In Google Drive ist noch kein Passwort festgelegt. Bitte hier ein neues festlegen.';
+            return;
+          }
+          await sperre.uebernimmLogin(login);
+          toast('Passwort aus Google Drive übernommen – bitte jetzt damit anmelden.');
+          ende();
+        } catch (err) {
+          fehler.textContent = err.message ?? String(err);
+        }
+      },
+    }, '☁ Von Google Drive holen');
+
+    const form = h('form', {
+      class: 'sperre-form',
+      novalidate: true,
+      onsubmit: async (e) => {
+        e.preventDefault();
+        try {
+          pruefePasswort(a.value);
+          if (a.value !== b.value) throw new Error('Die beiden Passwörter stimmen nicht überein.');
+          await sperre.setzePasswort(a.value);
+          toast('Passwort festgelegt');
+          ende();
+        } catch (err) {
+          fehler.textContent = err.message ?? String(err);
+        }
+      },
+    },
+    h('img', { src: 'icons/icon.svg', alt: '', width: 56, height: 56 }),
+    h('h2', {}, 'Passwort festlegen'),
+    h('p', { class: 'hinweis' },
+      'Die App ist ab jetzt nur mit Passwort nutzbar. Es gilt für alle deine Geräte (es wird über Google Drive abgeglichen). ' +
+      'Auf jedem Gerät kannst du zusätzlich einen Passkey (Fingerabdruck, Gesicht, Windows Hello) einrichten.'),
+    benutzerFeld(),
+    a, b,
+    fehler,
+    h('button', { type: 'submit', class: 'knopf knopf-primaer' }, 'Passwort festlegen'),
+    h('p', { class: 'hinweis' }, 'Schon auf einem anderen Gerät festgelegt?'),
+    ausDrive);
+
+    const dlg = sperrDialog(form, 'Passwort festlegen');
+    a.focus();
   });
-  if (!ok) return;
-  await db.datenbankLoeschen();
-  geraet.schreib('drive-letzter-abgleich', '');
-  location.reload();
+}
+
+/* ---------- Passwort vergessen: nach Google-Anmeldung neu festlegen ---------- */
+
+/** Bei Google anmelden und den Datenstand aus Drive lesen (nur Lesen, kein Abgleich) */
+async function driveStand(id) {
+  await drive.anmelden(id);
+  const datei = await drive.datenDatei();
+  if (!datei) throw new Error('In diesem Google-Konto gibt es keinen Finanzen-Datenstand.');
+  // Die Verbindung für den späteren Abgleich merken
+  if (id !== clientId()) setzeClientId(id);
+  geraet.schreib('drive-aktiv', '1');
+  return drive.ladeJson(datei.id);
+}
+
+/** Client-ID abfragen, falls dieses Gerät noch nicht mit Google Drive verbunden war */
+function clientIdErfragen() {
+  return new Promise((resolve) => {
+    let wert = null;
+    const feld = eingabe({
+      label: 'Client-ID für Google Drive', placeholder: '…apps.googleusercontent.com', autofocus: true,
+      hilfe: 'Dieselbe Client-ID wie auf deinen anderen Geräten (Stammdaten → Google Drive).',
+    });
+    const dlg = dialog({
+      titel: 'Mit Google Drive verbinden',
+      inhalt: [feld.feld],
+      speichernText: 'Weiter',
+      onSpeichern: () => {
+        const id = feld.input.value.trim();
+        if (!id.endsWith('.apps.googleusercontent.com')) throw new Error('Das sieht nicht wie eine Client-ID aus (endet auf .apps.googleusercontent.com).');
+        wert = id;
+      },
+    });
+    dlg.addEventListener('close', () => resolve(wert));
+  });
+}
+
+function passwortVergessen(angemeldet) {
+  const fehler = h('p', { class: 'dialog-fehler', role: 'alert' });
+  const weiter = h('button', {
+    type: 'button',
+    class: 'knopf knopf-primaer',
+    onclick: async () => {
+      fehler.textContent = '';
+      try {
+        const id = clientId() || await clientIdErfragen();
+        if (!id) return;
+        await driveStand(id); // beweist: dein Google-Konto mit deinem Finanzen-Datenstand
+        dlg.close();
+        passwortDialog('Neues Passwort festlegen', async () => {
+          toast('Neues Passwort festgelegt – es gilt nach dem nächsten Abgleich auf allen Geräten.');
+          angemeldet();
+        });
+      } catch (err) {
+        fehler.textContent = err?.message ?? String(err);
+      }
+    },
+  }, 'Mit Google anmelden');
+  const dlg = dialog({
+    titel: 'Passwort vergessen?',
+    inhalt: [
+      h('p', {}, 'Melde dich mit dem Google-Konto an, in dem deine Finanzen-Daten liegen. Danach legst du ein neues Passwort fest. Deine Daten bleiben erhalten.'),
+      weiter,
+      fehler,
+    ],
+    speichernText: 'Schließen',
+    abbrechenText: null,
+  });
 }
 
 /* ---------- Bereich in den Stammdaten ---------- */
 
 const ZEITEN = [[0, 'sofort beim Verlassen'], [1, 'nach 1 Minute'], [5, 'nach 5 Minuten'], [15, 'nach 15 Minuten'], [30, 'nach 30 Minuten']];
 
-function pinDialog(titel, beiOk) {
-  const a = eingabe({ label: 'Neue PIN (4–8 Ziffern)', type: 'password', inputmode: 'numeric', maxlength: 8, autofocus: true });
-  const b = eingabe({ label: 'PIN wiederholen', type: 'password', inputmode: 'numeric', maxlength: 8 });
+function passwortDialog(titel, beiOk) {
+  const a = eingabe({ label: `Neues Passwort (mind. ${MIN_LAENGE} Zeichen)`, type: 'password', autocomplete: 'new-password', autofocus: true });
+  const b = eingabe({ label: 'Passwort wiederholen', type: 'password', autocomplete: 'new-password' });
   dialog({
     titel,
-    inhalt: [a.feld, b.feld, h('p', { class: 'hinweis' }, 'Merk dir die PIN gut. Vergessen lässt sie sich nur durch Zurücksetzen des Geräts (Daten kommen dann aus Google Drive zurück).')],
+    inhalt: [a.feld, b.feld, h('p', { class: 'hinweis' }, 'Das Passwort gilt nach dem nächsten Abgleich mit Google Drive auf allen Geräten.')],
     onSpeichern: async () => {
-      sperre.pruefePin(a.input.value);
-      if (a.input.value !== b.input.value) throw new Error('Die beiden PINs stimmen nicht überein.');
-      await sperre.setzePin(a.input.value);
+      pruefePasswort(a.input.value);
+      if (a.input.value !== b.input.value) throw new Error('Die beiden Passwörter stimmen nicht überein.');
+      await sperre.setzePasswort(a.input.value);
       await beiOk();
     },
   });
 }
 
-/** Aktuelle PIN abfragen; erfüllt sich mit true, wenn sie stimmt */
-function pinBestaetigen(titel) {
+/** Aktuelles Passwort abfragen; erfüllt sich mit true, wenn es stimmt */
+function passwortBestaetigen(titel) {
   return new Promise((resolve) => {
     let ok = false;
-    const a = eingabe({ label: 'Aktuelle PIN', type: 'password', inputmode: 'numeric', maxlength: 8, autofocus: true });
+    const a = eingabe({ label: 'Aktuelles Passwort', type: 'password', autocomplete: 'current-password', autofocus: true });
     const dlg = dialog({
       titel,
       inhalt: [a.feld],
       speichernText: 'Weiter',
       onSpeichern: async () => {
-        if (!(await sperre.pinStimmt(a.input.value))) throw new Error('Die PIN stimmt nicht.');
+        if (!(await sperre.passwortStimmt(a.input.value))) throw new Error('Das Passwort stimmt nicht.');
         ok = true;
       },
     });
@@ -156,79 +292,62 @@ function pinBestaetigen(titel) {
 
 export async function sperreBereich(neu) {
   const s = await sperre.leseSperre();
-  const geraetMoeglich = await sperre.geraeteEntsperrungMoeglich();
+  const login = await sperre.leseLogin();
+  const passkeyMoeglich = await sperre.passkeyMoeglich();
   const sicher = (fn) => async () => { try { await fn(); } catch (err) { toast(err?.name === 'NotAllowedError' ? 'Abgebrochen' : (err.message ?? String(err))); } };
 
-  const kopf = [
-    h('h2', { id: 'titel-sperre' }, 'App-Sperre'),
-    h('p', { class: 'hinweis' },
-      'Sperrt die App beim Öffnen und nach einer Zeit im Hintergrund. Entsperren mit PIN' +
-      (geraetMoeglich ? ' oder Fingerabdruck/Gesicht bzw. Windows Hello' : '') + '. ' +
-      'Die Sperre schützt vor neugierigen Blicken, verschlüsselt die Daten aber nicht. Sie gilt nur auf diesem Gerät.'),
-  ];
-
-  if (!s?.pin) {
-    return h('section', { class: 'bereich', 'aria-labelledby': 'titel-sperre' }, ...kopf,
-      h('button', {
-        type: 'button',
-        class: 'knopf knopf-primaer',
-        onclick: () => pinDialog('PIN festlegen', async () => {
-          toast('App-Sperre eingeschaltet');
-          neu();
-        }),
-      }, 'PIN festlegen'));
-  }
-
   const zeit = auswahl({
-    label: 'Sperren, wenn die App im Hintergrund war',
+    label: 'Erneut anmelden, wenn die App im Hintergrund war',
     optionen: ZEITEN.map(([wert, text]) => ({ wert: String(wert), text })),
-    wert: String(s.minuten ?? sperre.STANDARD_MINUTEN),
+    wert: String(s.minuten),
   });
   zeit.select.addEventListener('change', sicher(async () => {
     await sperre.setzeMinuten(Number(zeit.select.value));
     toast('Gespeichert');
   }));
 
-  return h('section', { class: 'bereich', 'aria-labelledby': 'titel-sperre' }, ...kopf,
-    h('p', {}, h('strong', {}, 'Eingeschaltet'),
-      ` · PIN${s.credentialId ? ' + Fingerabdruck/Windows Hello' : ''}`),
+  return h('section', { class: 'bereich', 'aria-labelledby': 'titel-sperre' },
+    h('h2', { id: 'titel-sperre' }, 'App-Login'),
+    h('p', { class: 'hinweis' },
+      'Die App ist nur mit Passwort nutzbar – auf allen Geräten dasselbe (wird über Google Drive abgeglichen). ' +
+      'Auf diesem Gerät geht es auch mit Passkey' + (passkeyMoeglich ? ' (Fingerabdruck, Gesicht bzw. Windows Hello)' : '') + '. ' +
+      'Der Login schützt den Zugang, verschlüsselt die Daten im Browser aber nicht.'),
+    h('p', {},
+      h('strong', {}, 'Passwort festgelegt'),
+      login?.geaendertAm && ` (zuletzt geändert ${new Date(login.geaendertAm).toLocaleDateString('de-DE')})`,
+      ` · Passkey auf diesem Gerät: ${s.credentialId ? 'eingerichtet' : 'nein'}`),
+    h('p', { class: 'hinweis' }, 'Die Zeit bis zur erneuten Anmeldung und der Passkey gelten nur für dieses Gerät.'),
     zeit.feld,
     h('div', { class: 'knopfreihe' },
-      h('button', { type: 'button', class: 'knopf', onclick: () => sperren() }, '🔒 Jetzt sperren'),
-      geraetMoeglich && !s.credentialId && h('button', {
+      h('button', { type: 'button', class: 'knopf', onclick: () => sperren() }, '🔒 Jetzt abmelden'),
+      passkeyMoeglich && !s.credentialId && h('button', {
         type: 'button',
         class: 'knopf',
         onclick: sicher(async () => {
-          await sperre.geraeteEntsperrungEinrichten();
-          toast('Fingerabdruck / Windows Hello eingerichtet');
+          if (!(await passwortBestaetigen('Passkey einrichten'))) return;
+          await sperre.passkeyEinrichten();
+          toast('Passkey eingerichtet');
           neu();
         }),
-      }, 'Fingerabdruck / Windows Hello einrichten'),
+      }, '🔑 Passkey einrichten'),
       s.credentialId && h('button', {
         type: 'button',
         class: 'knopf',
         onclick: sicher(async () => {
-          await sperre.geraeteEntsperrungEntfernen();
-          toast('Nur noch PIN');
+          await sperre.passkeyEntfernen();
+          toast('Passkey entfernt – Anmeldung nur noch mit Passwort');
           neu();
         }),
-      }, 'Fingerabdruck entfernen'),
+      }, 'Passkey entfernen'),
       h('button', {
         type: 'button',
         class: 'knopf',
         onclick: sicher(async () => {
-          if (!(await pinBestaetigen('PIN ändern'))) return;
-          pinDialog('Neue PIN', async () => toast('PIN geändert'));
+          if (!(await passwortBestaetigen('Passwort ändern'))) return;
+          passwortDialog('Neues Passwort', async () => {
+            toast('Passwort geändert');
+            neu();
+          });
         }),
-      }, 'PIN ändern'),
-      h('button', {
-        type: 'button',
-        class: 'knopf knopf-gefahr',
-        onclick: sicher(async () => {
-          if (!(await pinBestaetigen('Sperre ausschalten'))) return;
-          await sperre.ausschalten();
-          toast('App-Sperre ausgeschaltet');
-          neu();
-        }),
-      }, 'Sperre ausschalten')));
+      }, 'Passwort ändern')));
 }

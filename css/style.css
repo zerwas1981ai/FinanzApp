@@ -1096,7 +1096,13 @@ body.gesperrt .kopf, body.gesperrt main, body.gesperrt .fab, body.gesperrt #neue
 .sperre-form h2 { margin: 0; font-size: 1.15rem; }
 .sperre-form .knopf { width: 100%; justify-content: center; }
 .sperre-form .dialog-fehler { margin: 0; min-height: 1.2em; }
-.sperre-pin { width: 100%; font-size: 1.4rem; text-align: center; letter-spacing: .4em; padding: 10px; }
+/* D83: Passwortfeld (statt PIN) – normale Buchstabenabstände, Platzhalter lesbar */
+.sperre-pin {
+  width: 100%; font: inherit; font-size: 1.05rem; text-align: center; padding: 10px 12px;
+  border: 1px solid var(--rand); border-radius: var(--radius-klein); background: var(--bg); color: var(--text);
+}
+.sperre-pin::placeholder { color: var(--text-2); font-size: .95rem; }
+.sperre-form .hinweis { margin: 0; }
 .link-knopf { background: none; border: 0; color: var(--akzent); cursor: pointer; font: inherit; font-size: .9rem; text-decoration: underline; padding: 4px; }
 
 /* Archiv (D68) */

@@ -95,7 +95,8 @@ Oberfläche auf Deutsch, Währung Euro, deutsches Datums- und Zahlenformat.
 - Kamera-Button für Belegfoto, Bilder beim Hochladen verkleinern
 - Automatisches Backup bei jedem Speichern (letzte 30 Stände), Export als
   CSV/Excel
-- App-Sperre (PIN oder Geräteentsperrung)
+- App-Login: Pflicht-Passwort für alle Geräte (über Drive abgeglichen), je Gerät
+  ersetzbar durch Passkey (siehe DECISIONS.md D83)
 - Dark- und Hell-Modus umschaltbar; schlichtes, modernes Design
 
 ## Nicht im Umfang (nicht von selbst einbauen)

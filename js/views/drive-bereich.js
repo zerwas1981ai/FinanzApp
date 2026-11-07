@@ -150,7 +150,7 @@ export function neuBeginnenBereich() {
         ? 'Auch in Google Drive werden die Daten, alle Backups, Belege und Archive endgültig gelöscht. ' +
           'Deine anderen Geräte fragen beim nächsten Abgleich, ob sie ebenfalls leeren sollen.'
         : 'Google Drive ist auf diesem Gerät nicht verbunden – dort wird nichts gelöscht.')),
-    h('p', { class: 'hinweis' }, 'Die Verbindung zu Google Drive (Client-ID) und die App-Sperre bleiben erhalten.'),
+    h('p', { class: 'hinweis' }, 'Die Verbindung zu Google Drive (Client-ID), das App-Passwort und der Passkey bleiben erhalten.'),
     h('button', {
       type: 'button',
       class: 'knopf knopf-gefahr',

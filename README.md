@@ -1,7 +1,7 @@
 # Finanzen – private Finanz-App (PWA)
 
 Stand: **Etappe 6** (Google-Drive-Abgleich mit Konfliktabfrage, Belege, Backups, Export) plus
-App-Sperre, Archiv alter Jahre und „Alles löschen und neu beginnen“.
+App-Login (Passwort für alle Geräte + Passkey), Archiv alter Jahre und „Alles löschen und neu beginnen“.
 Davor: Etappe 5 (Zeitleiste bis 2050, geplante Einmalbuchungen, Projekte, Empfänger/Absender),
 Etappe 4 (Budgets, wiederkehrende Buchungen, Kennzahlen, Budgethinweise), Etappe 3 (Alle
 Buchungen: Filter, Sortierung, Analyse), Etappe 2 (Buchungen, Monatsansicht, Umbuchungen,
@@ -98,12 +98,19 @@ sich die neue Version beim nächsten Öffnen mit Internet.
 3. Unter Stammdaten Konten anlegen, Kategorien prüfen, dann unter Annahmen wiederkehrende Buchungen
    und Budgets anlegen.
 
-## App-Sperre
+## App-Login
 
-Stammdaten → **App-Sperre** → „PIN festlegen“. Danach lässt sich dort Fingerabdruck/Gesicht bzw.
-Windows Hello einrichten und die Zeit wählen, nach der die App im Hintergrund sperrt. Die Sperre
-gilt je Gerät – also auf PC und Handy jeweils einrichten. PIN vergessen: Auf dem Sperrbildschirm
-„PIN vergessen?“ setzt das Gerät zurück; danach mit Google Drive verbinden, die Daten kommen zurück.
+Die App ist nur mit Passwort nutzbar (Pflicht). Beim ersten Start legst du das Passwort fest
+(mindestens 8 Zeichen). Es gilt für **alle Geräte**: Es wird (nur als Prüfwert, nie im Klartext) über
+Google Drive abgeglichen. Auf einem weiteren Gerät beim ersten Start „Von Google Drive holen“ tippen.
+
+- **Passkey:** Stammdaten → **App-Login** → „Passkey einrichten“ (Fingerabdruck, Gesicht bzw.
+  Windows Hello) – je Gerät einmal. Das Passwort funktioniert immer zusätzlich.
+- **Wann erneut anmelden:** dort je Gerät wählbar (Standard: nach 5 Minuten im Hintergrund).
+- **Passwort ändern:** dort mit dem aktuellen Passwort; gilt nach dem Abgleich überall.
+- **Passwort vergessen:** auf dem Anmeldebildschirm „Passwort vergessen?“ → mit dem Google-Konto
+  anmelden, in dem deine Finanzen-Daten liegen → neues Passwort festlegen. Die Daten bleiben erhalten.
+- Der Login schützt den Zugang; die Daten im Browser werden nicht verschlüsselt.
 
 ## Archiv alter Jahre
 
@@ -133,7 +140,7 @@ js/auswertung.js                           Filter, Sortierung, Analysen
 js/prognose.js, js/annahmen.js             Budgets, wiederkehrende/geplante Buchungen, Projekte, Prognose, Hinweise
 js/sync/                                   Google Drive: Anmeldung, Abgleich, Zusammenführen, Backups
 js/export.js                               CSV-Export für Excel
-js/sperre.js, js/archiv.js                 App-Sperre, Archiv alter Jahre
+js/login.js, js/sperre.js, js/archiv.js    App-Login (Passwort, Passkey), Archiv alter Jahre
 js/relevant.js                             Relevante Ausgaben (Liste unten im Tab Projekte)
 js/startdaten.js, js/testdaten.js          Kategorie-Startsatz, Testdaten
 js/ui.js, js/dom.js                        Bausteine der Oberfläche

@@ -93,6 +93,9 @@ let nochmal = false;
 
 export async function gleicheAb() {
   if (!istEingerichtet()) return setzeStatus('aus', 'Drive nicht eingerichtet');
+  // Nicht hinter dem Anmeldebildschirm abgleichen (D83): Rückfragen würden sonst Buchungsdaten zeigen.
+  // Nach dem Anmelden holt das Ereignis "entsperrt" den Abgleich nach.
+  if (typeof document !== 'undefined' && document.body.classList.contains('gesperrt')) return null;
   if (!navigator.onLine) return setzeStatus('offline', 'Offline – Änderungen werden später abgeglichen');
   if (!drive.istAngemeldet()) return setzeStatus('anmelden', 'Zum Abgleichen bei Google anmelden');
   if (laeuft) {
@@ -231,6 +234,9 @@ export async function allesNeuBeginnen() {
       }
     }
     const neu = db.leererStand();
+    // Das App-Passwort (D83) bleibt beim Neubeginn erhalten – sonst wäre die App danach ohne Login
+    const login = await db.hole('einstellungen', 'login');
+    if (login) neu.einstellungen.push(login);
     const neustartId = crypto.randomUUID();
     await db.schreibeDatenstand(neu);
     await db.leere('belegDateien');
@@ -491,6 +497,7 @@ export function starteAutomatik() {
     timer = setTimeout(() => gleicheAb(), VERZOEGERUNG);
   });
   window.addEventListener('online', () => gleicheAb());
+  window.addEventListener('entsperrt', () => gleicheAb());
   window.addEventListener('offline', () => istEingerichtet() && setzeStatus('offline', 'Offline – Änderungen werden später abgeglichen'));
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState !== 'visible') return;

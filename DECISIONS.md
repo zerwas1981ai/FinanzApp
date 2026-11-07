@@ -1269,3 +1269,33 @@ Belege unbedingt (eigener Drive-Ordner), Anzeige nach Jahren mit Summen*
   Ecken, etwas Abstand nach oben und kräftigere Schrift. So trennt sie die Tage sichtbar von den
   Buchungen. Am Handy unverändert.
 
+## D83 – App-Login: ein Passwort für alle Geräte, Passkey je Gerät (ersetzt die PIN aus D67)
+*Wunsch des Nutzers: Passwort mind. 8 Zeichen, immer Pflicht, „vergessen“ über Google-Anmeldung,
+Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
+
+- **Passwort für alle Geräte:** Gespeichert wird nur ein Prüfwert (PBKDF2-SHA-256, 210.000 Runden,
+  zufälliges Salz) als Eintrag `login` in der Sammlung `einstellungen`. Damit wird er wie alle Daten
+  mit Google Drive abgeglichen und gilt auf allen Geräten. Das Passwort selbst wird nie gespeichert.
+  Keine neue Datenversion nötig (neuer Eintrag in einer bestehenden Sammlung).
+- **Pflicht:** Ohne Passwort ist die App nicht nutzbar. Gibt es noch keins (erster Start nach dem
+  Update, neues Gerät), erscheint „Passwort festlegen“; ausschalten lässt sich der Login nicht.
+  Die alte PIN je Gerät entfällt.
+- **Weiteres Gerät:** „Von Google Drive holen“ meldet sich bei Google an, liest das Passwort aus der
+  Datendatei (nur lesen, kein Abgleich) und zeigt dann die Anmeldung. Legt man auf einem neuen Gerät
+  ohne Abgleich ein eigenes Passwort fest, übernimmt der erste Abgleich das Passwort aus Drive
+  (das neue Gerät hat sonst keine Daten); hatten beide Geräte schon eigene Daten, fragt der Abgleich
+  wie bei jedem Widerspruch nach.
+- **Passkey:** je Gerät einzurichten (Stammdaten → App-Login, mit Passwort bestätigt); gespeichert
+  wird nur die Kennung auf diesem Gerät (meta `sperre`). Das Gerät prüft Fingerabdruck/Gesicht bzw.
+  Windows Hello (userVerification „required“). Das Passwort funktioniert immer zusätzlich.
+- **Passwort vergessen:** Anmeldung mit dem Google-Konto; nur wenn darin der Finanzen-Datenstand
+  liegt, darf ein neues Passwort festgelegt werden (gilt nach dem Abgleich überall). Fehlt auf dem
+  Gerät die Client-ID, wird sie abgefragt. Keine Daten gehen verloren.
+- **Sperrzeit:** je Gerät wählbar (sofort, 1, 5, 15, 30 Minuten im Hintergrund), Standard 5 Minuten.
+  Nach 5 falschen Passwörtern wartet die App 30 s, danach jeweils doppelt so lange.
+- **Kein Abgleich hinter dem Anmeldebildschirm:** Solange gesperrt ist, gleicht die App nicht ab
+  (Rückfragen würden sonst Buchungsdaten zeigen); nach dem Anmelden wird nachgeholt.
+- „Alles löschen und neu beginnen“ behält das Passwort.
+- **Grenze (bewusst, Möglichkeit A):** Der Login schützt den Zugang zur Oberfläche, verschlüsselt die
+  Daten im Browser aber nicht (Möglichkeit B „echte Verschlüsselung“ wurde besprochen und verworfen).
+
