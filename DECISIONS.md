@@ -1341,3 +1341,13 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
   Gesamtsumme aller Budgets des Monats.
 - Das Konto steht nicht mehr in jeder Zeile, weil es die Gruppenüberschrift nennt.
 
+## D87 – Budgetsummen im Annahmen-Tab für den Folgemonat
+*Wunsch des Nutzers; ändert D86*
+
+- Die Zwischensummen je Konto und die Gesamtsumme der Budgets beziehen sich immer auf den
+  **Folgemonat** (z. B. im November auf Dezember), damit sie zur Planung des nächsten Monats passen.
+- Gezählt wird, was in diesem Monat gilt: wiederkehrende Budgets mit ihrer dann gültigen Stufe bzw.
+  Monatsausnahme und einmalige Budgets genau dieses Monats.
+- Die Beträge in den einzelnen Zeilen bleiben unverändert (wiederkehrend: der Betrag, der jetzt gilt;
+  künftige Änderungen stehen darunter).
+

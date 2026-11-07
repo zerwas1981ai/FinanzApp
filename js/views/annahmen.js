@@ -72,12 +72,12 @@ function budgetBereich(daten) {
   const gruppen = sortiereKonten(konten.filter((k) => kontoIds.has(k.id))).map((k) => ({ id: k.id, name: k.name }));
   if (budgets.some((b) => !kontoName.has(b.kontoId))) gruppen.push({ id: null, name: 'Unbekanntes Konto' });
   const imKonto = (g) => budgets.filter((b) => (g.id === null ? !kontoName.has(b.kontoId) : b.kontoId === g.id));
-  // Budget eines Kontos in diesem Monat (wiederkehrend + einmalig)
+  // Summen immer für den Folgemonat (D87): wiederkehrend + einmalig
+  const folgemonat = plusMonate(monat, 1);
   const summeKonto = (liste) => [...new Set(liste.map((b) => b.kategorieId))]
-    .reduce((s, id) => s + budgetFuerMonat(liste, id, monat).betragCent, 0);
+    .reduce((s, id) => s + budgetFuerMonat(liste, id, folgemonat).betragCent, 0);
 
-  const summeMonat = [...new Set(budgets.map((b) => b.kategorieId))]
-    .reduce((s, id) => s + budgetFuerMonat(budgets, id, monat).betragCent, 0);
+  const summeMonat = summeKonto(budgets);
 
   const zeile = (b) => {
     const name = kat.get(b.kategorieId)?.name ?? 'Unbekannte Kategorie';
@@ -121,11 +121,11 @@ function budgetBereich(daten) {
           h('div', { class: 'tag-kopf' }, h('span', {}, g.name)),
           h('ul', { class: 'liste' }, [...liste].sort(nachKategorie).map(zeile)),
           h('div', { class: 'summe zwischensumme' },
-            h('span', {}, `Zwischensumme ${g.name} · ${monatText(monat)}`),
+            h('span', {}, `Zwischensumme ${g.name} · ${monatText(folgemonat)}`),
             h('span', { class: 'betrag' }, formatEuro(summeKonto(liste)))));
       }),
     budgets.length > 0 && h('div', { class: 'summe ergebnis' },
-      h('span', {}, `Budgets ${monatText(monat)} zusammen`), h('span', { class: 'betrag' }, formatEuro(summeMonat))),
+      h('span', {}, `Budgets ${monatText(folgemonat)} zusammen`), h('span', { class: 'betrag' }, formatEuro(summeMonat))),
   );
 }
 
