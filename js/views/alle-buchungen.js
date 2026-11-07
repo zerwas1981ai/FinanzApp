@@ -12,6 +12,7 @@ import {
   OHNE_PARTNER, partnerListe, partnerSchluessel, summenJePartner, sortiereNach,
 } from '../auswertung.js';
 import { oeffneBuchungsdialog } from './buchung-dialog.js';
+import { umbuchungKnopf } from './kennzahlen.js';
 
 const nachName = (a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base' });
 const SEITE = 200; // so viele Zeilen werden auf einmal gezeigt
@@ -422,6 +423,8 @@ function tabellenKopf(neu) {
 
 function liste(eintraege, daten, neu) {
   const sortiert = sortiere(eintraege, zustand.sortierung, daten);
+  // Wer im Filter "Art" Umbuchungen ausdrücklich wählt, sieht sie auch am Handy sofort (D77)
+  const umbuchungGefiltert = zustand.filter.arten.includes('umbuchung');
   const kat = new Map(daten.kategorien.map((k) => [k.id, k]));
   const kontoName = new Map(daten.konten.map((k) => [k.id, k.name]));
 
@@ -468,7 +471,8 @@ function liste(eintraege, daten, neu) {
       : (wirkung > 0 ? '+' : '') + formatEuro(wirkung);
     const klasse = b.art === 'umbuchung' ? 'gedaempft' : wirkung > 0 ? 'plus' : '';
     const unterName = b.art === 'umbuchung' ? katText : kat.get(b.kategorieId)?.name ?? 'Unbekannte Kategorie';
-    return h('li', { role: 'row' },
+    // Am Handy Umbuchungen standardmäßig ausgeblendet (D77) – außer sie sind ausdrücklich gefiltert
+    return h('li', { role: 'row', class: b.art === 'umbuchung' && !umbuchungGefiltert ? 'ub-ausblendbar' : null },
       h('button', {
         type: 'button',
         class: 'btab-zeile' + (b.art === 'umbuchung' ? ' umbuchung' : ''),
@@ -492,6 +496,7 @@ function liste(eintraege, daten, neu) {
   return h('section', { class: 'bereich buchungen' },
     h('div', { class: 'btab-werkzeuge' },
       h('span', { class: 'klein' }, `Sortiert nach ${sortText}`),
+      !umbuchungGefiltert && umbuchungKnopf(zeigen.filter((e) => e.buchung.art === 'umbuchung').length),
       zuruecksetzen,
       exportKnopf),
     h('div', { class: 'btab', role: 'table', 'aria-label': 'Buchungen' },

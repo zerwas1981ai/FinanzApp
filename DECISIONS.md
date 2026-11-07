@@ -1198,3 +1198,15 @@ Belege unbedingt (eigener Drive-Ordner), Anzeige nach Jahren mit Summen*
 - Bewusst unverändert (Wunsch des Nutzers): Budgethinweise, die Budget-Zeilen unter „Noch
   erwartet“ und die Posten in „Zukunft bis 2050“.
 
+## D77 – Umbuchungen auch unter „Alle Buchungen“ am Handy ausblendbar
+*Wunsch des Nutzers – nur am Handy (unter 768 px), am PC unverändert*
+
+- Wie in der Übersicht (D76) sind Umbuchungen in der Liste „Alle Buchungen“ am Handy zunächst
+  ausgeblendet. Der Knopf „Umbuchungen einblenden (n)“ über der Liste blendet sie ein und wieder
+  aus. Es ist derselbe Schalter wie in der Übersicht – die Wahl gilt für beide Listen, bis die
+  App geschlossen wird.
+- Ausnahme: Ist im Filter „Art“ ausdrücklich „Umbuchungen“ angehakt, werden sie sofort gezeigt
+  (ohne Knopf) – sonst wäre die gefilterte Liste leer.
+- Summen, Zähler, Analyse und CSV-Export bleiben unverändert (sie enthalten die Umbuchungen wie
+  bisher; Umbuchungen zählen ohnehin nicht als Einnahme oder Ausgabe).
+
