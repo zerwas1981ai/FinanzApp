@@ -50,11 +50,13 @@ Oberfläche auf Deutsch, Währung Euro, deutsches Datums- und Zahlenformat.
 ## Oberfläche (5 Tabs)
 1. Übersicht
    - Oben: Gesamtkontostand heute und prognostiziert zum Monatsende (alle
-     Konten), Einnahmen/Ausgaben des Monats, Budgetauslastung der wichtigsten
-     Kategorien, Warnung bei Unterschreiten des Mindestsaldos (mit erstem
-     betroffenen Monat), größte Ausgabenkategorie, max. 2 Budget-Hinweise
+     Konten), Einnahmen/Ausgaben des Monats, Warnung bei Unterschreiten des
+     Mindestsaldos (mit erstem betroffenen Monat), max. 2 Budget-Hinweise.
+     Keine Kategorie-Kacheln (Budgetauslastung steht je Konto unter „Noch
+     erwartet“, siehe DECISIONS.md D78)
    - Konten nebeneinander oder umschaltbar, je Konto Monatsansicht mit
-     Zwischensummen
+     Zwischensummen; am PC Buchungen als Tabelle mit Stand-Spalte, am Handy
+     einzeilig. Umbuchungen per Knopf ein-/ausblendbar (D75–D78)
    - Unter dem aktuellen Monat die Zukunftsmonate: Rest des laufenden Jahres
      immer sichtbar (komprimiert, aufklappbar), Folgejahre bis 2050 einzeln
      ein- und ausblendbar. Zukunftswerte optisch klar als Annahme
