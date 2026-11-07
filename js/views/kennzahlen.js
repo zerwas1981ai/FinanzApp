@@ -87,6 +87,30 @@ function kategorieKachel(id, platz, gewaehlt, summen, p, daten) {
       `von ${formatEuro(budget)} Budget` + (betrag > budget ? ' – überschritten' : '')));
 }
 
+/* ================= Umbuchungen am Handy ein-/ausblenden (D76) ================= */
+
+/**
+ * Knopf, der am Handy die Umbuchungen in der Übersicht ein- bzw. ausblendet (Standard: aus).
+ * Die Wahl hängt als Klasse am <body>, gilt für alle Listen und bleibt beim Neuzeichnen erhalten.
+ * Am PC ist der Knopf unsichtbar und Umbuchungen werden immer gezeigt.
+ */
+export function umbuchungKnopf(anzahl) {
+  if (!anzahl) return null;
+  const knopf = h('button', { type: 'button', class: 'knopf knopf-klein ub-knopf' });
+  const beschriften = () => {
+    const an = document.body.classList.contains('umbuchungen-sichtbar');
+    knopf.textContent = an ? 'Umbuchungen ausblenden' : `Umbuchungen einblenden (${anzahl})`;
+    knopf.setAttribute('aria-pressed', String(an));
+  };
+  knopf.addEventListener('beschriften', beschriften);
+  knopf.addEventListener('click', () => {
+    document.body.classList.toggle('umbuchungen-sichtbar');
+    document.querySelectorAll('.ub-knopf').forEach((k) => k.dispatchEvent(new Event('beschriften')));
+  });
+  beschriften();
+  return knopf;
+}
+
 /* ================= Je Konto: noch erwartet bis Monatsende ================= */
 
 /**
@@ -105,17 +129,19 @@ export function erwartetBereich(kd, daten) {
       ? (t.wirkung < 0 ? `Umbuchung → ${kontoName.get(w.gegenkontoId) ?? '?'}` : `Umbuchung ← ${kontoName.get(w.kontoId) ?? '?'}`)
       : (w.partner ? `${w.partner} · ` : '') + `${kat.get(kat.get(w.kategorieId)?.elternId)?.name ?? '?'} › ${kat.get(w.kategorieId)?.name ?? '?'}`;
     const status = t.datum === heute ? 'heute fällig' : t.ueberfaellig ? 'überfällig' : null;
-    // Am Handy (D75): ohne Datum und Kategorie – nur Empfänger/Absender bzw. Umbuchung (Reihenfolge bleibt nach Datum)
-    const zuordnungHandy = w.art === 'umbuchung' ? zuordnung : (w.partner ?? '');
-    return h('li', {},
-      h('button', { type: 'button', class: 'buchung geplant', onclick: () => terminDialog(t) },
+    // Am Handy eine Zeile (D75/D76): ohne Datum und Kategorie – Empfänger/Absender, sonst die Bezeichnung
+    // (Reihenfolge bleibt nach Fälligkeitsdatum)
+    const titelHandy = w.art === 'umbuchung' ? zuordnung : (w.partner || w.bezeichnung);
+    return h('li', { class: w.art === 'umbuchung' ? 'ub-ausblendbar' : null },
+      h('button', { type: 'button', class: 'buchung geplant einzeilig', onclick: () => terminDialog(t) },
         h('span', { class: 'buchung-text' },
           h('span', { class: 'buchung-titel' },
-            h('span', { class: 'datum-klein nur-breit' }, formatTag(t.datum)), w.bezeichnung,
+            h('span', { class: 'datum-klein nur-breit' }, formatTag(t.datum)),
+            h('span', { class: 'nur-breit' }, w.bezeichnung),
+            h('span', { class: 'nur-schmal', title: titelHandy }, titelHandy),
             t.quelle === 'geplant' && h('span', { class: 'marke' }, 'einmalig'),
             status && h('span', { class: 'marke' + (t.ueberfaellig ? ' marke-warn' : '') }, status)),
-          h('span', { class: 'buchung-unter nur-breit' }, zuordnung + (t.verschoben ? ` · verschoben vom ${formatDatum(t.termin)}` : '')),
-          zuordnungHandy && h('span', { class: 'buchung-unter nur-schmal' }, zuordnungHandy)),
+          h('span', { class: 'buchung-unter nur-breit' }, zuordnung + (t.verschoben ? ` · verschoben vom ${formatDatum(t.termin)}` : ''))),
         h('span', { class: 'betrag annahme' + (t.wirkung > 0 ? ' plus' : '') }, mitVorzeichen(t.wirkung))));
   });
 
@@ -148,7 +174,8 @@ export function erwartetBereich(kd, daten) {
       h('span', { class: 'marke annahme-marke' }, 'Annahme')),
     terminZeilen.length > 0 && h('div', {},
       h('div', { class: 'tag-kopf' }, h('span', {}, 'Wiederkehrende und geplante Buchungen'), h('span', { class: 'tag-stand annahme' }, mitVorzeichen(kd.offenWirkung))),
-      h('ul', { class: 'liste' }, terminZeilen)),
+      h('ul', { class: 'liste' }, terminZeilen),
+      h('div', { class: 'ub-reihe' }, umbuchungKnopf(kd.termine.filter((t) => t.wiederkehrend.art === 'umbuchung').length))),
     budgetZeilen.length > 0 && h('div', {},
       h('div', { class: 'tag-kopf' }, h('span', {}, 'Budgets (belasten dieses Konto)'), h('span', { class: 'tag-stand annahme' }, formatEuro(-kd.rest))),
       h('ul', { class: 'liste' }, budgetZeilen)),

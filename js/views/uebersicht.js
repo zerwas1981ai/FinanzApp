@@ -12,7 +12,7 @@ import { monatsuebersicht, kontostand, vorgemerktBis } from '../rechnen.js';
 import { dialog, eingabe, hinweis, toast, geraet, datenGeaendert } from '../ui.js';
 import { oeffneBuchungsdialog } from './buchung-dialog.js';
 import { faelligListe, budgetHinweise, zeitleiste, nurWirksam, mindestsaldoWarnungen, LETZTER_MONAT } from '../prognose.js';
-import { kennzahlenBereich, erwartetBereich, hinweisBereich } from './kennzahlen.js';
+import { umbuchungKnopf, kennzahlenBereich, erwartetBereich, hinweisBereich } from './kennzahlen.js';
 import { zeitleisteBereich, postenListe } from './zeitleiste.js';
 import { oeffnePostenDialog } from './posten-dialog.js';
 
@@ -274,11 +274,15 @@ function buchungsliste(m, konto, konten, kategorien) {
   const alle = ansicht.alleAnzeigen === schluessel;
   let rest = alle ? Infinity : MAX_BUCHUNGEN;
   const tage = [];
+  let umbuchungen = 0;
   for (const tag of [...m.tage].reverse()) {
     if (rest <= 0) break;
     const zeilen = [...tag.buchungen].reverse().slice(0, rest);
     rest -= zeilen.length;
-    tage.push(h('div', { class: 'tag' },
+    umbuchungen += zeilen.filter((b) => b.art === 'umbuchung').length;
+    // Tag nur mit Umbuchungen: am Handy samt Tageszeile ausblendbar (D76)
+    const nurUmbuchungen = zeilen.every((b) => b.art === 'umbuchung');
+    tage.push(h('div', { class: 'tag' + (nurUmbuchungen ? ' ub-ausblendbar' : '') },
       h('div', { class: 'tag-kopf' },
         h('span', {}, formatTag(tag.datum)),
         h('span', { class: 'tag-stand' + (tag.standAbend < 0 ? ' negativ' : '') }, `Stand ${formatEuro(tag.standAbend)}`)),
@@ -299,7 +303,8 @@ function buchungsliste(m, konto, konten, kategorien) {
 
   return h('section', { class: 'bereich buchungen' },
     h('div', { class: 'tag-kopf liste-kopf' },
-      h('span', {}, alle || m.anzahl <= MAX_BUCHUNGEN ? `${m.anzahl} Buchungen` : `Letzte ${MAX_BUCHUNGEN} von ${m.anzahl} Buchungen`)),
+      h('span', {}, alle || m.anzahl <= MAX_BUCHUNGEN ? `${m.anzahl} Buchungen` : `Letzte ${MAX_BUCHUNGEN} von ${m.anzahl} Buchungen`),
+      umbuchungKnopf(umbuchungen)),
     tage,
     umschalten,
   );
@@ -308,33 +313,29 @@ function buchungsliste(m, konto, konten, kategorien) {
 function buchungsZeile(b, katName, kontoName) {
   let titel;
   let unterzeile;
-  // Am Handy schlanker (D75): ohne Kategorie – Empfänger/Absender, sonst Notiz, sonst Unterkategorie
+  // Am Handy eine Zeile ohne Kategorie (D75/D76): Empfänger/Absender, sonst Notiz, sonst die Art
   let titelHandy;
-  let unterHandy = '';
   if (b.art === 'umbuchung') {
     titel = b.richtung === 'ab' ? `Umbuchung → ${kontoName.get(b.gegenkontoId) ?? '?'}` : `Umbuchung ← ${kontoName.get(b.gegenkontoId) ?? '?'}`;
     unterzeile = b.notiz;
     titelHandy = titel;
-    unterHandy = b.notiz;
   } else {
     const unter = katName.get(b.kategorieId);
     const haupt = unter && katName.get(unter.elternId);
     // Empfänger/Absender steht immer vor der Kategorie
     titel = [b.partner, unter?.name ?? 'Unbekannte Kategorie'].filter(Boolean).join(' · ');
     unterzeile = [haupt?.name, b.notiz].filter(Boolean).join(' · ');
-    titelHandy = b.partner || b.notiz || unter?.name || 'Unbekannte Kategorie';
-    if (b.partner) unterHandy = b.notiz;
+    titelHandy = b.partner || b.notiz || (b.art === 'einnahme' ? 'Einnahme' : 'Ausgabe');
   }
   const wirkung = b.art === 'einnahme' || b.richtung === 'zu' ? b.betragCent : -b.betragCent;
 
-  return h('li', {},
-    h('button', { type: 'button', class: 'buchung', onclick: () => oeffneBuchungsdialog(b) },
+  return h('li', { class: b.art === 'umbuchung' ? 'ub-ausblendbar' : null },
+    h('button', { type: 'button', class: 'buchung einzeilig', onclick: () => oeffneBuchungsdialog(b) },
       h('span', { class: 'buchung-text' },
         h('span', { class: 'buchung-titel' },
-          h('span', { class: 'nur-breit' }, titel), h('span', { class: 'nur-schmal' }, titelHandy),
+          h('span', { class: 'nur-breit' }, titel), h('span', { class: 'nur-schmal', title: titelHandy }, titelHandy),
           b.status === 'vorgemerkt' && h('span', { class: 'marke' }, 'vorgemerkt')),
-        unterzeile && h('span', { class: 'buchung-unter nur-breit' }, unterzeile),
-        unterHandy && h('span', { class: 'buchung-unter nur-schmal' }, unterHandy)),
+        unterzeile && h('span', { class: 'buchung-unter nur-breit' }, unterzeile)),
       h('span', { class: 'betrag ' + (b.art === 'umbuchung' ? 'gedaempft' : wirkung > 0 ? 'plus' : '') },
         (wirkung > 0 ? '+' : '') + formatEuro(wirkung)),
     ));

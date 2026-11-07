@@ -1182,3 +1182,19 @@ Belege unbedingt (eigener Drive-Ordner), Anzeige nach Jahren mit Summen*
   Die späteren Jahre bis 2050 blendet der Knopf „Weitere Jahre bis 2050 anzeigen“ ein (und
   wieder aus); die Wahl bleibt erhalten, solange die App offen ist.
 
+## D76 – Übersicht am Handy: einzeilige Buchungen, Umbuchungen ausblendbar
+*Wunsch des Nutzers – ergänzt D75, gilt nur am Handy (unter 768 px), am PC bleibt alles gleich*
+
+- **Buchungen eines Kontos:** genau eine Zeile – Empfänger/Absender und Betrag. Ohne Angabe
+  steht die Notiz dort, ohne beides „Ausgabe“ bzw. „Einnahme“. Keine Kategorie, keine
+  Unterkategorie, keine zweite Zeile. Zu lange Namen werden mit „…“ abgeschnitten (der volle
+  Name steht im Tooltip und im Buchungsdialog). Die Marke „vorgemerkt“ bleibt.
+- **Noch erwartet bis Monatsende:** ebenfalls eine Zeile – Empfänger/Absender, ohne Angabe die
+  Bezeichnung; Marken „einmalig“/„überfällig“ bleiben.
+- **Umbuchungen:** in beiden Listen standardmäßig ausgeblendet; ein Tag, an dem nur Umbuchungen
+  stehen, verschwindet samt Tageszeile. Der Knopf „Umbuchungen einblenden (n)“ blendet sie ein
+  (und wieder aus); die Wahl gilt für alle Listen der Übersicht, bis die App geschlossen wird.
+  Summen, Tagesstände und Prognose rechnen unverändert mit den Umbuchungen.
+- Bewusst unverändert (Wunsch des Nutzers): Budgethinweise, die Budget-Zeilen unter „Noch
+  erwartet“ und die Posten in „Zukunft bis 2050“.
+

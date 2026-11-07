@@ -1248,3 +1248,17 @@ body.gesperrt .kopf, body.gesperrt main, body.gesperrt .fab, body.gesperrt #neue
   .zl-mehr-reihe { display: flex; justify-content: center; padding: 10px 0 2px; }
 }
 
+/* Handy: Buchungen einzeilig, Umbuchungen ausblendbar (D76) */
+.ub-knopf { display: none; }
+@media (max-width: 767px) {
+  .einzeilig .buchung-text { flex: 1 1 auto; min-width: 0; }
+  .einzeilig .buchung-titel { display: flex; align-items: center; gap: 6px; min-width: 0; }
+  .einzeilig .buchung-titel > .nur-schmal { display: block; flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .einzeilig .buchung-titel > .marke { flex: none; margin-left: 0; }
+  .einzeilig > .betrag { flex: none; white-space: nowrap; }
+  .ub-knopf { display: inline-flex; }
+  .liste-kopf { align-items: center; }
+  .ub-reihe:has(.ub-knopf) { display: flex; justify-content: flex-end; padding: 6px 0 2px; }
+  body:not(.umbuchungen-sichtbar) .ub-ausblendbar { display: none; }
+}
+
