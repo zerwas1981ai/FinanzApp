@@ -55,7 +55,7 @@ Oberfläche auf Deutsch, Währung Euro, deutsches Datums- und Zahlenformat.
      Keine Kategorie-Kacheln (Budgetauslastung steht je Konto unter „Noch
      erwartet“, siehe DECISIONS.md D78)
    - Konten nebeneinander oder umschaltbar, je Konto Monatsansicht mit
-     Zwischensummen; am PC Buchungen als Tabelle mit Stand-Spalte, am Handy
+     Zwischensummen; am PC Buchungen als Tabelle mit Tageszeilen (Tagesstand), am Handy
      einzeilig. Umbuchungen per Knopf ein-/ausblendbar (D75–D78)
    - Unter dem aktuellen Monat die Zukunftsmonate: Rest des laufenden Jahres
      immer sichtbar (komprimiert, aufklappbar), Folgejahre bis 2050 einzeln

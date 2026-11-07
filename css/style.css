@@ -1262,11 +1262,10 @@ body:not(.umbuchungen-sichtbar) .ub-ausblendbar { display: none; }
 
 /* Übersicht am PC: Buchungen als Tabelle mit Stand-Spalte (D78) */
 .nur-handy { display: none; }
-.btab-konto { --btab-spalten: 92px minmax(0, 1.3fr) minmax(0, 1.5fr) minmax(0, 1.2fr) 112px 112px; margin-top: 4px; }
+/* D80: ohne Spalte "Stand" – der Tagesstand steht in der Tageszeile rechts unter "Betrag" */
+.btab-konto { --btab-spalten: 92px minmax(0, 1.4fr) minmax(0, 1.6fr) minmax(0, 1.4fr) 120px; margin-top: 4px; }
 .btab-konto .btab-notiz { grid-column: 4; }
 .btab-konto .btab-betrag { grid-column: 5; }
-.btab-konto .btab-stand { grid-column: 6; grid-row: 1; text-align: right; font-variant-numeric: tabular-nums; color: var(--text-2); }
-.btab-konto .btab-sort.btab-stand { justify-content: flex-end; }
 @media (max-width: 767px) {
   .nur-handy { display: block; }
   .nur-pc { display: none !important; }

@@ -327,10 +327,10 @@ function buchungsliste(m, konto, konten, kategorien) {
   );
 }
 
-/** Tabelle der Buchungen eines Kontos am PC (D78/D79): neueste oben, Tageszeilen mit Tagesstand, Stand nach jeder Buchung */
+/** Tabelle der Buchungen eines Kontos am PC (D78–D80): neueste oben, Tageszeilen mit Tagesstand (in der Spalte Betrag) */
 function kontoTabelle(auswahl, tagesKopf, katName, kontoName) {
-  const spalten = [['datum', 'Datum'], ['partner', 'Empfänger/Absender'], ['kategorie', 'Kategorie'], ['notiz', 'Notiz'], ['betrag', 'Betrag'], ['stand', 'Stand']];
-  const zeile = ({ buchung: b, stand }) => {
+  const spalten = [['datum', 'Datum'], ['partner', 'Empfänger/Absender'], ['kategorie', 'Kategorie'], ['notiz', 'Notiz'], ['betrag', 'Betrag']];
+  const zeile = ({ buchung: b }) => {
     const wirkung = wirkungCent(b);
     let partner;
     let katText;
@@ -352,8 +352,7 @@ function kontoTabelle(auswahl, tagesKopf, katName, kontoName) {
           h('span', { class: 'btab-zelle btab-kategorie', title: katText }, katText),
           h('span', { class: 'btab-zelle btab-notiz', title: b.notiz || null }, b.notiz ?? '')),
         h('span', { class: 'btab-zelle btab-betrag betrag ' + (b.art === 'umbuchung' ? 'gedaempft' : wirkung > 0 ? 'plus' : '') },
-          (wirkung > 0 ? '+' : '') + formatEuro(wirkung)),
-        h('span', { class: 'btab-zelle btab-stand' + (stand < 0 ? ' negativ' : '') }, formatEuro(stand))));
+          (wirkung > 0 ? '+' : '') + formatEuro(wirkung))));
   };
   return h('div', { class: 'btab btab-konto nur-pc', role: 'table', 'aria-label': 'Buchungen dieses Monats' },
     h('div', { class: 'btab-kopf', role: 'row' },

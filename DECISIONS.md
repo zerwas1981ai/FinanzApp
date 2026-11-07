@@ -1240,3 +1240,10 @@ Belege unbedingt (eigener Drive-Ordner), Anzeige nach Jahren mit Summen*
 - **Zukunft bis 2050:** auch am PC nur Rest des laufenden Jahres plus die nächsten drei Jahre;
   die übrigen Jahre bis 2050 per Knopf „Weitere Jahre bis 2050 anzeigen“ (wie D75 am Handy).
 
+## D80 – PC-Tabelle der Übersicht ohne Spalte „Stand“
+*Wunsch des Nutzers – mehr Platz für die übrigen Spalten*
+
+- Die Spalte „Stand“ je Buchung (D78) entfällt. Der Kontostand am Ende des Tages steht in der
+  Tageszeile rechtsbündig unter der Spalte „Betrag“ (D79). Spalten jetzt: Datum ·
+  Empfänger/Absender · Kategorie · Notiz · Betrag.
+
