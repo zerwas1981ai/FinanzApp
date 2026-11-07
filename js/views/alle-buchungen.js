@@ -13,6 +13,7 @@ import {
 } from '../auswertung.js';
 import { oeffneBuchungsdialog } from './buchung-dialog.js';
 import { umbuchungKnopf } from './kennzahlen.js';
+import { sortiereKonten } from '../konten.js';
 
 const nachName = (a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base' });
 const SEITE = 200; // so viele Zeilen werden auf einmal gezeigt
@@ -216,7 +217,7 @@ function filterBereich({ konten, kategorien, buchungen }, aktualisiere, neuZeich
 
   // Auswahllisten mit Häkchen (Mehrfachauswahl, D72)
   const kontoAuswahl = mehrfachAuswahl({
-    optionen: [...konten].sort(nachName).map((k) => ({ wert: k.id, text: k.name + (k.archiviert ? ' (archiviert)' : ''), kurz: k.name })),
+    optionen: sortiereKonten(konten).map((k) => ({ wert: k.id, text: k.name + (k.archiviert ? ' (archiviert)' : ''), kurz: k.name })),
     gewaehlt: f.kontoIds,
     alleText: 'Alle Konten',
     beiAenderung: (w) => setze('kontoIds', w),

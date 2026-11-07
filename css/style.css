@@ -1286,3 +1286,8 @@ body:not(.umbuchungen-sichtbar) .ub-ausblendbar { display: none; }
 .btab-konto .btab-liste > li:nth-child(even) .btab-zeile { background: none; }
 .btab-konto .btab-liste > li.btab-tag + li { border-top: none; }
 
+/* Reihenfolge der Konten (D84) */
+.reihenfolge-knoepfe { display: inline-flex; gap: 4px; }
+.reihenfolge-knoepfe .knopf { min-width: 34px; justify-content: center; }
+.reihenfolge-knoepfe .knopf:disabled { opacity: .35; cursor: default; }
+

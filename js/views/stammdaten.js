@@ -13,6 +13,7 @@ import { leseEinstellungen, speichereEinstellungen } from '../annahmen.js';
 import { belegeEntfernen } from './belege.js';
 import { driveBereich, exportBereich, neuBeginnenBereich, archivBereich } from './drive-bereich.js';
 import { sperreBereich } from './sperre-ui.js';
+import { sortiereKonten, verschiebeKonto, naechsteReihenfolge } from '../konten.js';
 
 // Alle Buchungen (auch im Papierkorb) – für die Löschsperre. Wird bei jedem Zeichnen neu geladen.
 let buchungen = [];
@@ -94,7 +95,8 @@ async function setzeArchiv(sammlung, datensatz, archiviert, neu) {
 
 function kontenBereich(konten, neu) {
   const anzahlArchiv = konten.filter((k) => k.archiviert).length;
-  const sichtbar = konten.filter((k) => ansicht.kontenArchiv || !k.archiviert).sort(nachName);
+  // Eigene Reihenfolge (D84), archivierte zuletzt
+  const sichtbar = sortiereKonten(konten.filter((k) => ansicht.kontenArchiv || !k.archiviert));
 
   return h('section', { class: 'bereich', 'aria-labelledby': 'titel-konten' },
     h('div', { class: 'bereich-kopf' },
@@ -125,6 +127,7 @@ function kontoZeile(k, konten, neu) {
       formatEuro(k.anfangssaldoCent),
     ),
     h('div', { class: 'zeile-aktionen' },
+      !k.archiviert && reihenfolgeKnoepfe(k, konten, neu),
       knopf('Bearbeiten', () => kontoDialog(k, konten, neu)),
       k.archiviert
         ? knopf('Wiederherstellen', () => setzeArchiv('konten', k, false, neu))
@@ -132,6 +135,27 @@ function kontoZeile(k, konten, neu) {
       knopf('Löschen', () => kontoLoeschen(k, neu), 'knopf-gefahr'),
     ),
   );
+}
+
+/** ▲/▼: Konto eine Stelle nach oben bzw. unten (D84) – gilt nach dem Abgleich auf allen Geräten */
+function reihenfolgeKnoepfe(k, konten, neu) {
+  const aktiv = sortiereKonten(konten.filter((x) => !x.archiviert));
+  const platz = aktiv.findIndex((x) => x.id === k.id);
+  const schiebe = async (richtung) => {
+    const geaendert = verschiebeKonto(konten, k.id, richtung);
+    if (!geaendert.length) return;
+    await db.speichere('konten', geaendert);
+    neu();
+  };
+  return h('span', { class: 'reihenfolge-knoepfe' },
+    h('button', {
+      type: 'button', class: 'knopf knopf-klein', disabled: platz <= 0,
+      'aria-label': `${k.name} nach oben`, title: 'Nach oben', onclick: () => schiebe(-1),
+    }, '▲'),
+    h('button', {
+      type: 'button', class: 'knopf knopf-klein', disabled: platz >= aktiv.length - 1,
+      'aria-label': `${k.name} nach unten`, title: 'Nach unten', onclick: () => schiebe(1),
+    }, '▼'));
 }
 
 function kontoDialog(konto, konten, neu) {
@@ -177,7 +201,8 @@ function kontoDialog(konto, konten, neu) {
       const mindestsaldoCent = parseEuro(mindest.input.value, 'Mindestsaldo');
 
       const zeit = jetzt();
-      const basis = konto ?? { id: crypto.randomUUID(), archiviert: false, erstelltAm: zeit };
+      // Neues Konto kommt ans Ende der Reihenfolge (D84)
+      const basis = konto ?? { id: crypto.randomUUID(), archiviert: false, erstelltAm: zeit, reihenfolge: naechsteReihenfolge(konten) };
       await db.speichere('konten', {
         ...basis,
         name: n,

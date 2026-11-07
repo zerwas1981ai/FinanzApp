@@ -3,6 +3,7 @@
 // Geplante Einmalbuchungen können einem Projekt zugeordnet werden (Tab "Projekte").
 
 import { h } from '../dom.js';
+import { sortiereKonten } from '../konten.js';
 import * as db from '../db.js';
 import { formatEuro, formatDatum, formatMonat, centZuEingabe, parseEuro, heuteIso } from '../format.js';
 import { dialog, frage, toast, eingabe, auswahl, datenGeaendert } from '../ui.js';
@@ -116,7 +117,7 @@ function budgetDialog(budget, daten) {
   const haupt = kategorien
     .filter((k) => !k.elternId && k.art === 'ausgabe' && (!k.archiviert || k.id === budget?.kategorieId))
     .sort(nachName);
-  const aktiveKonten = konten.filter((k) => !k.archiviert || k.id === budget?.kontoId).sort(nachName);
+  const aktiveKonten = sortiereKonten(konten.filter((k) => !k.archiviert || k.id === budget?.kontoId));
   if (!haupt.length || !aktiveKonten.length) {
     toast('Dafür brauchst du mindestens ein Konto und eine Ausgaben-Kategorie.');
     return;
@@ -241,7 +242,7 @@ export function wiederkehrendDialog(w, daten, vorgaben = {}) {
   const { konten, kategorien } = daten;
   const heute = heuteIso();
   const v = w ?? vorgaben;
-  const waehlbar = konten.filter((k) => !k.archiviert || k.id === v.kontoId || k.id === v.gegenkontoId).sort(nachName);
+  const waehlbar = sortiereKonten(konten.filter((k) => !k.archiviert || k.id === v.kontoId || k.id === v.gegenkontoId));
   if (!waehlbar.length) {
     toast('Bitte zuerst unter Stammdaten ein Konto anlegen.');
     return;
@@ -415,7 +416,7 @@ function geplantBereich(daten) {
 export function geplantDialog(g, daten, vorgaben = {}) {
   const { konten, kategorien, buchungen } = daten;
   const heute = heuteIso();
-  const waehlbar = konten.filter((k) => !k.archiviert || k.id === g?.kontoId || k.id === g?.gegenkontoId).sort(nachName);
+  const waehlbar = sortiereKonten(konten.filter((k) => !k.archiviert || k.id === g?.kontoId || k.id === g?.gegenkontoId));
   if (!waehlbar.length) {
     toast('Bitte zuerst unter Stammdaten ein Konto anlegen.');
     return;

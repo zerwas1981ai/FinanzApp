@@ -7,6 +7,7 @@ import { dialog, toast, eingabe, auswahl, optionsGruppe, datenGeaendert, geraet 
 import { speichereBuchung, gruppeVon, inPapierkorb } from '../buchungen.js';
 import { partnerListe, partnerSchluessel } from '../auswertung.js';
 import { belegeFeld } from './belege.js';
+import { sortiereKonten } from '../konten.js';
 import { wiederkehrendDialog } from './annahmen.js';
 import { monatsende, tageImMonat } from '../prognose.js';
 import { relevanteZeilen, gruppenListe, MAX_GRUPPE } from '../relevant.js';
@@ -29,9 +30,8 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
   // Bei Umbuchungen ist die "ab"-Hälfte maßgeblich (Von-Konto)
   const ref = gruppe.find((b) => b.richtung === 'ab') ?? buchung;
 
-  const waehlbareKonten = konten
-    .filter((k) => !k.archiviert || gruppe.some((b) => b.kontoId === k.id))
-    .sort(nachName);
+  const waehlbareKonten = sortiereKonten(konten
+    .filter((k) => !k.archiviert || gruppe.some((b) => b.kontoId === k.id)));
   if (!buchung && waehlbareKonten.length === 0) {
     toast('Bitte zuerst unter Stammdaten ein Konto anlegen.');
     location.hash = '#stammdaten';

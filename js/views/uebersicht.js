@@ -11,6 +11,7 @@ import {
 import { monatsuebersicht, kontostand, vorgemerktBis, wirkungCent } from '../rechnen.js';
 import { dialog, eingabe, hinweis, toast, geraet, datenGeaendert } from '../ui.js';
 import { oeffneBuchungsdialog } from './buchung-dialog.js';
+import { sortiereKonten } from '../konten.js';
 import { faelligListe, budgetHinweise, zeitleiste, nurWirksam, mindestsaldoWarnungen, LETZTER_MONAT } from '../prognose.js';
 import { umbuchungKnopf, kennzahlenBereich, erwartetBereich, hinweisBereich } from './kennzahlen.js';
 import { zeitleisteBereich, postenListe } from './zeitleiste.js';
@@ -33,7 +34,7 @@ export async function zeigeUebersicht(container) {
   const daten = nurWirksam(alleDaten);
   const { konten, kategorien, buchungen, abstimmungen } = daten;
   const neu = () => zeigeUebersicht(container);
-  const aktive = konten.filter((k) => !k.archiviert).sort(nachName);
+  const aktive = sortiereKonten(konten.filter((k) => !k.archiviert)); // eigene Reihenfolge (D84)
 
   if (aktive.length === 0) {
     container.replaceChildren(

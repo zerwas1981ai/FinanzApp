@@ -1299,3 +1299,16 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
 - **Grenze (bewusst, Möglichkeit A):** Der Login schützt den Zugang zur Oberfläche, verschlüsselt die
   Daten im Browser aber nicht (Möglichkeit B „echte Verschlüsselung“ wurde besprochen und verworfen).
 
+## D84 – Eigene Reihenfolge der Konten (▲/▼)
+*Wunsch des Nutzers: Pfeilknöpfe statt Ziehen*
+
+- Konten tragen das Feld `reihenfolge` (Datenversion 11). Die Migration startet mit der bisherigen
+  Ordnung: alphabetisch, archivierte zuletzt. Neue Konten kommen ans Ende.
+- **Stammdaten → Konten:** Jedes aktive Konto hat ▲ und ▼; ein Tipp tauscht es mit dem Nachbarn.
+  Oben bzw. unten sind die Pfeile ausgegraut. Archivierte Konten haben keine Pfeile und stehen
+  immer hinter den aktiven.
+- Die Reihenfolge gilt überall gleich: Kontoknöpfe in der Übersicht, Kontoauswahl beim Buchen,
+  bei wiederkehrenden und geplanten Buchungen und Budgets, Filter unter „Alle Buchungen“.
+- Sie wird wie alle Daten über Google Drive abgeglichen (gilt also auf PC und Handy). Ändert man
+  sie gleichzeitig auf zwei Geräten, fragt der Abgleich wie bei jedem Widerspruch nach.
+

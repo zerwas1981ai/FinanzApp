@@ -104,11 +104,11 @@ test('Zählen für die Löschsperre (Papierkorb zählt mit)', () => {
 test('Migration 1 → aktuell ergänzt leere Sammlungen und behält Daten', () => {
   const v1 = { version: 1, konten: [{ id: 'k' }], kategorien: [{ id: 'c' }] };
   const { daten, angewendet } = migriereDaten(v1);
-  assert.equal(daten.version, 10);
-  assert.deepEqual(angewendet, [2, 3, 4, 5, 6, 7, 8, 9, 10]);
+  assert.equal(daten.version, 11);
+  assert.deepEqual(angewendet, [2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
   assert.deepEqual(daten.buchungen, []);
   assert.deepEqual(daten.abstimmungen, []);
-  assert.deepEqual(daten.konten, [{ id: 'k' }]);
+  assert.deepEqual(daten.konten, [{ id: 'k', reihenfolge: 0 }], 'Konto bleibt, bekommt nur die Reihenfolge (Version 11)');
   assert.equal(daten.kategorien[0].id, 'c', 'vorhandene Kategorien bleiben');
 });
 

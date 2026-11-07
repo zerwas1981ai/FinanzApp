@@ -30,7 +30,7 @@ Oberfläche auf Deutsch, Währung Euro, deutsches Datums- und Zahlenformat.
 - Optional: Daten pro Jahr getrennt speicherbar (Archivierung alter Jahre)
 
 ## Datenmodell
-- Konto: Name, Anfangssaldo, Stichtag, Mindestsaldo
+- Konto: Name, Anfangssaldo, Stichtag, Mindestsaldo, Reihenfolge (per ▲/▼, D84)
 - Kategorie: Hauptkategorie mit Unterkategorien (Startsatz vorbelegt, in den
   Stammdaten anpassbar)
 - Buchung: Datum, Betrag, Art (Einnahme/Ausgabe), Konto, Empfänger/Absender

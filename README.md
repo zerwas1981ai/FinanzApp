@@ -141,6 +141,7 @@ js/prognose.js, js/annahmen.js             Budgets, wiederkehrende/geplante Buch
 js/sync/                                   Google Drive: Anmeldung, Abgleich, Zusammenführen, Backups
 js/export.js                               CSV-Export für Excel
 js/login.js, js/sperre.js, js/archiv.js    App-Login (Passwort, Passkey), Archiv alter Jahre
+js/konten.js                               Reihenfolge der Konten
 js/relevant.js                             Relevante Ausgaben (Liste unten im Tab Projekte)
 js/startdaten.js, js/testdaten.js          Kategorie-Startsatz, Testdaten
 js/ui.js, js/dom.js                        Bausteine der Oberfläche
