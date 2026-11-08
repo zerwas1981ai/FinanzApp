@@ -149,6 +149,10 @@ function zukunftsMonat(zeilen, monat, startStand, m, konto, konten, kategorien, 
     h('span', { class: 'betrag annahme' + (cent < 0 ? ' negativ' : '') }, (vorzeichen && cent > 0 ? '+' : '') + formatEuro(cent)));
   const unterMindest = konto.mindestsaldoCent != null && z.stand < konto.mindestsaldoCent;
   const annahmen = z.posten.filter((p) => p.quelle !== 'gebucht');
+  const budgets = annahmen.filter((p) => p.quelle === 'budget');
+  const termine = annahmen.filter((p) => p.quelle !== 'budget');
+  const summe = (liste) => liste.reduce((s, p) => s + p.wirkung, 0);
+  const mitVorzeichen = (cent) => (cent > 0 ? '+' : '') + formatEuro(cent);
 
   return [
     h('section', { class: 'bereich summen zukunft' },
@@ -162,9 +166,16 @@ function zukunftsMonat(zeilen, monat, startStand, m, konto, konten, kategorien, 
       zeile('Erwarteter Stand Monatsende', z.stand, 'ergebnis'),
       unterMindest && h('p', { class: 'warn-text klein' }, `Unter dem Mindestsaldo von ${formatEuro(konto.mindestsaldoCent)}.`)),
     h('section', { class: 'bereich zukunft' },
-      // Schon erfasste Buchungen stehen darunter in der normalen Liste – hier nur die Annahmen
+      // Schon erfasste Buchungen stehen darunter in der normalen Liste – hier nur die Annahmen,
+      // getrennt in wiederkehrende/geplante Buchungen und Budgets (D95)
       h('div', { class: 'tag-kopf liste-kopf' }, h('span', {}, `${annahmen.length} erwartete Posten`)),
-      postenListe(annahmen, aendern),
+      termine.length > 0 && h('div', { class: 'erwartet-block' },
+        h('div', { class: 'tag-kopf' }, h('span', {}, 'Wiederkehrende und geplante Buchungen'), h('span', { class: 'tag-stand annahme' }, mitVorzeichen(summe(termine)))),
+        postenListe(termine, aendern)),
+      budgets.length > 0 && h('div', { class: 'erwartet-block' },
+        h('div', { class: 'tag-kopf' }, h('span', {}, 'Budgets'), h('span', { class: 'tag-stand annahme' }, mitVorzeichen(summe(budgets)))),
+        postenListe(budgets, aendern)),
+      annahmen.length === 0 && h('p', { class: 'leer' }, 'Keine Posten in diesem Monat.'),
       h('p', { class: 'hinweis' }, 'Posten antippen, um sie nur für diesen Monat zu ändern. Ganze Serien änderst du unter „Annahmen“.')),
     // Schon erfasste Buchungen mit Datum in diesem Monat bleiben anklickbar
     m.anzahl > 0 && buchungsliste(m, konto, konten, kategorien),

@@ -908,6 +908,8 @@ fieldset.feld { border: none; padding: 0; margin: 0 0 14px; }
 .budget-gruppe .tag-kopf { margin-top: 6px; }
 .summe.zwischensumme { padding: 6px 0 2px; border-top: 1px dashed var(--rand); font-size: .9rem; font-weight: 600; color: var(--text-2); }
 .summe.zwischensumme .betrag { color: var(--text); }
+/* Zukunftsmonat: Blöcke Wiederkehrende/geplante Buchungen und Budgets (D95) */
+.erwartet-block + .erwartet-block { margin-top: 10px; }
 /* Innerhalb eines Kontos nach Art gruppiert (D91) */
 .budget-art + .budget-art { margin-top: 4px; }
 .budget-art-kopf { font-size: .8rem; font-weight: 600; color: var(--text-2); padding: 6px 0 2px; border-bottom: 1px solid var(--rand); }

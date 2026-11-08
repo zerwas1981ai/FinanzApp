@@ -1456,3 +1456,11 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
 - Wirkt überall, wo Termine rechnen: fällige Termine und „Buchen“, Monatsprognose, Zeitleiste,
   Jahresbudgets (erwartete Ausgaben). Anzeige in der Liste: „jeden November: 4.800,00 €“.
 
+## D95 – Zukunftsmonat: erwartete Posten in zwei Blöcken
+*Wunsch des Nutzers*
+
+- Blättert man in der Übersicht in einen Folgemonat, stehen die erwarteten Posten jetzt getrennt:
+  **„Wiederkehrende und geplante Buchungen“** und darunter **„Budgets“**, jeweils mit Summe –
+  wie unter „Noch erwartet“ im laufenden Monat. Leere Blöcke entfallen.
+- Am PC und am Handy gleich; Posten bleiben antippbar zum Ändern für diesen Monat.
+
