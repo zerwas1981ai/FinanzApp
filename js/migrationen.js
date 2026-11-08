@@ -23,7 +23,7 @@
 import { neueKategorie, INVESTITIONEN_UNTER, BARGELD_UNTER } from './startdaten.js';
 import { startReihenfolge } from './konten.js';
 
-export const DATENMODELL_VERSION = 13;
+export const DATENMODELL_VERSION = 14;
 
 /** Standard-Schwellen für Budgethinweise (in den Stammdaten änderbar) */
 export const STANDARD_EINSTELLUNGEN = Object.freeze({ id: 'hinweise', monate: 3, prozent: 10 });
@@ -184,6 +184,14 @@ export const MIGRATIONEN = [
     beschreibung: 'Monatliche Budgets bekommen "kalenderMonate" (feste Abweichung je Kalendermonat, jedes Jahr; D92).',
     migriere(daten) {
       for (const b of daten.budgets ?? []) if (b.typ === 'wiederkehrend') b.kalenderMonate ??= [];
+      return daten;
+    },
+  },
+  {
+    nach: 14,
+    beschreibung: 'Wiederkehrende Buchungen bekommen "kalenderMonate" (feste Abweichung je Kalendermonat, jedes Jahr; D94).',
+    migriere(daten) {
+      for (const w of daten.wiederkehrend ?? []) w.kalenderMonate ??= [];
       return daten;
     },
   },

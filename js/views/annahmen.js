@@ -8,7 +8,7 @@ import * as db from '../db.js';
 import { formatEuro, formatDatum, formatMonat, centZuEingabe, parseEuro, heuteIso } from '../format.js';
 import { dialog, frage, toast, eingabe, auswahl, datenGeaendert } from '../ui.js';
 import { baueBudget, baueWiederkehrend, baueGeplant, geplantErledigt, haeufigstesKonto, mitAusnahme } from '../annahmen.js';
-import { budgetFuerMonat, betragAm, naechsterTermin, plusMonate, monatsende } from '../prognose.js';
+import { budgetFuerMonat, betragAm, terminBetrag, naechsterTermin, plusMonate, monatsende } from '../prognose.js';
 import { artWahl, fuelleKategorien, projektFeld, oeffneBuchungsdialog, partnerFeld } from './buchung-dialog.js';
 import { VERTEILUNGEN, istJaehrlich, trancheImMonat } from '../jahresbudget.js';
 
@@ -321,13 +321,16 @@ function wiederkehrendBereich(daten) {
           naechster ? `nächster Termin ${formatDatum(naechster.datum)}` : 'keine weiteren Termine',
           zuordnung,
         ].join(' · ');
-        const cent = naechster?.betragCent ?? betragAm(w.stufen, heute);
+        const cent = naechster?.betragCent ?? terminBetrag(w, heute);
+        // D94: feste Abweichungen je Kalendermonat
+        const abweichend = (w.kalenderMonate ?? []).map((k) => `jeden ${MONATSNAMEN[k.monat - 1]}: ${formatEuro(k.betragCent)}`).join(' · ');
         const text = w.art === 'umbuchung' ? formatEuro(cent) : (w.art === 'einnahme' ? '+' : '') + formatEuro(w.art === 'ausgabe' ? -cent : cent);
         return zeileMitSchalter(w, 'wiederkehrend',
           h('button', { type: 'button', class: 'buchung' + (beendet ? ' archiviert' : ''), onclick: () => wiederkehrendDialog(w, daten) },
             h('span', { class: 'buchung-text' },
               h('span', { class: 'buchung-titel' }, w.bezeichnung, beendet && h('span', { class: 'marke' }, 'beendet')),
-              h('span', { class: 'buchung-unter' }, info)),
+              h('span', { class: 'buchung-unter' }, info),
+              abweichend && h('span', { class: 'buchung-unter annahme' }, abweichend)),
             h('span', { class: 'betrag ' + (w.art === 'einnahme' ? 'plus' : w.art === 'umbuchung' ? 'gedaempft' : '') }, text)));
       })),
   );
@@ -358,6 +361,8 @@ export function wiederkehrendDialog(w, daten, vorgaben = {}) {
     stufen: w?.stufen ?? (vorgaben.betragCent ? [{ ab: '', betragCent: vorgaben.betragCent }] : []),
     label: 'Betrag',
   });
+  const kalender = kalenderMonateEditor(w?.kalenderMonate ?? [],
+    'Z. B. November 1.800 € (Weihnachtsgeld) – gilt jedes Jahr für den Termin in diesem Monat, als fester Betrag.');
   const kategorie = auswahl({ label: 'Kategorie', optionen: [] });
   const kontoOptionen = waehlbar.map((k) => ({ wert: k.id, text: k.name }));
   const konto = auswahl({ label: 'Konto', optionen: kontoOptionen, wert: v.kontoId ?? waehlbar[0].id });
@@ -422,7 +427,7 @@ export function wiederkehrendDialog(w, daten, vorgaben = {}) {
   dialog({
     titel: w ? 'Wiederkehrende Buchung bearbeiten' : (vorgaben.titel ?? 'Neue wiederkehrende Buchung'),
     inhalt: [
-      artKnoepfe, bezeichnung.feld, stufen.feld, partner.feld, kategorie.feld, konto.feld, gegenkonto.feld,
+      artKnoepfe, bezeichnung.feld, stufen.feld, kalender.feld, partner.feld, kategorie.feld, konto.feld, gegenkonto.feld,
       intervall.feld, monatsletzterFeld, h('div', { class: 'feld-paar' }, start.feld, ende.feld), ausnahmenListe,
     ],
     zusatz: w && {
@@ -454,6 +459,7 @@ export function wiederkehrendDialog(w, daten, vorgaben = {}) {
         monatsletzter: monatsletzter.checked,
         ende: ende.input.value,
         stufen: stufen.werte(),
+        kalenderMonate: kalender.werte(),
         partner: partner.input.value,
       }, { konten, kategorien, alt: w });
       await db.speichere('wiederkehrend', { ...datensatz, ausnahmen });
@@ -640,7 +646,7 @@ function segmente(optionen, aktuell, beiWahl, label) {
  * Feste Abweichungen je Kalendermonat (D92), z. B. „jeden Juli 200 €“.
  * Liefert { feld, werte() } mit werte() = [{ monat, betragCent }].
  */
-function kalenderMonateEditor(vorhanden) {
+function kalenderMonateEditor(vorhanden, hilfe = 'Z. B. Juli 200 € – gilt jedes Jahr als fester Betrag, auch wenn sich der Monatsbetrag ändert. 0 = kein Budget in diesem Monat.') {
   const zeilen = [];
   const liste = h('div', { class: 'stufen' });
   const neueZeile = (eintragAlt) => {
@@ -668,8 +674,7 @@ function kalenderMonateEditor(vorhanden) {
     h('span', { class: 'feld-label' }, 'Abweichende Monate (jedes Jahr)'),
     liste,
     h('button', { type: 'button', class: 'knopf knopf-klein', onclick: () => neueZeile(null) }, '+ Monat mit anderem Betrag'),
-    h('small', { class: 'feld-hilfe' },
-      'Z. B. Juli 200 € – gilt jedes Jahr als fester Betrag, auch wenn sich der Monatsbetrag ändert. 0 = kein Budget in diesem Monat.'));
+    h('small', { class: 'feld-hilfe' }, hilfe));
   return {
     feld,
     werte: () => zeilen.map((z) => ({ monat: z.monat.value, betragCent: parseEuro(z.betrag.value, 'Betrag') ?? null })),

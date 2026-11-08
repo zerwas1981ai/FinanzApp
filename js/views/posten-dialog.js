@@ -10,7 +10,7 @@ import * as db from '../db.js';
 import { formatEuro, formatDatum, formatMonat, centZuEingabe, parseEuro, istGueltigesDatum } from '../format.js';
 import { dialog, toast, eingabe, datenGeaendert } from '../ui.js';
 import { mitAusnahme, budgetMitMonatsAusnahme } from '../annahmen.js';
-import { betragAm, regelBetrag as budgetRegelBetrag } from '../prognose.js';
+import { betragAm, terminBetrag, regelBetrag as budgetRegelBetrag } from '../prognose.js';
 import { geplantDialog } from './annahmen.js';
 
 const monatText = (m) => formatMonat(Number(m.slice(0, 4)), Number(m.slice(5, 7)));
@@ -32,7 +32,7 @@ export async function oeffnePostenDialog(posten, daten) {
 function terminAendern(posten) {
   const { wiederkehrend: w, termin } = posten.ref;
   const ausnahme = (w.ausnahmen ?? []).find((a) => a.termin === termin);
-  const regelBetrag = betragAm(w.stufen, termin);
+  const regelBetrag = terminBetrag(w, termin); // inkl. Kalendermonat-Abweichung (D94)
   const betrag = eingabe({ label: 'Betrag in €', inputmode: 'decimal', value: centZuEingabe(Math.abs(posten.wirkung)), class: 'eingabe-betrag', autofocus: true });
   const datum = eingabe({ label: 'Datum', type: 'date', value: posten.datum });
 

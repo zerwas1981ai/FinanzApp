@@ -1441,3 +1441,18 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
   alle wiederkehrenden und geplanten Buchungen mit, weil `gegenkontoId === null` als Treffer galt.
 - Am Handy brechen die vier Knöpfe einer Unterkategorie jetzt um.
 
+## D94 – Wiederkehrende Buchungen: feste Abweichungen je Kalendermonat
+*Wunsch des Nutzers: wie D92 bei Budgets, z. B. Gehalt mit Weihnachtsgeld im November*
+
+- Wiederkehrende Buchungen haben das Feld `kalenderMonate: [{ monat 1..12, betragCent }]`
+  (Datenversion 14). Im Dialog unter dem Betrag: „Abweichende Monate (jedes Jahr)“.
+- Gilt für alle Arten (Einnahme, Ausgabe, Umbuchung) – der Dialog ist derselbe, und es schadet nicht.
+- Ein Termin, der in diesen Kalendermonat fällt (maßgeblich ist der ursprüngliche Termin, nicht ein
+  verschobenes Datum), bekommt jedes Jahr den **festen Betrag** – unabhängig von „Betrag ändern ab …“.
+  Bei vierteljährlichen/jährlichen Buchungen wirkt es nur, wenn ein Termin in diesen Monat fällt.
+- Vorrang: Änderung eines einzelnen Termins (Übersicht/Zeitleiste) vor Kalendermonat vor Stufe.
+- Betrag muss größer 0 sein (eine Buchung über 0 € lässt sich nicht buchen); einzelne Termine
+  weglassen geht weiter mit „Überspringen“.
+- Wirkt überall, wo Termine rechnen: fällige Termine und „Buchen“, Monatsprognose, Zeitleiste,
+  Jahresbudgets (erwartete Ausgaben). Anzeige in der Liste: „jeden November: 4.800,00 €“.
+

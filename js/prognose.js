@@ -128,6 +128,15 @@ const SCHRITT = { monatlich: 1, vierteljaehrlich: 3, jaehrlich: 12 };
  * Mit w.monatsletzter = true ist JEDER Termin der letzte Tag seines Monats
  * (z. B. 30.11., 31.12., 28.02.) – Standard für neue wiederkehrende Buchungen.
  */
+/**
+ * Regulärer Betrag eines Termins einer wiederkehrenden Buchung ("JJJJ-MM-TT"), ohne Einzel-Änderung:
+ * feste Abweichung für den Kalendermonat des Termins (jedes Jahr, D94) – sonst die geltende Stufe.
+ */
+export function terminBetrag(w, termin) {
+  const kalender = (w.kalenderMonate ?? []).find((k) => k.monat === Number(termin.slice(5, 7)));
+  return kalender ? kalender.betragCent : betragAm(w.stufen, termin);
+}
+
 export function termine(w, von, bis) {
   const [sj, sm, st] = w.start.split('-').map(Number);
   const schritt = SCHRITT[w.intervall] ?? 1;
@@ -154,7 +163,7 @@ export function termine(w, von, bis) {
     const geaendert = ausnahme?.aktion === 'aendern' && ausnahme.betragCent != null;
     ergebnis.push({
       termin, datum,
-      betragCent: geaendert ? ausnahme.betragCent : betragAm(w.stufen, termin),
+      betragCent: geaendert ? ausnahme.betragCent : terminBetrag(w, termin),
       verschoben: datum !== termin,
       einzelBetrag: geaendert,
     });

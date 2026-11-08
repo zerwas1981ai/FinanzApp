@@ -27,7 +27,7 @@
 import * as db from './db.js';
 import { istGueltigesDatum, formatDatum } from './format.js';
 import { STANDARD_EINSTELLUNGEN } from './migrationen.js';
-import { monatsende, betragAm, regelBetrag } from './prognose.js';
+import { monatsende, betragAm, regelBetrag, terminBetrag } from './prognose.js';
 import { istJaehrlich, budgetZeitraum, ueberschneiden } from './jahresbudget.js';
 
 /** Empfänger/Absender (Datenversion 8): undefined = unverändert, bei Umbuchungen leer */
@@ -111,7 +111,7 @@ function baueBudgetDatensatz(eingabe, { kategorien, budgets, alt = null, jetzt =
 }
 
 /** Feste Abweichungen je Kalendermonat prüfen (D92): [{ monat 1..12, betragCent ≥ 0 }], je Monat höchstens einmal */
-function pruefeKalenderMonate(liste) {
+function pruefeKalenderMonate(liste, { nullErlaubt = true } = {}) {
   const ergebnis = [];
   for (const k of liste ?? []) {
     const monat = Number(k.monat);
@@ -119,6 +119,7 @@ function pruefeKalenderMonate(liste) {
     if (k.betragCent == null) throw new Error('Bitte bei jeder Abweichung einen Betrag eingeben (0 = kein Budget in diesem Monat).');
     if (!Number.isInteger(k.betragCent) || k.betragCent < 0) throw new Error('Bitte die Beträge ohne Minus eingeben.');
     if (ergebnis.some((x) => x.monat === monat)) throw new Error('Jeder Monat darf nur einmal abweichen.');
+    if (!nullErlaubt && k.betragCent === 0) throw new Error('Bitte einen Betrag größer 0 eingeben. Einzelne Termine lassen sich in der Übersicht überspringen.');
     ergebnis.push({ monat, betragCent: k.betragCent });
   }
   return ergebnis.sort((a, b) => a.monat - b.monat);
@@ -208,6 +209,8 @@ export function baueWiederkehrend(eingabe, { konten, kategorien, alt = null, jet
     ende: eingabe.ende || null,
     stufen: pruefeStufen(stufen, start, istGueltigesDatum, 'Datum'),
     ausnahmen: alt?.ausnahmen ?? [],
+    // D94: feste Abweichung je Kalendermonat (jedes Jahr), z. B. Weihnachtsgeld im November
+    kalenderMonate: eingabe.kalenderMonate === undefined ? (alt?.kalenderMonate ?? []) : pruefeKalenderMonate(eingabe.kalenderMonate, { nullErlaubt: false }),
     partner: partnerVon(eingabe, alt),
     aktiv: eingabe.aktiv ?? alt?.aktiv ?? true,
     erstelltAm: alt?.erstelltAm ?? jetzt,
@@ -348,7 +351,7 @@ export function mitAusnahme(w, termin, aktion, neuesDatum = null, betragCent = n
   let ausnahmen = (w.ausnahmen ?? []).filter((a) => a.termin !== termin);
   if (aktion === 'verschieben') ausnahmen.push({ termin, aktion, neuesDatum });
   else if (aktion === 'aendern') {
-    const regel = betragAm(w.stufen, termin);
+    const regel = terminBetrag(w, termin); // inkl. Kalendermonat-Abweichung (D94)
     if (neuesDatum !== termin || betragCent !== regel) {
       ausnahmen.push(betragCent === regel ? { termin, aktion: 'verschieben', neuesDatum } : { termin, aktion, neuesDatum, betragCent });
     }

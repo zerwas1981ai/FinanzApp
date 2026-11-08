@@ -254,10 +254,10 @@ test('Wiederkehrende Buchung bauen und prüfen', () => {
   assert.throws(() => baueWiederkehrend({ ...w, stufen: [{ ab: '', betragCent: -5 }] }, ctx), /größer 0/);
 });
 
-test('Migration 2 → 13', () => {
+test('Migration 2 → 14', () => {
   const v2 = { version: 2, konten: [], kategorien: [], buchungen: [{ id: 'b' }], abstimmungen: [] };
   const { daten } = migriereDaten(v2);
-  assert.equal(daten.version, 13);
+  assert.equal(daten.version, 14);
   assert.deepEqual(daten.budgets, []);
   assert.deepEqual(daten.archive, []);
   assert.deepEqual(daten.wiederkehrend, []);
@@ -278,7 +278,7 @@ test('Migration 3 → 8: Annahmen bekommen Schalter', () => {
   };
   const { daten } = migriereDaten(v3);
   assert.deepEqual(daten.budgets[0], { id: 'b1', aktiv: true });
-  assert.deepEqual(daten.wiederkehrend[0], { id: 'w1', aktiv: true, monatsletzter: false, partner: '' });
+  assert.deepEqual(daten.wiederkehrend[0], { id: 'w1', aktiv: true, monatsletzter: false, partner: '', kalenderMonate: [] });
   assert.equal(daten.wiederkehrend[1].aktiv, false, 'vorhandene Werte bleiben');
   assert.equal(daten.wiederkehrend[1].monatsletzter, true);
 });
