@@ -7,7 +7,7 @@ import { h } from '../dom.js';
 import * as db from '../db.js';
 import { formatEuro, formatDatum, formatMonat, formatProzent, formatTag, heuteIso, istGueltigesDatum } from '../format.js';
 import { dialog, eingabe, toast, datenGeaendert, auswahl } from '../ui.js';
-import { plusMonate, plusTage } from '../prognose.js';
+import { plusMonate, plusTage, annahmeTitel } from '../prognose.js';
 import { budgetMitVorschlag, merkeHinweis } from '../annahmen.js';
 import { oeffneBuchungsdialog } from './buchung-dialog.js';
 import { speichereAusnahme, aendereGeplant } from './annahmen.js';
@@ -87,19 +87,21 @@ export function erwartetBereich(kd, daten) {
 
   const terminZeilen = kd.termine.map((t) => {
     const w = t.wiederkehrend;
+    const titel = annahmeTitel(w, daten.kategorien); // D96
     const zuordnung = w.art === 'umbuchung'
       ? (t.wirkung < 0 ? `Umbuchung → ${kontoName.get(w.gegenkontoId) ?? '?'}` : `Umbuchung ← ${kontoName.get(w.kontoId) ?? '?'}`)
-      : (w.partner ? `${w.partner} · ` : '') + `${kat.get(kat.get(w.kategorieId)?.elternId)?.name ?? '?'} › ${kat.get(w.kategorieId)?.name ?? '?'}`;
+      // Empfänger/Absender nur, wenn er nicht schon im Titel steht (D96)
+      : (w.partner && !titel.includes(w.partner) ? `${w.partner} · ` : '') + `${kat.get(kat.get(w.kategorieId)?.elternId)?.name ?? '?'} › ${kat.get(w.kategorieId)?.name ?? '?'}`;
     const status = t.datum === heute ? 'heute fällig' : t.ueberfaellig ? 'überfällig' : null;
     // Am Handy eine Zeile (D75/D76): ohne Datum und Kategorie – Empfänger/Absender, sonst die Bezeichnung
     // (Reihenfolge bleibt nach Fälligkeitsdatum)
-    const titelHandy = w.art === 'umbuchung' ? zuordnung : (w.partner || w.bezeichnung);
+    const titelHandy = w.art === 'umbuchung' ? zuordnung : (w.partner || titel);
     return h('li', { class: w.art === 'umbuchung' ? 'ub-ausblendbar' : null },
-      h('button', { type: 'button', class: 'buchung geplant einzeilig', onclick: () => terminDialog(t) },
+      h('button', { type: 'button', class: 'buchung geplant einzeilig', onclick: () => terminDialog(t, titel) },
         h('span', { class: 'buchung-text' },
           h('span', { class: 'buchung-titel' },
             h('span', { class: 'datum-klein nur-breit' }, formatTag(t.datum)),
-            h('span', { class: 'nur-breit' }, w.bezeichnung),
+            h('span', { class: 'nur-breit' }, titel),
             h('span', { class: 'nur-schmal', title: titelHandy }, titelHandy),
             t.quelle === 'geplant' && h('span', { class: 'marke' }, 'einmalig'),
             status && h('span', { class: 'marke' + (t.ueberfaellig ? ' marke-warn' : '') }, status)),
@@ -148,22 +150,22 @@ export function erwartetBereich(kd, daten) {
  * Kleiner Dialog für einen offenen Posten: Buchen, Verschieben oder Überspringen.
  * t.quelle: 'wiederkehrend' (Termin einer wiederkehrenden Buchung) oder 'geplant' (Einmalbuchung).
  */
-function terminDialog(t) {
+function terminDialog(t, titel) {
   const w = t.wiederkehrend;
   const istGeplant = t.quelle === 'geplant';
   const betrag = w.art === 'umbuchung' ? formatEuro(t.betragCent) : mitVorzeichen(w.art === 'einnahme' ? t.betragCent : -t.betragCent);
   let dlg;
-  const verschieben = h('button', { type: 'button', class: 'knopf', onclick: () => { dlg.close(); verschiebenDialog(t); } }, 'Verschieben');
+  const verschieben = h('button', { type: 'button', class: 'knopf', onclick: () => { dlg.close(); verschiebenDialog(t, titel); } }, 'Verschieben');
   const ueberspringen = h('button', {
     type: 'button',
     class: 'knopf',
     onclick: async () => {
       if (istGeplant) {
         await aendereGeplant(w, { erledigtAm: new Date().toISOString() });
-        toast(`${w.bezeichnung} als schon gebucht markiert (rückgängig unter Annahmen)`);
+        toast(`${titel} als schon gebucht markiert (rückgängig unter Annahmen)`);
       } else {
         await speichereAusnahme(w, t.termin, 'ueberspringen');
-        toast(`${w.bezeichnung} am ${formatDatum(t.termin)} übersprungen (rückgängig unter Annahmen)`);
+        toast(`${titel} am ${formatDatum(t.termin)} übersprungen (rückgängig unter Annahmen)`);
       }
       dlg.close();
       datenGeaendert();
@@ -171,7 +173,7 @@ function terminDialog(t) {
   }, istGeplant ? 'Schon gebucht' : 'Überspringen');
 
   dlg = dialog({
-    titel: w.bezeichnung,
+    titel,
     inhalt: [
       h('p', {}, `${betrag} · fällig ${t.datum === t.termin ? 'am' : 'verschoben auf'} ${formatDatum(t.datum)}`),
       h('p', { class: 'hinweis' }, istGeplant
@@ -184,14 +186,14 @@ function terminDialog(t) {
     speichernText: 'Buchen',
     onSpeichern: () => {
       setTimeout(() => oeffneBuchungsdialog(null, {
-        titel: `Buchen: ${w.bezeichnung}`,
+        titel: `Buchen: ${titel}`,
         art: w.art,
         betragCent: t.betragCent,
         kontoId: w.kontoId,
         gegenkontoId: w.gegenkontoId,
         kategorieId: w.kategorieId,
         datum: t.datum,
-        notiz: w.bezeichnung,
+        notiz: istGeplant ? w.bezeichnung : (w.notiz ?? ''), // D96: Notiz der wiederkehrenden Buchung
         partner: w.partner ?? '',
         ...(istGeplant ? { geplantId: w.id, projektId: w.projektId ?? null } : { wiederkehrendId: w.id, faelligAm: t.termin }),
       }), 0);
@@ -199,11 +201,11 @@ function terminDialog(t) {
   });
 }
 
-function verschiebenDialog(t) {
+function verschiebenDialog(t, titel) {
   const w = t.wiederkehrend;
   const datum = eingabe({ label: 'Neues Datum', type: 'date', value: plusTage(t.datum, 1) });
   dialog({
-    titel: `${w.bezeichnung} verschieben`,
+    titel: `${titel} verschieben`,
     inhalt: [h('p', { class: 'hinweis' }, t.quelle === 'geplant'
       ? `Bisher geplant am ${formatDatum(t.datum)}.`
       : `Regulärer Termin: ${formatDatum(t.termin)}. Nur dieser eine Termin wird verschoben.`), datum.feld],

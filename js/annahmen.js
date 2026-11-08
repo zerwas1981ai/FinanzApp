@@ -17,7 +17,7 @@
 //   notiz, erstelltAm, geaendertAm, testdaten? }
 //
 // Datensatz Wiederkehrende Buchung (Datenversion 3):
-// { id, bezeichnung, art: 'einnahme'|'ausgabe'|'umbuchung', kontoId, gegenkontoId, kategorieId,
+// { id, notiz (optional, ab Version 15 statt "bezeichnung", D96), art: 'einnahme'|'ausgabe'|'umbuchung', kontoId, gegenkontoId, kategorieId,
 //   intervall: 'monatlich'|'vierteljaehrlich'|'jaehrlich', start "JJJJ-MM-TT", ende "JJJJ-MM-TT"|null,
 //   monatsletzter: true|false  // true = jeder Termin am letzten Tag des Monats (fehlt = false)
 //   stufen: [{ ab "JJJJ-MM-TT", betragCent }],
@@ -164,8 +164,7 @@ export function haeufigstesKonto(hauptId, kategorien, buchungen, konten) {
 /* ======================= Wiederkehrende Buchung ======================= */
 
 export function baueWiederkehrend(eingabe, { konten, kategorien, alt = null, jetzt = new Date().toISOString() }) {
-  const bezeichnung = (eingabe.bezeichnung ?? '').trim();
-  if (!bezeichnung) throw new Error('Bitte eine Bezeichnung eingeben, z. B. „Miete“.');
+  const notiz = (eingabe.notiz ?? '').trim(); // optional (D96, ersetzt die Pflicht-Bezeichnung)
   if (!['einnahme', 'ausgabe', 'umbuchung'].includes(eingabe.art)) throw new Error('Bitte die Art wählen.');
   if (!['monatlich', 'vierteljaehrlich', 'jaehrlich'].includes(eingabe.intervall)) throw new Error('Bitte das Intervall wählen.');
   if (!istGueltigesDatum(eingabe.start)) throw new Error('Bitte ein gültiges Startdatum wählen.');
@@ -198,7 +197,7 @@ export function baueWiederkehrend(eingabe, { konten, kategorien, alt = null, jet
 
   return {
     id: alt?.id ?? crypto.randomUUID(),
-    bezeichnung,
+    notiz,
     art: eingabe.art,
     kontoId: eingabe.kontoId,
     gegenkontoId,

@@ -76,10 +76,10 @@ export async function ladeTestdaten() {
 
   /* ---------- Wiederkehrende Buchungen ---------- */
   const wk = {};
-  const wiederkehrend = (schluessel, bezeichnung, art, k, betragCent, intervall, start, extraFelder = {}) => {
+  const wiederkehrend = (schluessel, notiz, art, k, betragCent, intervall, start, extraFelder = {}) => {
     if (art !== 'umbuchung' && !extraFelder.kategorieId) return; // Kategorie fehlt → weglassen
     wk[schluessel] = {
-      id: crypto.randomUUID(), bezeichnung, art, kontoId: k.id, gegenkontoId: null, kategorieId: null,
+      id: crypto.randomUUID(), notiz, art, kontoId: k.id, gegenkontoId: null, kategorieId: null,
       intervall, start, ende: null, stufen: [{ ab: start, betragCent }], ausnahmen: [],
       monatsletzter: false, aktiv: true, partner: '',
       erstelltAm: jetzt, geaendertAm: jetzt, testdaten: true, ...extraFelder,

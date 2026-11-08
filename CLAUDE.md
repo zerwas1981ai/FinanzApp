@@ -43,7 +43,8 @@ Oberfläche auf Deutsch, Währung Euro, deutsches Datums- und Zahlenformat.
   je Kategorie und Konto entweder Monats- oder Jahresbudget
 - Wiederkehrende Buchung: Intervall (monatlich/vierteljährlich/jährlich),
   Start, optional Ende, Wertänderungen ab Datum, feste Abweichung je
-  Kalendermonat (jedes Jahr, D94), einzelne Monate überspringen oder verschieben
+  Kalendermonat (jedes Jahr, D94), einzelne Monate überspringen oder verschieben;
+  keine Pflicht-Bezeichnung, sondern optionale Notiz wie bei Buchungen (D96)
 - Geplante Einmalbuchung: bekannt, aber nicht wiederkehrend. Wird bei
   Eingang der echten Buchung als erledigt markiert und nicht doppelt gezählt
   (Soll/Ist-Abgleich).

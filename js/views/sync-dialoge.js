@@ -27,7 +27,7 @@ function beschreibe(sammlung, x, kategorien) {
     case 'konten': return `${x.name} · Anfangssaldo ${formatEuro(x.anfangssaldoCent)}`;
     case 'kategorien': return x.name + (x.archiviert ? ' (archiviert)' : '');
     case 'wiederkehrend':
-    case 'geplant': return [x.bezeichnung, x.partner, formatEuro(x.betragCent ?? x.stufen?.at(-1)?.betragCent ?? 0), x.aktiv === false ? 'ausgeschaltet' : ''].filter(Boolean).join(' · ');
+    case 'geplant': return [x.bezeichnung ?? x.notiz, x.partner, formatEuro(x.betragCent ?? x.stufen?.at(-1)?.betragCent ?? 0), x.aktiv === false ? 'ausgeschaltet' : ''].filter(Boolean).join(' · ');
     case 'budgets': return `${kat(x.kategorieId) ?? 'Budget'} · ${formatEuro(x.betragCent ?? x.stufen?.at(-1)?.betragCent ?? 0)}`;
     case 'projekte': return x.name + (x.rahmenCent != null ? ` · Rahmen ${formatEuro(x.rahmenCent)}` : '');
     case 'einstellungen':

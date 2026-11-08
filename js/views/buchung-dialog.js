@@ -157,11 +157,10 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
       const nm = m === 12 ? 1 : m + 1;
       const nt = istLetzter ? tageImMonat(nj, nm) : Math.min(t, tageImMonat(nj, nm));
       const start = `${nj}-${String(nm).padStart(2, '0')}-${String(nt).padStart(2, '0')}`;
-      const katName = kategorien.find((k) => k.id === w.kategorieId)?.name;
       dlg.close();
       setTimeout(() => wiederkehrendDialog(null, { konten, kategorien, buchungen: alle }, {
         ...w,
-        bezeichnung: w.partner || w.notiz || katName || '',
+        notiz: w.notiz ?? '', // D96: Notiz statt Bezeichnung
         start: istLetzter ? monatsende(start) : start,
         monatsletzter: istLetzter,
         titel: 'Als wiederkehrende Buchung übernehmen',

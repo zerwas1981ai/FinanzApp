@@ -1464,3 +1464,17 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
   wie unter „Noch erwartet“ im laufenden Monat. Leere Blöcke entfallen.
 - Am PC und am Handy gleich; Posten bleiben antippbar zum Ändern für diesen Monat.
 
+## D96 – Wiederkehrende Buchungen: optionale Notiz statt Pflicht-Bezeichnung
+*Wunsch des Nutzers: „analog dem Buchungsdialog“*
+
+- Das Pflichtfeld **Bezeichnung** entfällt bei wiederkehrenden Buchungen. Dafür gibt es wie im
+  Buchungsdialog eine optionale **Notiz** (Datenversion 15). Kein eindeutiger Mehrwert der Bezeichnung:
+  Empfänger/Absender und Kategorie beschreiben eine Buchung bereits.
+- **Titel** in Listen, „Noch erwartet“, Zeitleiste und Dialogen: „Empfänger/Absender · Notiz“; ist beides
+  leer, die Unterkategorie bzw. „Umbuchung“ (`annahmeTitel`). Steht der Empfänger schon im Titel,
+  wird er in der Zeile darunter nicht wiederholt.
+- **Buchen** eines Termins übernimmt die Notiz in die echte Buchung (vorher die Bezeichnung).
+- **Migration 15:** Die bisherige Bezeichnung wird zur Notiz (nichts geht verloren), das Feld
+  `bezeichnung` entfällt. „Als wiederkehrend anlegen“ aus einer Buchung übernimmt deren Notiz.
+- **Geplante Einmalbuchungen** behalten ihre Bezeichnung (nicht Teil des Wunsches).
+

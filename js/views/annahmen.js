@@ -8,7 +8,7 @@ import * as db from '../db.js';
 import { formatEuro, formatDatum, formatMonat, centZuEingabe, parseEuro, heuteIso } from '../format.js';
 import { dialog, frage, toast, eingabe, auswahl, datenGeaendert } from '../ui.js';
 import { baueBudget, baueWiederkehrend, baueGeplant, geplantErledigt, haeufigstesKonto, mitAusnahme } from '../annahmen.js';
-import { budgetFuerMonat, betragAm, terminBetrag, naechsterTermin, plusMonate, monatsende } from '../prognose.js';
+import { budgetFuerMonat, betragAm, terminBetrag, naechsterTermin, plusMonate, monatsende, annahmeTitel } from '../prognose.js';
 import { artWahl, fuelleKategorien, projektFeld, oeffneBuchungsdialog, partnerFeld } from './buchung-dialog.js';
 import { VERTEILUNGEN, istJaehrlich, trancheImMonat } from '../jahresbudget.js';
 
@@ -297,7 +297,7 @@ function wiederkehrendBereich(daten) {
   const kontoName = new Map(konten.map((k) => [k.id, k.name]));
   const reihenfolge = { einnahme: 0, ausgabe: 1, umbuchung: 2 };
   const sortiert = [...wiederkehrend].sort((a, b) => reihenfolge[a.art] - reihenfolge[b.art]
-    || a.bezeichnung.localeCompare(b.bezeichnung, 'de', { sensitivity: 'base' }));
+    || annahmeTitel(a, kategorien).localeCompare(annahmeTitel(b, kategorien), 'de', { sensitivity: 'base' }));
 
   return h('section', { class: 'bereich', 'aria-labelledby': 'titel-wiederkehrend' },
     h('div', { class: 'bereich-kopf' },
@@ -310,11 +310,13 @@ function wiederkehrendBereich(daten) {
       : h('ul', { class: 'liste' }, sortiert.map((w) => {
         const naechster = naechsterTermin(w, heute);
         const beendet = !naechster;
+        const titel = annahmeTitel(w, kategorien); // D96: Empfänger/Absender · Notiz
         let zuordnung;
         if (w.art === 'umbuchung') zuordnung = `${kontoName.get(w.kontoId) ?? '?'} → ${kontoName.get(w.gegenkontoId) ?? '?'}`;
         else {
           const unter = kat.get(w.kategorieId);
-          zuordnung = [kontoName.get(w.kontoId) ?? '?', w.partner, `${kat.get(unter?.elternId)?.name ?? '?'} › ${unter?.name ?? '?'}`].filter(Boolean).join(' · ');
+          // Empfänger/Absender steht schon im Titel
+          zuordnung = [kontoName.get(w.kontoId) ?? '?', `${kat.get(unter?.elternId)?.name ?? '?'} › ${unter?.name ?? '?'}`].join(' · ');
         }
         const info = [
           INTERVALL_TEXT[w.intervall] + (w.monatsletzter ? ' zum Monatsletzten' : ''),
@@ -328,7 +330,7 @@ function wiederkehrendBereich(daten) {
         return zeileMitSchalter(w, 'wiederkehrend',
           h('button', { type: 'button', class: 'buchung' + (beendet ? ' archiviert' : ''), onclick: () => wiederkehrendDialog(w, daten) },
             h('span', { class: 'buchung-text' },
-              h('span', { class: 'buchung-titel' }, w.bezeichnung, beendet && h('span', { class: 'marke' }, 'beendet')),
+              h('span', { class: 'buchung-titel' }, titel, beendet && h('span', { class: 'marke' }, 'beendet')),
               h('span', { class: 'buchung-unter' }, info),
               abweichend && h('span', { class: 'buchung-unter annahme' }, abweichend)),
             h('span', { class: 'betrag ' + (w.art === 'einnahme' ? 'plus' : w.art === 'umbuchung' ? 'gedaempft' : '') }, text)));
@@ -339,7 +341,7 @@ function wiederkehrendBereich(daten) {
 /**
  * Dialog für eine wiederkehrende Buchung. daten braucht konten, kategorien, buchungen.
  * vorgaben (nur neu, D71): z. B. aus einer echten Buchung übernommen –
- *   { art, bezeichnung, partner, betragCent, kontoId, gegenkontoId, kategorieId, start, monatsletzter, titel }
+ *   { art, notiz, partner, betragCent, kontoId, gegenkontoId, kategorieId, start, monatsletzter, titel }
  */
 export function wiederkehrendDialog(w, daten, vorgaben = {}) {
   const { konten, kategorien } = daten;
@@ -353,7 +355,8 @@ export function wiederkehrendDialog(w, daten, vorgaben = {}) {
   let art = v.art ?? 'ausgabe';
   let ausnahmen = [...(w?.ausnahmen ?? [])];
 
-  const bezeichnung = eingabe({ label: 'Bezeichnung', value: v.bezeichnung ?? '', maxlength: 60, placeholder: 'z. B. Miete', autofocus: true });
+  // D96: optionale Notiz statt Pflicht-Bezeichnung (ältere Daten: Bezeichnung wurde zur Notiz)
+  const notiz = eingabe({ label: 'Notiz (optional)', value: v.notiz ?? v.bezeichnung ?? '', maxlength: 120 });
   const partner = partnerFeld(daten.buchungen ?? [], v.partner ?? '', art);
   const artKnoepfe = artWahl(null, art, (neu) => { art = neu; aktualisiere(); });
   const stufen = stufenEditor({
@@ -427,8 +430,8 @@ export function wiederkehrendDialog(w, daten, vorgaben = {}) {
   dialog({
     titel: w ? 'Wiederkehrende Buchung bearbeiten' : (vorgaben.titel ?? 'Neue wiederkehrende Buchung'),
     inhalt: [
-      artKnoepfe, bezeichnung.feld, stufen.feld, kalender.feld, partner.feld, kategorie.feld, konto.feld, gegenkonto.feld,
-      intervall.feld, monatsletzterFeld, h('div', { class: 'feld-paar' }, start.feld, ende.feld), ausnahmenListe,
+      artKnoepfe, stufen.feld, kalender.feld, partner.feld, kategorie.feld, konto.feld, gegenkonto.feld,
+      intervall.feld, monatsletzterFeld, h('div', { class: 'feld-paar' }, start.feld, ende.feld), notiz.feld, ausnahmenListe,
     ],
     zusatz: w && {
       text: 'Löschen',
@@ -449,7 +452,7 @@ export function wiederkehrendDialog(w, daten, vorgaben = {}) {
     },
     onSpeichern: async () => {
       const datensatz = baueWiederkehrend({
-        bezeichnung: bezeichnung.input.value,
+        notiz: notiz.input.value,
         art,
         kontoId: konto.select.value,
         gegenkontoId: gegenkonto.select.value,

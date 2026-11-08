@@ -42,7 +42,7 @@ function terminAendern(posten) {
   };
 
   const dlg = dialog({
-    titel: `${w.bezeichnung} am ${formatDatum(termin)}`,
+    titel: `${posten.text} am ${formatDatum(termin)}`,
     inhalt: [
       h('p', { class: 'hinweis' },
         `Änderungen gelten nur für diesen einen Termin. Regulär: ${formatEuro(regelBetrag)} am ${formatDatum(termin)}. ` +
@@ -56,7 +56,7 @@ function terminAendern(posten) {
           onclick: async () => {
             await speichere('ueberspringen');
             dlg.close();
-            toast(`${w.bezeichnung} am ${formatDatum(termin)} übersprungen`);
+            toast(`${posten.text} am ${formatDatum(termin)} übersprungen`);
           },
         }, 'Überspringen'),
         ausnahme && h('button', {

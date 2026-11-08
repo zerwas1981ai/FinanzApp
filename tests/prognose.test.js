@@ -244,8 +244,10 @@ test('Budget bauen und prüfen', () => {
 
 test('Wiederkehrende Buchung bauen und prüfen', () => {
   const ctx = { konten, kategorien };
-  const w = baueWiederkehrend({ bezeichnung: ' Miete ', art: 'ausgabe', kontoId: 'giro', kategorieId: 'miete', intervall: 'monatlich', start: '2026-11-03', ende: '', stufen: [{ ab: '', betragCent: 95000 }] }, ctx);
-  assert.equal(w.bezeichnung, 'Miete');
+  const w = baueWiederkehrend({ notiz: ' Miete ', art: 'ausgabe', kontoId: 'giro', kategorieId: 'miete', intervall: 'monatlich', start: '2026-11-03', ende: '', stufen: [{ ab: '', betragCent: 95000 }] }, ctx);
+  assert.equal(w.notiz, 'Miete');
+  assert.equal(w.bezeichnung, undefined, 'keine Pflicht-Bezeichnung mehr (D96)');
+  assert.equal(baueWiederkehrend({ ...w, notiz: '', stufen: w.stufen }, ctx).notiz, '', 'Notiz ist optional');
   assert.equal(w.stufen[0].ab, '2026-11-03');
   assert.deepEqual(w.ausnahmen, []);
   assert.throws(() => baueWiederkehrend({ ...w, kategorieId: 'gehalt', stufen: w.stufen }, ctx), /passt nicht/);
@@ -254,10 +256,10 @@ test('Wiederkehrende Buchung bauen und prüfen', () => {
   assert.throws(() => baueWiederkehrend({ ...w, stufen: [{ ab: '', betragCent: -5 }] }, ctx), /größer 0/);
 });
 
-test('Migration 2 → 14', () => {
+test('Migration 2 → 15', () => {
   const v2 = { version: 2, konten: [], kategorien: [], buchungen: [{ id: 'b' }], abstimmungen: [] };
   const { daten } = migriereDaten(v2);
-  assert.equal(daten.version, 14);
+  assert.equal(daten.version, 15);
   assert.deepEqual(daten.budgets, []);
   assert.deepEqual(daten.archive, []);
   assert.deepEqual(daten.wiederkehrend, []);
@@ -278,7 +280,7 @@ test('Migration 3 → 8: Annahmen bekommen Schalter', () => {
   };
   const { daten } = migriereDaten(v3);
   assert.deepEqual(daten.budgets[0], { id: 'b1', aktiv: true });
-  assert.deepEqual(daten.wiederkehrend[0], { id: 'w1', aktiv: true, monatsletzter: false, partner: '', kalenderMonate: [] });
+  assert.deepEqual(daten.wiederkehrend[0], { id: 'w1', aktiv: true, monatsletzter: false, partner: '', kalenderMonate: [], notiz: '' });
   assert.equal(daten.wiederkehrend[1].aktiv, false, 'vorhandene Werte bleiben');
   assert.equal(daten.wiederkehrend[1].monatsletzter, true);
 });

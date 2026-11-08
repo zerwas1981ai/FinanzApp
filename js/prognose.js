@@ -24,6 +24,19 @@ export function nurWirksam(daten) {
   };
 }
 
+/**
+ * Anzeigename einer wiederkehrenden oder geplanten Buchung (D96).
+ * Geplante Einmalbuchungen haben weiter eine Bezeichnung. Wiederkehrende haben keine mehr:
+ * „Empfänger/Absender · Notiz“, sonst die Unterkategorie bzw. „Umbuchung“.
+ */
+export function annahmeTitel(x, kategorien = []) {
+  if (x.bezeichnung) return x.bezeichnung;
+  const teile = [x.partner, x.notiz].filter(Boolean);
+  if (teile.length) return teile.join(' · ');
+  if (x.art === 'umbuchung') return 'Umbuchung';
+  return kategorien.find((k) => k.id === x.kategorieId)?.name ?? 'Wiederkehrende Buchung';
+}
+
 /* ======================= Datums-Helfer ======================= */
 
 export const tageImMonat = (jahr, monat) => new Date(jahr, monat, 0).getDate();
@@ -542,7 +555,7 @@ export function zeitleiste(daten, heute, bisMonat = LETZTER_MONAT) {
       if (t.datum < (stichtag.get(w.kontoId) ?? '')) continue;
       merke({
         art: w.art, kontoId: w.kontoId, gegenkontoId: w.gegenkontoId, betragCent: t.betragCent, datum: t.datum,
-        hauptId: hauptVon(w.kategorieId), text: w.bezeichnung, quelle: 'wiederkehrend',
+        hauptId: hauptVon(w.kategorieId), text: annahmeTitel(w, kategorien), quelle: 'wiederkehrend',
         ref: { wiederkehrend: w, termin: t.termin, einzelBetrag: t.einzelBetrag, verschoben: t.verschoben },
       });
     }
