@@ -2,7 +2,7 @@
 // - Termin einer wiederkehrenden Buchung: Betrag/Datum NUR für diesen Termin, überspringen,
 //   zurücksetzen. Die Serie selbst bleibt unverändert.
 // - Geplante Einmalbuchung: der normale Dialog (sie ist ja nur ein einzelner Posten).
-// - Budget: Monatsbetrag NUR für diesen Monat.
+// - Budget: Monatsbetrag NUR für diesen Monat – auch im laufenden Monat (D99, „Noch erwartet“).
 // Siehe DECISIONS.md D58.
 
 import { h } from '../dom.js';
@@ -81,6 +81,11 @@ function terminAendern(posten) {
 
 /* ---------- Budget eines Monats ---------- */
 
+/** Monatsbudget nur für einen Monat ändern – Zukunftsmonate und laufender Monat (D99) */
+export function budgetMonatAendern(info, daten) {
+  return budgetAendern(info, daten);
+}
+
 function budgetAendern(info, daten) {
   const { kategorieId, monat } = info;
   const name = daten.kategorien.find((k) => k.id === kategorieId)?.name ?? '?';
@@ -125,7 +130,7 @@ function budgetAendern(info, daten) {
       h('p', { class: 'hinweis' },
         `Gilt nur für ${monatText(monat)}. Regulär: ${formatEuro(regel)} pro Monat. ` +
         (einmaligSumme ? `Dazu kommt ein einmaliges Budget von ${formatEuro(einmaligSumme)}. ` : '') +
-        `Schon verplant (wiederkehrend/geplant): ${formatEuro(info.verbrauchtCent)} – in der Prognose zählt nur der Rest bis zum Budget.`),
+        `${info.laufend ? 'Schon verbraucht und noch eingeplant' : 'Schon verplant (wiederkehrend/geplant)'}: ${formatEuro(info.verbrauchtCent)} – in der Prognose zählt nur der Rest bis zum Budget.`),
       betrag.feld,
       ausnahme && h('div', { class: 'knopfreihe' },
         h('button', {

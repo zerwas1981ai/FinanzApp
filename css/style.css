@@ -1069,6 +1069,10 @@ details[open] > .zl-zeile > .zl-name::before { transform: rotate(90deg); }
 .liste > .budget-eintrag:first-child { border-top: none; }
 .budget-kopf { display: flex; justify-content: space-between; gap: 12px; }
 .budget-eintrag .meter { margin: 4px 0 2px; height: 6px; }
+/* Budget im laufenden Monat antippbar (D99) */
+.budget-knopf { display: block; width: 100%; text-align: left; font: inherit; color: inherit; background: none; border: 0; padding: 2px 4px; margin: 0 -4px; border-radius: var(--radius-klein); cursor: pointer; box-sizing: content-box; }
+.budget-knopf:hover { background: var(--flaeche-2); }
+.budget-knopf .buchung-titel { text-decoration: underline dotted var(--text-2); text-underline-offset: 3px; }
 
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }

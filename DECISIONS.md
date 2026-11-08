@@ -1508,3 +1508,13 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
   ihr jeweiliges Budget. Kein automatischer Hinweis (bewusst einfach gehalten).
 - Die Löschsperre einer Hauptkategorie zählt solche Zuordnungen mit.
 
+## D99 – Monatsbudget auch im laufenden Monat nur für diesen Monat ändern
+*Wunsch des Nutzers; ergänzt D58 (bisher nur Zukunftsmonate)*
+
+- In der Übersicht unter „Noch erwartet → Budgets“ lässt sich ein **Monatsbudget antippen**. Es öffnet sich
+  derselbe Dialog wie bei Zukunftsmonaten: Betrag nur für den laufenden Monat (Einzel-Ausnahme),
+  „Zurücksetzen“ führt auf den regulären Betrag zurück.
+- **Abgeschlossene Monate** lassen sich nicht ändern (sie zeigen keine Budgets mehr).
+- **Jahresbudgets** (D90) sind dort nicht antippbar – sie werden unter „Annahmen“ geändert.
+- Kleiner Hinweis unter den Budgets: „Budget antippen, um es nur für diesen Monat zu ändern.“
+

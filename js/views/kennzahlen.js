@@ -11,6 +11,7 @@ import { plusMonate, plusTage, annahmeTitel } from '../prognose.js';
 import { budgetMitVorschlag, merkeHinweis } from '../annahmen.js';
 import { oeffneBuchungsdialog } from './buchung-dialog.js';
 import { speichereAusnahme, aendereGeplant } from './annahmen.js';
+import { budgetMonatAendern } from './posten-dialog.js';
 
 const monatText = (m) => formatMonat(Number(m.slice(0, 4)), Number(m.slice(5, 7)));
 const kurzMonat = (m) => new Intl.DateTimeFormat('de-DE', { month: 'short' }).format(new Date(Number(m.slice(0, 4)), Number(m.slice(5, 7)) - 1, 1)).replace('.', '');
@@ -109,10 +110,11 @@ export function erwartetBereich(kd, daten) {
         h('span', { class: 'betrag annahme' + (t.wirkung > 0 ? ' plus' : '') }, mitVorzeichen(t.wirkung))));
   });
 
+  const monat = heute.slice(0, 7);
   const budgetZeilen = kd.budgets.map((b) => {
     const ueber = b.ist > b.budget;
     const anteil = b.budget > 0 ? Math.min(1, b.ist / b.budget) : 0;
-    return h('li', { class: 'budget-eintrag' },
+    const inhalt = [
       h('div', { class: 'budget-kopf' },
         h('span', { class: 'buchung-titel' }, `Budget ${b.name}`),
         h('span', { class: 'betrag annahme' }, b.rest > 0 ? formatEuro(-b.rest) : formatEuro(0))),
@@ -129,7 +131,18 @@ export function erwartetBereich(kd, daten) {
           ? `${formatEuro(b.ist)} von ${formatEuro(b.budget)} – überschritten um ${formatEuro(b.ist - b.budget)}`
           : `${formatEuro(b.ist)} von ${formatEuro(b.budget)} verbraucht` +
             (b.offen > 0 ? ` · ${formatEuro(b.offen)} wiederkehrend eingeplant` : '') +
-            ` · Rest ${formatEuro(b.rest)} in der Prognose`));
+            ` · Rest ${formatEuro(b.rest)} in der Prognose`)];
+    // D99: Monatsbudget im laufenden Monat nur für diesen Monat ändern (Jahresbudgets nicht)
+    if (b.jaehrlich) return h('li', { class: 'budget-eintrag' }, ...inhalt);
+    return h('li', { class: 'budget-eintrag' },
+      h('button', {
+        type: 'button',
+        class: 'budget-knopf',
+        title: 'Budget nur für diesen Monat ändern',
+        onclick: () => budgetMonatAendern({
+          kategorieId: b.id, kontoId: b.kontoId, monat, betragCent: b.budget, verbrauchtCent: b.ist + b.offen, laufend: true,
+        }, daten),
+      }, ...inhalt));
   });
 
   return h('section', { class: 'bereich erwartet', 'aria-labelledby': 'titel-erwartet' },
@@ -142,7 +155,8 @@ export function erwartetBereich(kd, daten) {
       h('div', { class: 'ub-reihe' }, umbuchungKnopf(kd.termine.filter((t) => t.wiederkehrend.art === 'umbuchung').length))),
     budgetZeilen.length > 0 && h('div', {},
       h('div', { class: 'tag-kopf' }, h('span', {}, 'Budgets (belasten dieses Konto)'), h('span', { class: 'tag-stand annahme' }, formatEuro(-kd.rest))),
-      h('ul', { class: 'liste' }, budgetZeilen)),
+      h('ul', { class: 'liste' }, budgetZeilen),
+      kd.budgets.some((b) => !b.jaehrlich) && h('p', { class: 'hinweis' }, 'Budget antippen, um es nur für diesen Monat zu ändern.')),
   );
 }
 
