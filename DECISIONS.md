@@ -1399,3 +1399,11 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
   Die Zwischensumme des Folgemonats (D87) zählt eine dort fällige Tranche mit (ohne Übertrag).
 - Testdaten: Jahresbudget Kleidung auf der Kreditkarte, hälftig, 600 € pro Jahr.
 
+## D91 – Budgets je Konto nach Art gruppiert
+*Wunsch des Nutzers; ergänzt D86*
+
+- Im Annahmen-Tab bleibt die Gruppierung nach Konten (D86). Innerhalb eines Kontos stehen die Budgets
+  jetzt in Untergruppen **Monatlich – Jährlich – Einmalig** (nur Gruppen, die es gibt), darin
+  alphabetisch nach Kategorie.
+- Zwischensumme je Konto (Folgemonat, D87) und Gesamtsumme bleiben unverändert.
+

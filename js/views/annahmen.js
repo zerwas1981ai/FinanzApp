@@ -18,6 +18,7 @@ const monatText = (m) => formatMonat(Number(m.slice(0, 4)), Number(m.slice(5, 7)
 const MONATSNAMEN = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
 const TYP_TEXT = { wiederkehrend: 'Jeden Monat', jaehrlich: 'Jährlich', einmalig: 'Einmalig' };
 const TYP_RANG = { wiederkehrend: 0, jaehrlich: 1, einmalig: 2 };
+const ART_UEBERSCHRIFT = { wiederkehrend: 'Monatlich', jaehrlich: 'Jährlich', einmalig: 'Einmalig' };
 const QUARTALSENDE = ['31.03.', '30.06.', '30.09.', '31.12.'];
 
 export async function zeigeAnnahmen(container) {
@@ -68,7 +69,7 @@ function budgetBereich(daten) {
   const monat = heuteIso().slice(0, 7);
   const kat = new Map(kategorien.map((k) => [k.id, k]));
   const kontoName = new Map(konten.map((k) => [k.id, k.name]));
-  // D86: nach Konten gruppiert (eigene Konten-Reihenfolge), darin alphabetisch nach Kategorie
+  // D86/D91: nach Konten gruppiert (eigene Konten-Reihenfolge), darin nach Art, dann alphabetisch nach Kategorie
   const nachKategorie = (a, b) =>
     (kat.get(a.kategorieId)?.name ?? '').localeCompare(kat.get(b.kategorieId)?.name ?? '', 'de')
     || (TYP_RANG[a.typ] ?? 0) - (TYP_RANG[b.typ] ?? 0)
@@ -133,7 +134,13 @@ function budgetBereich(daten) {
         const liste = imKonto(g);
         return h('div', { class: 'budget-gruppe' },
           h('div', { class: 'tag-kopf' }, h('span', {}, g.name)),
-          h('ul', { class: 'liste' }, [...liste].sort(nachKategorie).map(zeile)),
+          // D91: innerhalb des Kontos nach Art – monatlich, jährlich, einmalig
+          Object.keys(TYP_RANG).map((art) => {
+            const teil = liste.filter((b) => (b.typ ?? 'wiederkehrend') === art);
+            return teil.length > 0 && h('div', { class: 'budget-art' },
+              h('div', { class: 'budget-art-kopf' }, ART_UEBERSCHRIFT[art]),
+              h('ul', { class: 'liste' }, [...teil].sort(nachKategorie).map(zeile)));
+          }).filter(Boolean),
           h('div', { class: 'summe zwischensumme' },
             h('span', {}, `Zwischensumme ${g.name} · ${monatText(folgemonat)}`),
             h('span', { class: 'betrag' }, formatEuro(summeKonto(liste)))));
