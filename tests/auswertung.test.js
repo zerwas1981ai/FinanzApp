@@ -172,7 +172,7 @@ test('Empfänger/Absender: Filter, Suche, Sortierung, Liste und Summen', async (
   assert.deepEqual(mit({ partner: [OHNE_PARTNER] }), ['3'], 'ohne Angabe – Umbuchungen nicht');
   assert.deepEqual(mit({ suche: 'gmbh' }), ['4']);
   const sortiert = sortiere(filtere(buchungen, { ...STANDARD_FILTER, zeitraum: 'alles' }, ctx), { feld: 'partner', richtung: 'auf' });
-  assert.deepEqual(sortiert.map((e) => e.buchung.id).slice(0, 3), ['4', '1', '2']);
+  assert.deepEqual(sortiert.map((e) => e.buchung.id).slice(0, 3), ['4', '2', '1'], 'gleicher Name: neueste zuerst (D102)');
 
   const liste = partnerListe(buchungen);
   assert.deepEqual(liste.map((p) => [p.name, p.anzahl]), [['supermarkt muster', 2], ['Muster GmbH', 1]], 'jüngste Schreibweise, häufigste zuerst');
@@ -235,5 +235,25 @@ test('Mehrstufige Sortierung per Spaltenkopf (D73)', async () => {
   const auf = sortiere(filtere(daten, f({ zeitraum: 'alles' }), ctx), { stufen: [{ feld: 'betrag', richtung: 'auf' }] });
   assert.equal(auf[0].wirkung, -95000);
   assert.equal(auf.at(-1).wirkung, 300000);
+});
+
+test('Datum nach Betrag: Datum entscheidet, Richtung lässt sich umschalten (D102)', async () => {
+  const { sortiereNach, STANDARD_SORTIERUNG } = await import('../js/auswertung.js');
+  const b = (id, datum, cent) => ({ buchung: { id, datum, betragCent: cent, art: 'ausgabe', erstelltAm: `${datum}T10:00:00Z` }, wirkung: -cent });
+  const e = [b('a', '2026-10-01', 500), b('b', '2026-10-03', 100), b('c', '2026-10-02', 900), b('d', '2026-10-03', 700)];
+  const ids = (s) => sortiere(e, s).map((x) => x.buchung.id).join('');
+  // Klickfolge: Betrag, Datum, Datum, Datum
+  let s = sortiereNach(STANDARD_SORTIERUNG, 'betrag');
+  assert.equal(ids(s), 'badc', 'Betrag ↓ (kleinste Ausgabe zuerst)');
+  s = sortiereNach(s, 'datum');
+  assert.deepEqual(s.stufen.map((x) => `${x.feld}${x.richtung}`), ['datumab', 'betragab']);
+  assert.equal(ids(s), 'bdca', 'Datum ↓, am selben Tag Betrag ↓');
+  s = sortiereNach(s, 'datum');
+  assert.equal(ids(s), 'acbd', 'Datum ↑');
+  s = sortiereNach(s, 'datum');
+  assert.equal(ids(s), 'bdca', 'wieder Datum ↓');
+  // Ohne Datums-Stufe: bei Gleichstand neueste zuerst
+  const gleich = [b('x', '2026-10-01', 100), b('y', '2026-10-05', 100)];
+  assert.deepEqual(sortiere(gleich, { stufen: [{ feld: 'betrag', richtung: 'auf' }] }).map((x) => x.buchung.id), ['y', 'x']);
 });
 

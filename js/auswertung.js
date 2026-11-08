@@ -175,7 +175,9 @@ export function sortiere(eintraege, sortierung, { kategorien = [], konten = [] }
     return `${kat.get(unter?.elternId)?.name ?? ''} ${unter?.name ?? ''}`;
   };
   const vergleicher = {
-    datum: () => 0, // Datum entscheidet ohnehin am Schluss
+    // Datum vergleicht wirklich (D102) – früher stand hier "0", dann entschied bei
+    // Datum vor Betrag trotzdem der Betrag und die Richtung des Datums wirkte nicht.
+    datum: (a, b) => a.buchung.datum.localeCompare(b.buchung.datum),
     // Umbuchungen ohne Kontofilter (Wirkung 0) untereinander nach ihrer Höhe
     betrag: (a, b) => a.wirkung - b.wirkung
       || (a.wirkung === 0 && b.wirkung === 0 ? a.buchung.betragCent - b.buchung.betragCent : 0),
@@ -184,16 +186,18 @@ export function sortiere(eintraege, sortierung, { kategorien = [], konten = [] }
     konto: (a, b) => text(kontoName.get(a.buchung.kontoId) ?? '', kontoName.get(b.buchung.kontoId) ?? ''),
     notiz: (a, b) => mitLeer((a.buchung.notiz ?? '').trim(), (b.buchung.notiz ?? '').trim()),
   };
-  // Bei Gleichstand nach Datum (in der Richtung der ersten Stufe), dann nach Erfassungszeit
-  const nachDatum = (a, b) => a.buchung.datum.localeCompare(b.buchung.datum)
-    || (a.buchung.erstelltAm ?? '').localeCompare(b.buchung.erstelltAm ?? '');
-  const ersteRichtung = stufen.find((x) => x.feld === 'datum')?.richtung ?? stufen[0]?.richtung ?? 'ab';
+  // Bei Gleichstand: Datum (falls noch nicht als Stufe gewählt), dann Erfassungszeit, dann id –
+  // in der Richtung der Datums-Stufe, sonst neueste zuerst. So ist die Reihenfolge immer eindeutig.
+  const datumRichtung = stufen.find((x) => x.feld === 'datum')?.richtung ?? 'ab';
+  const zuletzt = (a, b) => a.buchung.datum.localeCompare(b.buchung.datum)
+    || (a.buchung.erstelltAm ?? '').localeCompare(b.buchung.erstelltAm ?? '')
+    || String(a.buchung.id ?? '').localeCompare(String(b.buchung.id ?? ''));
   return [...eintraege].sort((a, b) => {
     for (const { feld, richtung } of stufen) {
       const v = (vergleicher[feld] ?? (() => 0))(a, b);
       if (v) return richtung === 'auf' ? v : -v;
     }
-    return (ersteRichtung === 'auf' ? 1 : -1) * nachDatum(a, b);
+    return (datumRichtung === 'auf' ? 1 : -1) * zuletzt(a, b);
   });
 }
 

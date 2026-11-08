@@ -1537,3 +1537,16 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
   Belegen zeigt der Knopf die Anzahl und öffnet erst eine kleine Auswahlliste.
 - Die bisherige 📎-Marke neben dem Empfänger entfällt dort (steht jetzt in der eigenen Spalte).
 - Am Handy sitzt der Beleg-Knopf rechts neben dem Betrag.
+
+## D102 – Sortierung in „Alle Buchungen“ korrigiert
+*Fehlermeldung des Nutzers; ergänzt D73*
+
+- **Fehler:** Nach „Betrag“ und dann „Datum“ stand Datum zwar an erster Stelle, wurde beim Vergleich aber
+  übersprungen. Es entschied weiter der Betrag, und das Umschalten ↓/↑ beim Datum wirkte kaum.
+- **Jetzt:** Jede Stufe vergleicht wirklich, also auch das Datum. Die zuletzt angeklickte Spalte entscheidet,
+  die früheren gelten nur bei Gleichstand (z. B. am selben Tag nach Betrag).
+- Bleibt danach noch Gleichstand: Datum, Erfassungszeit, interne ID, und zwar in der Richtung der
+  Datums-Stufe, ohne Datums-Stufe „neueste zuerst“. Die Reihenfolge ist damit immer eindeutig und springt
+  beim Neuzeichnen nicht.
+- Unverändert: Eine neu angeklickte Spalte beginnt bei Datum und Betrag absteigend, bei Texten A–Z.
+  Erneutes Antippen dreht die Richtung um. „Sortierung zurücksetzen“ führt auf Datum ↓.
