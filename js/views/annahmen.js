@@ -10,10 +10,15 @@ import { dialog, frage, toast, eingabe, auswahl, datenGeaendert } from '../ui.js
 import { baueBudget, baueWiederkehrend, baueGeplant, geplantErledigt, haeufigstesKonto, mitAusnahme } from '../annahmen.js';
 import { budgetFuerMonat, betragAm, naechsterTermin, plusMonate, monatsende } from '../prognose.js';
 import { artWahl, fuelleKategorien, projektFeld, oeffneBuchungsdialog, partnerFeld } from './buchung-dialog.js';
+import { VERTEILUNGEN, istJaehrlich, trancheImMonat } from '../jahresbudget.js';
 
 const nachName = (a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base' });
 const INTERVALL_TEXT = { monatlich: 'monatlich', vierteljaehrlich: 'vierteljährlich', jaehrlich: 'jährlich' };
 const monatText = (m) => formatMonat(Number(m.slice(0, 4)), Number(m.slice(5, 7)));
+const MONATSNAMEN = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+const TYP_TEXT = { wiederkehrend: 'Jeden Monat', jaehrlich: 'Jährlich', einmalig: 'Einmalig' };
+const TYP_RANG = { wiederkehrend: 0, jaehrlich: 1, einmalig: 2 };
+const QUARTALSENDE = ['31.03.', '30.06.', '30.09.', '31.12.'];
 
 export async function zeigeAnnahmen(container) {
   const namen = ['konten', 'kategorien', 'buchungen', 'budgets', 'wiederkehrend', 'geplant', 'projekte'];
@@ -66,16 +71,17 @@ function budgetBereich(daten) {
   // D86: nach Konten gruppiert (eigene Konten-Reihenfolge), darin alphabetisch nach Kategorie
   const nachKategorie = (a, b) =>
     (kat.get(a.kategorieId)?.name ?? '').localeCompare(kat.get(b.kategorieId)?.name ?? '', 'de')
-    || (a.typ === 'einmalig') - (b.typ === 'einmalig')
+    || (TYP_RANG[a.typ] ?? 0) - (TYP_RANG[b.typ] ?? 0)
     || (a.monat ?? '').localeCompare(b.monat ?? '');
   const kontoIds = new Set(budgets.map((b) => b.kontoId));
   const gruppen = sortiereKonten(konten.filter((k) => kontoIds.has(k.id))).map((k) => ({ id: k.id, name: k.name }));
   if (budgets.some((b) => !kontoName.has(b.kontoId))) gruppen.push({ id: null, name: 'Unbekanntes Konto' });
   const imKonto = (g) => budgets.filter((b) => (g.id === null ? !kontoName.has(b.kontoId) : b.kontoId === g.id));
-  // Summen immer für den Folgemonat (D87): wiederkehrend + einmalig
+  // Summen immer für den Folgemonat (D87): wiederkehrend + einmalig + Tranchen von Jahresbudgets (D90)
   const folgemonat = plusMonate(monat, 1);
   const summeKonto = (liste) => [...new Set(liste.map((b) => b.kategorieId))]
-    .reduce((s, id) => s + budgetFuerMonat(liste, id, folgemonat).betragCent, 0);
+    .reduce((s, id) => s + budgetFuerMonat(liste, id, folgemonat).betragCent, 0)
+    + liste.filter(istJaehrlich).reduce((s, b) => s + trancheImMonat(b, folgemonat), 0);
 
   const summeMonat = summeKonto(budgets);
 
@@ -89,6 +95,13 @@ function budgetBereich(daten) {
       info = `Einmalig · ${monatText(b.monat)}`;
       betrag = formatEuro(b.betragCent);
       beendet = b.monat < monat;
+    } else if (istJaehrlich(b)) {
+      const wann = b.verteilung === 'zeitpunkt' ? `zum Ende ${MONATSNAMEN[b.zeitpunktMonat - 1]}`
+        : b.verteilung === 'halbjahr' ? 'hälftig 30.06./31.12.' : 'je Quartalsende';
+      info = `Jährlich · ${wann} · ab ${b.startJahr}${b.endJahr ? ` bis ${b.endJahr}` : ''}`;
+      betrag = `${formatEuro(b.betragCent)} / Jahr`;
+      if (b.verteilung === 'quartal') zusatz = b.quartaleCent.map((c, i) => `Q${i + 1} ${formatEuro(c)}`).join(' · ');
+      beendet = b.endJahr != null && b.endJahr < Number(monat.slice(0, 4));
     } else {
       const bis = b.endMonat ? ` bis ${monatText(b.endMonat)}` : '';
       info = `Jeden Monat · ab ${monatText(b.startMonat)}${bis}`;
@@ -112,7 +125,8 @@ function budgetBereich(daten) {
       h('button', { type: 'button', class: 'knopf knopf-primaer', onclick: () => budgetDialog(null, daten) }, '+ Budget')),
     h('p', { class: 'hinweis' },
       'Ein Budget gilt je Hauptkategorie, Konto und Monat. Nur Ausgaben der Unterkategorien auf diesem Konto ' +
-      'verbrauchen es, ein Rest verfällt am Monatsende. Einmalige Budgets kommen im jeweiligen Monat dazu.'),
+      'verbrauchen es, ein Rest verfällt am Monatsende. Einmalige Budgets kommen im jeweiligen Monat dazu. ' +
+      'Jahresbudgets wirken in Tranchen; ein Rest wandert ins Restbudget zum 31.12. und verfällt am Jahresende.'),
     budgets.length === 0
       ? h('p', { class: 'leer' }, 'Noch keine Budgets.')
       : gruppen.map((g) => {
@@ -143,7 +157,7 @@ function budgetDialog(budget, daten) {
 
   let typ = budget?.typ ?? 'wiederkehrend';
   const typWahl = segmente(
-    budget ? [[budget.typ, budget.typ === 'einmalig' ? 'Einmalig' : 'Jeden Monat']] : [['wiederkehrend', 'Jeden Monat'], ['einmalig', 'Einmalig']],
+    budget ? [[budget.typ, TYP_TEXT[budget.typ]]] : Object.entries(TYP_TEXT),
     typ, (w) => { typ = w; aktualisiere(); }, 'Art des Budgets');
 
   const kat = auswahl({
@@ -171,17 +185,66 @@ function budgetDialog(budget, daten) {
   const monat = eingabe({ label: 'Monat', type: 'month', value: budget?.monat ?? plusMonate(heute.slice(0, 7), 1) });
   const betrag = eingabe({ label: 'Betrag in €', inputmode: 'decimal', placeholder: '0,00', value: budget?.typ === 'einmalig' ? centZuEingabe(budget.betragCent) : '' });
 
+  // Jährlich (D90)
+  const jb = istJaehrlich(budget) ? budget : null;
+  const startJahr = eingabe({ label: 'Ab Jahr', type: 'number', inputmode: 'numeric', min: '2000', max: '2100', value: String(jb?.startJahr ?? Number(heute.slice(0, 4))) });
+  const endJahr = eingabe({ label: 'Bis Jahr (optional)', type: 'number', inputmode: 'numeric', min: '2000', max: '2100', value: jb?.endJahr ? String(jb.endJahr) : '' });
+  const verteilung = auswahl({
+    label: 'Wann wirkt das Budget?',
+    optionen: Object.entries(VERTEILUNGEN).map(([wert, text]) => ({ wert, text })),
+    wert: jb?.verteilung ?? 'halbjahr',
+  });
+  const zeitpunkt = auswahl({
+    label: 'Zum Ende von',
+    optionen: MONATSNAMEN.map((text, i) => ({ wert: String(i + 1), text })),
+    wert: String(jb?.zeitpunktMonat ?? 12),
+  });
+  const jahrBetrag = eingabe({
+    label: 'Betrag pro Jahr in €', inputmode: 'decimal', placeholder: '0,00',
+    value: jb && jb.verteilung !== 'quartal' ? centZuEingabe(jb.betragCent) : '',
+  });
+  const quartale = QUARTALSENDE.map((tag, i) => eingabe({
+    label: `Q${i + 1} (zum ${tag}) in €`, inputmode: 'decimal', placeholder: '0,00',
+    value: jb?.verteilung === 'quartal' ? centZuEingabe(jb.quartaleCent[i]) : '',
+  }));
+  const quartalSumme = h('p', { class: 'hinweis' });
+  const zeigeQuartalSumme = () => {
+    let summe = 0;
+    for (const q of quartale) {
+      try { summe += parseEuro(q.input.value, 'Betrag') ?? 0; } catch { /* Tippfehler: beim Speichern gemeldet */ }
+    }
+    quartalSumme.textContent = `Jahresbudget zusammen: ${formatEuro(summe)}`;
+  };
+  quartale.forEach((q) => q.input.addEventListener('input', zeigeQuartalSumme));
+  zeigeQuartalSumme();
+  const quartalFelder = h('div', {},
+    h('div', { class: 'feld-paar' }, quartale[0].feld, quartale[1].feld),
+    h('div', { class: 'feld-paar' }, quartale[2].feld, quartale[3].feld),
+    quartalSumme);
+  const jaehrlichFelder = h('div', {},
+    h('div', { class: 'feld-paar' }, startJahr.feld, endJahr.feld),
+    verteilung.feld, zeitpunkt.feld, jahrBetrag.feld, quartalFelder,
+    h('p', { class: 'hinweis' },
+      'Jede Tranche wird von den Ausgaben seit der vorigen Tranche verbraucht. Was nach Ablauf übrig ist, ' +
+      'kommt ins Restbudget zum 31.12.; eine Überziehung verringert es. Am Jahresende verfällt der Rest – kein Übertrag ins neue Jahr.'));
+  verteilung.select.addEventListener('change', () => aktualisiere());
+
   const wiederkehrendFelder = h('div', {}, h('div', { class: 'feld-paar' }, start.feld, ende.feld), stufen.feld);
   const einmaligFelder = h('div', {}, h('div', { class: 'feld-paar' }, monat.feld, betrag.feld));
   function aktualisiere() {
     wiederkehrendFelder.hidden = typ !== 'wiederkehrend';
     einmaligFelder.hidden = typ !== 'einmalig';
+    jaehrlichFelder.hidden = typ !== 'jaehrlich';
+    const v = verteilung.select.value;
+    zeitpunkt.feld.hidden = v !== 'zeitpunkt';
+    jahrBetrag.feld.hidden = v === 'quartal';
+    quartalFelder.hidden = v !== 'quartal';
   }
   aktualisiere();
 
   dialog({
     titel: budget ? 'Budget bearbeiten' : 'Neues Budget',
-    inhalt: [typWahl, kat.feld, wiederkehrendFelder, einmaligFelder, konto.feld],
+    inhalt: [typWahl, kat.feld, wiederkehrendFelder, jaehrlichFelder, einmaligFelder, konto.feld],
     zusatz: budget && {
       text: 'Löschen',
       variante: 'knopf-gefahr',
@@ -196,9 +259,17 @@ function budgetDialog(budget, daten) {
     },
     onSpeichern: async () => {
       const basis = { typ, kategorieId: kat.select.value, kontoId: konto.select.value };
-      const werte = typ === 'einmalig'
-        ? { ...basis, monat: monat.input.value, betragCent: parseEuro(betrag.input.value, 'Betrag') }
-        : { ...basis, startMonat: start.input.value, endMonat: ende.input.value, stufen: stufen.werte() };
+      let werte;
+      if (typ === 'einmalig') werte = { ...basis, monat: monat.input.value, betragCent: parseEuro(betrag.input.value, 'Betrag') };
+      else if (typ === 'jaehrlich') {
+        const v = verteilung.select.value;
+        werte = {
+          ...basis, startJahr: startJahr.input.value, endJahr: endJahr.input.value, verteilung: v,
+          zeitpunktMonat: zeitpunkt.select.value,
+          betragCent: v === 'quartal' ? null : parseEuro(jahrBetrag.input.value, 'Betrag pro Jahr'),
+          quartaleCent: v === 'quartal' ? quartale.map((q, i) => parseEuro(q.input.value, `Q${i + 1}`) ?? 0) : null,
+        };
+      } else werte = { ...basis, startMonat: start.input.value, endMonat: ende.input.value, stufen: stufen.werte() };
       await db.speichere('budgets', baueBudget(werte, { kategorien, budgets, alt: budget }));
       toast(budget ? 'Budget gespeichert' : 'Budget angelegt');
       datenGeaendert();

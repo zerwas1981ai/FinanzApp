@@ -2,6 +2,7 @@
 // Reine Funktionen ohne Datenbank – mit `npm test` geprüft. Siehe DECISIONS.md D33–D40.
 
 import { istAktiv, kontostand } from './rechnen.js';
+import { istJaehrlich, jahresbudgetJahr } from './jahresbudget.js';
 
 const pad = (n) => String(n).padStart(2, '0');
 
@@ -75,7 +76,7 @@ export function budgetFuerMonat(budgets, kategorieId, monat, nurKonto) {
   let kontoId = null;
   let vorhanden = false;
   for (const b of budgets) {
-    if (b.kategorieId !== kategorieId) continue;
+    if (b.kategorieId !== kategorieId || istJaehrlich(b)) continue; // Jahresbudgets: jahresbudgetPlan (D90)
     if (nurKonto !== undefined && b.kontoId !== nurKonto) continue;
     if (b.typ === 'einmalig') {
       if (b.monat !== monat) continue;
@@ -99,7 +100,9 @@ export const budgetSchluessel = (kontoId, kategorieId) => `${kontoId}|${kategori
 /** Alle Paare aus Konto und Hauptkategorie, für die es ein Budget gibt (D85) */
 export function budgetPaare(budgets) {
   const paare = new Map();
-  for (const b of budgets) paare.set(budgetSchluessel(b.kontoId, b.kategorieId), { kontoId: b.kontoId, kategorieId: b.kategorieId });
+  for (const b of budgets) {
+    if (!istJaehrlich(b)) paare.set(budgetSchluessel(b.kontoId, b.kategorieId), { kontoId: b.kontoId, kategorieId: b.kategorieId });
+  }
   return [...paare.values()];
 }
 
@@ -332,6 +335,28 @@ export function monatsprognose(daten, heute) {
     });
   }
 
+  // Jahresbudgets (D90): Tranche oder Restbudget, das in diesem Monat fällig ist
+  for (const p of jahresbudgetPlan(daten, heute, `${monat.slice(0, 4)}-12`).get(monat) ?? []) {
+    const hk = kat.get(p.kategorieId);
+    if (!hk) continue;
+    let z = kategorieZeilen.find((x) => x.id === p.kategorieId && x.kontoId === p.kontoId);
+    if (!z) {
+      z = { id: p.kategorieId, kontoId: p.kontoId, ist: 0, offen: 0 };
+      kategorieZeilen.push(z);
+    }
+    const offenCent = offenJe.get(budgetSchluessel(p.kontoId, p.kategorieId)) ?? 0;
+    Object.assign(z, {
+      name: `${hk.name} (${p.art === 'rest' ? 'Restbudget Jahr' : 'Jahresbudget'})`,
+      jaehrlich: true,
+      ist: p.verbrauchtCent - offenCent, // echte Ausgaben im Abschnitt
+      offen: offenCent,
+      budget: p.betragCent,
+      rest: p.restCent,
+      prognose: Math.max(p.betragCent, p.verbrauchtCent),
+      auslastung: p.betragCent > 0 ? (p.verbrauchtCent - offenCent) / p.betragCent : null,
+    });
+  }
+
   // Konten – mit Aufschlüsselung, damit die Übersicht je Konto zeigen kann,
   // woraus sich die Prognose zusammensetzt
   const jeKonto = new Map();
@@ -514,9 +539,16 @@ export function zeitleiste(daten, heute, bisMonat = LETZTER_MONAT) {
     });
   }
   const paare = budgetPaare(budgets);
+  const jahresPlan = jahresbudgetPlan(daten, heute, bisMonat); // D90
   // Kategorien mit Budgets auf mehreren Konten: Konto im Text nennen (Gesamtsicht)
   const zaehler = new Map();
   for (const p of paare) zaehler.set(p.kategorieId, (zaehler.get(p.kategorieId) ?? 0) + 1);
+  // Jahresbudgets zählen hier mit: >0 heißt dann „gibt es auch auf einem anderen Konto“
+  const jahrKonten = new Map();
+  for (const b of budgets.filter(istJaehrlich)) {
+    if (!jahrKonten.has(b.kategorieId)) jahrKonten.set(b.kategorieId, new Set());
+    jahrKonten.get(b.kategorieId).add(b.kontoId);
+  }
 
   // 2. Monat für Monat fortschreiben
   const stand = new Map(aktiveKonten.map((k) => [k.id, start.jeKonto.get(k.id)?.prognose ?? 0]));
@@ -582,6 +614,23 @@ export function zeitleiste(daten, heute, bisMonat = LETZTER_MONAT) {
       g.posten.push(posten);
     }
 
+    // Jahresbudgets (D90): Tranche bzw. Restbudget zum 31.12. – nicht einzeln änderbar (kein ref)
+    for (const p of jahresPlan.get(m) ?? []) {
+      const name = kat.get(p.kategorieId)?.name ?? '?';
+      const posten = {
+        datum: monatsende(`${m}-01`),
+        text: `${p.art === 'rest' ? 'Restbudget' : 'Budget'} ${name} (Jahr)` + ((zaehler.get(p.kategorieId) ?? 0) + (jahrKonten.get(p.kategorieId)?.size ?? 0) > 1 ? ` (${kontoName.get(p.kontoId) ?? '?'})` : ''),
+        wirkung: -p.restCent, quelle: 'budget',
+      };
+      const z = zeilen.get(p.kontoId);
+      if (z) {
+        z.ausgaben += p.restCent;
+        z.posten.push(posten);
+      }
+      g.ausgaben += p.restCent;
+      g.posten.push(posten);
+    }
+
     for (const k of aktiveKonten) {
       const z = zeilen.get(k.id);
       z.stand = stand.get(k.id) + z.einnahmen - z.ausgaben + z.umbuchungen;
@@ -627,4 +676,80 @@ export function mindestsaldoWarnungen(zl) {
     if (erste) warnungen.push({ konto, wann: 'zukunft', monat: erste.monat, standCent: erste.stand });
   }
   return warnungen;
+}
+
+/* ======================= Jahresbudgets (D90) ======================= */
+
+/**
+ * Erwartete Ausgaben je Konto, Hauptkategorie und Monat – Grundlage für Jahresbudgets.
+ * Schlüssel: "kontoId|hauptId|JJJJ-MM". Ohne Projektausgaben (D52).
+ * - alle echten Ausgaben (auch mit Zukunftsdatum)
+ * - laufender Monat: offene wiederkehrende und geplante Ausgaben
+ * - spätere Monate bis bisMonat: Termine wiederkehrender und offene geplante Ausgaben
+ */
+export function erwarteteAusgaben(daten, heute, bisMonat) {
+  const { kategorien, buchungen, konten, geplant = [] } = daten;
+  const wiederkehrende = daten.wiederkehrende ?? daten.wiederkehrend ?? [];
+  const hauptVon = new Map(kategorien.map((k) => [k.id, k.elternId]));
+  const stichtag = new Map(konten.map((k) => [k.id, k.stichtag]));
+  const ergebnis = new Map();
+  const dazu = (kontoId, kategorieId, datum, cent) => {
+    const hId = hauptVon.get(kategorieId);
+    if (!hId) return;
+    const s = `${kontoId}|${hId}|${datum.slice(0, 7)}`;
+    ergebnis.set(s, (ergebnis.get(s) ?? 0) + cent);
+  };
+  const monat = heute.slice(0, 7);
+  const ende = monatsende(heute);
+  const bis = monatsende(`${bisMonat}-01`);
+
+  for (const b of buchungen) {
+    if (istAktiv(b) && b.art === 'ausgabe' && !b.projektId && b.datum <= bis) dazu(b.kontoId, b.kategorieId, b.datum, b.betragCent);
+  }
+  for (const t of offeneTermine({ ...daten, wiederkehrende, geplant }, heute, ende)) {
+    const q = t.wiederkehrend;
+    if (q.art !== 'ausgabe' || q.projektId || t.datum < `${monat}-01`) continue;
+    dazu(q.kontoId, q.kategorieId, t.datum, t.betragCent);
+  }
+  const von = `${plusMonate(monat, 1)}-01`;
+  if (von > bis) return ergebnis;
+  for (const w of wiederkehrende) {
+    if (w.art !== 'ausgabe' || w.projektId) continue;
+    for (const t of termine(w, von, bis)) {
+      if (t.datum >= (stichtag.get(w.kontoId) ?? '')) dazu(w.kontoId, w.kategorieId, t.datum, t.betragCent);
+    }
+  }
+  const gebucht = new Set(buchungen.filter((b) => istAktiv(b) && b.geplantId).map((b) => b.geplantId));
+  for (const g of geplant) {
+    if (g.erledigtAm || gebucht.has(g.id) || g.art !== 'ausgabe' || g.projektId || g.datum < von || g.datum > bis) continue;
+    dazu(g.kontoId, g.kategorieId, g.datum, g.betragCent);
+  }
+  return ergebnis;
+}
+
+/**
+ * Wirkung aller Jahresbudgets vom laufenden Monat bis bisMonat.
+ * Ergebnis: Map("JJJJ-MM" → [{ kontoId, kategorieId, budget, monat, art, betragCent, verbrauchtCent, restCent, uebertragCent }])
+ */
+export function jahresbudgetPlan(daten, heute, bisMonat) {
+  const plan = new Map();
+  const jahresBudgets = (daten.budgets ?? []).filter(istJaehrlich);
+  if (!jahresBudgets.length) return plan;
+  const ausgaben = erwarteteAusgaben(daten, heute, bisMonat);
+  const aktJahr = Number(heute.slice(0, 4));
+  const aktMonat = Number(heute.slice(5, 7));
+  const bisJahr = Number(bisMonat.slice(0, 4));
+  for (const b of jahresBudgets) {
+    const letztes = Math.min(bisJahr, b.endJahr ?? bisJahr);
+    for (let jahr = Math.max(aktJahr, b.startJahr); jahr <= letztes; jahr++) {
+      const ausgabe = (m) => ausgaben.get(`${b.kontoId}|${b.kategorieId}|${jahr}-${pad(m)}`) ?? 0;
+      for (const p of jahresbudgetJahr(b, jahr, ausgabe, jahr === aktJahr ? aktMonat : 1)) {
+        const monat = `${jahr}-${pad(p.monat)}`;
+        if (monat > bisMonat) continue;
+        if (!plan.has(monat)) plan.set(monat, []);
+        plan.get(monat).push({ ...p, monat, budget: b, kontoId: b.kontoId, kategorieId: b.kategorieId });
+      }
+    }
+  }
+  return plan;
 }

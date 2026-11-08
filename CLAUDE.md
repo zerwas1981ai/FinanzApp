@@ -38,7 +38,8 @@ Oberfläche auf Deutsch, Währung Euro, deutsches Datums- und Zahlenformat.
   möglich, PDF/JPG), Status
 - Umbuchung: zwei verknüpfte Buchungen (Abgang Konto A, Zugang Konto B).
   Zählt in Auswertungen NICHT als Einnahme oder Ausgabe.
-- Budget: pro Hauptkategorie und Konto, wiederkehrend oder einmalig (D85)
+- Budget: pro Hauptkategorie und Konto, monatlich, jährlich (in Tranchen, D90) oder einmalig (D85);
+  je Kategorie und Konto entweder Monats- oder Jahresbudget
 - Wiederkehrende Buchung: Intervall (monatlich/vierteljährlich/jährlich),
   Start, optional Ende, Wertänderungen ab Datum, einzelne Monate
   überspringen oder verschieben
@@ -79,6 +80,9 @@ Oberfläche auf Deutsch, Währung Euro, deutsches Datums- und Zahlenformat.
   (echte, wiederkehrende, geplante) auf Unterkategorien auf DIESEM Konto
   verbrauchen es; Ausgaben auf Konten ohne eigenes Budget zählen gegen kein
   Budget (D85). Nicht verbrauchter Rest verfällt am Monatsende.
+- Jahresbudget (D90): wirkt zu einem Monatsende, hälftig zum 30.06./31.12. oder
+  je Quartalsende (Euro je Quartal). Rest einer abgelaufenen Tranche geht ins
+  Restbudget zum 31.12., Überziehung verringert es; kein Übertrag ins neue Jahr.
 - Zukunft: Das Budget wirkt wie eine wiederkehrende Ausgabe in der vom
   Nutzer vorgegebenen Höhe.
 - Laufender Monat: Prognose = echte Buchungen bisher + noch offener

@@ -1371,3 +1371,31 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
 - Gilt ebenso für die Posten, wenn man in einen Zukunftsmonat blättert (gleiche Liste).
 - Am PC bleibt alles wie bisher, mit Marken und ausgeschriebenen Monaten.
 
+## D90 – Jahresbudgets in Tranchen
+*Wunsch des Nutzers; Antworten auf die Rückfragen in Klammern*
+
+- Neben monatlichen und einmaligen Budgets gibt es **jährliche** (typ `jaehrlich`, Datenversion 12).
+  Sie gelten je Hauptkategorie und Konto, wiederholen sich jedes Jahr ab einem Startjahr, optional
+  bis zu einem Endjahr. Einen anderen Betrag ab einem Jahr erreicht man mit einem zweiten
+  Jahresbudget, das nach dem Endjahr des ersten beginnt.
+- **Verteilung im Jahr:**
+  - *Zu einem Zeitpunkt:* ganzer Betrag zum Ende eines gewählten Monats (Monat statt Datum).
+  - *Hälftig:* je die Hälfte zum 30.06. und 31.12.
+  - *Je Quartalsende:* eigene Beträge in Euro je Quartal (Euro statt Prozent); das Jahresbudget ist die Summe.
+- **Verbrauch:** Eine Tranche wird von den Ausgaben dieser Kategorie auf diesem Konto seit der vorigen
+  Tranche verbraucht (die erste seit 1.1.). Echte, wiederkehrende und geplante Ausgaben zählen,
+  Projektausgaben nicht (D52).
+- **Rest und Überziehung:** Ist der Monat einer Tranche vorbei, wandert ihr Rest ins **Restbudget zum
+  31.12.** Eine Überziehung verringert dieses Restbudget – das Jahr zählt als Ganzes (Wahl: „Ja“).
+  Was am 31.12. übrig ist, verfällt; kein Übertrag ins neue Jahr.
+- **Prognose:** Eine Tranche, die noch vor uns liegt, wirkt in ihrem Monat wie eine erwartete Ausgabe
+  (nur ihr noch offener Rest). Im laufenden Monat steht sie unter „Noch erwartet“ als
+  „Budget … (Jahresbudget)“ bzw. „(Restbudget Jahr)“, in „Zukunft bis 2050“ als „Budget … (Jahr)“ bzw.
+  „Restbudget … (Jahr)“. Diese Posten lassen sich nicht einzeln für einen Monat ändern.
+- **Entweder oder** (Wahl): Pro Kategorie und Konto gilt im selben Zeitraum entweder ein Monatsbudget
+  (mit einmaligen) oder ein Jahresbudget; Überschneidungen lehnt die App beim Speichern ab.
+- Jahresbudgets erzeugen keine Budgethinweise (die Regel „N Monate in Folge“ passt nicht zu Tranchen).
+- Annahmen-Tab: Zeile „Jährlich · … · ab JJJJ“, Betrag „… / Jahr“, bei Quartalen die Aufteilung.
+  Die Zwischensumme des Folgemonats (D87) zählt eine dort fällige Tranche mit (ohne Übertrag).
+- Testdaten: Jahresbudget Kleidung auf der Kreditkarte, hälftig, 600 € pro Jahr.
+

@@ -10,6 +10,9 @@
 //   startMonat "JJJJ-MM", endMonat "JJJJ-MM"|null, stufen: [{ ab "JJJJ-MM", betragCent }]  // wiederkehrend
 //   ausnahmen: [{ monat "JJJJ-MM", betragCent }]  // wiederkehrend, ab Version 7: nur dieser Monat anders
 //   monat "JJJJ-MM", betragCent                                                       // einmalig
+//   ab Datenversion 12 (D90) auch typ 'jaehrlich':
+//   startJahr, endJahr|null, verteilung: 'zeitpunkt'|'halbjahr'|'quartal', betragCent (pro Jahr),
+//   zeitpunktMonat 1..12 (nur 'zeitpunkt'), quartaleCent [Q1, Q2, Q3, Q4] (nur 'quartal', Summe = betragCent)
 //   notiz, erstelltAm, geaendertAm, testdaten? }
 //
 // Datensatz Wiederkehrende Buchung (Datenversion 3):
@@ -24,6 +27,7 @@ import * as db from './db.js';
 import { istGueltigesDatum, formatDatum } from './format.js';
 import { STANDARD_EINSTELLUNGEN } from './migrationen.js';
 import { monatsende, betragAm } from './prognose.js';
+import { istJaehrlich, budgetZeitraum, ueberschneiden } from './jahresbudget.js';
 
 /** Empfänger/Absender (Datenversion 8): undefined = unverändert, bei Umbuchungen leer */
 const partnerVon = (eingabe, alt) => (eingabe.art === 'umbuchung' ? ''
@@ -46,7 +50,21 @@ function pruefeStufen(stufen, start, istGueltig, art) {
 
 /* ======================= Budget ======================= */
 
-export function baueBudget(eingabe, { kategorien, budgets, alt = null, jetzt = new Date().toISOString() }) {
+export function baueBudget(eingabe, kontext) {
+  const neu = baueBudgetDatensatz(eingabe, kontext);
+  // Pro Kategorie und Konto entweder Monats- oder Jahresbudget im selben Zeitraum (D90)
+  const konflikt = kontext.budgets.find((b) => b.id !== neu.id && b.kategorieId === neu.kategorieId && b.kontoId === neu.kontoId
+    && (istJaehrlich(b) || istJaehrlich(neu)) && ueberschneiden(budgetZeitraum(b), budgetZeitraum(neu)));
+  if (konflikt) {
+    const name = kontext.kategorien.find((k) => k.id === neu.kategorieId)?.name ?? '?';
+    throw new Error(istJaehrlich(konflikt)
+      ? `Für „${name}“ gibt es auf diesem Konto im selben Zeitraum schon ein Jahresbudget. Pro Kategorie und Konto gilt entweder ein Monats- oder ein Jahresbudget.`
+      : `Für „${name}“ gibt es auf diesem Konto im selben Zeitraum schon ein Monatsbudget. Pro Kategorie und Konto gilt entweder ein Monats- oder ein Jahresbudget.`);
+  }
+  return neu;
+}
+
+function baueBudgetDatensatz(eingabe, { kategorien, budgets, alt = null, jetzt = new Date().toISOString() }) {
   const hk = kategorien.find((k) => k.id === eingabe.kategorieId);
   if (!hk || hk.elternId) throw new Error('Bitte eine Hauptkategorie wählen.');
   if (hk.art !== 'ausgabe') throw new Error('Budgets gibt es nur für Ausgaben-Kategorien.');
@@ -69,7 +87,8 @@ export function baueBudget(eingabe, { kategorien, budgets, alt = null, jetzt = n
     if (eingabe.betragCent == null || eingabe.betragCent <= 0) throw new Error('Bitte einen Betrag größer 0 eingeben.');
     return { ...basis, monat: eingabe.monat, betragCent: eingabe.betragCent };
   }
-  if (eingabe.typ !== 'wiederkehrend') throw new Error('Bitte wiederkehrend oder einmalig wählen.');
+  if (eingabe.typ === 'jaehrlich') return { ...basis, ...jahresFelder(eingabe) };
+  if (eingabe.typ !== 'wiederkehrend') throw new Error('Bitte monatlich, jährlich oder einmalig wählen.');
   if (!istMonat(eingabe.startMonat)) throw new Error('Bitte den Startmonat wählen.');
   if (eingabe.endMonat && !istMonat(eingabe.endMonat)) throw new Error('Der Endmonat ist ungültig.');
   if (eingabe.endMonat && eingabe.endMonat < eingabe.startMonat) throw new Error('Der Endmonat liegt vor dem Startmonat.');
@@ -87,6 +106,29 @@ export function baueBudget(eingabe, { kategorien, budgets, alt = null, jetzt = n
     stufen: pruefeStufen(stufen, eingabe.startMonat, istMonat, 'Monat'),
     ausnahmen: alt?.ausnahmen ?? [], // einzelne Monate mit anderem Betrag (Datenversion 7)
   };
+}
+
+/** Felder eines Jahresbudgets prüfen (D90) */
+function jahresFelder(eingabe) {
+  const startJahr = Number(eingabe.startJahr);
+  const endJahr = eingabe.endJahr === '' || eingabe.endJahr == null ? null : Number(eingabe.endJahr);
+  if (!Number.isInteger(startJahr) || startJahr < 2000 || startJahr > 2100) throw new Error('Bitte das Startjahr eingeben (z. B. 2027).');
+  if (endJahr !== null && (!Number.isInteger(endJahr) || endJahr > 2100)) throw new Error('Das Endjahr ist ungültig.');
+  if (endJahr !== null && endJahr < startJahr) throw new Error('Das Endjahr liegt vor dem Startjahr.');
+  const felder = { startJahr, endJahr, verteilung: eingabe.verteilung };
+  if (eingabe.verteilung === 'quartal') {
+    const q = [0, 1, 2, 3].map((i) => eingabe.quartaleCent?.[i] ?? 0);
+    if (q.some((c) => !Number.isInteger(c) || c < 0)) throw new Error('Bitte die Quartalsbeträge ohne Minus eingeben.');
+    const summe = q.reduce((s, c) => s + c, 0);
+    if (summe <= 0) throw new Error('Bitte mindestens für ein Quartal einen Betrag eingeben.');
+    return { ...felder, quartaleCent: q, betragCent: summe };
+  }
+  if (eingabe.verteilung !== 'zeitpunkt' && eingabe.verteilung !== 'halbjahr') throw new Error('Bitte die Verteilung wählen.');
+  if (eingabe.betragCent == null || eingabe.betragCent <= 0) throw new Error('Bitte einen Betrag pro Jahr größer 0 eingeben.');
+  if (eingabe.verteilung === 'halbjahr') return { ...felder, betragCent: eingabe.betragCent };
+  const zeitpunktMonat = Number(eingabe.zeitpunktMonat);
+  if (!Number.isInteger(zeitpunktMonat) || zeitpunktMonat < 1 || zeitpunktMonat > 12) throw new Error('Bitte den Monat wählen.');
+  return { ...felder, betragCent: eingabe.betragCent, zeitpunktMonat };
 }
 
 /** Konto, auf dem eine Hauptkategorie am häufigsten gebucht wird (Vorschlag fürs Budget) */

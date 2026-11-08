@@ -23,7 +23,7 @@
 import { neueKategorie, INVESTITIONEN_UNTER, BARGELD_UNTER } from './startdaten.js';
 import { startReihenfolge } from './konten.js';
 
-export const DATENMODELL_VERSION = 11;
+export const DATENMODELL_VERSION = 12;
 
 /** Standard-Schwellen für Budgethinweise (in den Stammdaten änderbar) */
 export const STANDARD_EINSTELLUNGEN = Object.freeze({ id: 'hinweise', monate: 3, prozent: 10 });
@@ -168,6 +168,14 @@ export const MIGRATIONEN = [
     migriere(daten) {
       const start = startReihenfolge(daten.konten ?? []);
       for (const k of daten.konten ?? []) k.reihenfolge ??= start.get(k.id);
+      return daten;
+    },
+  },
+  {
+    nach: 12,
+    beschreibung: 'Budgets können jährlich sein (typ "jaehrlich", D90). Vorhandene Daten bleiben unverändert; ' +
+      'die neue Version sorgt dafür, dass ältere App-Versionen zum Aktualisieren auffordern.',
+    migriere(daten) {
       return daten;
     },
   },

@@ -142,6 +142,7 @@ js/sync/                                   Google Drive: Anmeldung, Abgleich, Zu
 js/export.js                               CSV-Export für Excel
 js/login.js, js/sperre.js, js/archiv.js    App-Login (Passwort, Passkey), Archiv alter Jahre
 js/konten.js                               Reihenfolge der Konten
+js/jahresbudget.js                         Jahresbudgets in Tranchen (D90)
 js/relevant.js                             Relevante Ausgaben (Liste unten im Tab Projekte)
 js/startdaten.js, js/testdaten.js          Kategorie-Startsatz, Testdaten
 js/ui.js, js/dom.js                        Bausteine der Oberfläche

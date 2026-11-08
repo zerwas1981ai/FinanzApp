@@ -174,6 +174,15 @@ export async function ladeTestdaten() {
       monat: plusMonate(aktuell, 1), betragCent: 30000, erstelltAm: jetzt, geaendertAm: jetzt, testdaten: true,
     });
   }
+  // Jahresbudget (D90): Kleidung auf der Kreditkarte, hälftig zum 30.06. und 31.12.
+  const kleidung = hauptId('Kleidung');
+  if (kleidung) {
+    budgets.push({
+      id: crypto.randomUUID(), kategorieId: kleidung, kontoId: kredit.id, typ: 'jaehrlich', notiz: '', aktiv: true,
+      startJahr: Number(heute.slice(0, 4)), endJahr: null, verteilung: 'halbjahr', betragCent: 60000,
+      erstelltAm: jetzt, geaendertAm: jetzt, testdaten: true,
+    });
+  }
   await db.speichere('budgets', budgets.filter(Boolean));
 
   /* ---------- Etappe 5: geplante Einmalbuchungen und Projekte ---------- */
