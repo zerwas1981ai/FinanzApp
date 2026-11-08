@@ -10,7 +10,7 @@ import * as db from '../db.js';
 import { formatEuro, formatDatum, formatMonat, centZuEingabe, parseEuro, istGueltigesDatum } from '../format.js';
 import { dialog, toast, eingabe, datenGeaendert } from '../ui.js';
 import { mitAusnahme, budgetMitMonatsAusnahme } from '../annahmen.js';
-import { betragAm } from '../prognose.js';
+import { betragAm, regelBetrag as budgetRegelBetrag } from '../prognose.js';
 import { geplantDialog } from './annahmen.js';
 
 const monatText = (m) => formatMonat(Number(m.slice(0, 4)), Number(m.slice(5, 7)));
@@ -108,7 +108,7 @@ function budgetAendern(info, daten) {
     });
   }
 
-  const regel = betragAm(wiederkehrend.stufen, monat);
+  const regel = budgetRegelBetrag(wiederkehrend, monat); // inkl. fester Kalendermonat-Abweichung (D92)
   const ausnahme = (wiederkehrend.ausnahmen ?? []).find((a) => a.monat === monat);
   const betrag = eingabe({
     label: 'Monatsbudget in €',

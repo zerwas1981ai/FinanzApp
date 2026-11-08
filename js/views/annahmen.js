@@ -108,7 +108,10 @@ function budgetBereich(daten) {
       info = `Jeden Monat · ab ${monatText(b.startMonat)}${bis}`;
       betrag = `${formatEuro(betragAm(b.stufen, b.startMonat > monat ? b.startMonat : monat))} / Monat`;
       const kuenftig = b.stufen.filter((s) => s.ab > monat);
-      if (kuenftig.length) zusatz = kuenftig.map((s) => `ab ${monatText(s.ab)}: ${formatEuro(s.betragCent)}`).join(' · ');
+      const teile = kuenftig.map((s) => `ab ${monatText(s.ab)}: ${formatEuro(s.betragCent)}`);
+      // D92: feste Abweichungen je Kalendermonat
+      for (const k of b.kalenderMonate ?? []) teile.push(`jeden ${MONATSNAMEN[k.monat - 1]}: ${formatEuro(k.betragCent)}`);
+      if (teile.length) zusatz = teile.join(' · ');
       beendet = Boolean(b.endMonat && b.endMonat < monat);
     }
     return zeileMitSchalter(b, 'budgets',
@@ -188,6 +191,7 @@ function budgetDialog(budget, daten) {
   const start = eingabe({ label: 'Ab Monat', type: 'month', value: budget?.startMonat ?? heute.slice(0, 7) });
   const ende = eingabe({ label: 'Bis Monat (optional)', type: 'month', value: budget?.endMonat ?? '' });
   const stufen = stufenEditor({ typ: 'month', stufen: budget?.typ === 'wiederkehrend' ? budget.stufen : [], label: 'Betrag pro Monat' });
+  const kalender = kalenderMonateEditor(budget?.typ === 'wiederkehrend' ? (budget.kalenderMonate ?? []) : []);
   // Einmalig
   const monat = eingabe({ label: 'Monat', type: 'month', value: budget?.monat ?? plusMonate(heute.slice(0, 7), 1) });
   const betrag = eingabe({ label: 'Betrag in €', inputmode: 'decimal', placeholder: '0,00', value: budget?.typ === 'einmalig' ? centZuEingabe(budget.betragCent) : '' });
@@ -236,7 +240,7 @@ function budgetDialog(budget, daten) {
       'kommt ins Restbudget zum 31.12.; eine Überziehung verringert es. Am Jahresende verfällt der Rest – kein Übertrag ins neue Jahr.'));
   verteilung.select.addEventListener('change', () => aktualisiere());
 
-  const wiederkehrendFelder = h('div', {}, h('div', { class: 'feld-paar' }, start.feld, ende.feld), stufen.feld);
+  const wiederkehrendFelder = h('div', {}, h('div', { class: 'feld-paar' }, start.feld, ende.feld), stufen.feld, kalender.feld);
   const einmaligFelder = h('div', {}, h('div', { class: 'feld-paar' }, monat.feld, betrag.feld));
   function aktualisiere() {
     wiederkehrendFelder.hidden = typ !== 'wiederkehrend';
@@ -276,7 +280,7 @@ function budgetDialog(budget, daten) {
           betragCent: v === 'quartal' ? null : parseEuro(jahrBetrag.input.value, 'Betrag pro Jahr'),
           quartaleCent: v === 'quartal' ? quartale.map((q, i) => parseEuro(q.input.value, `Q${i + 1}`) ?? 0) : null,
         };
-      } else werte = { ...basis, startMonat: start.input.value, endMonat: ende.input.value, stufen: stufen.werte() };
+      } else werte = { ...basis, startMonat: start.input.value, endMonat: ende.input.value, stufen: stufen.werte(), kalenderMonate: kalender.werte() };
       await db.speichere('budgets', baueBudget(werte, { kategorien, budgets, alt: budget }));
       toast(budget ? 'Budget gespeichert' : 'Budget angelegt');
       datenGeaendert();
@@ -630,6 +634,46 @@ function segmente(optionen, aktuell, beiWahl, label) {
     },
   }, text));
   return h('div', { class: 'segmente', role: 'group', 'aria-label': label }, knoepfe);
+}
+
+/**
+ * Feste Abweichungen je Kalendermonat (D92), z. B. „jeden Juli 200 €“.
+ * Liefert { feld, werte() } mit werte() = [{ monat, betragCent }].
+ */
+function kalenderMonateEditor(vorhanden) {
+  const zeilen = [];
+  const liste = h('div', { class: 'stufen' });
+  const neueZeile = (eintragAlt) => {
+    const monat = h('select', { 'aria-label': 'Monat' },
+      h('option', { value: '' }, 'Monat wählen …'),
+      MONATSNAMEN.map((text, i) => h('option', { value: String(i + 1) }, text)));
+    monat.value = eintragAlt ? String(eintragAlt.monat) : '';
+    const betrag = h('input', {
+      type: 'text', inputmode: 'decimal', placeholder: '0,00', 'aria-label': 'Betrag in diesem Monat in €',
+      value: eintragAlt ? centZuEingabe(eintragAlt.betragCent) : '',
+    });
+    const eintrag = { monat, betrag };
+    const zeile = h('div', { class: 'stufe' }, monat, betrag, h('button', {
+      type: 'button',
+      class: 'knopf knopf-klein',
+      'aria-label': 'Abweichung entfernen',
+      onclick: () => { zeile.remove(); zeilen.splice(zeilen.indexOf(eintrag), 1); },
+    }, '✕'));
+    zeilen.push(eintrag);
+    liste.append(zeile);
+  };
+  for (const k of vorhanden) neueZeile(k);
+
+  const feld = h('div', { class: 'feld' },
+    h('span', { class: 'feld-label' }, 'Abweichende Monate (jedes Jahr)'),
+    liste,
+    h('button', { type: 'button', class: 'knopf knopf-klein', onclick: () => neueZeile(null) }, '+ Monat mit anderem Betrag'),
+    h('small', { class: 'feld-hilfe' },
+      'Z. B. Juli 200 € – gilt jedes Jahr als fester Betrag, auch wenn sich der Monatsbetrag ändert. 0 = kein Budget in diesem Monat.'));
+  return {
+    feld,
+    werte: () => zeilen.map((z) => ({ monat: z.monat.value, betragCent: parseEuro(z.betrag.value, 'Betrag') ?? null })),
+  };
 }
 
 /**

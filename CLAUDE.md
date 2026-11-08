@@ -83,6 +83,8 @@ Oberfläche auf Deutsch, Währung Euro, deutsches Datums- und Zahlenformat.
 - Jahresbudget (D90): wirkt zu einem Monatsende, hälftig zum 30.06./31.12. oder
   je Quartalsende (Euro je Quartal). Rest einer abgelaufenen Tranche geht ins
   Restbudget zum 31.12., Überziehung verringert es; kein Übertrag ins neue Jahr.
+- Monatsbudget mit festen Abweichungen je Kalendermonat (z. B. jeden Juli 200 €,
+  D92); eine Einzel-Ausnahme für genau einen Monat hat Vorrang.
 - Zukunft: Das Budget wirkt wie eine wiederkehrende Ausgabe in der vom
   Nutzer vorgegebenen Höhe.
 - Laufender Monat: Prognose = echte Buchungen bisher + noch offener

@@ -1407,3 +1407,19 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
   alphabetisch nach Kategorie.
 - Zwischensumme je Konto (Folgemonat, D87) und Gesamtsumme bleiben unverändert.
 
+## D92 – Monatsbudgets: feste Abweichungen je Kalendermonat
+*Wunsch des Nutzers: „Freizeit monatlich 100 €, immer im Juli 200 € und im Dezember 200 €“*
+
+- Monatliche Budgets haben das Feld `kalenderMonate: [{ monat 1..12, betragCent }]` (Datenversion 13).
+  Im Budget-Dialog unter „Abweichende Monate (jedes Jahr)“: Monat wählen, Betrag eintragen.
+- **Fester Betrag** (Wahl des Nutzers): Im Juli gelten immer genau 200 €, auch wenn sich der normale
+  Monatsbetrag später ändert („Betrag ändern ab …“). 0 € = in diesem Monat kein Budget.
+- **Vorrang:** Einzel-Ausnahme für genau einen Monat (Zeitleiste, „nur diesen Monat ändern“) vor
+  Kalendermonat-Abweichung vor der geltenden Stufe. Das Zurücksetzen einer Einzel-Ausnahme führt auf
+  den Kalendermonat-Betrag zurück.
+- Gilt überall, wo Monatsbudgets rechnen: laufender Monat, Zeitleiste bis 2050, Budgethinweise
+  (Vergleich mit dem Budget des jeweiligen Monats) und die Zwischensummen im Annahmen-Tab.
+- Anzeige im Annahmen-Tab: „jeden Juli: 200,00 € · jeden Dezember: 200,00 €“ unter dem Budget.
+- Datenversion 13 sorgt dafür, dass ältere App-Versionen zum Aktualisieren auffordern (sonst würden
+  sie die Abweichungen beim Bearbeiten verlieren).
+

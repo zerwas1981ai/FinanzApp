@@ -9,6 +9,7 @@
 //   typ: 'wiederkehrend' | 'einmalig',
 //   startMonat "JJJJ-MM", endMonat "JJJJ-MM"|null, stufen: [{ ab "JJJJ-MM", betragCent }]  // wiederkehrend
 //   ausnahmen: [{ monat "JJJJ-MM", betragCent }]  // wiederkehrend, ab Version 7: nur dieser Monat anders
+//   kalenderMonate: [{ monat 1..12, betragCent }]  // wiederkehrend, ab Version 13 (D92): jedes Jahr fester Betrag
 //   monat "JJJJ-MM", betragCent                                                       // einmalig
 //   ab Datenversion 12 (D90) auch typ 'jaehrlich':
 //   startJahr, endJahr|null, verteilung: 'zeitpunkt'|'halbjahr'|'quartal', betragCent (pro Jahr),
@@ -26,7 +27,7 @@
 import * as db from './db.js';
 import { istGueltigesDatum, formatDatum } from './format.js';
 import { STANDARD_EINSTELLUNGEN } from './migrationen.js';
-import { monatsende, betragAm } from './prognose.js';
+import { monatsende, betragAm, regelBetrag } from './prognose.js';
 import { istJaehrlich, budgetZeitraum, ueberschneiden } from './jahresbudget.js';
 
 /** Empfänger/Absender (Datenversion 8): undefined = unverändert, bei Umbuchungen leer */
@@ -105,7 +106,22 @@ function baueBudgetDatensatz(eingabe, { kategorien, budgets, alt = null, jetzt =
     endMonat: eingabe.endMonat || null,
     stufen: pruefeStufen(stufen, eingabe.startMonat, istMonat, 'Monat'),
     ausnahmen: alt?.ausnahmen ?? [], // einzelne Monate mit anderem Betrag (Datenversion 7)
+    kalenderMonate: eingabe.kalenderMonate === undefined ? (alt?.kalenderMonate ?? []) : pruefeKalenderMonate(eingabe.kalenderMonate),
   };
+}
+
+/** Feste Abweichungen je Kalendermonat prüfen (D92): [{ monat 1..12, betragCent ≥ 0 }], je Monat höchstens einmal */
+function pruefeKalenderMonate(liste) {
+  const ergebnis = [];
+  for (const k of liste ?? []) {
+    const monat = Number(k.monat);
+    if (!Number.isInteger(monat) || monat < 1 || monat > 12) throw new Error('Bitte bei jeder Abweichung den Monat wählen.');
+    if (k.betragCent == null) throw new Error('Bitte bei jeder Abweichung einen Betrag eingeben (0 = kein Budget in diesem Monat).');
+    if (!Number.isInteger(k.betragCent) || k.betragCent < 0) throw new Error('Bitte die Beträge ohne Minus eingeben.');
+    if (ergebnis.some((x) => x.monat === monat)) throw new Error('Jeder Monat darf nur einmal abweichen.');
+    ergebnis.push({ monat, betragCent: k.betragCent });
+  }
+  return ergebnis.sort((a, b) => a.monat - b.monat);
 }
 
 /** Felder eines Jahresbudgets prüfen (D90) */
@@ -349,7 +365,7 @@ export function mitAusnahme(w, termin, aktion, neuesDatum = null, betragCent = n
 export function budgetMitMonatsAusnahme(budget, monat, betragCent) {
   if (betragCent != null && betragCent < 0) throw new Error('Bitte den Betrag ohne Minus eingeben.');
   let ausnahmen = (budget.ausnahmen ?? []).filter((a) => a.monat !== monat);
-  if (betragCent != null && betragCent !== betragAm(budget.stufen, monat)) ausnahmen.push({ monat, betragCent });
+  if (betragCent != null && betragCent !== regelBetrag(budget, monat)) ausnahmen.push({ monat, betragCent });
   ausnahmen = ausnahmen.sort((a, b) => a.monat.localeCompare(b.monat));
   return { ...budget, ausnahmen, geaendertAm: new Date().toISOString() };
 }

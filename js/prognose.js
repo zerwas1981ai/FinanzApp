@@ -84,14 +84,23 @@ export function budgetFuerMonat(budgets, kategorieId, monat, nurKonto) {
       kontoId ??= b.kontoId;
       vorhanden = true;
     } else if (b.startMonat <= monat && (!b.endMonat || monat <= b.endMonat)) {
-      // Ausnahme nur für diesen einen Monat (Datenversion 7), sonst die geltende Stufe
+      // Ausnahme nur für diesen Monat (Datenversion 7), sonst der Regelbetrag
       const ausnahme = (b.ausnahmen ?? []).find((a) => a.monat === monat);
-      betragCent += ausnahme ? ausnahme.betragCent : betragAm(b.stufen, monat);
+      betragCent += ausnahme ? ausnahme.betragCent : regelBetrag(b, monat);
       kontoId = b.kontoId;
       vorhanden = true;
     }
   }
   return { betragCent, kontoId, vorhanden };
+}
+
+/**
+ * Regulärer Betrag eines monatlichen Budgets in einem Monat ("JJJJ-MM"), ohne Einzel-Ausnahme:
+ * feste Abweichung für diesen Kalendermonat (jedes Jahr, D92) – sonst die geltende Stufe.
+ */
+export function regelBetrag(b, monat) {
+  const kalender = (b.kalenderMonate ?? []).find((k) => k.monat === Number(monat.slice(5, 7)));
+  return kalender ? kalender.betragCent : betragAm(b.stufen, monat);
 }
 
 /** Schlüssel für „Hauptkategorie auf einem Konto“ (D85) */
