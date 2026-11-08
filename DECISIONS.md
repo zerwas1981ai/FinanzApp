@@ -1478,3 +1478,14 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
   `bezeichnung` entfällt. „Als wiederkehrend anlegen“ aus einer Buchung übernimmt deren Notiz.
 - **Geplante Einmalbuchungen** behalten ihre Bezeichnung (nicht Teil des Wunsches).
 
+## D97 – Wiederkehrende Buchungen nach Konto und Zeithorizont gruppiert
+*Wunsch des Nutzers: „ähnlich wie die Budgets“ (D86/D91)*
+
+- Im Annahmen-Tab stehen die wiederkehrenden Buchungen nach **Konto** gruppiert (eigene
+  Konten-Reihenfolge, D84), darin in Untergruppen **Monatlich – Vierteljährlich – Jährlich**
+  (nur vorhandene). Innerhalb einer Gruppe: Einnahmen, Ausgaben, Umbuchungen, jeweils alphabetisch.
+- Eine Umbuchung steht beim abgebenden Konto, mit „→ Zielkonto“ in der Zeile.
+- Konto und Intervall stehen in den Überschriften und werden in der Zeile nicht wiederholt
+  („zum Monatsletzten“ bleibt sichtbar).
+- Keine Zwischensummen (anders als bei Budgets) – nicht gewünscht.
+

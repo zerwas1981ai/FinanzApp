@@ -14,6 +14,7 @@ import { VERTEILUNGEN, istJaehrlich, trancheImMonat } from '../jahresbudget.js';
 
 const nachName = (a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base' });
 const INTERVALL_TEXT = { monatlich: 'monatlich', vierteljaehrlich: 'vierteljährlich', jaehrlich: 'jährlich' };
+const INTERVALL_UEBERSCHRIFT = { monatlich: 'Monatlich', vierteljaehrlich: 'Vierteljährlich', jaehrlich: 'Jährlich' };
 const monatText = (m) => formatMonat(Number(m.slice(0, 4)), Number(m.slice(5, 7)));
 const MONATSNAMEN = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
 const TYP_TEXT = { wiederkehrend: 'Jeden Monat', jaehrlich: 'Jährlich', einmalig: 'Einmalig' };
@@ -298,6 +299,10 @@ function wiederkehrendBereich(daten) {
   const reihenfolge = { einnahme: 0, ausgabe: 1, umbuchung: 2 };
   const sortiert = [...wiederkehrend].sort((a, b) => reihenfolge[a.art] - reihenfolge[b.art]
     || annahmeTitel(a, kategorien).localeCompare(annahmeTitel(b, kategorien), 'de', { sensitivity: 'base' }));
+  const kontoIds = new Set(wiederkehrend.map((w) => w.kontoId));
+  const gruppen = sortiereKonten(konten.filter((k) => kontoIds.has(k.id))).map((k) => ({ id: k.id, name: k.name }));
+  if (wiederkehrend.some((w) => !kontoName.has(w.kontoId))) gruppen.push({ id: null, name: 'Unbekanntes Konto' });
+  const zeile = (w) => wiederkehrendZeile(w, daten, heute, kat, kontoName);
 
   return h('section', { class: 'bereich', 'aria-labelledby': 'titel-wiederkehrend' },
     h('div', { class: 'bereich-kopf' },
@@ -307,35 +312,52 @@ function wiederkehrendBereich(daten) {
       'Fällige Termine erscheinen in der Übersicht. Erst wenn du dort auf „Buchen“ tippst, entsteht eine echte Buchung.'),
     sortiert.length === 0
       ? h('p', { class: 'leer' }, 'Noch keine wiederkehrenden Buchungen.')
-      : h('ul', { class: 'liste' }, sortiert.map((w) => {
-        const naechster = naechsterTermin(w, heute);
-        const beendet = !naechster;
-        const titel = annahmeTitel(w, kategorien); // D96: Empfänger/Absender · Notiz
-        let zuordnung;
-        if (w.art === 'umbuchung') zuordnung = `${kontoName.get(w.kontoId) ?? '?'} → ${kontoName.get(w.gegenkontoId) ?? '?'}`;
-        else {
-          const unter = kat.get(w.kategorieId);
-          // Empfänger/Absender steht schon im Titel
-          zuordnung = [kontoName.get(w.kontoId) ?? '?', `${kat.get(unter?.elternId)?.name ?? '?'} › ${unter?.name ?? '?'}`].join(' · ');
-        }
-        const info = [
-          INTERVALL_TEXT[w.intervall] + (w.monatsletzter ? ' zum Monatsletzten' : ''),
-          naechster ? `nächster Termin ${formatDatum(naechster.datum)}` : 'keine weiteren Termine',
-          zuordnung,
-        ].join(' · ');
-        const cent = naechster?.betragCent ?? terminBetrag(w, heute);
-        // D94: feste Abweichungen je Kalendermonat
-        const abweichend = (w.kalenderMonate ?? []).map((k) => `jeden ${MONATSNAMEN[k.monat - 1]}: ${formatEuro(k.betragCent)}`).join(' · ');
-        const text = w.art === 'umbuchung' ? formatEuro(cent) : (w.art === 'einnahme' ? '+' : '') + formatEuro(w.art === 'ausgabe' ? -cent : cent);
-        return zeileMitSchalter(w, 'wiederkehrend',
-          h('button', { type: 'button', class: 'buchung' + (beendet ? ' archiviert' : ''), onclick: () => wiederkehrendDialog(w, daten) },
-            h('span', { class: 'buchung-text' },
-              h('span', { class: 'buchung-titel' }, titel, beendet && h('span', { class: 'marke' }, 'beendet')),
-              h('span', { class: 'buchung-unter' }, info),
-              abweichend && h('span', { class: 'buchung-unter annahme' }, abweichend)),
-            h('span', { class: 'betrag ' + (w.art === 'einnahme' ? 'plus' : w.art === 'umbuchung' ? 'gedaempft' : '') }, text)));
-      })),
+      // D97: nach Konto (eigene Reihenfolge), darin nach Zeithorizont – wie die Budgets (D86/D91)
+      : gruppen.map((g) => {
+        const liste = sortiert.filter((w) => (g.id === null ? !kontoName.has(w.kontoId) : w.kontoId === g.id));
+        return h('div', { class: 'budget-gruppe' },
+          h('div', { class: 'tag-kopf' }, h('span', {}, g.name)),
+          Object.keys(INTERVALL_UEBERSCHRIFT).map((iv) => {
+            const teil = liste.filter((w) => (INTERVALL_UEBERSCHRIFT[w.intervall] ? w.intervall : 'monatlich') === iv);
+            return teil.length > 0 && h('div', { class: 'budget-art' },
+              h('div', { class: 'budget-art-kopf' }, INTERVALL_UEBERSCHRIFT[iv]),
+              h('ul', { class: 'liste' }, teil.map(zeile)));
+          }).filter(Boolean));
+      }),
   );
+}
+
+/** Zeile einer wiederkehrenden Buchung im Annahmen-Tab */
+function wiederkehrendZeile(w, daten, heute, kat, kontoName) {
+  const { kategorien } = daten;
+  const naechster = naechsterTermin(w, heute);
+  const beendet = !naechster;
+  const titel = annahmeTitel(w, kategorien); // D96: Empfänger/Absender · Notiz
+  let zuordnung;
+  // Konto steht in der Gruppenüberschrift (D97)
+  if (w.art === 'umbuchung') zuordnung = `→ ${kontoName.get(w.gegenkontoId) ?? '?'}`;
+  else {
+    const unter = kat.get(w.kategorieId);
+    // Empfänger/Absender steht schon im Titel
+    zuordnung = `${kat.get(unter?.elternId)?.name ?? '?'} › ${unter?.name ?? '?'}`;
+  }
+  // Das Intervall steht in der Zwischenüberschrift (D97)
+  const info = [
+    w.monatsletzter && 'zum Monatsletzten',
+    naechster ? `nächster Termin ${formatDatum(naechster.datum)}` : 'keine weiteren Termine',
+    zuordnung,
+  ].filter(Boolean).join(' · ');
+  const cent = naechster?.betragCent ?? terminBetrag(w, heute);
+  // D94: feste Abweichungen je Kalendermonat
+  const abweichend = (w.kalenderMonate ?? []).map((k) => `jeden ${MONATSNAMEN[k.monat - 1]}: ${formatEuro(k.betragCent)}`).join(' · ');
+  const text = w.art === 'umbuchung' ? formatEuro(cent) : (w.art === 'einnahme' ? '+' : '') + formatEuro(w.art === 'ausgabe' ? -cent : cent);
+  return zeileMitSchalter(w, 'wiederkehrend',
+    h('button', { type: 'button', class: 'buchung' + (beendet ? ' archiviert' : ''), onclick: () => wiederkehrendDialog(w, daten) },
+      h('span', { class: 'buchung-text' },
+        h('span', { class: 'buchung-titel' }, titel, beendet && h('span', { class: 'marke' }, 'beendet')),
+        h('span', { class: 'buchung-unter' }, info),
+        abweichend && h('span', { class: 'buchung-unter annahme' }, abweichend)),
+      h('span', { class: 'betrag ' + (w.art === 'einnahme' ? 'plus' : w.art === 'umbuchung' ? 'gedaempft' : '') }, text)));
 }
 
 /**
