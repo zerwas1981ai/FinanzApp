@@ -1212,6 +1212,10 @@ body.gesperrt .kopf, body.gesperrt main, body.gesperrt .fab, body.gesperrt #neue
 .btab-datum { grid-column: 1; grid-row: 1; font-variant-numeric: tabular-nums; color: var(--text-2); }
 .btab-partner { grid-column: 2; grid-row: 1; font-weight: 500; }
 .btab-partner .marke { margin-left: 6px; background: var(--warnung-leicht); color: var(--warnung); }
+/* Vorgemerkte Buchungen dezent: grau mit feinem Rahmen statt Warnfarbe (D100) */
+.marke.marke-vorgemerkt,
+.buchung-titel .marke.marke-vorgemerkt,
+.btab-partner .marke.marke-vorgemerkt { background: transparent; color: var(--text-2); border: 1px solid var(--rand); font-weight: 400; }
 .btab-kategorie { grid-column: 3; grid-row: 1; }
 .btab-konto { grid-column: 4; grid-row: 1; color: var(--text-2); }
 .btab-notiz { grid-column: 5; grid-row: 1; color: var(--text-2); }

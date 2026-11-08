@@ -1518,3 +1518,11 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
 - **Jahresbudgets** (D90) sind dort nicht antippbar – sie werden unter „Annahmen“ geändert.
 - Kleiner Hinweis unter den Budgets: „Budget antippen, um es nur für diesen Monat zu ändern.“
 
+## D100 – Vorgemerkte Buchungen dezenter
+*Wunsch des Nutzers*
+
+- Die Marke „vorgemerkt“ (Übersicht PC/Handy, Alle Buchungen, Projekte) hat einen eigenen, ruhigen Stil:
+  grau, transparenter Hintergrund, feiner Rahmen (`.marke-vorgemerkt`) – statt der orangefarbenen
+  Warnfarbe.
+- Echte Hinweise wie „überfällig“, „heute fällig“ oder „einmalig“ behalten die Warnfarbe.
+

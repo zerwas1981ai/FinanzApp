@@ -485,7 +485,7 @@ function liste(eintraege, daten, neu) {
           ? h('span', { class: 'btab-partner-name' }, partnerText)
           // Ohne Empfänger/Absender: am Handy steht die Kategorie als Titel, am PC ein Strich
           : [h('span', { class: 'nur-breit gedaempft' }, '–'), h('span', { class: 'nur-schmal btab-partner-name' }, unterName)],
-        b.status === 'vorgemerkt' && h('span', { class: 'marke' }, 'vorgemerkt'),
+        b.status === 'vorgemerkt' && h('span', { class: 'marke marke-vorgemerkt' }, 'vorgemerkt'),
         b.archivJahr && h('span', { class: 'marke' }, 'Archiv')),
       h('span', { class: 'btab-unter' },
         h('span', { class: 'btab-zelle btab-datum' }, formatDatum(b.datum)),

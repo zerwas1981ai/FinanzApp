@@ -69,7 +69,7 @@ function projektKarte(p, daten, heute) {
         h('span', { class: 'buchung-text' },
           h('span', { class: 'buchung-titel' },
             h('span', { class: 'datum-klein' }, formatDatum(b.datum)), b.notiz || kat.get(b.kategorieId)?.name || '?',
-            b.status === 'vorgemerkt' && h('span', { class: 'marke' }, 'vorgemerkt')),
+            b.status === 'vorgemerkt' && h('span', { class: 'marke marke-vorgemerkt' }, 'vorgemerkt')),
           h('span', { class: 'buchung-unter' },
             [kontoName.get(b.kontoId) ?? '?', b.partner, katText(b.kategorieId)].filter(Boolean).join(' · ') +
             (planCent != null ? (abweichung ? ` · geplant waren ${formatEuro(planCent)}` : ' · wie geplant') : ''))),
