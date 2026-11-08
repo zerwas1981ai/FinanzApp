@@ -1271,10 +1271,31 @@ body.gesperrt .kopf, body.gesperrt main, body.gesperrt .fab, body.gesperrt #neue
 .btab-fest { cursor: default; }
 .btab-fest:hover { color: var(--text-2); }
 .beleg-zahl { margin-left: 6px; font-size: .85rem; color: var(--text-2); }
+/* Spalte "Beleg" ganz rechts, direkt anklickbar (D101) */
+.relevant .btab { --relevant-spalten: 92px minmax(0, 1.3fr) minmax(0, 1.5fr) minmax(0, 1.3fr) 112px; --btab-spalten: var(--relevant-spalten) 56px; }
+@media (min-width: 768px) { .relevant .btab-zeile { grid-template-columns: var(--relevant-spalten); } }
+.relevant .btab-kopf .btab-beleg { justify-content: center; }
+.relevant-zeile { display: grid; grid-template-columns: minmax(0, 1fr) 56px; column-gap: 4px; align-items: center; padding-right: 8px; }
+.relevant .btab-liste > li:nth-child(even) .btab-zeile { background: none; }
+.relevant .btab-liste > li.relevant-zeile:nth-child(even) { background: color-mix(in srgb, var(--flaeche-2) 45%, transparent); }
+.relevant .btab-notiz { grid-column: 4; }
+.relevant .btab-betrag { grid-column: 5; }
+.relevant-beleg { display: flex; justify-content: center; align-items: center; }
+.relevant-beleg.ohne { color: var(--text-2); opacity: .6; }
+.beleg-knopf {
+  display: inline-flex; align-items: center; justify-content: center; gap: 2px; min-width: 40px; min-height: 36px;
+  padding: 2px 6px; border: 1px solid var(--rand); border-radius: 8px; background: var(--flaeche); color: var(--text);
+  font: inherit; font-size: .95rem; cursor: pointer;
+}
+.beleg-knopf:hover { border-color: var(--akzent); background: var(--akzent-leicht); }
+.beleg-anzahl { font-size: .75rem; font-weight: 600; color: var(--text-2); }
 .btab-partner .marke-projekt { background: var(--akzent-leicht); color: var(--akzent); }
 .relevant-feld { margin-bottom: 4px; }
 @media (max-width: 767px) {
   .relevant .btab-kopf { display: none; }
+  .relevant-zeile { grid-template-columns: minmax(0, 1fr) 44px; padding-right: 0; }
+  .relevant .btab-liste > li.relevant-zeile:nth-child(even) { background: none; }
+  .relevant .btab-betrag { grid-column: 2; }
 }
 
 /* Handy-Optik der Übersicht (D75) – nur unter 768 px */

@@ -9,7 +9,7 @@ import { dialog, toast, eingabe, auswahl, datenGeaendert } from '../ui.js';
 import {
   baueRelevant, relevanteZeilen, gruppenListe, filtereGruppe, nachJahren, OHNE_GRUPPE,
 } from '../relevant.js';
-import { belegeFeld } from './belege.js';
+import { belegeFeld, zeigeBeleg } from './belege.js';
 import { oeffneBuchungsdialog, partnerFeld, fuelleKategorien, gruppeFeld } from './buchung-dialog.js';
 import { ladeArchive } from './alle-buchungen.js';
 
@@ -80,19 +80,19 @@ export async function relevantBereich(daten) {
   return bereich;
 }
 
-/** Tabelle eines Jahres – aufgebaut wie "Alle Buchungen" (am Handy zweizeilig) */
+/** Tabelle eines Jahres – aufgebaut wie "Alle Buchungen" (am Handy zweizeilig).
+ *  Ganz rechts eine eigene Spalte "Beleg": antippen öffnet den Beleg direkt (D101). */
 function tabelle(zeilen, daten) {
   const kat = new Map(daten.kategorien.map((k) => [k.id, k]));
   const kontoName = new Map(daten.konten.map((k) => [k.id, k.name]));
   const kopf = h('div', { class: 'btab-kopf', role: 'row', 'aria-hidden': 'true' },
-    [['datum', 'Datum'], ['partner', 'Empfänger'], ['kategorie', 'Kategorie'], ['konto', 'Gruppe'], ['notiz', 'Notiz'], ['betrag', 'Betrag']]
+    [['datum', 'Datum'], ['partner', 'Empfänger'], ['kategorie', 'Kategorie'], ['notiz', 'Notiz'], ['betrag', 'Betrag'], ['beleg', 'Beleg']]
       .map(([feld, text]) => h('span', { class: `btab-sort btab-fest btab-${feld}` }, text)));
 
   const zeile = (z) => {
     const unter = kat.get(z.kategorieId);
     const katText = unter ? [kat.get(unter.elternId)?.name, unter.name].filter(Boolean).join(' › ') : '';
-    const anzahlBelege = z.belege.length;
-    return h('li', { role: 'row' },
+    return h('li', { role: 'row', class: 'relevant-zeile' },
       h('button', {
         type: 'button',
         class: 'btab-zeile',
@@ -107,19 +107,47 @@ function tabelle(zeilen, daten) {
           ? h('span', { class: 'btab-partner-name' }, z.partner)
           : [h('span', { class: 'nur-breit gedaempft' }, '–'), h('span', { class: 'nur-schmal btab-partner-name' }, unter?.name ?? z.notiz ?? 'Ausgabe')],
         z.quelle === 'buchung' && h('span', { class: 'marke marke-projekt', title: 'Echte Buchung von diesem Konto' }, kontoName.get(z.kontoId) ?? 'Buchung'),
-        z.archivJahr && h('span', { class: 'marke' }, 'Archiv'),
-        anzahlBelege > 0 && h('span', { class: 'beleg-zahl', title: `${anzahlBelege} Beleg(e)` }, `📎${anzahlBelege > 1 ? anzahlBelege : ''}`)),
+        z.archivJahr && h('span', { class: 'marke' }, 'Archiv')),
       h('span', { class: 'btab-unter' },
         h('span', { class: 'btab-zelle btab-datum' }, formatDatum(z.datum)),
         h('span', { class: 'btab-zelle btab-kategorie', title: katText || null }, katText),
-        h('span', { class: 'btab-zelle btab-konto' }, z.gruppe),
         h('span', { class: 'btab-zelle btab-notiz', title: z.notiz || null }, z.notiz)),
-      h('span', { class: 'btab-zelle btab-betrag betrag' }, formatEuro(-z.betragCent))));
+      h('span', { class: 'btab-zelle btab-betrag betrag' }, formatEuro(-z.betragCent))),
+      belegZelle(z));
   };
 
   return h('div', { class: 'btab', role: 'table', 'aria-label': 'Relevante Ausgaben' },
     kopf,
     h('ul', { class: 'btab-liste', role: 'rowgroup' }, zeilen.map(zeile)));
+}
+
+/** Spalte "Beleg": ohne Beleg ein Strich, mit einem Beleg direkt öffnen, mit mehreren erst auswählen (D101) */
+function belegZelle(z) {
+  const belege = z.belege ?? [];
+  if (belege.length === 0) {
+    return h('span', { class: 'relevant-beleg ohne', role: 'cell', title: 'Kein Beleg', 'aria-label': 'Kein Beleg' }, '–');
+  }
+  const anzahl = belege.length;
+  return h('span', { class: 'relevant-beleg', role: 'cell' },
+    h('button', {
+      type: 'button',
+      class: 'beleg-knopf',
+      title: anzahl === 1 ? `Beleg ansehen: ${belege[0].name}` : `${anzahl} Belege ansehen`,
+      'aria-label': anzahl === 1 ? `Beleg ansehen: ${belege[0].name}` : `${anzahl} Belege ansehen`,
+      onclick: () => (anzahl === 1 ? zeigeBeleg(belege[0]) : belegAuswahl(belege)),
+    }, '📎', anzahl > 1 && h('span', { class: 'beleg-anzahl' }, String(anzahl))));
+}
+
+/** Mehrere Belege: kleine Liste, jeder einzeln zum Ansehen */
+function belegAuswahl(belege) {
+  dialog({
+    titel: `${belege.length} Belege`,
+    inhalt: [h('ul', { class: 'belege-liste' }, belege.map((b) => h('li', {},
+      h('span', { class: 'beleg-name', title: b.name }, b.mime === 'application/pdf' ? '📄 ' : '🖼 ', b.name),
+      h('button', { type: 'button', class: 'knopf knopf-klein', onclick: () => zeigeBeleg(b) }, 'Ansehen'))))],
+    speichernText: 'Schließen',
+    abbrechenText: null,
+  });
 }
 
 /* =========================== Dialog =========================== */

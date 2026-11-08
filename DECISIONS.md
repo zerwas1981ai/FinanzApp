@@ -1526,3 +1526,14 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
   Warnfarbe.
 - Echte Hinweise wie „überfällig“, „heute fällig“ oder „einmalig“ behalten die Warnfarbe.
 
+
+## D101 – Relevante Ausgaben: Spalte „Beleg“ statt „Gruppe“
+*Wunsch des Nutzers; ändert die Tabelle aus D74*
+
+- Die Tabellenspalte **„Gruppe“ entfällt**. Gruppen bleiben erhalten: Filter-Knöpfe über der Liste und
+  das Feld „Gruppe“ im Dialog funktionieren wie bisher.
+- Neue Spalte **„Beleg“ ganz rechts**: ohne Beleg ein grauer Strich; mit Beleg ein 📎-Knopf, der den
+  Beleg **direkt öffnet** (Bild im Fenster, PDF in neuem Tab), ohne den Eintrag zu öffnen. Bei mehreren
+  Belegen zeigt der Knopf die Anzahl und öffnet erst eine kleine Auswahlliste.
+- Die bisherige 📎-Marke neben dem Empfänger entfällt dort (steht jetzt in der eigenen Spalte).
+- Am Handy sitzt der Beleg-Knopf rechts neben dem Betrag.
