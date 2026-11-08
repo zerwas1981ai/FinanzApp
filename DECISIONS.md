@@ -1423,3 +1423,21 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
 - Datenversion 13 sorgt dafür, dass ältere App-Versionen zum Aktualisieren auffordern (sonst würden
   sie die Abweichungen beim Bearbeiten verlieren).
 
+## D93 – Unterkategorien verschieben
+*Wunsch des Nutzers*
+
+- Jede Unterkategorie hat in den Stammdaten einen Knopf **„Verschieben“**. Der Dialog zeigt die bisherige
+  Hauptkategorie, die möglichen Ziele und wie viele Buchungen und wiederkehrende/geplante Buchungen
+  betroffen sind.
+- **Nur zwischen Hauptkategorien gleicher Art** (Ausgabe ↔ Ausgabe, Einnahme ↔ Einnahme), nicht in
+  archivierte. Grund: Unterkategorien erben die Art von der Hauptkategorie; eine Ausgaben-Buchung unter
+  einer Einnahmen-Kategorie wäre widersprüchlich. Das gilt auch für das Feld „Gehört zu Hauptkategorie“
+  im Bearbeiten-Dialog (vorher waren dort alle Hauptkategorien wählbar).
+- Gibt es im Ziel schon eine Unterkategorie mit gleichem Namen, lehnt die App ab (vorher umbenennen).
+- Buchungen, Vorlagen und Annahmen verweisen auf die Unterkategorie und zählen danach automatisch zur
+  neuen Hauptkategorie – **auch rückwirkend** (Alle Buchungen, Budgets, Budgethinweise). Die Buchungen
+  selbst werden nicht verändert. Bereits archivierte Jahre behalten ihre damalige Zuordnung.
+- Nebenbei behoben: Die Zählung der Annahmen für eine Kategorie (Löschsperre) zählte fälschlich fast
+  alle wiederkehrenden und geplanten Buchungen mit, weil `gegenkontoId === null` als Treffer galt.
+- Am Handy brechen die vier Knöpfe einer Unterkategorie jetzt um.
+

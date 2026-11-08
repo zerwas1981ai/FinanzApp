@@ -32,7 +32,8 @@ Oberfläche auf Deutsch, Währung Euro, deutsches Datums- und Zahlenformat.
 ## Datenmodell
 - Konto: Name, Anfangssaldo, Stichtag, Mindestsaldo, Reihenfolge (per ▲/▼, D84)
 - Kategorie: Hauptkategorie mit Unterkategorien (Startsatz vorbelegt, in den
-  Stammdaten anpassbar)
+  Stammdaten anpassbar; Unterkategorien zwischen Hauptkategorien gleicher Art
+  verschiebbar, D93)
 - Buchung: Datum, Betrag, Art (Einnahme/Ausgabe), Konto, Empfänger/Absender
   (optional), Unterkategorie, Notiz, Projekt (optional), Belege (mehrere
   möglich, PDF/JPG), Status

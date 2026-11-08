@@ -354,7 +354,8 @@ main {
 
 .kat-inhalt { padding: 0 14px 14px 34px; }
 .liste-unter .zeile { padding: 8px 0; }
-.liste-unter .zeile-aktionen { flex-wrap: nowrap; }
+/* Am PC in einer Reihe; am Handy umbrechen, seit es vier Knöpfe gibt (Verschieben, D93) */
+@media (min-width: 768px) { .liste-unter .zeile-aktionen { flex-wrap: nowrap; } }
 
 @media (max-width: 767px) {
   .kat-inhalt { padding-left: 14px; }

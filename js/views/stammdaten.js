@@ -14,6 +14,7 @@ import { belegeEntfernen } from './belege.js';
 import { driveBereich, exportBereich, neuBeginnenBereich, archivBereich } from './drive-bereich.js';
 import { sperreBereich } from './sperre-ui.js';
 import { sortiereKonten, verschiebeKonto, naechsteReihenfolge } from '../konten.js';
+import { moeglicheZiele, verschiebeUnterkategorie } from '../kategorien.js';
 
 // Alle Buchungen (auch im Papierkorb) – für die Löschsperre. Wird bei jedem Zeichnen neu geladen.
 let buchungen = [];
@@ -26,8 +27,10 @@ let testAnnahmen = [[], [], [], []]; // budgets, wiederkehrend, geplant, projekt
 function annahmenFuer({ kontoId = null, kategorieIds = [] }) {
   const ids = new Set(kategorieIds);
   const [budgets, wiederkehrend, geplant = []] = testAnnahmen;
-  const haengt = (x) => x.kontoId === kontoId || x.gegenkontoId === kontoId || ids.has(x.kategorieId);
-  return budgets.filter((b) => b.kontoId === kontoId || ids.has(b.kategorieId)).length
+  // kontoId nur vergleichen, wenn eines gesucht wird – sonst träfe "gegenkontoId === null" fast jede Annahme (D93)
+  const amKonto = (x) => kontoId !== null && (x.kontoId === kontoId || x.gegenkontoId === kontoId);
+  const haengt = (x) => amKonto(x) || ids.has(x.kategorieId);
+  return budgets.filter((b) => amKonto(b) || ids.has(b.kategorieId)).length
     + wiederkehrend.filter(haengt).length
     + geplant.filter(haengt).length;
 }
@@ -295,6 +298,7 @@ function unterZeile(u, haupt, kategorien, neu) {
     h('div', { class: 'zeile-titel' }, u.name, u.archiviert && h('span', { class: 'marke' }, 'archiviert')),
     h('div', { class: 'zeile-aktionen' },
       knopf('Bearbeiten', () => unterDialog(u, haupt, kategorien, neu)),
+      !u.archiviert && moeglicheZiele(u, kategorien).length > 0 && knopf('Verschieben', () => verschiebenDialog(u, haupt, kategorien, neu)),
       u.archiviert
         ? knopf('Wiederherstellen', () => setzeArchiv('kategorien', u, false, neu))
         : knopf('Archivieren', () => setzeArchiv('kategorien', u, true, neu)),
@@ -334,9 +338,45 @@ function hauptDialog(kat, kategorien, neu) {
   });
 }
 
+/** Unterkategorie in eine andere Hauptkategorie gleicher Art verschieben (D93) */
+function verschiebenDialog(u, haupt, kategorien, neu) {
+  const ziele = moeglicheZiele(u, kategorien).sort(nachName);
+  const ziel = auswahl({
+    label: 'Neue Hauptkategorie',
+    optionen: ziele.map((k) => ({ wert: k.id, text: k.name })),
+    wert: ziele[0]?.id,
+  });
+  const anzahl = anzahlFuerKategorien([u.id], buchungen);
+  const annahmen = annahmenFuer({ kategorieIds: [u.id] });
+  const betroffen = [
+    anzahl === 1 ? '1 Buchung' : `${anzahl} Buchungen`,
+    annahmen > 0 && (annahmen === 1 ? '1 wiederkehrende/geplante Buchung' : `${annahmen} wiederkehrende/geplante Buchungen`),
+  ].filter(Boolean).join(' und ');
+  dialog({
+    titel: `„${u.name}“ verschieben`,
+    inhalt: [
+      h('p', { class: 'hinweis' }, `Bisher in „${haupt.name}“. Möglich sind nur ${ART_TEXT[haupt.art] === 'Ausgabe' ? 'Ausgaben' : 'Einnahmen'}-Kategorien.`),
+      ziel.feld,
+      h('p', { class: 'hinweis' },
+        `${betroffen} mit dieser Unterkategorie zählen danach zur neuen Hauptkategorie – auch rückwirkend ` +
+        'in „Alle Buchungen“, bei den Budgets und den Budgethinweisen. Die Buchungen selbst bleiben unverändert.'),
+    ],
+    speichernText: 'Verschieben',
+    onSpeichern: async () => {
+      const neuer = verschiebeUnterkategorie(u, ziel.select.value, kategorien, jetzt());
+      await db.speichere('kategorien', neuer);
+      const zielName = kategorien.find((k) => k.id === neuer.elternId)?.name;
+      ansicht.offen.add(neuer.elternId);
+      toast(`„${u.name}“ gehört jetzt zu „${zielName}“`);
+      neu();
+    },
+  });
+}
+
 function unterDialog(unterKat, haupt, kategorien, neu) {
+  // Beim Bearbeiten nur Hauptkategorien gleicher Art (D93), beim Anlegen alle
   const hauptListe = kategorien
-    .filter((k) => !k.elternId && (!k.archiviert || k.id === haupt.id))
+    .filter((k) => !k.elternId && (!k.archiviert || k.id === haupt.id) && (!unterKat || k.art === haupt.art))
     .sort(nachName);
   const name = eingabe({ label: 'Name der Unterkategorie', value: unterKat?.name ?? '', maxlength: 60, placeholder: 'z. B. Miete' });
   const eltern = auswahl({
@@ -356,7 +396,10 @@ function unterDialog(unterKat, haupt, kategorien, neu) {
         throw new Error(`In dieser Hauptkategorie gibt es „${n}“ schon (eventuell archiviert).`);
       }
       if (unterKat) {
-        await db.speichere('kategorien', { ...unterKat, name: n, elternId, geaendertAm: jetzt() });
+        const verschoben = elternId !== unterKat.elternId
+          ? verschiebeUnterkategorie({ ...unterKat, name: n }, elternId, kategorien, jetzt())
+          : { ...unterKat, name: n, geaendertAm: jetzt() };
+        await db.speichere('kategorien', verschoben);
         toast('Unterkategorie gespeichert');
       } else {
         await db.speichere('kategorien', neueKategorie({ name: n, elternId }));
