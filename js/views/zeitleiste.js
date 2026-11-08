@@ -16,6 +16,9 @@ const SICHTBARE_JAHRE = 3; // nach dem laufenden Jahr
 const QUELLE = { wiederkehrend: 'wiederkehrend', geplant: 'geplant', budget: 'Budget', gebucht: 'gebucht' };
 const monatText = (m) => formatMonat(Number(m.slice(0, 4)), Number(m.slice(5, 7)));
 const mitVorzeichen = (cent) => (cent > 0 ? '+' : '') + formatEuro(cent);
+// Handy (D89): kurzer Monatsname, damit die Zeile einzeilig bleibt – "Dez. 2026"
+const kurzText = (m) => new Date(Number(m.slice(0, 4)), Number(m.slice(5, 7)) - 1, 1)
+  .toLocaleDateString('de-DE', { month: 'short', year: 'numeric' });
 
 /**
  * zeilen: Monatszeilen aus zeitleiste() (je Konto oder gesamt)
@@ -79,11 +82,17 @@ function monatZeile(z, schluessel, beiKlick) {
   const id = `${schluessel}|${z.monat}`;
   const veraenderung = z.einnahmen - z.ausgaben + z.umbuchungen;
   return merkeOffen(h('details', { class: 'zl-monat', open: offen.has(id) },
-    h('summary', { class: 'zl-zeile' }, h('span', { class: 'zl-name' }, monatText(z.monat)), ...zahlen(veraenderung, z.stand)),
+    h('summary', { class: 'zl-zeile' },
+      h('span', { class: 'zl-name' }, h('span', { class: 'nur-breit' }, monatText(z.monat)), h('span', { class: 'nur-schmal' }, kurzText(z.monat))),
+      ...zahlen(veraenderung, z.stand)),
     h('div', { class: 'zl-details' },
-      h('div', { class: 'klein' },
-        `Einnahmen ${formatEuro(z.einnahmen)} · Ausgaben ${formatEuro(z.ausgaben)}` +
-        (z.umbuchungen !== 0 ? ` · Umbuchungen ${mitVorzeichen(z.umbuchungen)}` : '')),
+      h('div', { class: 'klein zl-summen' },
+        h('span', { class: 'nur-breit' },
+          `Einnahmen ${formatEuro(z.einnahmen)} · Ausgaben ${formatEuro(z.ausgaben)}` +
+          (z.umbuchungen !== 0 ? ` · Umbuchungen ${mitVorzeichen(z.umbuchungen)}` : '')),
+        h('span', { class: 'nur-schmal' },
+          `Ein. ${formatEuro(z.einnahmen)} · Aus. ${formatEuro(z.ausgaben)}` +
+          (z.umbuchungen !== 0 ? ` · Umb. ${mitVorzeichen(z.umbuchungen)}` : ''))),
       postenListe(z.posten, beiKlick)),
   ), id);
 }

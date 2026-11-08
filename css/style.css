@@ -950,6 +950,18 @@ details[open] > .zl-zeile > .zl-name::before { transform: rotate(90deg); }
 .zl-posten-knopf:hover { background: var(--flaeche-2); }
 .zl-posten-knopf .zl-posten-text { text-decoration: underline dotted var(--text-2); text-underline-offset: 3px; }
 
+/* Handy (D89): Zukunft bis 2050 einzeilig – Monatszeilen, Monatssummen und Posten wie die Buchungen */
+@media (max-width: 767px) {
+  .zl-kopf, .zl-zeile { gap: 6px; }
+  .zl-zeile { font-size: .9rem; padding: 6px 4px; }
+  .zl-name, .zl-summen, .zl-posten-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .zl-monate { padding-left: 6px; }
+  .zl-details { padding: 2px 4px 6px 14px; }
+  .zl-posten { grid-template-columns: auto minmax(0, 1fr) auto; gap: 6px; }
+  .zl-posten .marke { display: none; }
+  .zl-posten .betrag { white-space: nowrap; }
+}
+
 /* Ein/Aus-Schalter vor Annahmen */
 .annahme-zeile { display: flex; align-items: center; gap: 6px; border-top: 1px solid var(--rand); }
 .liste > .annahme-zeile:first-child { border-top: none; }

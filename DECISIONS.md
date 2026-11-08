@@ -1360,3 +1360,14 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
 - Inhalt und Startpunkt bleiben gleich: Die Zeitleiste beginnt immer mit dem Monat nach heute,
   unabhängig vom angezeigten Monat. Aufgeklappte Jahre/Monate bleiben beim Blättern aufgeklappt.
 
+## D89 – „Zukunft bis 2050“ am Handy einzeilig
+*Wunsch des Nutzers: wie die Buchungen*
+
+- Nur am Handy (bis 767 px) steht in „Zukunft bis 2050“ jede Zeile einzeilig:
+  - Monatszeilen mit kurzem Monatsnamen („Dez. 2026“), Veränderung und Stand.
+  - Monatssumme beim Aufklappen kurz: „Ein. … · Aus. … · Umb. …“.
+  - Posten: Datum, Text, Betrag; die Marken „wiederkehrend/geplant/Budget/gebucht“ und
+    „nur dieser Monat geändert“ entfallen (Wahl des Nutzers). Zu lange Texte enden mit „…“.
+- Gilt ebenso für die Posten, wenn man in einen Zukunftsmonat blättert (gleiche Liste).
+- Am PC bleibt alles wie bisher, mit Marken und ausgeschriebenen Monaten.
+
