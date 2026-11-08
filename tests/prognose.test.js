@@ -256,10 +256,10 @@ test('Wiederkehrende Buchung bauen und prüfen', () => {
   assert.throws(() => baueWiederkehrend({ ...w, stufen: [{ ab: '', betragCent: -5 }] }, ctx), /größer 0/);
 });
 
-test('Migration 2 → 15', () => {
+test('Migration 2 → 16', () => {
   const v2 = { version: 2, konten: [], kategorien: [], buchungen: [{ id: 'b' }], abstimmungen: [] };
   const { daten } = migriereDaten(v2);
-  assert.equal(daten.version, 15);
+  assert.equal(daten.version, 16);
   assert.deepEqual(daten.budgets, []);
   assert.deepEqual(daten.archive, []);
   assert.deepEqual(daten.wiederkehrend, []);
@@ -269,7 +269,7 @@ test('Migration 2 → 15', () => {
   assert.equal('szenarien' in daten, false);
   assert.deepEqual(daten.einstellungen, [{ id: 'hinweise', monate: 3, prozent: 10 }]);
   assert.deepEqual(daten.buchungen[0], {
-    id: 'b', wiederkehrendId: null, faelligAm: null, geplantId: null, projektId: null, partner: '', relevant: false, relevantGruppe: '',
+    id: 'b', wiederkehrendId: null, faelligAm: null, geplantId: null, projektId: null, partner: '', relevant: false, relevantGruppe: '', budgetKategorieId: null,
   });
 });
 
@@ -280,7 +280,7 @@ test('Migration 3 → 8: Annahmen bekommen Schalter', () => {
   };
   const { daten } = migriereDaten(v3);
   assert.deepEqual(daten.budgets[0], { id: 'b1', aktiv: true });
-  assert.deepEqual(daten.wiederkehrend[0], { id: 'w1', aktiv: true, monatsletzter: false, partner: '', kalenderMonate: [], notiz: '' });
+  assert.deepEqual(daten.wiederkehrend[0], { id: 'w1', aktiv: true, monatsletzter: false, partner: '', kalenderMonate: [], notiz: '', budgetKategorieId: null });
   assert.equal(daten.wiederkehrend[1].aktiv, false, 'vorhandene Werte bleiben');
   assert.equal(daten.wiederkehrend[1].monatsletzter, true);
 });
@@ -297,7 +297,7 @@ test('Migration 4 → 8: Szenarien entfallen, Posten ausgeschalteter Szenarien w
   assert.equal('szenarien' in daten, false);
   assert.deepEqual(daten.budgets[0], { id: 'b1', aktiv: true });
   assert.deepEqual(daten.wiederkehrend.map((w) => w.aktiv), [false, true]);
-  assert.deepEqual(daten.geplant[0], { id: 'g1', aktiv: false, projektId: null, partner: '' });
+  assert.deepEqual(daten.geplant[0], { id: 'g1', aktiv: false, projektId: null, partner: '', budgetKategorieId: null });
   assert.equal(daten.buchungen[0].projektId, null);
 });
 

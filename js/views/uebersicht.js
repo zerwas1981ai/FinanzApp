@@ -348,7 +348,8 @@ function kontoTabelle(auswahl, tagesKopf, katName, kontoName) {
     let katText;
     if (b.art === 'umbuchung') {
       partner = 'Umbuchung';
-      katText = `${b.richtung === 'ab' ? '→' : '←'} ${kontoName.get(b.gegenkontoId) ?? '?'}`;
+      katText = `${b.richtung === 'ab' ? '→' : '←'} ${kontoName.get(b.gegenkontoId) ?? '?'}`
+        + (b.richtung === 'ab' && b.budgetKategorieId ? ` · Budget ${katName.get(b.budgetKategorieId)?.name ?? '?'}` : ''); // D98
     } else {
       const unter = katName.get(b.kategorieId);
       partner = b.partner ?? '';
@@ -382,7 +383,7 @@ function buchungsZeile(b, katName, kontoName) {
   let titelHandy;
   if (b.art === 'umbuchung') {
     titel = b.richtung === 'ab' ? `Umbuchung → ${kontoName.get(b.gegenkontoId) ?? '?'}` : `Umbuchung ← ${kontoName.get(b.gegenkontoId) ?? '?'}`;
-    unterzeile = b.notiz;
+    unterzeile = [b.richtung === 'ab' && b.budgetKategorieId && `Budget ${katName.get(b.budgetKategorieId)?.name ?? '?'}`, b.notiz].filter(Boolean).join(' · '); // D98
     titelHandy = titel;
   } else {
     const unter = katName.get(b.kategorieId);

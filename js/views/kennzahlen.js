@@ -191,6 +191,7 @@ function terminDialog(t, titel) {
         betragCent: t.betragCent,
         kontoId: w.kontoId,
         gegenkontoId: w.gegenkontoId,
+        budgetKategorieId: w.budgetKategorieId ?? null, // D98
         kategorieId: w.kategorieId,
         datum: t.datum,
         notiz: istGeplant ? w.bezeichnung : (w.notiz ?? ''), // D96: Notiz der wiederkehrenden Buchung

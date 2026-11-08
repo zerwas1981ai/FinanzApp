@@ -23,7 +23,7 @@ test('Migration 15: Bezeichnung wird zur Notiz, nichts geht verloren', () => {
     { id: 'a', bezeichnung: 'Miete' }, { id: 'b', bezeichnung: 'Alt', notiz: 'schon da' },
   ], geplant: [{ id: 'g', bezeichnung: 'Autoreparatur' }] };
   const { daten } = migriereDaten(v14);
-  assert.deepEqual(daten.wiederkehrend, [{ id: 'a', notiz: 'Miete' }, { id: 'b', notiz: 'schon da' }]);
+  assert.deepEqual(daten.wiederkehrend.map(({ id, notiz, bezeichnung }) => ({ id, notiz, bezeichnung })), [{ id: 'a', notiz: 'Miete', bezeichnung: undefined }, { id: 'b', notiz: 'schon da', bezeichnung: undefined }]);
   assert.equal(daten.geplant[0].bezeichnung, 'Autoreparatur', 'geplante unverändert');
 });
 

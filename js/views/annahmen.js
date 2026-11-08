@@ -9,7 +9,7 @@ import { formatEuro, formatDatum, formatMonat, centZuEingabe, parseEuro, heuteIs
 import { dialog, frage, toast, eingabe, auswahl, datenGeaendert } from '../ui.js';
 import { baueBudget, baueWiederkehrend, baueGeplant, geplantErledigt, haeufigstesKonto, mitAusnahme } from '../annahmen.js';
 import { budgetFuerMonat, betragAm, terminBetrag, naechsterTermin, plusMonate, monatsende, annahmeTitel } from '../prognose.js';
-import { artWahl, fuelleKategorien, projektFeld, oeffneBuchungsdialog, partnerFeld } from './buchung-dialog.js';
+import { artWahl, fuelleKategorien, projektFeld, oeffneBuchungsdialog, partnerFeld, budgetZuordnungFeld } from './buchung-dialog.js';
 import { VERTEILUNGEN, istJaehrlich, trancheImMonat } from '../jahresbudget.js';
 
 const nachName = (a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base' });
@@ -392,6 +392,7 @@ export function wiederkehrendDialog(w, daten, vorgaben = {}) {
   const kontoOptionen = waehlbar.map((k) => ({ wert: k.id, text: k.name }));
   const konto = auswahl({ label: 'Konto', optionen: kontoOptionen, wert: v.kontoId ?? waehlbar[0].id });
   const gegenkonto = auswahl({ label: 'Auf Konto', optionen: kontoOptionen, wert: v.gegenkontoId ?? waehlbar.find((k) => k.id !== konto.select.value)?.id });
+  const budgetFeld = budgetZuordnungFeld(kategorien, v.budgetKategorieId ?? null); // D98
   const intervall = auswahl({
     label: 'Intervall',
     optionen: Object.entries(INTERVALL_TEXT).map(([wert, text]) => ({ wert, text: text[0].toUpperCase() + text.slice(1) })),
@@ -444,6 +445,7 @@ export function wiederkehrendDialog(w, daten, vorgaben = {}) {
     kategorie.feld.hidden = istUmbuchung;
     partner.setzeArt(art);
     gegenkonto.feld.hidden = !istUmbuchung;
+    budgetFeld.feld.hidden = !istUmbuchung;
     konto.feld.querySelector('label').textContent = istUmbuchung ? 'Von Konto' : 'Konto';
     if (!istUmbuchung) fuelleKategorien(kategorie.select, kategorien, art, v.kategorieId);
   }
@@ -452,7 +454,7 @@ export function wiederkehrendDialog(w, daten, vorgaben = {}) {
   dialog({
     titel: w ? 'Wiederkehrende Buchung bearbeiten' : (vorgaben.titel ?? 'Neue wiederkehrende Buchung'),
     inhalt: [
-      artKnoepfe, stufen.feld, kalender.feld, partner.feld, kategorie.feld, konto.feld, gegenkonto.feld,
+      artKnoepfe, stufen.feld, kalender.feld, partner.feld, kategorie.feld, konto.feld, gegenkonto.feld, budgetFeld.feld,
       intervall.feld, monatsletzterFeld, h('div', { class: 'feld-paar' }, start.feld, ende.feld), notiz.feld, ausnahmenListe,
     ],
     zusatz: w && {
@@ -475,6 +477,7 @@ export function wiederkehrendDialog(w, daten, vorgaben = {}) {
     onSpeichern: async () => {
       const datensatz = baueWiederkehrend({
         notiz: notiz.input.value,
+        budgetKategorieId: budgetFeld.select.value,
         art,
         kontoId: konto.select.value,
         gegenkontoId: gegenkonto.select.value,
@@ -563,6 +566,7 @@ export function geplantDialog(g, daten, vorgaben = {}) {
   const kontoOptionen = waehlbar.map((k) => ({ wert: k.id, text: k.name }));
   const konto = auswahl({ label: 'Konto', optionen: kontoOptionen, wert: g?.kontoId ?? waehlbar[0].id });
   const gegenkonto = auswahl({ label: 'Auf Konto', optionen: kontoOptionen, wert: g?.gegenkontoId ?? waehlbar.find((k) => k.id !== konto.select.value)?.id });
+  const budgetFeld = budgetZuordnungFeld(kategorien, g?.budgetKategorieId ?? null); // D98
   const datum = eingabe({ label: 'Geplant am', type: 'date', value: g?.datum ?? plusMonate(heute.slice(0, 7), 1) + '-01' });
   const projekt = projektFeld(daten.projekte ?? [], g?.projektId ?? vorgaben.projektId ?? null);
 
@@ -572,6 +576,7 @@ export function geplantDialog(g, daten, vorgaben = {}) {
     partner.setzeArt(art);
     if (projekt) projekt.feld.hidden = istUmbuchung;
     gegenkonto.feld.hidden = !istUmbuchung;
+    budgetFeld.feld.hidden = !istUmbuchung;
     konto.feld.querySelector('label').textContent = istUmbuchung ? 'Von Konto' : 'Konto';
     if (!istUmbuchung) fuelleKategorien(kategorie.select, kategorien, art, g?.kategorieId);
   }
@@ -606,6 +611,7 @@ export function geplantDialog(g, daten, vorgaben = {}) {
           betragCent: g.betragCent,
           kontoId: g.kontoId,
           gegenkontoId: g.gegenkontoId,
+          budgetKategorieId: g.budgetKategorieId ?? null,
           kategorieId: g.kategorieId,
           datum: g.datum <= heute ? g.datum : heute,
           notiz: g.bezeichnung,
@@ -619,7 +625,7 @@ export function geplantDialog(g, daten, vorgaben = {}) {
 
   dialog({
     titel: g ? 'Geplante Einmalbuchung bearbeiten' : 'Neue geplante Einmalbuchung',
-    inhalt: [statusInfo, buchenKnopf, artKnoepfe, bezeichnung.feld, betrag.feld, partner.feld, kategorie.feld, konto.feld, gegenkonto.feld, datum.feld, projekt?.feld],
+    inhalt: [statusInfo, buchenKnopf, artKnoepfe, bezeichnung.feld, betrag.feld, partner.feld, kategorie.feld, konto.feld, gegenkonto.feld, budgetFeld.feld, datum.feld, projekt?.feld],
     zusatz: g && {
       text: 'Löschen',
       variante: 'knopf-gefahr',
@@ -635,6 +641,7 @@ export function geplantDialog(g, daten, vorgaben = {}) {
     onSpeichern: async () => {
       const datensatz = baueGeplant({
         bezeichnung: bezeichnung.input.value,
+        budgetKategorieId: budgetFeld.select.value,
         art,
         kontoId: konto.select.value,
         gegenkontoId: gegenkonto.select.value,

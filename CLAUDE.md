@@ -38,7 +38,9 @@ Oberfläche auf Deutsch, Währung Euro, deutsches Datums- und Zahlenformat.
   (optional), Unterkategorie, Notiz, Projekt (optional), Belege (mehrere
   möglich, PDF/JPG), Status
 - Umbuchung: zwei verknüpfte Buchungen (Abgang Konto A, Zugang Konto B).
-  Zählt in Auswertungen NICHT als Einnahme oder Ausgabe.
+  Zählt in Auswertungen NICHT als Einnahme oder Ausgabe. Optional einem Budget
+  zugeordnet: verbraucht dann das Budget dieser Hauptkategorie auf dem
+  abgebenden Konto (auch wiederkehrend/geplant, D98).
 - Budget: pro Hauptkategorie und Konto, monatlich, jährlich (in Tranchen, D90) oder einmalig (D85);
   je Kategorie und Konto entweder Monats- oder Jahresbudget
 - Wiederkehrende Buchung: Intervall (monatlich/vierteljährlich/jährlich),

@@ -68,6 +68,10 @@ export function baueBuchungen(eingabe, { konten, bestehende = [], jetzt = new Da
     // Umbuchungen gehören nie zu einem Projekt (sie sind keine Ausgabe).
     projektId: art === 'umbuchung' ? null
       : (eingabe.projektId === undefined ? bestehende[0]?.projektId ?? null : eingabe.projektId || null),
+    // Budget-Zuordnung (Datenversion 16, D98): nur bei Umbuchungen; undefined = unverändert, '' = keine.
+    // Verbraucht das Budget dieser Hauptkategorie auf dem abgebenden Konto.
+    budgetKategorieId: art !== 'umbuchung' ? null
+      : (eingabe.budgetKategorieId === undefined ? bestehende[0]?.budgetKategorieId ?? null : eingabe.budgetKategorieId || null),
     // Relevante Ausgabe (Datenversion 10): nur bei Ausgaben; undefined = unverändert
     relevant: art === 'ausgabe' && (eingabe.relevant === undefined ? Boolean(bestehende[0]?.relevant) : Boolean(eingabe.relevant)),
     relevantGruppe: art !== 'ausgabe' ? ''
@@ -126,7 +130,7 @@ export function anzahlFuerKonto(kontoId, alle) {
 }
 export function anzahlFuerKategorien(kategorieIds, alle) {
   const ids = new Set(kategorieIds);
-  return alle.filter((b) => ids.has(b.kategorieId)).length;
+  return alle.filter((b) => ids.has(b.kategorieId) || ids.has(b.budgetKategorieId)).length; // inkl. Budget-Zuordnung (D98)
 }
 
 /* ---------- Datenbank-Operationen ---------- */

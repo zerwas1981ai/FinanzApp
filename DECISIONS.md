@@ -1489,3 +1489,22 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
   („zum Monatsletzten“ bleibt sichtbar).
 - Keine Zwischensummen (anders als bei Budgets) – nicht gewünscht.
 
+## D98 – Umbuchungen optional einem Budget zuordnen
+*Wunsch des Nutzers: Urlaubsbudget liegt auf dem Girokonto, bezahlt wird per PayPal*
+
+- Problem ohne Zuordnung: Die Umbuchung Giro → PayPal senkt den Giro-Stand, das Budget gilt aber weiter als
+  unverbraucht – die Prognose plant das Geld doppelt ein.
+- Umbuchungen (echte, wiederkehrende und geplante) haben das optionale Feld **„Zählt gegen Budget“**
+  (`budgetKategorieId`, eine Ausgaben-Hauptkategorie; Datenversion 16). Bei echten Umbuchungen steht es an
+  beiden Hälften, verbraucht wird nur auf der **abgebenden** Seite.
+- Die Umbuchung verbraucht dann das Monats- bzw. Jahresbudget dieser Kategorie auf dem abgebenden Konto:
+  im laufenden Monat (echte + offene Termine), in der Zeitleiste, bei Jahresbudgets und in den
+  Budgethinweisen. Gibt es dort kein Budget, passiert nichts.
+- Sie bleibt eine **Umbuchung**: keine Ausgabe in Kennzahlen, „Alle Buchungen“-Auswertungen und Kontoständen.
+  Die eigentliche Ausgabe wird auf dem Zielkonto (PayPal) gebucht.
+- Anzeige: „… → PayPal · Budget Freizeit“ in „Alle Buchungen“ und in der Übersicht am PC. „Buchen“ eines
+  wiederkehrenden oder geplanten Termins übernimmt die Zuordnung.
+- Grenze: Hat auch das Zielkonto ein Budget dieser Kategorie, verbrauchen Umbuchung und spätere Ausgabe beide
+  ihr jeweiliges Budget. Kein automatischer Hinweis (bewusst einfach gehalten).
+- Die Löschsperre einer Hauptkategorie zählt solche Zuordnungen mit.
+

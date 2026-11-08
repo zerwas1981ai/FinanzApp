@@ -110,6 +110,16 @@ function baueBudgetDatensatz(eingabe, { kategorien, budgets, alt = null, jetzt =
   };
 }
 
+/** Budget-Zuordnung einer Umbuchung prüfen (D98): Ausgaben-Hauptkategorie oder null */
+function budgetZuordnung(eingabe, kategorien, alt) {
+  if (eingabe.art !== 'umbuchung') return null;
+  const id = eingabe.budgetKategorieId === undefined ? alt?.budgetKategorieId ?? null : eingabe.budgetKategorieId || null;
+  if (!id) return null;
+  const hk = kategorien.find((k) => k.id === id);
+  if (!hk || hk.elternId || hk.art !== 'ausgabe') throw new Error('Bitte für die Budget-Zuordnung eine Ausgaben-Hauptkategorie wählen.');
+  return id;
+}
+
 /** Feste Abweichungen je Kalendermonat prüfen (D92): [{ monat 1..12, betragCent ≥ 0 }], je Monat höchstens einmal */
 function pruefeKalenderMonate(liste, { nullErlaubt = true } = {}) {
   const ergebnis = [];
@@ -202,6 +212,7 @@ export function baueWiederkehrend(eingabe, { konten, kategorien, alt = null, jet
     kontoId: eingabe.kontoId,
     gegenkontoId,
     kategorieId,
+    budgetKategorieId: budgetZuordnung(eingabe, kategorien, alt), // D98
     intervall: eingabe.intervall,
     start,
     monatsletzter,
@@ -257,6 +268,7 @@ export function baueGeplant(eingabe, { konten, kategorien, alt = null, jetzt = n
     kontoId: eingabe.kontoId,
     gegenkontoId,
     kategorieId,
+    budgetKategorieId: budgetZuordnung(eingabe, kategorien, alt), // D98
     datum: eingabe.datum,
     betragCent: eingabe.betragCent,
     erledigtAm: alt?.erledigtAm ?? null,

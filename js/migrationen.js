@@ -23,7 +23,7 @@
 import { neueKategorie, INVESTITIONEN_UNTER, BARGELD_UNTER } from './startdaten.js';
 import { startReihenfolge } from './konten.js';
 
-export const DATENMODELL_VERSION = 15;
+export const DATENMODELL_VERSION = 16;
 
 /** Standard-Schwellen für Budgethinweise (in den Stammdaten änderbar) */
 export const STANDARD_EINSTELLUNGEN = Object.freeze({ id: 'hinweise', monate: 3, prozent: 10 });
@@ -204,6 +204,15 @@ export const MIGRATIONEN = [
         if (w.notiz == null) w.notiz = w.bezeichnung ?? '';
         delete w.bezeichnung;
       }
+      return daten;
+    },
+  },
+  {
+    nach: 16,
+    beschreibung: 'Umbuchungen können optional einem Budget zugeordnet werden ("budgetKategorieId", D98) – ' +
+      'echte, wiederkehrende und geplante.',
+    migriere(daten) {
+      for (const x of [...(daten.buchungen ?? []), ...(daten.wiederkehrend ?? []), ...(daten.geplant ?? [])]) x.budgetKategorieId ??= null;
       return daten;
     },
   },

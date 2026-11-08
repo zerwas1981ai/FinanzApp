@@ -460,7 +460,8 @@ function liste(eintraege, daten, neu) {
       const von = b.richtung === 'ab' ? b.kontoId : b.gegenkontoId;
       const auf = b.richtung === 'ab' ? b.gegenkontoId : b.kontoId;
       partnerText = 'Umbuchung';
-      katText = `${kontoName.get(von) ?? '?'} → ${kontoName.get(auf) ?? '?'}`;
+      katText = `${kontoName.get(von) ?? '?'} → ${kontoName.get(auf) ?? '?'}`
+        + (b.budgetKategorieId ? ` · Budget ${kat.get(b.budgetKategorieId)?.name ?? '?'}` : ''); // D98
     } else {
       const unter = kat.get(b.kategorieId);
       partnerText = b.partner?.trim() ?? '';

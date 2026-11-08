@@ -77,6 +77,9 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
     wert: ref?.gegenkontoId ?? vorgaben.gegenkontoId ?? waehlbareKonten.find((k) => k.id !== startKonto && !k.archiviert)?.id,
   });
 
+  // D98: Umbuchung optional einem Budget auf dem abgebenden Konto zuordnen
+  const budgetFeld = budgetZuordnungFeld(kategorien, ref?.budgetKategorieId ?? vorgaben.budgetKategorieId ?? null);
+
   const datum = eingabe({ label: 'Datum', type: 'date', value: ref?.datum ?? vorgaben.datum ?? heuteIso() });
   const status = optionsGruppe({
     label: 'Status',
@@ -112,6 +115,7 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
     relevantFeld.hidden = art !== 'ausgabe';
     partner.setzeArt(art);
     gegenkonto.feld.hidden = !istUmbuchung;
+    budgetFeld.feld.hidden = !istUmbuchung;
     konto.feld.querySelector('label').textContent = istUmbuchung ? 'Von Konto' : 'Konto';
     if (!istUmbuchung) fuelleKategorien(kategorie.select, kategorien, art, startKategorie);
   }
@@ -128,6 +132,7 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
       betragCent,
       kontoId: konto.select.value,
       gegenkontoId: art === 'umbuchung' ? gegenkonto.select.value : undefined,
+      budgetKategorieId: art === 'umbuchung' ? budgetFeld.select.value || null : undefined,
       kategorieId: art === 'umbuchung' ? undefined : kategorie.select.value || undefined,
       partner: partner.input.value.trim(),
       notiz: notiz.input.value.trim(),
@@ -172,7 +177,7 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
   // ---------- Dialog ----------
   const dlg = dialog({
     titel: buchung ? (ref.art === 'umbuchung' ? 'Umbuchung bearbeiten' : 'Buchung bearbeiten') : (vorgaben.titel ?? 'Neue Buchung'),
-    inhalt: [extras, artKnoepfe, betrag.feld, partner.feld, kategorie.feld, konto.feld, gegenkonto.feld, datum.feld, status.feld, notiz.feld, projekt?.feld, relevantFeld, belege.feld].filter(Boolean),
+    inhalt: [extras, artKnoepfe, betrag.feld, partner.feld, kategorie.feld, konto.feld, gegenkonto.feld, budgetFeld.feld, datum.feld, status.feld, notiz.feld, projekt?.feld, relevantFeld, belege.feld].filter(Boolean),
     speichernText: buchung ? 'Speichern' : 'Erfassen',
     zusatz: buchung && {
       text: 'In den Papierkorb',
@@ -191,6 +196,7 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
         datum: datum.input.value,
         kontoId: konto.select.value,
         gegenkontoId: gegenkonto.select.value,
+        budgetKategorieId: art === 'umbuchung' ? budgetFeld.select.value : undefined,
         kategorieId: kategorie.select.value || null,
         notiz: notiz.input.value,
         partner: partner.input.value,
@@ -274,6 +280,21 @@ export function projektFeld(projekte, wert) {
     optionen: [{ wert: '', text: 'Kein Projekt' }, ...waehlbar.map((p) => ({ wert: p.id, text: p.name + (p.abgeschlossen ? ' (abgeschlossen)' : '') }))],
     wert: wert ?? '',
     hilfe: 'Projektausgaben zählen nicht gegen das Monatsbudget ihrer Kategorie.',
+  });
+}
+
+/**
+ * Auswahl „Zählt gegen Budget (optional)“ für Umbuchungen (D98) – auch für wiederkehrende und
+ * geplante Umbuchungen. Ausgaben-Hauptkategorien; archivierte nur, wenn schon gewählt.
+ */
+export function budgetZuordnungFeld(kategorien, wert) {
+  const haupt = kategorien.filter((k) => !k.elternId && k.art === 'ausgabe' && (!k.archiviert || k.id === wert)).sort(nachName);
+  return auswahl({
+    label: 'Zählt gegen Budget (optional)',
+    optionen: [{ wert: '', text: 'Kein Budget' }, ...haupt.map((k) => ({ wert: k.id, text: k.name }))],
+    wert: wert ?? '',
+    hilfe: 'Verbraucht das Budget dieser Kategorie auf dem abgebenden Konto – z. B. wenn das Urlaubsbudget auf dem Girokonto liegt, '
+      + 'du aber per PayPal bezahlst. Es bleibt eine Umbuchung, keine Ausgabe.',
   });
 }
 

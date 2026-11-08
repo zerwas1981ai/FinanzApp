@@ -116,6 +116,18 @@ export function regelBetrag(b, monat) {
   return kalender ? kalender.betragCent : betragAm(b.stufen, monat);
 }
 
+/**
+ * Hauptkategorie, deren Budget eine Bewegung verbraucht – oder null (D98).
+ * Ausgaben ohne Projekt über ihre Unterkategorie; Umbuchungen (nur die abgebende Seite)
+ * über die optional zugeordnete Budget-Kategorie, z. B. Urlaub per PayPal bezahlt.
+ * Für Buchungen, Termine wiederkehrender und geplante Buchungen gleichermaßen.
+ */
+export function budgetHauptVon(x, hauptVon) {
+  if (x.art === 'umbuchung') return x.richtung === 'zu' ? null : (x.budgetKategorieId ?? null);
+  if (x.art !== 'ausgabe' || x.projektId) return null;
+  return hauptVon(x.kategorieId) ?? null;
+}
+
 /** Schlüssel für „Hauptkategorie auf einem Konto“ (D85) */
 export const budgetSchluessel = (kontoId, kategorieId) => `${kontoId}|${kategorieId}`;
 
@@ -264,8 +276,8 @@ export function ausgabenJeKontoUndKategorie(buchungen, kategorien, monat) {
   const kat = new Map(kategorien.map((k) => [k.id, k]));
   const summe = new Map();
   for (const b of buchungen) {
-    if (!istAktiv(b) || b.art !== 'ausgabe' || b.projektId || b.datum.slice(0, 7) !== monat) continue;
-    const hId = kat.get(b.kategorieId)?.elternId;
+    if (!istAktiv(b) || b.datum.slice(0, 7) !== monat) continue;
+    const hId = budgetHauptVon(b, (id) => kat.get(id)?.elternId); // inkl. Umbuchungen mit Budget (D98)
     if (!hId) continue;
     const s = budgetSchluessel(b.kontoId, hId);
     summe.set(s, (summe.get(s) ?? 0) + b.betragCent);
@@ -339,8 +351,8 @@ export function monatsprognose(daten, heute) {
   const offen = offeneTermine(daten, heute, ende);
   const offenJe = new Map();
   for (const t of offen) {
-    if (t.wiederkehrend.art !== 'ausgabe' || t.wiederkehrend.projektId || t.datum < erster) continue;
-    const hId = kat.get(t.wiederkehrend.kategorieId)?.elternId;
+    if (t.datum < erster) continue;
+    const hId = budgetHauptVon(t.wiederkehrend, (id) => kat.get(id)?.elternId); // inkl. Umbuchungen mit Budget (D98)
     if (!hId) continue;
     const s = budgetSchluessel(t.wiederkehrend.kontoId, hId);
     offenJe.set(s, (offenJe.get(s) ?? 0) + t.betragCent);
@@ -547,7 +559,7 @@ export function zeitleiste(daten, heute, bisMonat = LETZTER_MONAT) {
     merke({
       art: b.art, kontoId: b.kontoId, gegenkontoId: b.gegenkontoId, betragCent: b.betragCent, datum: b.datum,
       hauptId: hauptVon(b.kategorieId), text: [b.partner, b.notiz || kat.get(b.kategorieId)?.name || 'Umbuchung'].filter(Boolean).join(' · '), quelle: 'gebucht',
-      projektId: b.projektId ?? null,
+      projektId: b.projektId ?? null, budgetKategorieId: b.budgetKategorieId ?? null,
     });
   }
   for (const w of wiederkehrende) {
@@ -555,7 +567,7 @@ export function zeitleiste(daten, heute, bisMonat = LETZTER_MONAT) {
       if (t.datum < (stichtag.get(w.kontoId) ?? '')) continue;
       merke({
         art: w.art, kontoId: w.kontoId, gegenkontoId: w.gegenkontoId, betragCent: t.betragCent, datum: t.datum,
-        hauptId: hauptVon(w.kategorieId), text: annahmeTitel(w, kategorien), quelle: 'wiederkehrend',
+        hauptId: hauptVon(w.kategorieId), text: annahmeTitel(w, kategorien), quelle: 'wiederkehrend', budgetKategorieId: w.budgetKategorieId ?? null,
         ref: { wiederkehrend: w, termin: t.termin, einzelBetrag: t.einzelBetrag, verschoben: t.verschoben },
       });
     }
@@ -565,7 +577,7 @@ export function zeitleiste(daten, heute, bisMonat = LETZTER_MONAT) {
     if (g.erledigtAm || gebucht.has(g.id) || g.datum < von || g.datum > bis) continue;
     merke({
       art: g.art, kontoId: g.kontoId, gegenkontoId: g.gegenkontoId, betragCent: g.betragCent, datum: g.datum,
-      hauptId: hauptVon(g.kategorieId), text: g.bezeichnung, quelle: 'geplant',
+      hauptId: hauptVon(g.kategorieId), text: g.bezeichnung, quelle: 'geplant', budgetKategorieId: g.budgetKategorieId ?? null,
       projektId: g.projektId ?? null, ref: { geplant: g },
     });
   }
@@ -603,6 +615,11 @@ export function zeitleiste(daten, heute, bisMonat = LETZTER_MONAT) {
         }
         // In der Gesamtsicht heben sich Umbuchungen zwischen aktiven Konten auf
         g.umbuchungen += (kontoIds.has(x.kontoId) ? -x.betragCent : 0) + (kontoIds.has(x.gegenkontoId) ? x.betragCent : 0);
+        // D98: Umbuchung mit Budget-Zuordnung verbraucht das Budget auf dem abgebenden Konto
+        if (x.budgetKategorieId) {
+          const s = budgetSchluessel(x.kontoId, x.budgetKategorieId);
+          istJe.set(s, (istJe.get(s) ?? 0) + x.betragCent);
+        }
         continue;
       }
       const wirkung = x.art === 'einnahme' ? x.betragCent : -x.betragCent;
@@ -724,9 +741,11 @@ export function erwarteteAusgaben(daten, heute, bisMonat) {
   const hauptVon = new Map(kategorien.map((k) => [k.id, k.elternId]));
   const stichtag = new Map(konten.map((k) => [k.id, k.stichtag]));
   const ergebnis = new Map();
-  const dazu = (kontoId, kategorieId, datum, cent) => {
-    const hId = hauptVon.get(kategorieId);
+  // x: Buchung, wiederkehrende oder geplante Buchung – inkl. Umbuchungen mit Budget (D98)
+  const dazu = (x, datum, cent) => {
+    const hId = budgetHauptVon(x, (id) => hauptVon.get(id));
     if (!hId) return;
+    const kontoId = x.kontoId;
     const s = `${kontoId}|${hId}|${datum.slice(0, 7)}`;
     ergebnis.set(s, (ergebnis.get(s) ?? 0) + cent);
   };
@@ -735,25 +754,24 @@ export function erwarteteAusgaben(daten, heute, bisMonat) {
   const bis = monatsende(`${bisMonat}-01`);
 
   for (const b of buchungen) {
-    if (istAktiv(b) && b.art === 'ausgabe' && !b.projektId && b.datum <= bis) dazu(b.kontoId, b.kategorieId, b.datum, b.betragCent);
+    if (istAktiv(b) && b.datum <= bis) dazu(b, b.datum, b.betragCent);
   }
   for (const t of offeneTermine({ ...daten, wiederkehrende, geplant }, heute, ende)) {
-    const q = t.wiederkehrend;
-    if (q.art !== 'ausgabe' || q.projektId || t.datum < `${monat}-01`) continue;
-    dazu(q.kontoId, q.kategorieId, t.datum, t.betragCent);
+    if (t.datum < `${monat}-01`) continue;
+    dazu(t.wiederkehrend, t.datum, t.betragCent);
   }
   const von = `${plusMonate(monat, 1)}-01`;
   if (von > bis) return ergebnis;
   for (const w of wiederkehrende) {
-    if (w.art !== 'ausgabe' || w.projektId) continue;
+    if (!budgetHauptVon(w, (id) => hauptVon.get(id))) continue;
     for (const t of termine(w, von, bis)) {
-      if (t.datum >= (stichtag.get(w.kontoId) ?? '')) dazu(w.kontoId, w.kategorieId, t.datum, t.betragCent);
+      if (t.datum >= (stichtag.get(w.kontoId) ?? '')) dazu(w, t.datum, t.betragCent);
     }
   }
   const gebucht = new Set(buchungen.filter((b) => istAktiv(b) && b.geplantId).map((b) => b.geplantId));
   for (const g of geplant) {
-    if (g.erledigtAm || gebucht.has(g.id) || g.art !== 'ausgabe' || g.projektId || g.datum < von || g.datum > bis) continue;
-    dazu(g.kontoId, g.kategorieId, g.datum, g.betragCent);
+    if (g.erledigtAm || gebucht.has(g.id) || g.datum < von || g.datum > bis) continue;
+    dazu(g, g.datum, g.betragCent);
   }
   return ergebnis;
 }

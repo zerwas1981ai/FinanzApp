@@ -29,7 +29,7 @@ function annahmenFuer({ kontoId = null, kategorieIds = [] }) {
   const [budgets, wiederkehrend, geplant = []] = testAnnahmen;
   // kontoId nur vergleichen, wenn eines gesucht wird – sonst träfe "gegenkontoId === null" fast jede Annahme (D93)
   const amKonto = (x) => kontoId !== null && (x.kontoId === kontoId || x.gegenkontoId === kontoId);
-  const haengt = (x) => amKonto(x) || ids.has(x.kategorieId);
+  const haengt = (x) => amKonto(x) || ids.has(x.kategorieId) || ids.has(x.budgetKategorieId); // inkl. Budget-Zuordnung (D98)
   return budgets.filter((b) => amKonto(b) || ids.has(b.kategorieId)).length
     + wiederkehrend.filter(haengt).length
     + geplant.filter(haengt).length;
