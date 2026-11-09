@@ -11,7 +11,7 @@ import { wirkungCent, istAktiv } from './rechnen.js';
 import { isoMonatsanfang, naechsterMonat, vorigerMonat } from './format.js';
 
 export const STANDARD_FILTER = Object.freeze({
-  zeitraum: 'monat', // monat | vormonat | jahr | vorjahr | alles | eigen
+  zeitraum: 'alles', // alles | jahr | monat | letzte3 | eigen (vormonat/vorjahr nur noch intern) – Standard „Alles“ (D122)
   von: '',
   bis: '',
   // Mehrfachauswahl (D72): leere Liste = alle
@@ -81,6 +81,13 @@ export function zeitraumFuer(filter, heute) {
       return { von: isoMonatsanfang(vj, vm), bis: letzterTag(vj, vm) };
     }
     case 'jahr': return { von: `${j}-01-01`, bis: `${j}-12-31` };
+    case 'letzte3': {
+      // D122: die letzten drei abgeschlossenen Monate (heute im November → August bis Oktober)
+      const [ej, em] = vorigerMonat(j, m);
+      let [sj, sm] = [ej, em];
+      for (let i = 0; i < 2; i++) [sj, sm] = vorigerMonat(sj, sm);
+      return { von: isoMonatsanfang(sj, sm), bis: letzterTag(ej, em) };
+    }
     case 'vorjahr': return { von: `${j - 1}-01-01`, bis: `${j - 1}-12-31` };
     case 'eigen': return { von: filter.von || '', bis: filter.bis || '' };
     default: return { von: '', bis: '' };

@@ -38,7 +38,8 @@ const daten = [
   { ...b('ausgabe', 99900, '2026-11-04', { kategorieId: 'super' })[0], geloeschtAm: 'X' },
 ];
 const ctx = { kategorien, konten, heute };
-const f = (aenderung) => ({ ...STANDARD_FILTER, status: [], ...aenderung }); // Filterlogik mit jedem Status prüfen
+// Filterlogik mit jedem Status und – wie früher als Standard – im laufenden Monat prüfen
+const f = (aenderung) => ({ ...STANDARD_FILTER, zeitraum: 'monat', status: [], ...aenderung });
 
 test('Zeiträume', () => {
   assert.deepEqual(zeitraumFuer(f({ zeitraum: 'monat' }), heute), { von: '2026-11-01', bis: '2026-11-30' });
@@ -285,4 +286,11 @@ test('Nur Buchungen bis heute (D121)', () => {
   const ids = filtere(zukunft, f({}), ctx).map((e) => e.buchung.id);
   assert.ok(!ids.includes('z'), 'erfasste Buchung mit späterem Datum fehlt');
   assert.ok(ctx.heute < '2026-11-25');
+});
+
+test('Zeitraum: Standard „Alles“, „Letzte 3 Monate“ = drei abgeschlossene Monate (D122)', () => {
+  assert.equal(STANDARD_FILTER.zeitraum, 'alles');
+  assert.deepEqual(zeitraumFuer({ zeitraum: 'letzte3' }, '2026-11-09'), { von: '2026-08-01', bis: '2026-10-31' });
+  assert.deepEqual(zeitraumFuer({ zeitraum: 'letzte3' }, '2027-02-15'), { von: '2026-11-01', bis: '2027-01-31' }, 'über den Jahreswechsel');
+  assert.deepEqual(zeitraumFuer({ zeitraum: 'letzte3' }, '2027-03-31'), { von: '2026-12-01', bis: '2027-02-28' }, 'Februar endet am 28.');
 });

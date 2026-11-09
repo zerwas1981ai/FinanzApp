@@ -38,12 +38,12 @@ function zeigeJahr(jahr) {
   zustand.filter = { ...STANDARD_FILTER, zeitraum: 'eigen', von: `${jahr}-01-01`, bis: `${jahr}-12-31` };
 }
 
+// D122: Reihenfolge nach Wunsch des Nutzers; „Vormonat“ und „Vorjahr“ entfallen
 const ZEITRAEUME = [
-  ['monat', 'Dieser Monat'],
-  ['vormonat', 'Vormonat'],
-  ['jahr', 'Dieses Jahr'],
-  ['vorjahr', 'Vorjahr'],
   ['alles', 'Alles'],
+  ['jahr', 'Dieses Jahr'],
+  ['monat', 'Dieser Monat'],
+  ['letzte3', 'Letzte 3 Monate'],
   ['eigen', 'Eigener Zeitraum'],
 ];
 
@@ -398,7 +398,7 @@ function summenKarte(s, von, bis) {
   let zeitraumText = 'Gesamter Zeitraum';
   if (von && bis) zeitraumText = `${formatDatum(von)} – ${formatDatum(bis)}`;
   else if (von) zeitraumText = `ab ${formatDatum(von)}`;
-  else if (bis) zeitraumText = `bis ${formatDatum(bis)}`;
+  else if (bis) zeitraumText = `Alles bis ${formatDatum(bis)}`;
 
   const kachel = (label, cent, klasse = '', vorzeichen = false) => h('div', { class: 'kachel' },
     h('div', { class: 'klein' }, label),

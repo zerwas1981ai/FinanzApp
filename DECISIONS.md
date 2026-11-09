@@ -1789,3 +1789,13 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
   („01.11.2026 – 09.11.2026“).
 - Der Summenblock zeigt nur noch **Summe, Anzahl und Ø je Buchung**. Die Kacheln „Einnahmen“ und
   „Ausgaben“ entfallen.
+
+## D122 – „Alle Buchungen“: Zeitraum-Kacheln neu, Standard „Alles“
+*Wunsch des Nutzers*
+
+- Reihenfolge der Zeitraum-Kacheln: **Alles** (Standard) · **Dieses Jahr** · **Dieser Monat** ·
+  **Letzte 3 Monate** · Eigener Zeitraum. „Vormonat“ und „Vorjahr“ entfallen als Kacheln.
+- „Letzte 3 Monate“ sind die drei zuletzt **abgeschlossenen** Monate. Am 09.11.2026 sind das
+  01.08.–31.10.2026, auch über den Jahreswechsel richtig.
+- „Eigener Zeitraum“ bleibt, auch weil „Ansehen“ eines archivierten Jahres (Stammdaten) ihn nutzt.
+- Bei „Alles“ steht im Summenblock „Alles bis TT.MM.JJJJ“ (nur Buchungen bis heute, D121).
