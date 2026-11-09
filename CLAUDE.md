@@ -59,7 +59,8 @@ Oberfläche auf Deutsch, Währung Euro, deutsches Datums- und Zahlenformat.
    - Oben: Gesamtkontostand heute und prognostiziert zum Monats- und Jahresende (alle
      Konten, D116; Einnahmen/Ausgaben des Monats entfallen, D115), Warnung bei Unterschreiten des
      Mindestsaldos (mit erstem betroffenen Monat; im laufenden Monat nach dem
-     niedrigsten erwarteten Stand ohne offene echte Einnahmen, D110/D111), max. 2 Budget-Hinweise.
+     niedrigsten erwarteten Stand ohne offene echte Einnahmen, D110/D111), max. 2 Budget-Hinweise
+     (eingeklappt in einer Zeile, D117).
      Keine Kategorie-Kacheln (Budgetauslastung steht je Konto unter „Noch
      erwartet“, siehe DECISIONS.md D78)
    - Konten nebeneinander oder umschaltbar, je Konto Monatsansicht mit

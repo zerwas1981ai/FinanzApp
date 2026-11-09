@@ -901,6 +901,14 @@ p.erklaerung { margin-top: 0; }
 
 .hinweiskarten { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 0 16px; }
 .hinweiskarte { border-left: 4px solid var(--akzent); }
+/* D117: eingeklappter Rahmen mit Akzentstreifen; die Karten darin ohne eigenen Kasten */
+.hinweise-klapp { border-left: 4px solid var(--akzent); }
+.hinweise-klapp .klapp-text { font-weight: 600; }
+.hinweise-klapp .hinweiskarte { background: none; border: 0; box-shadow: none; border-radius: 0; margin: 0; padding: 8px 0; }
+.hinweise-klapp .hinweiskarten { gap: 0 24px; }
+@media (max-width: 767px) {
+  .hinweise-klapp .hinweiskarte + .hinweiskarte { border-top: 1px solid var(--rand); }
+}
 .hinweiskarte h2 { font-size: 1.1rem; margin: 2px 0 8px; }
 .hinweiskarte p { margin: 0 0 10px; }
 .hinweiskarte .tabelle { font-size: .85rem; margin-bottom: 10px; }

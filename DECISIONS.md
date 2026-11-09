@@ -1729,3 +1729,15 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
 - **PC:** drei gleich breite Spalten. **Handy:** „Alle Konten heute“ etwas größer über die ganze Breite,
   darunter die beiden Prognosen nebeneinander.
 - Funktion `prognoseJahresende(zl, heute)` in `prognose.js`, mit Test.
+
+## D117 – Budgethinweise einklappbar
+*Wunsch des Nutzers*
+
+- Die Budgethinweise oben in der Übersicht stehen in einem gemeinsamen Klappblock mit Akzentstreifen.
+  Eingeklappt zeigt er nur eine Zeile, zum Beispiel „2 Budgethinweise · Lebensmittel, Freizeit“.
+- Standardmäßig ist er eingeklappt. Aufgeklappt bleibt er, solange die App offen ist (auch nach
+  „Übernehmen/Ablehnen/Später“).
+- Aufgeklappt sehen die Hinweise aus wie bisher: am PC nebeneinander, am Handy untereinander mit einer
+  feinen Linie dazwischen.
+- Grund: Am Handy füllten zwei Hinweise fast den ganzen ersten Bildschirm, die Konten kamen erst nach
+  dem Wischen.

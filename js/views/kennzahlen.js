@@ -248,12 +248,22 @@ function verschiebenDialog(t, titel) {
 
 /* =========================== Budgethinweise =========================== */
 
+// D117: Budgethinweise standardmäßig eingeklappt; bleibt offen, solange die App offen ist
+let hinweiseOffen = false;
+
 export function hinweisBereich(hinweise, daten) {
   if (hinweise.length === 0) return null;
   const heute = heuteIso();
   const aktuell = heute.slice(0, 7);
+  const gezeigt = hinweise.slice(0, 2);
+  const namen = gezeigt.map((x) => x.kategorie.name).join(', ');
 
-  return h('div', { class: 'hinweiskarten' }, hinweise.slice(0, 2).map((x) => {
+  return klappBereich({
+    klasse: 'hinweise-klapp',
+    titel: `${gezeigt.length === 1 ? '1 Budgethinweis' : `${gezeigt.length} Budgethinweise`} · ${namen}`,
+    offen: hinweiseOffen,
+    beiWechsel: (offen) => { hinweiseOffen = offen; },
+  }, h('div', { class: 'hinweiskarten' }, gezeigt.map((x) => {
     const n = x.zeilen.length;
     const prozent = formatProzent(Math.abs(x.abweichung));
     const ab = auswahl({
@@ -312,5 +322,5 @@ export function hinweisBereich(hinweise, daten) {
             datenGeaendert();
           },
         }, 'Später')));
-  }));
+  })));
 }
