@@ -1919,3 +1919,18 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
 - **Anteil der Unterkategorien** bezieht sich immer auf ihre Hauptkategorie, zusammen 100 %. Die
   Hauptkategorien zeigen weiter ihren Anteil am Gesamtwert.
 - **Gitterlinien** im Diagramm verdoppelt (9 statt 5 Linien, jeweils beschriftet).
+
+## D130 – Analyse ruhiger: neutrale Balken, Art als Einfachauswahl, Diagramm nur bei Ausgaben
+*Wunsch des Nutzers*
+
+- **Alle Balken** in der Analyse (Diagramm, Kategorien, Empfänger) sind neutral grau-blau statt
+  Orange/Blau. Gebucht ist kräftig, erwartet und Vorjahr sind heller (Deckkraft). Ersetzt die Farbwahl
+  aus D30 für die Analyse.
+- **Summenblock** über Liste/Analyse: Positive Werte (Einnahmen überwiegen) erscheinen im bisherigen
+  Grün, negative weiter rot.
+- **Art** ist eine **Einfachauswahl** (runde Punkte): Ausgaben, Einnahmen oder Umbuchungen.
+  „Auswahl aufheben“ bedeutet alle Arten. Die Liste schließt sich nach der Wahl.
+- Ist bei Art nur **Einnahmen oder Umbuchungen** gewählt, entfällt das Diagramm „Ausgaben je Monat“. Bei
+  „Ausgaben“ oder allen Arten ist es da.
+- **Laufender Monat** im Diagramm: kein Rahmen mehr, die Beschriftung ist fett und unterstrichen
+  (ändert D128).

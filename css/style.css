@@ -663,18 +663,18 @@ button.ka-zeile:hover { background: var(--akzent-leicht); }
 
 /* =========================================================
    Etappe 3: Alle Buchungen – Filter, Liste, Analyse
-   Diagrammfarben: Blau = Einnahmen, Orange = Ausgaben
-   (farbfehlsichtig-sicher geprüft, siehe DECISIONS.md D30)
+   Diagrammfarben: seit D130 neutral (dezentes Grau-Blau) statt Blau/Orange.
+   Gebucht kräftig, erwartet/Vorjahr heller – unterschieden über die Deckkraft.
    ========================================================= */
 
 :root {
-  --serie-einnahme: #2a78d6;
-  --serie-ausgabe: #eb6834;
+  --serie-einnahme: #7f8b9c;
+  --serie-ausgabe: #7f8b9c;
   --gitter: #e9ebef;
 }
 :root[data-theme="dunkel"] {
-  --serie-einnahme: #3987e5;
-  --serie-ausgabe: #d95926;
+  --serie-einnahme: #8a95a5;
+  --serie-ausgabe: #8a95a5;
   --gitter: #262a31;
 }
 
@@ -761,7 +761,8 @@ button.ka-zeile:hover { background: var(--akzent-leicht); }
 .gitter span:first-child { border-top-color: var(--rand); }
 .spalten { position: relative; display: flex; align-items: stretch; }
 /* D128: laufender Monat leicht umrahmt; antippbare Monate; gewählter Monat hervorgehoben */
-.spalte.aktuell { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--akzent) 55%, transparent); background: color-mix(in srgb, var(--akzent) 6%, transparent); }
+/* D130: laufender Monat ohne Rahmen – nur die Beschriftung fett und unterstrichen */
+.spalte.aktuell .spalte-label { text-decoration: underline; text-underline-offset: 3px; }
 .spalte.klickbar { cursor: pointer; }
 .spalte.gewaehlt .balken-paar { background: var(--akzent-leicht); }
 .spalte.gewaehlt .spalte-label { color: var(--akzent); font-weight: 700; }

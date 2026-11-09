@@ -141,9 +141,10 @@ document.addEventListener('click', (e) => {
  * optionen: [{ wert, text, kurz?, gruppe?, eltern? }] – gruppe = Hauptkategorie (umfasst ihre
  * Unterkategorien), eltern = wert der zugehörigen Hauptkategorie, kurz = Text für die Anzeige.
  */
-function mehrfachAuswahl({ optionen, gewaehlt, alleText, gleich = (a, b) => a === b, beiAenderung }) {
+function mehrfachAuswahl({ optionen, gewaehlt, alleText, gleich = (a, b) => a === b, beiAenderung, einzeln = false }) {
   let auswahl = [...gewaehlt];
   let d = null; // die Aufklappliste (wird unten erzeugt)
+  const gruppenName = `einzeln-${Math.random().toString(36).slice(2, 8)}`;
   const istGewaehlt = (wert) => auswahl.some((w) => gleich(w, wert));
   const anzeige = h('span', { class: 'mehrfach-text' });
   const kaesten = [];
@@ -180,8 +181,17 @@ function mehrfachAuswahl({ optionen, gewaehlt, alleText, gleich = (a, b) => a ==
   const unterZeilen = new Map(); // Hauptkategorie → ihre Zeilen
   const zeilen = optionen.map((o) => {
     const input = h('input', {
-      type: 'checkbox',
+      type: einzeln ? 'radio' : 'checkbox', // D130: Einfachauswahl mit runden Punkten
+      name: einzeln ? gruppenName : null,
       onchange: () => {
+        if (einzeln) {
+          // D130: nur eine Auswahl (z. B. Art) – die vorige wird abgewählt, die Liste schließt sich
+          auswahl = input.checked ? [o.wert] : [];
+          aktualisiereAnzeige();
+          beiAenderung(auswahl);
+          if (d) d.open = false;
+          return;
+        }
         auswahl = input.checked
           ? [...auswahl, o.wert]
           : auswahl.filter((w) => !gleich(w, o.wert));
@@ -260,7 +270,9 @@ function filterBereich({ konten, kategorien, buchungen }, aktualisiere, neuZeich
     optionen: [{ wert: 'ausgabe', text: 'Ausgaben' }, { wert: 'einnahme', text: 'Einnahmen' }, { wert: 'umbuchung', text: 'Umbuchungen' }],
     gewaehlt: f.arten,
     alleText: 'Alle Arten',
-    beiAenderung: (w) => setze('arten', w),
+    einzeln: true, // D130
+    // Art bestimmt, ob das Ausgaben-Diagramm erscheint → ganze Seite neu zeichnen
+    beiAenderung: (w) => setze('arten', w, true),
   });
 
   const katOptionen = ['einnahme', 'ausgabe'].flatMap((art) => kategorien
@@ -404,9 +416,10 @@ function summenKarte(s, von, bis) {
   else if (von) zeitraumText = `ab ${formatDatum(von)}`;
   else if (bis) zeitraumText = `Alles bis ${formatDatum(bis)}`;
 
+  // D130: positive Werte (Einnahmen überwiegen) grün, negative wie gewohnt rot
   const kachel = (label, cent, klasse = '', vorzeichen = false) => h('div', { class: 'kachel' },
     h('div', { class: 'klein' }, label),
-    h('div', { class: `betrag ${klasse}` + (cent < 0 ? ' negativ' : '') }, (vorzeichen && cent > 0 ? '+' : '') + formatEuro(cent)));
+    h('div', { class: `betrag ${klasse}` + (cent < 0 ? ' negativ' : cent > 0 ? ' plus' : '') }, (vorzeichen && cent > 0 ? '+' : '') + formatEuro(cent)));
 
   // D120: Summe, Anzahl und Durchschnitt der ausgewählten Einnahmen und Ausgaben (ohne Umbuchungen)
   const textKachel = (label, text) => h('div', { class: 'kachel' }, h('div', { class: 'klein' }, label), h('div', { class: 'betrag' }, text));
@@ -571,8 +584,10 @@ function analyse(eintraege, daten, heute, neu) {
     istEintraege: nurAusgaben, zl, buchungen: daten.hauptBuchungen, kategorien: daten.kategorien, filter: zustand.filter, heute, erster,
   });
   const vorjahr = vorjahrJeMonat(nurAusgaben, verlauf.map((z) => [z.jahr, z.monat]), erster);
+  // D130: Ist bei „Art“ nur Einnahmen oder Umbuchungen gewählt, entfällt das Ausgaben-Diagramm
+  const mitAusgaben = !zustand.filter.arten.length || zustand.filter.arten.includes('ausgabe');
   return h('div', {},
-    verlaufBereich(verlauf, neu, vorjahr),
+    mitAusgaben && verlaufBereich(verlauf, neu, vorjahr),
     zustand.analyseGruppe === 'partner'
       ? partnerBereich(eintraege, monate, heute, neu)
       : kategorieBereich(kategorieEintraege(eintraege, daten, heute), daten, monate, heute, neu, erster),
