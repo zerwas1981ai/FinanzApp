@@ -188,7 +188,7 @@ test('Monatsprognose: Budgetrest, offene wiederkehrende, Mindestsaldo', () => {
   assert.equal(g.offenEinnahmen, 300000);
   assert.equal(g.offenAusgaben, -95000 - 20000);
   assert.equal(g.niedrigster, giroHeute - 95000 - 20000 - 30000);
-  assert.equal(p.jeKonto.get('tg').niedrigster, 20000, 'eingehende Umbuchung zählt nicht');
+  assert.equal(p.jeKonto.get('tg').niedrigster, 20000 + 20000, 'eingehende Umbuchung zählt mit (D111)');
   // Mindestsaldo 2.000 €: Prognose zum Monatsende reicht (dank Gehalt), der Tiefpunkt nicht → Warnung
   const zweitausend = konten.map((k) => (k.id === 'giro' ? { ...k, mindestsaldoCent: 200000 } : k));
   const p5 = monatsprognose({ konten: zweitausend, kategorien, buchungen, budgets, wiederkehrende }, heute);

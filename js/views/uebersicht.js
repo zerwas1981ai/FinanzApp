@@ -234,7 +234,7 @@ function kontoKopf(konto, buchungen, abstimmungen, prognoseCent, niedrigsterCent
       // D110: ungünstigster Fall bis Monatsende – heute minus alle erwarteten Belastungen, ohne offene Eingänge
       niedrigsterCent !== undefined && h('div', {
         class: 'klein gedaempft niedrigster',
-        title: 'Stand heute abzüglich aller bis Monatsende noch erwarteten Ausgaben, abgehenden Umbuchungen und Budgetreste – '
+        title: 'Stand heute mit allen bis Monatsende noch erwarteten Ausgaben, Umbuchungen und Budgetresten – '
           + 'noch ausstehende Einnahmen zählen nicht mit.',
       }, 'Niedrigster erwarteter Stand: ',
       h('span', { class: 'annahme' + (niedrigsterCent < 0 ? ' negativ' : '') }, formatEuro(niedrigsterCent)),

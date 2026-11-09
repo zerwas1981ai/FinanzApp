@@ -1638,7 +1638,7 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
   Bereiche, die sich später neu zeichnen.
 
 ## D110 – Niedrigster erwarteter Stand je Konto; offene Posten nach Einnahmen und Ausgaben
-*Wunsch des Nutzers*
+*Wunsch des Nutzers (Umbuchungen: geändert durch D111)*
 
 - **Niedrigster erwarteter Stand** (laufender Monat, je Konto) = Kontostand heute
   − schon erfasste Belastungen mit späterem Datum im Monat
@@ -1656,3 +1656,13 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
   jetzt getrennt: **„Noch offene Einnahmen“**, dann **„Noch offene Ausgaben“**, dann wie bisher
   „Noch offener Budgetrest“. Umbuchungen zählen je nach Richtung zu Einnahmen bzw. Ausgaben dieses
   Kontos. Zeilen mit 0 € entfallen.
+
+## D111 – Niedrigster Stand mit Umbuchungen; ruhigere Farben in der Übersicht
+*Wunsch des Nutzers (ändert D110)*
+
+- Beim **niedrigsten erwarteten Stand** zählen Umbuchungen jetzt in **beide** Richtungen mit, also auch
+  eingehende. Erfasste und offene gleichermaßen. Ausgelassen werden nur noch ausstehende **echte
+  Einnahmen**: Stand heute + alle bis Monatsende erwarteten Bewegungen außer Einnahmen − offener Budgetrest.
+- Kennzahlen oben in der Übersicht: Der Wert „Einnahmen“ steht in normaler Schrift, nicht mehr grün.
+- Zwischensummen-Karte (Monatsblock): Die Beschriftungen „Einnahmen“ und „Noch offene Einnahmen“ haben
+  dieselbe Schriftfarbe wie „Ausgaben“. Die Beträge bleiben farbig (Einnahmen grün, Ausgaben rot).

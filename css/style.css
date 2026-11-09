@@ -586,6 +586,9 @@ fieldset.feld { border: none; padding: 0; margin: 0 0 14px; }
 .summen { display: grid; gap: 3px; }
 .summe { display: flex; justify-content: space-between; gap: 12px; }
 .summe.ergebnis { border-top: 1px solid var(--rand); padding-top: 5px; margin-top: 2px; font-weight: 700; }
+/* D111: In Zwischensummen ist nur der Betrag grün, die Beschriftung wie bei Ausgaben */
+.summe.plus { color: inherit; }
+.summe.plus > .betrag:not(.negativ) { color: var(--einnahme); }
 .dialog .summen { margin-bottom: 12px; }
 
 /* Buchungsliste */

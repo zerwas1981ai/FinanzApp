@@ -42,7 +42,7 @@ export function kennzahlenBereich(p, daten, heute, warnungen = p.warnungen) {
         h('div', { class: 'kz-wert annahme' + (p.gesamtPrognose < 0 ? ' negativ' : '') }, formatEuro(p.gesamtPrognose))),
       h('div', { class: 'kz' },
         h('div', { class: 'klein' }, `Einnahmen ${kurzMonat(p.monat)}`),
-        h('div', { class: 'kz-wert plus' }, mitVorzeichen(p.einnahmen))),
+        h('div', { class: 'kz-wert' }, mitVorzeichen(p.einnahmen))), // einheitliche Schrift (D111)
       h('div', { class: 'kz' },
         h('div', { class: 'klein' }, `Ausgaben ${kurzMonat(p.monat)}`),
         h('div', { class: 'kz-wert' }, formatEuro(-p.ausgaben))),
