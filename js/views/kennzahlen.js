@@ -40,13 +40,8 @@ export function kennzahlenBereich(p, daten, heute, warnungen = p.warnungen) {
       h('div', { class: 'kz' },
         h('div', { class: 'klein' }, 'Prognose Monatsende'),
         h('div', { class: 'kz-wert annahme' + (p.gesamtPrognose < 0 ? ' negativ' : '') }, formatEuro(p.gesamtPrognose))),
-      h('div', { class: 'kz' },
-        h('div', { class: 'klein' }, `Einnahmen ${kurzMonat(p.monat)}`),
-        h('div', { class: 'kz-wert' }, mitVorzeichen(p.einnahmen))), // einheitliche Schrift (D111)
-      h('div', { class: 'kz' },
-        h('div', { class: 'klein' }, `Ausgaben ${kurzMonat(p.monat)}`),
-        h('div', { class: 'kz-wert' }, formatEuro(-p.ausgaben))),
-      // Die drei wählbaren Kategorien sind entfallen (D75 Handy, D78 auch am PC)
+      // Die drei wählbaren Kategorien sind entfallen (D75 Handy, D78 auch am PC),
+      // die Kacheln „Einnahmen/Ausgaben des Monats“ ebenso (D115)
     ),
   );
 }
@@ -135,7 +130,7 @@ export function erwartetBereich(kd, daten) {
           ? `${formatEuro(b.ist)} von ${formatEuro(b.budget)} – überschritten um ${formatEuro(b.ist - b.budget)}`
           : `${formatEuro(b.ist)} von ${formatEuro(b.budget)} verbraucht` +
             (b.offen > 0 ? ` · ${formatEuro(b.offen)} wiederkehrend eingeplant` : '') +
-            ` · Rest ${formatEuro(b.rest)} in der Prognose`)];
+            ` · Rest ${formatEuro(b.rest)}`)]; // D115: ohne „in der Prognose“
     // D99: Monatsbudget im laufenden Monat nur für diesen Monat ändern (Jahresbudgets nicht)
     if (b.jaehrlich) return h('li', { class: 'budget-eintrag' }, ...inhalt);
     return h('li', { class: 'budget-eintrag' },

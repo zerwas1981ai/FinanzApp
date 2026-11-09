@@ -1044,7 +1044,7 @@ details[open] > .zl-zeile > .zl-name::before { transform: rotate(90deg); }
 /* Kompakte Kennzahlen-Leiste oben */
 .kz-leiste {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  grid-template-columns: 1fr 1fr; /* D115: nur noch „Alle Konten heute“ und „Prognose Monatsende“ */
   gap: 10px 16px;
 }
 .kz-wert { font-size: 1.2rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.25; }
@@ -1124,7 +1124,7 @@ details[open] > .zl-zeile > .zl-name::before { transform: rotate(90deg); }
 /* Budget-Zeile darf umbrechen statt abgeschnitten zu werden (am Handy zu lang) */
 .budget-eintrag .buchung-unter { white-space: normal; }
 .erwartet-summe .annahme { flex: none; }
-.erwartet-teil + .erwartet-teil { border-top: 2px solid var(--rand); margin-top: 12px; padding-top: 12px; }
+.erwartet-teil + .erwartet-teil { border-top: 3px solid var(--rand); margin-top: 12px; padding-top: 12px; }
 /* D114: Budgets wie die erwarteten Buchungen kursiv; keine Linien zwischen den einzelnen Budgets */
 .erwartet .budget-eintrag { border-top: none; }
 .erwartet .budget-eintrag .buchung-titel { font-style: italic; }

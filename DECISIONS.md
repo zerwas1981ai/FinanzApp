@@ -1709,3 +1709,12 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
   Nutzers wieder zurückgenommen.
 - **Kontokopf am Handy:** „Zuletzt abgestimmt …“ steht wieder in einer eigenen Zeile unter „Niedrigster
   erwarteter Stand“, linksbündig. Am PC bleibt es rechtsbündig in derselben Zeile (D113).
+
+## D115 – Übersicht: Kacheln Einnahmen/Ausgaben entfallen, Budgettext kürzer
+*Wunsch des Nutzers*
+
+- Oben in der Übersicht stehen nur noch „Alle Konten heute“ und „Prognose Monatsende“. Die Kacheln
+  „Einnahmen/Ausgaben des Monats“ entfallen. Die Monatswerte je Konto stehen in der Monatsübersicht,
+  über alle Konten unter „Alle Buchungen“.
+- „Noch erwartet“ → Budgets: Die Unterzeile endet mit „Rest x €“ (ohne „in der Prognose“).
+- Die Trennlinie zwischen „Wiederkehrend/geplant“ und „Budgets“ ist 3 px dick.
