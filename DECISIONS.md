@@ -1696,3 +1696,16 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
   Die Unterzeile eines Budgets bricht um, statt abgeschnitten zu werden.
 - „Noch erwartet bis Monatsende“ erscheint wie bisher nur im **laufenden** Monat, nicht in
   abgeschlossenen Monaten und nicht unter „Alle Konten“.
+
+## D114 – Übersicht: Feinschliff „Noch erwartet“, Kontoauswahl, Handy-Kopf
+*Rückmeldung des Nutzers zu D113*
+
+- „Noch erwartet bis Monatsende“: Die Budgetnamen sind jetzt kursiv wie die erwarteten Buchungen
+  (Kennzeichen für Annahmen). Die Linien zwischen den einzelnen Budgets entfallen. Die Trennlinie
+  zwischen „Wiederkehrend/geplant“ und „Budgets“ ist doppelt so dick (2 px). Die Summenzeilen haben
+  mindestens die Schriftgröße der Einträge.
+- **Kontoauswahl:** bleibt eine seitlich scrollbare Leiste. Der graue Strich darunter am Handy ist ihr
+  Scrollbalken und zeigt, dass man wischen kann. Ein kurzer Umbau auf „umbrechen“ wurde auf Wunsch des
+  Nutzers wieder zurückgenommen.
+- **Kontokopf am Handy:** „Zuletzt abgestimmt …“ steht wieder in einer eigenen Zeile unter „Niedrigster
+  erwarteter Stand“, linksbündig. Am PC bleibt es rechtsbündig in derselben Zeile (D113).

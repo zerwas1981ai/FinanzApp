@@ -582,6 +582,11 @@ fieldset.feld { border: none; padding: 0; margin: 0 0 14px; }
 .konto-kopf-raster > .kopf-zeile { grid-column: 1 / -1; }
 .kopf-zeile { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 2px 16px; }
 .kopf-zeile .abstimm-info { margin-top: 0; margin-left: auto; text-align: right; }
+/* D114: am Handy steht die Abstimmung in einer eigenen Zeile darunter, linksbündig */
+@media (max-width: 767px) {
+  .kopf-zeile { flex-direction: column; align-items: flex-start; gap: 2px; }
+  .kopf-zeile .abstimm-info { margin-left: 0; text-align: left; }
+}
 
 /* Monatsnavigation */
 .monat-nav { display: flex; align-items: center; gap: 8px; margin: 2px 0 8px; }
@@ -1114,12 +1119,15 @@ details[open] > .zl-zeile > .zl-name::before { transform: rotate(90deg); }
 /* Je Konto: noch erwartet bis Monatsende */
 .erwartet { border-style: dashed; }
 /* D112: Summenzeilen kräftiger, die beiden Teile durch eine dünne Linie getrennt */
-.erwartet-summe { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0 6px; font-weight: 700; font-size: .95rem; }
+.erwartet-summe { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0 6px; font-weight: 700; font-size: 1rem; }
 .erwartet-summe .annahme { font-variant-numeric: tabular-nums; }
 /* Budget-Zeile darf umbrechen statt abgeschnitten zu werden (am Handy zu lang) */
 .budget-eintrag .buchung-unter { white-space: normal; }
 .erwartet-summe .annahme { flex: none; }
-.erwartet-teil + .erwartet-teil { border-top: 1px solid var(--rand); margin-top: 10px; padding-top: 10px; }
+.erwartet-teil + .erwartet-teil { border-top: 2px solid var(--rand); margin-top: 12px; padding-top: 12px; }
+/* D114: Budgets wie die erwarteten Buchungen kursiv; keine Linien zwischen den einzelnen Budgets */
+.erwartet .budget-eintrag { border-top: none; }
+.erwartet .budget-eintrag .buchung-titel { font-style: italic; }
 .erwartet .bereich-kopf { margin-bottom: 2px; }
 .buchung.geplant .buchung-titel { font-style: italic; }
 .datum-klein { color: var(--text-2); font-size: .8rem; font-style: normal; margin-right: 8px; font-variant-numeric: tabular-nums; }
