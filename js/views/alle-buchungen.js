@@ -140,7 +140,7 @@ document.addEventListener('click', (e) => {
  * optionen: [{ wert, text, kurz?, gruppe?, eltern? }] – gruppe = Hauptkategorie (umfasst ihre
  * Unterkategorien), eltern = wert der zugehörigen Hauptkategorie, kurz = Text für die Anzeige.
  */
-function mehrfachAuswahl({ optionen, gewaehlt, alleText, gleich = (a, b) => a === b, beiAenderung, einzeln = false }) {
+function mehrfachAuswahl({ optionen, gewaehlt, alleText, gleich = (a, b) => a === b, beiAenderung, einzeln = false, moeglich = null }) {
   let auswahl = [...gewaehlt];
   let d = null; // die Aufklappliste (wird unten erzeugt)
   const gruppenName = `einzeln-${Math.random().toString(36).slice(2, 8)}`;
@@ -170,6 +170,7 @@ function mehrfachAuswahl({ optionen, gewaehlt, alleText, gleich = (a, b) => a ==
       input.disabled = durchEltern;
     }
     leeren.hidden = auswahl.length === 0;
+    anzeige.title = anzeige.textContent; // vollständiger Text als Tooltip, falls abgeschnitten
     // D126: ein aktiver Filter ist farbig hervorgehoben
     d?.classList.toggle('aktiv', auswahl.length > 0);
   }
@@ -203,9 +204,9 @@ function mehrfachAuswahl({ optionen, gewaehlt, alleText, gleich = (a, b) => a ==
         beiAenderung(auswahl);
       },
     });
-    kaesten.push({ o, input });
     const klasse = 'mehrfach-option' + (o.gruppe ? ' gruppe' : '') + (o.eltern != null ? ' unter' : '');
-    const zeile = h('label', { class: klasse, hidden: o.eltern != null && !offeneGruppen.has(o.eltern) }, input, h('span', {}, o.text));
+    const zeile = h('label', { class: klasse, hidden: o.eltern != null && !offeneGruppen.has(o.eltern), title: o.text }, input, h('span', {}, o.text));
+    kaesten.push({ o, input, zeile });
     if (o.eltern != null) {
       if (!unterZeilen.has(o.eltern)) unterZeilen.set(o.eltern, []);
       unterZeilen.get(o.eltern).push(zeile);
@@ -223,12 +224,29 @@ function mehrfachAuswahl({ optionen, gewaehlt, alleText, gleich = (a, b) => a ==
         for (const z of unterZeilen.get(o.wert) ?? []) z.hidden = !auf;
       },
     }, offeneGruppen.has(o.wert) ? '−' : '+');
-    return h('div', { class: 'mehrfach-gruppe-zeile' }, zeile, knopf);
+    const gruppe = h('div', { class: 'mehrfach-gruppe-zeile' }, zeile, knopf);
+    kaesten.at(-1).aussen = gruppe;
+    return gruppe;
   });
 
-  d = h('details', { class: 'mehrfach' },
-    h('summary', { class: 'mehrfach-knopf' }, anzeige),
-    h('div', { class: 'mehrfach-liste' }, leeren, zeilen));
+  // D132: Beim Öffnen nur Optionen zeigen, die mit den übrigen Filtern noch Buchungen ergeben.
+  // Schon Gewähltes bleibt immer sichtbar (damit man es abwählen kann).
+  const keine = h('p', { class: 'mehrfach-keine', hidden: true }, 'Mit den übrigen Filtern gibt es hier keine weitere Auswahl.');
+  const pruefeMoeglich = () => {
+    if (!moeglich) return;
+    const set = moeglich();
+    let sichtbar = 0;
+    for (const k of kaesten) {
+      const ok = istGewaehlt(k.o.wert) || (k.o.eltern != null && istGewaehlt(k.o.eltern)) || set.has(k.o.schluessel ?? k.o.wert);
+      (k.aussen ?? k.zeile).classList.toggle('nicht-moeglich', !ok);
+      if (ok) sichtbar += 1;
+    }
+    keine.hidden = sichtbar > 0;
+  };
+
+  d = h('details', { class: 'mehrfach', ontoggle: () => { if (d.open) pruefeMoeglich(); } },
+    h('summary', { class: 'mehrfach-knopf', title: '' }, anzeige),
+    h('div', { class: 'mehrfach-liste' }, leeren, keine, zeilen));
   aktualisiereAnzeige();
   return d;
 }
@@ -258,14 +276,35 @@ function filterBereich({ konten, kategorien, buchungen }, aktualisiere, neuZeich
     feld('Bis', h('input', { type: 'date', value: f.bis, onchange: (e) => setze('bis', e.target.value) })),
   );
 
+  // D132: Welche Werte sind mit allen ÜBRIGEN Filtern noch möglich? (beim Öffnen einer Liste berechnet)
+  const ctx = { kategorien, konten, heute: heuteIso() };
+  const ohne = (schluessel) => filtere(buchungen, { ...zustand.filter, [schluessel]: [] }, ctx);
+  const moeglichKonten = () => new Set(ohne('kontoIds').flatMap((e) => [e.buchung.kontoId, e.buchung.gegenkontoId].filter(Boolean)));
+  const moeglichArten = () => new Set(ohne('arten').map((e) => e.buchung.art));
+  const moeglichKategorien = () => {
+    const kat = new Map(kategorien.map((k) => [k.id, k]));
+    const set = new Set();
+    for (const { buchung: b } of ohne('kategorieIds')) {
+      if (!b.kategorieId) continue;
+      set.add(b.kategorieId);
+      const eltern = kat.get(b.kategorieId)?.elternId;
+      if (eltern) set.add(eltern);
+    }
+    return set;
+  };
+  const moeglichPartner = () => new Set(ohne('partner').filter((e) => e.buchung.art !== 'umbuchung')
+    .map((e) => partnerSchluessel(e.buchung.partner) || OHNE_PARTNER));
+
   // Auswahllisten mit Häkchen (Mehrfachauswahl, D72)
   const kontoAuswahl = mehrfachAuswahl({
+    moeglich: moeglichKonten,
     optionen: sortiereKonten(konten).map((k) => ({ wert: k.id, text: k.name + (k.archiviert ? ' (archiviert)' : ''), kurz: k.name })),
     gewaehlt: f.kontoIds,
     alleText: 'Alle Konten',
     beiAenderung: (w) => setze('kontoIds', w),
   });
   const artAuswahl = mehrfachAuswahl({
+    moeglich: moeglichArten,
     optionen: [{ wert: 'ausgabe', text: 'Ausgaben' }, { wert: 'einnahme', text: 'Einnahmen' }, { wert: 'umbuchung', text: 'Umbuchungen' }],
     gewaehlt: f.arten,
     alleText: 'Alle Arten',
@@ -283,6 +322,7 @@ function filterBereich({ konten, kategorien, buchungen }, aktualisiere, neuZeich
         .map((u) => ({ wert: u.id, text: u.name + (u.archiviert ? ' (archiviert)' : ''), kurz: u.name, eltern: hk.id })),
     ]));
   const kategorieAuswahl = mehrfachAuswahl({
+    moeglich: moeglichKategorien,
     optionen: katOptionen,
     gewaehlt: f.kategorieIds,
     alleText: 'Alle Kategorien',
@@ -293,9 +333,10 @@ function filterBereich({ konten, kategorien, buchungen }, aktualisiere, neuZeich
   const partner = partnerListe(buchungen);
   const partnerGleich = (a, b) => (a === OHNE_PARTNER || b === OHNE_PARTNER ? a === b : partnerSchluessel(a) === partnerSchluessel(b));
   const partnerAuswahl = mehrfachAuswahl({
+    moeglich: moeglichPartner,
     optionen: [
       { wert: OHNE_PARTNER, text: 'Ohne Angabe' },
-      ...partner.map((p) => ({ wert: p.name, text: `${p.name} (${p.anzahl})`, kurz: p.name })),
+      ...partner.map((p) => ({ wert: p.name, text: `${p.name} (${p.anzahl})`, kurz: p.name, schluessel: partnerSchluessel(p.name) })),
     ],
     gewaehlt: f.partner,
     alleText: 'Alle',
@@ -590,7 +631,8 @@ function analyse(eintraege, daten, heute, neu) {
     zustand.analyseGruppe === 'partner'
       ? partnerBereich(eintraege, monate, heute, neu)
       : kategorieBereich(kategorieEintraege(eintraege, daten, heute), daten, monate, heute, neu, erster),
-    groessteBereich(eintraege, daten, neu),
+    // D132: bei einem Empfänger-Filter bringt die Top-10-Liste nichts Neues
+    zustand.filter.partner.length === 0 && groessteBereich(eintraege, daten, neu),
   );
 }
 

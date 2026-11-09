@@ -1940,3 +1940,16 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
 
 - Der Knopf „Als Tabelle“ und die Tabellenansicht von „Ausgaben je Monat“ entfallen. Das Diagramm reicht,
   die Einzelwerte zeigt der Tooltip beim Antippen bzw. Überfahren eines Balkens.
+
+## D132 – Filter einzeilig, nur mögliche Optionen, keine Top-10 bei Empfänger-Filter
+*Wunsch des Nutzers*
+
+- **Einzeilig:** Die Anzeige eines Filters (z. B. „Gesundheit & Pflege, Versicherungen“), die Optionen in
+  den Aufklapplisten und die Feldbeschriftungen bleiben einzeilig. Zu lange Texte werden mit „…“
+  abgeschnitten, der volle Text steht im Tooltip.
+- **Nur mögliche Optionen:** Beim Öffnen einer Auswahlliste (Konto, Art, Kategorie, Empfänger/Absender)
+  stehen nur Werte zur Wahl, die zusammen mit allen **übrigen** Filtern noch Buchungen ergeben. Beispiel:
+  Konto „Kreditkarte“ → bei Kategorie nur noch die Kategorien mit Kreditkarten-Buchungen. Schon Gewähltes
+  bleibt immer sichtbar, damit man es abwählen kann. Gibt es nichts, steht ein kurzer Hinweis da.
+- **Empfänger/Absender gefiltert:** Der Block „Größte Ausgaben/Einnahmen“ entfällt, weil er dann nur die
+  Liste wiederholt.
