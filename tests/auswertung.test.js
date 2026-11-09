@@ -38,7 +38,7 @@ const daten = [
   { ...b('ausgabe', 99900, '2026-11-04', { kategorieId: 'super' })[0], geloeschtAm: 'X' },
 ];
 const ctx = { kategorien, konten, heute };
-const f = (aenderung) => ({ ...STANDARD_FILTER, ...aenderung });
+const f = (aenderung) => ({ ...STANDARD_FILTER, status: [], ...aenderung }); // Filterlogik mit jedem Status prüfen
 
 test('Zeiträume', () => {
   assert.deepEqual(zeitraumFuer(f({ zeitraum: 'monat' }), heute), { von: '2026-11-01', bis: '2026-11-30' });
@@ -95,10 +95,24 @@ test('Sortierung', () => {
 
 test('Summen ohne Umbuchungen', () => {
   const s = summen(filtere(daten, f({}), ctx));
-  assert.deepEqual(s, { anzahl: 5, einnahmen: 300000, ausgaben: 107500, saldo: 192500, umbuchungen: 0 });
+  // D120: Anzahl, Summe und Ø nur über Einnahmen und Ausgaben; die Umbuchung wird extra gezählt
+  assert.deepEqual(s, {
+    anzahl: 4, anzahlUmbuchungen: 1, einnahmen: 300000, ausgaben: 107500, saldo: 192500, summe: 192500, umbuchungen: 0, schnitt: 48125,
+  });
   const giro = summen(filtere(daten, f({ kontoIds: ['giro'] }), ctx));
   assert.equal(giro.umbuchungen, -20000);
   assert.equal(giro.ausgaben, 107500);
+  const nurAusgaben = summen(filtere(daten, f({ arten: ['ausgabe'] }), ctx));
+  assert.equal(nurAusgaben.summe, -107500);
+  assert.equal(nurAusgaben.schnitt, Math.round(-107500 / nurAusgaben.anzahl), 'Ø je Ausgabe');
+  assert.equal(summen([]).schnitt, null, 'ohne Buchungen kein Ø');
+});
+
+test('Standardfilter: nur gebuchte, vorgemerkte erst über den Statusfilter (D120)', () => {
+  const standard = filtere(daten, { ...STANDARD_FILTER, zeitraum: 'alles' }, ctx);
+  assert.ok(standard.every((e) => e.buchung.status === 'gebucht'));
+  const alle = filtere(daten, { ...STANDARD_FILTER, zeitraum: 'alles', status: [] }, ctx);
+  assert.equal(alle.length - standard.length, 1, 'die eine vorgemerkte Buchung');
 });
 
 test('Monate und Verlauf', () => {
@@ -264,4 +278,11 @@ test('Sparquote und Vorjahr je Monat (D107)', async () => {
   assert.equal(vj[0], null, 'September 2025: vor der ersten Buchung → nicht erfasst');
   assert.deepEqual(vj[1], { jahr: 2025, monat: 10, einnahmen: 0, ausgaben: 1000, saldo: -1000 });
   assert.deepEqual(vj[2], { jahr: 2025, monat: 11, einnahmen: 5000, ausgaben: 0, saldo: 5000 }, 'Umbuchung zählt nicht');
+});
+
+test('Nur Buchungen bis heute (D121)', () => {
+  const zukunft = [...daten, { id: 'z', datum: '2026-11-25', art: 'ausgabe', betragCent: 999, kontoId: 'giro', kategorieId: 'super', status: 'gebucht', belege: [], notiz: '' }];
+  const ids = filtere(zukunft, f({}), ctx).map((e) => e.buchung.id);
+  assert.ok(!ids.includes('z'), 'erfasste Buchung mit späterem Datum fehlt');
+  assert.ok(ctx.heute < '2026-11-25');
 });

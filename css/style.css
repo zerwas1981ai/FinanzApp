@@ -1259,6 +1259,15 @@ body.gesperrt .kopf, body.gesperrt main, body.gesperrt .fab, body.gesperrt #neue
 .mehrfach-option input { width: 18px; height: 18px; flex: none; accent-color: var(--akzent); cursor: pointer; }
 .mehrfach-option.gruppe { font-weight: 600; margin-top: 4px; }
 .mehrfach-option.unter { padding-left: 30px; }
+.mehrfach-option[hidden] { display: none; }
+/* D120: Hauptkategorie mit Knopf +/− zum Auf- und Zuklappen der Unterkategorien */
+.mehrfach-gruppe-zeile { display: flex; align-items: center; gap: 4px; }
+.mehrfach-gruppe-zeile > .mehrfach-option { flex: 1; min-width: 0; }
+.mehrfach-klapp {
+  flex: none; width: 32px; height: 32px; margin-top: 4px; border: 1px solid var(--rand); border-radius: 6px;
+  background: var(--flaeche); color: var(--text); font: inherit; font-size: 1.1rem; line-height: 1; cursor: pointer;
+}
+.mehrfach-klapp:hover { border-color: var(--akzent); color: var(--akzent); }
 .mehrfach-option input:disabled + span { color: var(--text-2); }
 .mehrfach-leeren {
   display: block; width: 100%; text-align: left; padding: 6px 8px; margin-bottom: 4px; border: 0; border-bottom: 1px solid var(--rand);

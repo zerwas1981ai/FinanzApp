@@ -164,6 +164,10 @@ function mehrfachAuswahl({ optionen, gewaehlt, alleText, gleich = (a, b) => a ==
     leeren.hidden = auswahl.length === 0;
   }
 
+  // D120: Unterkategorien zunächst eingeklappt; „+“ an der Hauptkategorie klappt sie auf.
+  // Ist schon eine Unterkategorie gewählt, steht ihre Gruppe von Anfang an offen.
+  const offeneGruppen = new Set(optionen.filter((o) => o.eltern != null && istGewaehlt(o.wert)).map((o) => o.eltern));
+  const unterZeilen = new Map(); // Hauptkategorie → ihre Zeilen
   const zeilen = optionen.map((o) => {
     const input = h('input', {
       type: 'checkbox',
@@ -182,7 +186,25 @@ function mehrfachAuswahl({ optionen, gewaehlt, alleText, gleich = (a, b) => a ==
     });
     kaesten.push({ o, input });
     const klasse = 'mehrfach-option' + (o.gruppe ? ' gruppe' : '') + (o.eltern != null ? ' unter' : '');
-    return h('label', { class: klasse }, input, h('span', {}, o.text));
+    const zeile = h('label', { class: klasse, hidden: o.eltern != null && !offeneGruppen.has(o.eltern) }, input, h('span', {}, o.text));
+    if (o.eltern != null) {
+      if (!unterZeilen.has(o.eltern)) unterZeilen.set(o.eltern, []);
+      unterZeilen.get(o.eltern).push(zeile);
+    }
+    if (!o.gruppe || !optionen.some((u) => u.eltern === o.wert)) return zeile;
+    const knopf = h('button', {
+      type: 'button',
+      class: 'mehrfach-klapp',
+      'aria-expanded': String(offeneGruppen.has(o.wert)),
+      'aria-label': `Unterkategorien von ${o.kurz ?? o.text} anzeigen`,
+      onclick: () => {
+        const auf = knopf.getAttribute('aria-expanded') !== 'true';
+        knopf.setAttribute('aria-expanded', String(auf));
+        knopf.textContent = auf ? '−' : '+';
+        for (const z of unterZeilen.get(o.wert) ?? []) z.hidden = !auf;
+      },
+    }, offeneGruppen.has(o.wert) ? '−' : '+');
+    return h('div', { class: 'mehrfach-gruppe-zeile' }, zeile, knopf);
   });
 
   const d = h('details', { class: 'mehrfach' },
@@ -241,7 +263,7 @@ function filterBereich({ konten, kategorien, buchungen }, aktualisiere, neuZeich
     .filter((k) => !k.elternId && k.art === art)
     .sort(nachName)
     .flatMap((hk) => [
-      { wert: hk.id, text: `${hk.name} – alle (${art === 'einnahme' ? 'Einnahme' : 'Ausgabe'})`, kurz: hk.name, gruppe: true },
+      { wert: hk.id, text: `${hk.name} (${art === 'einnahme' ? 'Einnahme' : 'Ausgabe'})`, kurz: hk.name, gruppe: true },
       ...kategorien.filter((u) => u.elternId === hk.id).sort(nachName)
         .map((u) => ({ wert: u.id, text: u.name + (u.archiviert ? ' (archiviert)' : ''), kurz: u.name, eltern: hk.id })),
     ]));
@@ -310,7 +332,8 @@ function filterBereich({ konten, kategorien, buchungen }, aktualisiere, neuZeich
     },
   }, 'Filter zurücksetzen');
 
-  const weitereOffen = f.betragMin != null || f.betragMax != null || f.ohneBeleg || f.status.length > 0;
+  const weitereOffen = f.betragMin != null || f.betragMax != null || f.ohneBeleg
+    || JSON.stringify(f.status) !== JSON.stringify(STANDARD_FILTER.status);
   return h('section', { class: 'bereich filter' },
     zeitraum,
     eigenerZeitraum,
@@ -363,7 +386,7 @@ function zeigeErgebnis(ziel, daten) {
     }, text)));
 
   ziel.replaceChildren(
-    summenKarte(s, von, bis),
+    summenKarte(s, von, bis && bis < heute ? bis : heute), // D121: angezeigt wird höchstens bis heute
     modusWahl,
     zustand.modus === 'liste'
       ? liste(eintraege, daten, () => zeigeErgebnis(ziel, daten))
@@ -381,12 +404,16 @@ function summenKarte(s, von, bis) {
     h('div', { class: 'klein' }, label),
     h('div', { class: `betrag ${klasse}` + (cent < 0 ? ' negativ' : '') }, (vorzeichen && cent > 0 ? '+' : '') + formatEuro(cent)));
 
+  // D120: Summe, Anzahl und Durchschnitt der ausgewählten Einnahmen und Ausgaben (ohne Umbuchungen)
+  const textKachel = (label, text) => h('div', { class: 'kachel' }, h('div', { class: 'klein' }, label), h('div', { class: 'betrag' }, text));
   return h('section', { class: 'bereich summen-kopf' },
-    h('div', { class: 'klein' }, `${zeitraumText} · ${s.anzahl === 1 ? '1 Buchung' : `${s.anzahl} Buchungen`}`),
+    h('div', { class: 'klein' }, zeitraumText,
+      s.anzahlUmbuchungen > 0 && ` · ${s.anzahlUmbuchungen === 1 ? '1 Umbuchung' : `${s.anzahlUmbuchungen} Umbuchungen`} nicht mitgezählt`),
     h('div', { class: 'kacheln' },
-      kachel('Einnahmen', s.einnahmen, 'plus', true),
-      kachel('Ausgaben', -s.ausgaben),
-      kachel('Saldo', s.saldo, '', true),
+      // D121: nur Summe, Anzahl und Ø (Einnahmen/Ausgaben einzeln entfallen)
+      kachel('Summe', s.summe, '', true),
+      textKachel('Anzahl', s.anzahl === 1 ? '1 Buchung' : `${s.anzahl} Buchungen`),
+      s.schnitt != null ? kachel('Ø je Buchung', s.schnitt, '', true) : textKachel('Ø je Buchung', '–'),
       zustand.filter.kontoIds.length > 0 && s.umbuchungen !== 0 && kachel('Umbuchungen', s.umbuchungen, 'gedaempft', true),
     ),
   );

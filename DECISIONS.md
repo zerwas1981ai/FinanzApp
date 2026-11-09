@@ -1762,3 +1762,30 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
   Kontonamen in **einer Zeile**. Lange Namen werden mit „…“ gekürzt.
 - Am PC bleibt die Spalte „Jahresende“. Die Kennzahl „Prognose Jahresende“ oben im Kopf bleibt auf beiden
   Geräten (D116).
+
+## D120 – „Alle Buchungen“: Summe, Anzahl, Ø; nur gebuchte; Kategorien aufklappbar
+*Wunsch des Nutzers*
+
+- **Summenblock** über „Liste/Analyse“: Einnahmen, Ausgaben, **Summe** (Einnahmen − Ausgaben, früher
+  „Saldo“), **Anzahl** und **Ø je Buchung** (Summe ÷ Anzahl). Alles bezieht sich auf die gefilterten
+  Einnahmen und Ausgaben. Umbuchungen zählen nicht mit, ihre Zahl steht als Hinweis daneben
+  („1 Umbuchung nicht mitgezählt“).
+- **Umbuchungen** sind in der Liste wie bisher ausgeblendet und per Knopf „Umbuchungen einblenden“
+  sichtbar (D77/D78). Bisher wurden sie aber in „x Buchungen“ mitgezählt, jetzt nicht mehr.
+- **Nur gebuchte:** Der Standardfilter zeigt nur Buchungen mit Status „gebucht“. Vorgemerkte holt man
+  bei Bedarf über „Weitere Filter → Status“ dazu. „Filter zurücksetzen“ führt wieder auf „gebucht“.
+  Geplante Einmalbuchungen und wiederkehrende Termine sind Annahmen und standen ohnehin nie in der Liste.
+  Die Analyse folgt demselben Filter.
+- **Kategorienfilter:** Zunächst stehen nur die Hauptkategorien da, jeweils mit „+“. Ein Tipp klappt
+  ihre Unterkategorien auf, „−“ wieder zu. Ist schon eine Unterkategorie gewählt, ist ihre Gruppe
+  offen. Die Beschriftung lautet jetzt „Lebensmittel (Ausgabe)“ statt „Lebensmittel – alle (Ausgabe)“.
+
+## D121 – „Alle Buchungen“: nur bis heute; Kopf nur Summe, Anzahl, Ø
+*Wunsch des Nutzers (ergänzt D120)*
+
+- Liste und Analyse zeigen nur Buchungen **bis zum heutigen Datum**. Schon erfasste Buchungen mit späterem
+  Datum (z. B. eine Lastschrift für den 20.) erscheinen erst an ihrem Tag. In der Übersicht und in der
+  Prognose zählen sie wie bisher. Der Zeitraum im Summenblock endet entsprechend höchstens heute
+  („01.11.2026 – 09.11.2026“).
+- Der Summenblock zeigt nur noch **Summe, Anzahl und Ø je Buchung**. Die Kacheln „Einnahmen“ und
+  „Ausgaben“ entfallen.

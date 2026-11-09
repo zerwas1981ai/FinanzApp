@@ -19,7 +19,7 @@ export const STANDARD_FILTER = Object.freeze({
   arten: Object.freeze([]), // einnahme | ausgabe | umbuchung
   kategorieIds: Object.freeze([]), // Haupt- oder Unterkategorien
   partner: Object.freeze([]), // Empfänger/Absender: Namen oder OHNE_PARTNER
-  status: Object.freeze([]), // gebucht | vorgemerkt
+  status: Object.freeze(['gebucht']), // gebucht | vorgemerkt – Standard nur gebuchte (D120)
   betragMin: null, // Cent
   betragMax: null, // Cent
   suche: '',
@@ -117,6 +117,8 @@ export function filtere(buchungen, filter, { kategorien = [], konten = [], heute
 
     if (von && b.datum < von) continue;
     if (bis && b.datum > bis) continue;
+    // D121: nur Buchungen bis heute – schon erfasste mit späterem Datum erscheinen erst an ihrem Tag
+    if (b.datum > heute) continue;
     if (arten.size && !arten.has(b.art)) continue;
     if (status.size && !status.has(b.status)) continue;
     if (filter.betragMin != null && b.betragCent < filter.betragMin) continue;
@@ -198,17 +200,27 @@ export function sortiere(eintraege, sortierung, { kategorien = [], konten = [] }
   });
 }
 
-/** Summen über die Einträge. Umbuchungen zählen nie als Einnahme/Ausgabe. */
+/**
+ * Summen über die Einträge. Umbuchungen zählen nie als Einnahme/Ausgabe.
+ * D120: anzahl, summe und schnitt beziehen sich nur auf Einnahmen und Ausgaben
+ * (summe = Einnahmen − Ausgaben, schnitt = summe je Buchung); Umbuchungen stehen extra in anzahlUmbuchungen.
+ */
 export function summen(eintraege) {
   let einnahmen = 0;
   let ausgaben = 0;
   let umbuchungen = 0;
+  let anzahl = 0;
+  let anzahlUmbuchungen = 0;
   for (const { buchung: b, wirkung } of eintraege) {
-    if (b.art === 'einnahme') einnahmen += b.betragCent;
-    else if (b.art === 'ausgabe') ausgaben += b.betragCent;
-    else umbuchungen += wirkung;
+    if (b.art === 'einnahme') { einnahmen += b.betragCent; anzahl += 1; }
+    else if (b.art === 'ausgabe') { ausgaben += b.betragCent; anzahl += 1; }
+    else { umbuchungen += wirkung; anzahlUmbuchungen += 1; }
   }
-  return { anzahl: eintraege.length, einnahmen, ausgaben, saldo: einnahmen - ausgaben, umbuchungen };
+  const saldo = einnahmen - ausgaben;
+  return {
+    anzahl, anzahlUmbuchungen, einnahmen, ausgaben, saldo, summe: saldo, umbuchungen,
+    schnitt: anzahl ? Math.round(saldo / anzahl) : null,
+  };
 }
 
 /** Monate (als [jahr, monat]) von–bis einschließlich */
