@@ -1754,3 +1754,11 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
 - Der Kopf (Kennzahlen oben) und „Zukunft bis 2050“ (alle Konten) bleiben unverändert.
 - `prognoseJahresende(zl, heute, kontoId)` liefert den Wert auch je Konto, mit Test (Konten zusammen =
   Gesamtwert).
+
+## D119 – „Alle Konten“ am Handy einzeilig ohne Jahresende
+*Wunsch des Nutzers (ergänzt D118)*
+
+- Am Handy zeigt die Aufstellung je Konto nur **Stand heute** und **Prognose Monatsende**, zusammen mit dem
+  Kontonamen in **einer Zeile**. Lange Namen werden mit „…“ gekürzt.
+- Am PC bleibt die Spalte „Jahresende“. Die Kennzahl „Prognose Jahresende“ oben im Kopf bleibt auf beiden
+  Geräten (D116).

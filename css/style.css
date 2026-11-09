@@ -599,10 +599,9 @@ button.ka-zeile:hover { background: var(--akzent-leicht); }
 .ka-summe .ka-name { font-weight: 700; }
 .konten-aufstellung .hinweis { margin: 10px 0 0; font-size: .8rem; }
 @media (max-width: 767px) {
-  /* Handy: Kontoname über der Zeile, darunter die drei Werte */
-  .ka-zeile { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2px 8px; font-size: .9rem; }
-  .ka-zeile > .ka-name { grid-column: 1 / -1; }
-  .ka-kopf > span:first-child { display: none; }
+  /* D119: Handy ohne Jahresende – Kontoname, heute und Monatsende in einer Zeile */
+  .ka-zeile { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, 1fr); gap: 8px; font-size: .9rem; }
+  .ka-zeile > :nth-child(4) { display: none; }
   .ka-kopf { padding: 0 4px 6px; font-size: .7rem; }
   button.ka-zeile, .ka-summe { padding-left: 4px; padding-right: 4px; }
 }
