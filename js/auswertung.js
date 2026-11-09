@@ -9,6 +9,8 @@
 
 import { wirkungCent, istAktiv } from './rechnen.js';
 import { isoMonatsanfang, naechsterMonat, vorigerMonat } from './format.js';
+import { budgetFuerMonat, wirksam } from './prognose.js';
+import { istJaehrlich, giltImJahr, tranchen } from './jahresbudget.js';
 
 export const STANDARD_FILTER = Object.freeze({
   zeitraum: 'alles', // alles | jahr | monat | letzte3 | eigen (vormonat/vorjahr nur noch intern) – Standard „Alles“ (D122)
@@ -357,6 +359,108 @@ export function summenJeKategorie(eintraege, kategorien, art, schnittMonate = []
     .map((h) => ({ ...mitAnteil(h), unter: [...h.unter.values()].map(mitAnteil).sort((a, b) => b.summe - a.summe) }))
     .sort((a, b) => b.summe - a.summe);
 }
+
+/* ================= Analyse-Ergänzungen (D125) ================= */
+
+const isoTag = (j, m, t) => `${j}-${String(m).padStart(2, '0')}-${String(t).padStart(2, '0')}`;
+const tageIm = (j, m) => new Date(j, m, 0).getDate();
+const plusTageIso = (iso, n) => {
+  const d = new Date(Number(iso.slice(0, 4)), Number(iso.slice(5, 7)) - 1, Number(iso.slice(8, 10)) + n);
+  return isoTag(d.getFullYear(), d.getMonth() + 1, d.getDate());
+};
+
+/**
+ * Vergleichszeitraum zum gewählten Zeitraum („Vorperiode“). Gezählt wird – wie in der Liste – nur bis heute,
+ * die Vorperiode ist deshalb gleich lang: Dieses Jahr → Vorjahr bis zum gleichen Tag, Dieser Monat → Vormonat
+ * bis zum gleichen Tag, Letzte 3 Monate → die 3 Monate davor, Eigener Zeitraum → gleich viele Tage direkt davor.
+ * „Alles“ hat keine Vorperiode (null).
+ * Ergebnis: { von, bis, text }
+ */
+export function vorperiode(filter, heute) {
+  const j = Number(heute.slice(0, 4));
+  const m = Number(heute.slice(5, 7));
+  const t = Number(heute.slice(8, 10));
+  switch (filter.zeitraum) {
+    case 'jahr': return { von: `${j - 1}-01-01`, bis: isoTag(j - 1, m, Math.min(t, tageIm(j - 1, m))), text: `Vorjahr bis ${String(t).padStart(2, '0')}.${String(m).padStart(2, '0')}.` };
+    case 'monat': {
+      const [vj, vm] = vorigerMonat(j, m);
+      return { von: isoTag(vj, vm, 1), bis: isoTag(vj, vm, Math.min(t, tageIm(vj, vm))), text: 'Vormonat bis zum gleichen Tag' };
+    }
+    case 'letzte3': {
+      const { von } = zeitraumFuer(filter, heute);
+      let [sj, sm] = [Number(von.slice(0, 4)), Number(von.slice(5, 7))];
+      const [ej, em] = vorigerMonat(sj, sm);
+      for (let i = 0; i < 3; i++) [sj, sm] = vorigerMonat(sj, sm);
+      return { von: isoTag(sj, sm, 1), bis: isoTag(ej, em, tageIm(ej, em)), text: 'die 3 Monate davor' };
+    }
+    case 'eigen': {
+      if (!filter.von) return null;
+      const bis = filter.bis && filter.bis < heute ? filter.bis : heute;
+      const tage = Math.round((Date.parse(bis) - Date.parse(filter.von)) / 864e5) + 1;
+      if (tage <= 0) return null;
+      return { von: plusTageIso(filter.von, -tage), bis: plusTageIso(filter.von, -1), text: `die ${tage} Tage davor` };
+    }
+    default: return null;
+  }
+}
+
+/** Monatssummen je Hauptkategorie für eine Art: Map hauptId → [Cent je Monat in `monate` ([[j, m], …])] */
+export function monatsSummenJeKategorie(eintraege, kategorien, art, monate) {
+  const kat = new Map(kategorien.map((k) => [k.id, k]));
+  const index = new Map(monate.map(([j, m], i) => [isoMonatsanfang(j, m).slice(0, 7), i]));
+  const ergebnis = new Map();
+  for (const { buchung: b } of eintraege) {
+    if (b.art !== art) continue;
+    const i = index.get(b.datum.slice(0, 7));
+    if (i === undefined) continue;
+    const hId = kat.get(kat.get(b.kategorieId)?.elternId)?.id ?? 'unbekannt';
+    if (!ergebnis.has(hId)) ergebnis.set(hId, monate.map(() => 0));
+    ergebnis.get(hId)[i] += b.betragCent;
+  }
+  return ergebnis;
+}
+
+/** Die 12 Monate bis einschließlich `bisIso` (für den Trend je Kategorie) */
+export function letzteZwoelfMonate(bisIso) {
+  let [j, m] = [Number(bisIso.slice(0, 4)), Number(bisIso.slice(5, 7))];
+  const monate = [];
+  for (let i = 0; i < 12; i++) { monate.unshift([j, m]); [j, m] = vorigerMonat(j, m); }
+  return monate;
+}
+
+/**
+ * Durchschnittliches Budget je Monat einer Hauptkategorie über die Monate `monate` – summiert über die
+ * Konten (kontoIds leer = alle). Monats- und einmalige Budgets wie in der Prognose, Jahresbudgets mit
+ * einem Zwölftel je Monat. Ausgeschaltete Budgets zählen nicht. Ohne jedes Budget: null.
+ */
+export function budgetSchnitt(budgets, kategorieId, monate, kontoIds = []) {
+  const aktiv = budgets.filter((b) => wirksam(b) && b.kategorieId === kategorieId && (!kontoIds.length || kontoIds.includes(b.kontoId)));
+  if (!aktiv.length || !monate.length) return null;
+  let summe = 0;
+  let irgendwo = false;
+  for (const [j, m] of monate) {
+    const monat = isoMonatsanfang(j, m).slice(0, 7);
+    for (const kontoId of new Set(aktiv.map((b) => b.kontoId))) {
+      const r = budgetFuerMonat(aktiv, kategorieId, monat, kontoId);
+      if (r.vorhanden) { summe += r.betragCent; irgendwo = true; }
+    }
+    for (const b of aktiv) {
+      if (istJaehrlich(b) && giltImJahr(b, j)) { summe += Math.round(tranchen(b).reduce((x, t) => x + t.betragCent, 0) / 12); irgendwo = true; }
+    }
+  }
+  return irgendwo ? Math.round(summe / monate.length) : null;
+}
+
+/** Die größten Einzelbuchungen einer Art (absteigend nach Betrag), höchstens `anzahl` */
+export function groessteBuchungen(eintraege, art, anzahl = 10) {
+  return eintraege
+    .filter((e) => e.buchung.art === art)
+    .sort((a, b) => b.buchung.betragCent - a.buchung.betragCent || b.buchung.datum.localeCompare(a.buchung.datum))
+    .slice(0, anzahl);
+}
+
+/** Veränderung in Prozent (gerundet) von `vorher` zu `jetzt`; ohne Vorwert null */
+export const veraenderungProzent = (jetzt, vorher) => (vorher ? Math.round(((jetzt - vorher) / vorher) * 100) : null);
 
 /**
  * Summen je Empfänger/Absender für eine Art, absteigend.

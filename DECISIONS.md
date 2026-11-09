@@ -1820,3 +1820,33 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
 - Ein neuer Zeitraum, eine Filteränderung oder „Filter zurücksetzen“ beginnt wieder mit 20. Beim Sortieren
   und nach dem Bearbeiten einer Buchung bleibt die aufgeklappte Liste offen.
 - Summenblock, Analyse und CSV-Export beziehen sich weiterhin auf **alle** gefilterten Buchungen.
+
+## D125 – Analyse: Trend, Vorperiode, Ist vs. Budget, größte Buchungen, Filtern per Tipp
+*Vorschläge, vom Nutzer bestätigt*
+
+- **Kategorie antippen = filtern:** Eine Hauptkategorie antippen klappt wie bisher ihre Unterkategorien auf.
+  Darunter steht „Alle Buchungen ‚X‘ anzeigen“. Eine Unterkategorie antippen wechselt direkt zur Liste,
+  gefiltert auf diese Kategorie.
+- **Trend je Kategorie:** Statt des Anteilsbalkens hat jede Hauptkategorie einen Mini-Verlauf der letzten
+  12 Monate bis zum Ende des gezeigten Zeitraums (Tooltip: Monat und Betrag). Er folgt allen Filtern
+  außer dem Zeitraum.
+- **Vergleich zur Vorperiode** (Zusatzzeile je Hauptkategorie und bei „Gesamt“):
+  - Dieses Jahr → Vorjahr bis zum gleichen Tag
+  - Dieser Monat → Vormonat bis zum gleichen Tag
+  - Letzte 3 Monate → die 3 Monate davor
+  - Eigener Zeitraum → gleich viele Tage davor
+  - „Alles“ hat keine Vorperiode.
+
+  Liegt die Vorperiode vor der ersten erfassten Buchung, entfällt der Vergleich, weil „0 €“ dort
+  irreführend wäre. Eine Abweichung über 10 % in die ungünstige Richtung steht in Warnfarbe.
+- **Ist vs. Budget** (nur Ausgaben, nur mit abgeschlossenen Monaten): „Budget Ø x €/Monat · Ist ±y %“.
+  Grundlage sind die Monatsbudgets in denselben Monaten wie der Ø, summiert über die gefilterten Konten
+  (ohne Kontofilter: alle). Jahresbudgets zählen mit einem Zwölftel je Monat, ausgeschaltete Budgets
+  nicht. Über dem Budget: Warnfarbe.
+- **Größte Ausgaben/Einnahmen:** Neuer Block mit den 10 größten Einzelbuchungen der gewählten Art im
+  Zeitraum. Antippen öffnet die Buchung.
+- **Aufgeräumt:** Der Verlauf je Monat erscheint erst ab zwei Monaten. Die Kategorientabelle hat am PC
+  Spaltenköpfe. Die Erklärung (inkl. Ø und Budget) liegt hinter „ⓘ“. Am Handy stehen Trend und Zusatzzeile
+  unter dem Namen.
+- Reine Rechenfunktionen in `auswertung.js` (`vorperiode`, `monatsSummenJeKategorie`, `letzteZwoelfMonate`,
+  `budgetSchnitt`, `groessteBuchungen`, `veraenderungProzent`), mit Tests in `tests/analyse.test.js`.

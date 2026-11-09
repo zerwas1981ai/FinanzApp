@@ -10,6 +10,7 @@ import {
   STANDARD_FILTER, STANDARD_SORTIERUNG, filtere, sortiere, summen, zeitraumFuer,
   monateDerAuswertung, ersterErfassterTag, abgeschlosseneMonate, verlaufJeMonat, summenJeKategorie, schoeneObergrenze,
   sparquote, vorjahrJeMonat,
+  vorperiode, monatsSummenJeKategorie, letzteZwoelfMonate, budgetSchnitt, groessteBuchungen, veraenderungProzent,
   OHNE_PARTNER, partnerListe, partnerSchluessel, summenJePartner, sortiereNach,
 } from '../auswertung.js';
 import { oeffneBuchungsdialog } from './buchung-dialog.js';
@@ -71,8 +72,8 @@ export async function ladeArchive(archive, anmelden) {
 }
 
 export async function zeigeBuchungen(container, { archivAnmelden = false } = {}) {
-  const [konten, kategorien, buchungen, projekte, archive] = await Promise.all(
-    ['konten', 'kategorien', 'buchungen', 'projekte', 'archive'].map((s) => db.alle(s)),
+  const [konten, kategorien, buchungen, projekte, archive, budgets] = await Promise.all(
+    ['konten', 'kategorien', 'buchungen', 'projekte', 'archive', 'budgets'].map((s) => db.alle(s)),
   );
   const gewuenscht = sessionStorage.getItem('finanzapp-bestand');
   if (gewuenscht) {
@@ -88,6 +89,7 @@ export async function zeigeBuchungen(container, { archivAnmelden = false } = {})
     kategorien: vereint(kategorien, geladen.flatMap((a) => a.inhalt.kategorien ?? [])),
     projekte: vereint(projekte, geladen.flatMap((a) => a.inhalt.projekte ?? [])),
     buchungen: [...geladen.flatMap(({ eintrag, inhalt }) => inhalt.buchungen.map((b) => ({ ...b, archivJahr: eintrag.jahr }))), ...buchungen],
+    budgets, // für „Ist vs. Budget“ in der Analyse (D125)
   };
 
   const ergebnis = h('div', { class: 'ergebnis' });
@@ -553,10 +555,12 @@ function analyse(eintraege, daten, heute, neu) {
   // Vorjahr: dieselben Filter, aber ohne Zeitraum – sonst fehlten die Monate ein Jahr früher
   const ohneZeitraum = filtere(daten.buchungen, { ...zustand.filter, zeitraum: 'alles' }, { ...daten, heute });
   return h('div', {},
-    verlaufBereich(verlaufJeMonat(eintraege, monate), neu, vorjahrJeMonat(ohneZeitraum, monate, erster)),
+    // D125: Verlauf erst ab zwei Monaten – bei einem Monat zeigt er nur einen Balken
+    monate.length > 1 && verlaufBereich(verlaufJeMonat(eintraege, monate), neu, vorjahrJeMonat(ohneZeitraum, monate, erster)),
     zustand.analyseGruppe === 'partner'
       ? partnerBereich(eintraege, monate, heute, neu)
-      : kategorieBereich(eintraege, daten.kategorien, monate, heute, neu),
+      : kategorieBereich(eintraege, daten, monate, heute, neu, ohneZeitraum, erster),
+    groessteBereich(eintraege, daten, neu),
   );
 }
 
@@ -780,7 +784,34 @@ function verlaufBereich(zeilen, neu, vorjahr = []) {
 }
 
 /** Summen je Haupt-/Unterkategorie mit Anteil und Durchschnitt pro Monat */
-function kategorieBereich(eintraege, kategorien, monate, heute, neu) {
+/** D125: Liste auf eine Kategorie (Haupt- oder Unterkategorie) filtern und zur Liste wechseln */
+function zeigeKategorieInListe(id) {
+  zustand.filter.kategorieIds = [id];
+  zustand.modus = 'liste';
+  zustand.sichtbar = SEITE;
+  window.dispatchEvent(new Event('daten-geaendert'));
+  window.scrollTo({ top: 0 });
+}
+
+/** Mini-Verlauf der letzten 12 Monate (D125): kleine Balken, Tooltip mit Monat und Betrag */
+function trendBalken(werte, monate, art) {
+  const max = Math.max(...werte, 1);
+  const kurz = (j, m) => new Intl.DateTimeFormat('de-DE', { month: 'short', year: '2-digit' }).format(new Date(j, m - 1, 1));
+  return h('span', { class: 'kat-trend', role: 'img', 'aria-label': 'Verlauf der letzten 12 Monate' },
+    werte.map((w, i) => h('span', {
+      class: `trend-balken ${art}`,
+      style: `height:${Math.max(w > 0 ? 8 : 0, Math.round((w / max) * 100))}%`,
+      title: `${kurz(...monate[i])}: ${formatEuro(w)}`,
+    })));
+}
+
+/**
+ * Summen je Haupt-/Unterkategorie mit Anteil und Durchschnitt pro Monat.
+ * D125: Mini-Trend (12 Monate), Vergleich zur Vorperiode, Ist vs. Budget (nur Ausgaben),
+ * Unterkategorie bzw. „Alle Buchungen anzeigen“ antippen filtert die Liste.
+ */
+function kategorieBereich(eintraege, daten, monate, heute, neu, ohneZeitraum, erster) {
+  const { kategorien } = daten;
   // Ø nur über abgeschlossene Monate – der laufende Monat würde ihn verfälschen
   const schnittMonate = abgeschlosseneMonate(monate, heute);
   const anzahlMonate = schnittMonate.length;
@@ -788,31 +819,85 @@ function kategorieBereich(eintraege, kategorien, monate, heute, neu) {
   const gruppen = summenJeKategorie(eintraege, kategorien, art, schnittMonate);
   const gesamt = gruppen.reduce((s, g) => s + g.summe, 0);
   const gesamtSchnitt = anzahlMonate ? Math.round(gruppen.reduce((s, g) => s + g.schnittSumme, 0) / anzahlMonate) : null;
-  const max = Math.max(...gruppen.map((g) => g.summe), 1);
+  const max = Math.max(...gruppen.flatMap((g) => g.unter.map((u) => u.summe)), 1);
   const mitSchnitt = anzahlMonate > 0 && monate.length > 1;
-  const laufenderAusgelassen = schnittMonate.length < monate.length;
 
-  const artWahl = artWahlAnalyse(neu);
+  // Trend: 12 Monate bis zum Ende des gezeigten Zeitraums (höchstens heute)
+  const { bis } = zeitraumFuer(zustand.filter, heute);
+  const trendMonate = letzteZwoelfMonate(bis && bis < heute ? bis : heute);
+  const trend = monatsSummenJeKategorie(ohneZeitraum, kategorien, art, trendMonate);
 
-  const zeile = (x, ebene) => h('div', { class: `kat-zeile ebene-${ebene}` },
-    h('span', { class: 'kat-zeile-name' }, x.name),
-    h('span', { class: 'kat-balken-spur', 'aria-hidden': 'true' },
-      h('span', { class: `kat-balken ${art}`, style: `width:${(x.summe / max) * 100}%` })),
-    h('span', { class: 'betrag' }, formatEuro(x.summe)),
-    h('span', { class: 'kat-anteil' }, formatProzent(x.anteil)),
-    mitSchnitt && h('span', { class: 'kat-schnitt' }, `Ø ${formatEuro(x.schnitt)}`));
+  // Vorperiode: dieselben Filter, gleich langer Zeitraum davor – nur, wenn es dort schon erfasste Buchungen
+  // gab (sonst sähe „0,00 €“ aus wie „nichts ausgegeben“)
+  const vpRoh = vorperiode(zustand.filter, heute);
+  const vp = vpRoh && erster && vpRoh.bis >= erster ? vpRoh : null;
+  const vpSummen = new Map();
+  if (vp) {
+    const vpEintraege = filtere(daten.buchungen, { ...zustand.filter, zeitraum: 'eigen', von: vp.von, bis: vp.bis }, { ...daten, heute });
+    for (const g of summenJeKategorie(vpEintraege, kategorien, art)) {
+      vpSummen.set(g.id, g.summe);
+      for (const u of g.unter) vpSummen.set(`u:${u.id}`, u.summe);
+    }
+  }
+  const vpGesamt = [...vpSummen.entries()].filter(([k]) => !k.startsWith('u:')).reduce((s, [, v]) => s + v, 0);
+  const vergleich = (jetzt, vorher) => {
+    if (!vp) return null;
+    const p = veraenderungProzent(jetzt, vorher ?? 0);
+    const text = `${vp.text}: ${formatEuro(vorher ?? 0)}` + (p == null ? '' : ` (${p > 0 ? '+' : ''}${p} %)`);
+    // Bei Ausgaben ist „mehr“ ungünstig, bei Einnahmen günstig
+    const schlecht = p != null && (art === 'ausgabe' ? p > 10 : p < -10);
+    return h('span', { class: 'kat-vergleich' + (schlecht ? ' warn-text' : '') }, text);
+  };
+  // Ist vs. Budget (nur Ausgaben, nur mit abgeschlossenen Monaten)
+  const budgetText = (g) => {
+    if (art !== 'ausgabe' || !mitSchnitt) return null;
+    const budget = budgetSchnitt(daten.budgets ?? [], g.id, schnittMonate, zustand.filter.kontoIds);
+    if (budget == null) return null;
+    const p = veraenderungProzent(g.schnitt, budget);
+    return h('span', { class: 'kat-budget' + (p != null && p > 0 ? ' warn-text' : '') },
+      `Budget Ø ${formatEuro(budget)}/Monat` + (p == null ? '' : ` · Ist ${p > 0 ? '+' : ''}${p} %`));
+  };
+
+  const hauptZeile = (g) => {
+    const info = [budgetText(g), vergleich(g.summe, vpSummen.get(g.id))].filter(Boolean);
+    return h('div', { class: 'kat-zeile ebene-1' },
+      h('span', { class: 'kat-zeile-name' }, g.name),
+      g.id === 'unbekannt' ? h('span') : trendBalken(trend.get(g.id) ?? trendMonate.map(() => 0), trendMonate, art),
+      h('span', { class: 'betrag' }, formatEuro(g.summe)),
+      h('span', { class: 'kat-anteil' }, formatProzent(g.anteil)),
+      mitSchnitt && h('span', { class: 'kat-schnitt' }, `Ø ${formatEuro(g.schnitt)}`),
+      info.length > 0 && h('span', { class: 'kat-info' }, info));
+  };
+  const unterZeile = (u) => h('button', {
+    type: 'button',
+    class: 'kat-zeile ebene-2 kat-zeile-knopf',
+    title: 'Liste auf diese Unterkategorie filtern',
+    onclick: () => u.id !== 'unbekannt' && zeigeKategorieInListe(u.id),
+  },
+  h('span', { class: 'kat-zeile-name' }, u.name),
+  h('span', { class: 'kat-balken-spur', 'aria-hidden': 'true' },
+    h('span', { class: `kat-balken ${art}`, style: `width:${(u.summe / max) * 100}%` })),
+  h('span', { class: 'betrag' }, formatEuro(u.summe)),
+  h('span', { class: 'kat-anteil' }, formatProzent(u.anteil)),
+  mitSchnitt && h('span', { class: 'kat-schnitt' }, `Ø ${formatEuro(u.schnitt)}`));
 
   return h('section', { class: 'bereich' },
     h('div', { class: 'bereich-kopf' }, h('h2', {}, 'Nach Kategorien')),
     gruppeWahl(neu),
-    artWahl,
+    artWahlAnalyse(neu),
     gruppen.length === 0
       ? h('p', { class: 'leer' }, art === 'ausgabe' ? 'Keine Ausgaben in der Auswahl.' : 'Keine Einnahmen in der Auswahl.')
       : h('div', { class: 'kat-tabelle' + (mitSchnitt ? ' mit-schnitt' : '') },
+        h('div', { class: 'kat-zeile kat-kopf', 'aria-hidden': 'true' },
+          h('span', {}, 'Kategorie'), h('span', {}, '12 Monate'), h('span', {}, 'Summe'), h('span', {}, 'Anteil'),
+          mitSchnitt && h('span', {}, 'Ø/Monat')),
         gruppen.map((g) => {
           const d = h('details', { open: zustand.offen.has(g.id) },
-            h('summary', {}, zeile(g, 1)),
-            g.unter.map((u) => zeile(u, 2)));
+            h('summary', {}, hauptZeile(g)),
+            g.unter.map(unterZeile),
+            g.id !== 'unbekannt' && h('div', { class: 'kat-filter-reihe' },
+              h('button', { type: 'button', class: 'knopf knopf-klein', onclick: () => zeigeKategorieInListe(g.id) },
+                `Alle Buchungen „${g.name}“ anzeigen`)));
           d.addEventListener('toggle', () => (d.open ? zustand.offen.add(g.id) : zustand.offen.delete(g.id)));
           return d;
         }),
@@ -821,15 +906,39 @@ function kategorieBereich(eintraege, kategorien, monate, heute, neu) {
           h('span', {}),
           h('span', { class: 'betrag' }, formatEuro(gesamt)),
           h('span', { class: 'kat-anteil' }, '100 %'),
-          mitSchnitt && h('span', { class: 'kat-schnitt' }, `Ø ${formatEuro(gesamtSchnitt)}`))),
-    mitSchnitt && h('p', { class: 'hinweis erklaerung' },
-      `Ø = Durchschnitt pro Monat über ${anzahlMonate === 1 ? '1 abgeschlossenen Monat' : `${anzahlMonate} abgeschlossene Monate`} ` +
-      (anzahlMonate === 1
-        ? `(${formatMonat(...schnittMonate[0])}). `
-        : `(${formatMonat(...schnittMonate[0])} bis ${formatMonat(...schnittMonate.at(-1))}). `) +
-      'Gezählt wird erst ab dem ersten Monat mit erfassten Buchungen' +
-      (laufenderAusgelassen ? '; der laufende Monat zählt nicht mit, weil er noch nicht vorbei ist.' : '.')),
-    !mitSchnitt && monate.length > 1 && h('p', { class: 'hinweis' },
-      'Der Durchschnitt pro Monat erscheint, sobald der erste Monat abgeschlossen ist.'),
+          mitSchnitt && h('span', { class: 'kat-schnitt' }, `Ø ${formatEuro(gesamtSchnitt)}`),
+          vp && h('span', { class: 'kat-info' }, vergleich(gesamt, vpGesamt)))),
+    h('p', { class: 'hinweis erklaerung' },
+      'Kategorie antippen klappt die Unterkategorien auf; eine Unterkategorie antippen zeigt ihre Buchungen in der Liste. '
+      + 'Die kleinen Balken zeigen die letzten 12 Monate. '
+      + (mitSchnitt ? `Ø = Durchschnitt pro Monat über ${anzahlMonate === 1 ? '1 abgeschlossenen Monat' : `${anzahlMonate} abgeschlossene Monate`} `
+        + `(${formatMonat(...schnittMonate[0])}${anzahlMonate > 1 ? ` bis ${formatMonat(...schnittMonate.at(-1))}` : ''}); der laufende Monat zählt nicht mit. ` : '')
+      + (art === 'ausgabe' && mitSchnitt ? 'Budget Ø = Monatsbudgets im selben Zeitraum, Jahresbudgets mit einem Zwölftel je Monat. ' : '')
+      + (vp ? `Vergleich mit ${vp.text} (${formatDatum(vp.von)} – ${formatDatum(vp.bis)}).` : '')),
   );
+}
+
+/** D125: die zehn größten Einzelbuchungen der gewählten Art im Zeitraum – antippen öffnet die Buchung */
+function groessteBereich(eintraege, daten, neu) {
+  const art = zustand.analyseArt;
+  const top = groessteBuchungen(eintraege, art, 10);
+  if (top.length === 0) return null;
+  const kat = new Map(daten.kategorien.map((k) => [k.id, k]));
+  return h('section', { class: 'bereich groesste' },
+    h('div', { class: 'bereich-kopf' }, h('h2', {}, art === 'ausgabe' ? 'Größte Ausgaben' : 'Größte Einnahmen')),
+    h('ol', { class: 'groesste-liste' }, top.map(({ buchung: b }) => {
+      const unter = kat.get(b.kategorieId);
+      const titel = b.partner?.trim() || unter?.name || 'Buchung';
+      const katText = [kat.get(unter?.elternId)?.name, unter?.name].filter(Boolean).join(' › ');
+      return h('li', {},
+        h('button', {
+          type: 'button',
+          class: 'groesste-zeile',
+          onclick: () => (b.archivJahr ? toast(`Archiv ${b.archivJahr}: nur lesen.`) : oeffneBuchungsdialog(b)),
+        },
+        h('span', { class: 'groesste-text' },
+          h('span', { class: 'groesste-titel' }, titel),
+          h('span', { class: 'klein' }, `${formatDatum(b.datum)}${katText && katText !== titel ? ` · ${katText}` : ''}`)),
+        h('span', { class: 'betrag' + (art === 'einnahme' ? ' plus' : '') }, (art === 'einnahme' ? '+' : '−') + formatEuro(b.betragCent))));
+    })));
 }
