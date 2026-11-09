@@ -1,7 +1,7 @@
 // Etappe 4: Budgets, Termine wiederkehrender Buchungen, Monatsprognose, Budgethinweise.
 // Reine Funktionen ohne Datenbank – mit `npm test` geprüft. Siehe DECISIONS.md D33–D40.
 
-import { istAktiv, kontostand } from './rechnen.js';
+import { istAktiv, kontostand, buchungenVonKonto, wirkungCent } from './rechnen.js';
 import { istJaehrlich, jahresbudgetJahr } from './jahresbudget.js';
 
 const pad = (n) => String(n).padStart(2, '0');
@@ -329,6 +329,10 @@ export function kennzahlKategorien(einstellungen, kategorien, summen) {
  * - Je Konto: Stand am Monatsende aus echten Buchungen
  *   + Wirkung offener wiederkehrender Termine (inkl. überfälliger aus dem Vormonat)
  *   − offener Budgetrest der Budgets, die dieses Konto belasten.
+ * - Je Konto (D110): niedrigster erwarteter Stand = Stand heute − alle bis Monatsende noch
+ *   erwarteten Belastungen (schon erfasste mit späterem Datum, offene Ausgaben-Termine,
+ *   abgehende Umbuchungen, offener Budgetrest). Noch ausstehende Eingänge zählen NICHT –
+ *   so sieht man den ungünstigsten Fall, falls Geld später kommt als die Abbuchungen.
  */
 export function monatsprognose(daten, heute) {
   const { konten, kategorien, buchungen, budgets } = daten;
@@ -411,15 +415,25 @@ export function monatsprognose(daten, heute) {
       .map((t) => ({ ...t, wirkung: terminWirkung(t.wiederkehrend, t.betragCent, k.id) }))
       .filter((t) => t.wirkung !== 0);
     const offenWirkung = termineKonto.reduce((s, t) => s + t.wirkung, 0);
+    // D110: getrennt nach Eingängen (+) und Belastungen (−)
+    const offenEinnahmen = termineKonto.reduce((s, t) => s + Math.max(0, t.wirkung), 0);
+    const offenAusgaben = termineKonto.reduce((s, t) => s + Math.min(0, t.wirkung), 0);
     const budgetsKonto = kategorieZeilen.filter((z) => z.budget !== null && z.kontoId === k.id);
     const rest = budgetsKonto.reduce((s, z) => s + z.rest, 0);
     zugeordneterRest += rest;
+    // Schon erfasste Belastungen mit Datum nach heute (bis Monatsende) – Eingänge bleiben außen vor
+    const spaetereBelastungen = buchungenVonKonto(k, buchungen)
+      .filter((b) => b.datum > heute && b.datum <= ende)
+      .reduce((s, b) => s + Math.min(0, wirkungCent(b)), 0);
     jeKonto.set(k.id, {
       konto: k,
       heute: standHeute,
       endeEcht, // Stand Monatsende nur aus echten Buchungen
       offenWirkung, // Summe offener wiederkehrender Termine (+/−)
+      offenEinnahmen, // davon Eingänge (≥ 0)
+      offenAusgaben, // davon Belastungen (≤ 0)
       rest, // offener Budgetrest, der dieses Konto belastet
+      niedrigster: standHeute + spaetereBelastungen + offenAusgaben - rest, // D110
       prognose: endeEcht + offenWirkung - rest,
       termine: termineKonto, // offene Termine dieses Kontos
       budgets: budgetsKonto, // Budgets, die dieses Konto belasten
@@ -430,12 +444,12 @@ export function monatsprognose(daten, heute) {
   // Budgetrest ohne (aktives) Konto mindert trotzdem die Gesamtprognose
   const gesamtPrognose = [...jeKonto.values()].reduce((s, x) => s + x.prognose, 0) - (gesamtRest - zugeordneterRest);
 
-  // Mindestsaldo-Warnungen
+  // Mindestsaldo-Warnungen: heute, sonst bis Monatsende nach dem niedrigsten erwarteten Stand (D110)
   const warnungen = [];
-  for (const { konto, heute: h, prognose } of jeKonto.values()) {
+  for (const { konto, heute: h, niedrigster } of jeKonto.values()) {
     if (konto.mindestsaldoCent == null) continue;
     if (h < konto.mindestsaldoCent) warnungen.push({ konto, wann: 'heute', standCent: h });
-    else if (prognose < konto.mindestsaldoCent) warnungen.push({ konto, wann: 'monatsende', standCent: prognose });
+    else if (niedrigster < konto.mindestsaldoCent) warnungen.push({ konto, wann: 'monatsende', standCent: niedrigster });
   }
 
   const groesste = kategorieZeilen.filter((z) => z.ist > 0).sort((a, b) => b.ist - a.ist)[0] ?? null;

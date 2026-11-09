@@ -109,7 +109,7 @@ export async function zeigeUebersicht(container) {
   container.replaceChildren(...[
     ...oben,
     kontoAuswahl(aktive, konto, faelligJeKonto, waehle),
-    kontoKopf(konto, buchungen, abstimmungen, kd?.prognose),
+    kontoKopf(konto, buchungen, abstimmungen, kd?.prognose, kd?.niedrigster),
     monatsNavigation({
       zurueck: schluessel([ansicht.jahr, ansicht.monat]) > schluessel(minMonat),
       vor: schluessel([ansicht.jahr, ansicht.monat]) < schluessel(maxMonat),
@@ -207,7 +207,7 @@ function kontoAuswahl(konten, aktiv, faelligJeKonto, beiWahl) {
 
 /* ---------- Kopf: Stand heute, Abstimmung ---------- */
 
-function kontoKopf(konto, buchungen, abstimmungen, prognoseCent) {
+function kontoKopf(konto, buchungen, abstimmungen, prognoseCent, niedrigsterCent) {
   const heute = heuteIso();
   const stand = kontostand(konto, buchungen, heute);
   const vorgemerkt = vorgemerktBis(konto, buchungen, heute);
@@ -231,6 +231,14 @@ function kontoKopf(konto, buchungen, abstimmungen, prognoseCent) {
       prognoseCent !== undefined && h('div', { class: 'klein' }, 'Prognose Monatsende: ',
         h('span', { class: 'annahme' + (prognoseCent < 0 ? ' negativ' : '') }, formatEuro(prognoseCent)),
         konto.mindestsaldoCent != null && prognoseCent < konto.mindestsaldoCent && h('span', { class: 'warn-text' }, ' – unter Mindestsaldo')),
+      // D110: ungünstigster Fall bis Monatsende – heute minus alle erwarteten Belastungen, ohne offene Eingänge
+      niedrigsterCent !== undefined && h('div', {
+        class: 'klein gedaempft niedrigster',
+        title: 'Stand heute abzüglich aller bis Monatsende noch erwarteten Ausgaben, abgehenden Umbuchungen und Budgetreste – '
+          + 'noch ausstehende Einnahmen zählen nicht mit.',
+      }, 'Niedrigster erwarteter Stand: ',
+      h('span', { class: 'annahme' + (niedrigsterCent < 0 ? ' negativ' : '') }, formatEuro(niedrigsterCent)),
+      konto.mindestsaldoCent != null && niedrigsterCent < konto.mindestsaldoCent && h('span', { class: 'warn-text' }, ' – unter Mindestsaldo')),
       h('div', { class: 'klein abstimm-info' + (letzte && letzte.bankstandCent !== kontostand(konto, buchungen, letzte.datum) ? ' warn-text' : '') }, abstimmText),
     ),
     h('button', { type: 'button', class: 'knopf', onclick: () => abstimmungsDialog(konto, buchungen) }, 'Abstimmen'),
@@ -262,7 +270,9 @@ function summenKarte(konto, m, kd) {
     zeile('Ausgaben', -m.ausgaben, '', true),
     m.umbuchungen !== 0 && zeile('Umbuchungen (saldiert)', m.umbuchungen, 'gedaempft', true),
     zeile(kd ? 'Stand nach erfassten Buchungen' : 'Stand Monatsende', m.ende, 'ergebnis'),
-    kd && kd.offenWirkung !== 0 && zeile('Noch offene wiederkehrende Buchungen', kd.offenWirkung, 'annahme', true),
+    // D110: offene wiederkehrende und geplante Buchungen getrennt nach Eingängen und Belastungen
+    kd && kd.offenEinnahmen !== 0 && zeile('Noch offene Einnahmen', kd.offenEinnahmen, 'annahme plus', true),
+    kd && kd.offenAusgaben !== 0 && zeile('Noch offene Ausgaben', kd.offenAusgaben, 'annahme', true),
     kd && kd.rest !== 0 && zeile('Noch offener Budgetrest', -kd.rest, 'annahme', true),
     kd && zeile('Prognose Monatsende', kd.prognose, 'ergebnis annahme'),
   );

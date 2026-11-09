@@ -680,6 +680,7 @@ Wird eine Entscheidung geändert, den alten Eintrag nicht löschen, sondern als
   **ersten Zukunftsmonat**, dessen Endstand unter dem Mindestsaldo liegt. Die Meldung lautet
   dann zum Beispiel: „fällt voraussichtlich erstmals im März 2027 unter den Mindestsaldo“.
 - Geprüft wird der Stand am Monatsende, nicht ein Tiefpunkt innerhalb des Monats.
+  *Für den laufenden Monat seit D110: der niedrigste erwartete Stand (ohne offene Einnahmen).*
 
 ## D49 – Ein/Aus-Schalter in der Annahmen-Liste
 *Etappe 5*
@@ -1635,3 +1636,23 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
 - Sichtbar bleiben kurze Hinweise, Statuszeilen und Warnungen (z. B. bei „Alles löschen“).
 - Umgesetzt zentral in `ui.js` (`richteErklaerungenEin`). Ein Beobachter erledigt das auch für
   Bereiche, die sich später neu zeichnen.
+
+## D110 – Niedrigster erwarteter Stand je Konto; offene Posten nach Einnahmen und Ausgaben
+*Wunsch des Nutzers*
+
+- **Niedrigster erwarteter Stand** (laufender Monat, je Konto) = Kontostand heute
+  − schon erfasste Belastungen mit späterem Datum im Monat
+  − offene Ausgaben-Termine (wiederkehrend und geplant, auch überfällige) und abgehende Umbuchungen
+  − offener Budgetrest.
+  **Noch ausstehende Einnahmen und eingehende Umbuchungen zählen nicht mit.** Das ist der ungünstigste
+  Fall, wenn Geld erst nach den Abbuchungen kommt.
+- Er steht im Kontokopf dezent unter „Prognose Monatsende“, mit „– unter Mindestsaldo“, falls zutreffend.
+  Der Tooltip erklärt die Berechnung. Bezeichnung: „Niedrigster erwarteter Stand“ (Wunsch des Nutzers:
+  „zu erwartender niedrigster Saldo“).
+- Die **Mindestsaldo-Warnung** für den laufenden Monat prüft diesen Wert statt der Prognose zum
+  Monatsende („… kann bis zum Monatsende unter den Mindestsaldo fallen“). „Heute“ und die Zukunftsmonate
+  (erster betroffener Monat, D48) bleiben wie bisher.
+- In der Zwischensummen-Karte des laufenden Monats steht statt „Noch offene wiederkehrende Buchungen“
+  jetzt getrennt: **„Noch offene Einnahmen“**, dann **„Noch offene Ausgaben“**, dann wie bisher
+  „Noch offener Budgetrest“. Umbuchungen zählen je nach Richtung zu Einnahmen bzw. Ausgaben dieses
+  Kontos. Zeilen mit 0 € entfallen.

@@ -183,6 +183,22 @@ test('Monatsprognose: Budgetrest, offene wiederkehrende, Mindestsaldo', () => {
   const ohneGehalt = wiederkehrende.filter((w) => w.id !== 'gehalt');
   const p4 = monatsprognose({ konten: mittel, kategorien, buchungen, budgets, wiederkehrende: ohneGehalt }, heute);
   assert.deepEqual(p4.warnungen.map((w) => w.wann), ['monatsende']);
+
+  // D110: niedrigster erwarteter Stand = heute − offene Belastungen − Budgetrest, OHNE das noch offene Gehalt
+  assert.equal(g.offenEinnahmen, 300000);
+  assert.equal(g.offenAusgaben, -95000 - 20000);
+  assert.equal(g.niedrigster, giroHeute - 95000 - 20000 - 30000);
+  assert.equal(p.jeKonto.get('tg').niedrigster, 20000, 'eingehende Umbuchung zählt nicht');
+  // Mindestsaldo 2.000 €: Prognose zum Monatsende reicht (dank Gehalt), der Tiefpunkt nicht → Warnung
+  const zweitausend = konten.map((k) => (k.id === 'giro' ? { ...k, mindestsaldoCent: 200000 } : k));
+  const p5 = monatsprognose({ konten: zweitausend, kategorien, buchungen, budgets, wiederkehrende }, heute);
+  assert.ok(p5.jeKonto.get('giro').prognose >= 200000);
+  assert.deepEqual(p5.warnungen.map((w) => [w.wann, w.standCent]), [['monatsende', giroHeute - 145000]]);
+  // Schon erfasste Abbuchung mit späterem Datum belastet, schon erfasster späterer Eingang nicht
+  const mitSpaeteren = [...buchungen, ...buchung('ausgabe', 7000, '2026-11-20', { kategorieId: 'miete' }), ...buchung('einnahme', 9000, '2026-11-21', { kategorieId: 'gehalt' })];
+  const p6 = monatsprognose({ konten, kategorien, buchungen: mitSpaeteren, budgets, wiederkehrende }, heute);
+  // (die 70 € Miete verbrauchen auch den Wohnen-Rest von 50 € → Budgetrest nur noch 250 €)
+  assert.equal(p6.jeKonto.get('giro').niedrigster, giroHeute - 7000 - 95000 - 20000 - 25000);
 });
 
 test('Budgethinweise: 3 Monate in Folge über bzw. unter Budget, Unterdrückung', () => {

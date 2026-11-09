@@ -26,8 +26,9 @@ export function kennzahlenBereich(p, daten, heute, warnungen = p.warnungen) {
       h('strong', {}, '⚠ Mindestsaldo'),
       warnungen.map((w) => h('p', {}, {
         heute: () => `${w.konto.name} liegt heute unter dem Mindestsaldo: ${formatEuro(w.standCent)} (Mindestsaldo ${formatEuro(w.konto.mindestsaldoCent)}).`,
-        monatsende: () => `${w.konto.name} fällt voraussichtlich zum Monatsende (${monat}) unter den Mindestsaldo: ` +
-          `Prognose ${formatEuro(w.standCent)}, Mindestsaldo ${formatEuro(w.konto.mindestsaldoCent)}.`,
+        // D110: geprüft wird der niedrigste erwartete Stand (ohne noch offene Einnahmen)
+        monatsende: () => `${w.konto.name} kann bis zum Monatsende (${monat}) unter den Mindestsaldo fallen: ` +
+          `niedrigster erwarteter Stand ${formatEuro(w.standCent)}, Mindestsaldo ${formatEuro(w.konto.mindestsaldoCent)}.`,
         zukunft: () => `${w.konto.name} fällt voraussichtlich erstmals im ${monatText(w.monat)} unter den Mindestsaldo: ` +
           `Prognose ${formatEuro(w.standCent)}, Mindestsaldo ${formatEuro(w.konto.mindestsaldoCent)}.`,
       }[w.wann]()))),
