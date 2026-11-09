@@ -1934,3 +1934,9 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
   „Ausgaben“ oder allen Arten ist es da.
 - **Laufender Monat** im Diagramm: kein Rahmen mehr, die Beschriftung ist fett und unterstrichen
   (ändert D128).
+
+## D131 – Ausgaben je Monat nur als Diagramm
+*Wunsch des Nutzers*
+
+- Der Knopf „Als Tabelle“ und die Tabellenansicht von „Ausgaben je Monat“ entfallen. Das Diagramm reicht,
+  die Einzelwerte zeigt der Tooltip beim Antippen bzw. Überfahren eines Balkens.

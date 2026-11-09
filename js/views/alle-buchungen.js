@@ -30,7 +30,6 @@ const zustand = {
   modus: 'liste', // liste | analyse
   analyseArt: 'ausgabe',
   analyseGruppe: 'kategorie', // kategorie | partner
-  alsTabelle: false,
   vorjahr: false, // Vorjahr im Verlauf zeigen (D107)
   sichtbar: SEITE,
   offen: new Set(), // aufgeklappte Kategorien in der Analyse
@@ -719,11 +718,6 @@ function verlaufBereich(zeilen, neu, vorjahr = []) {
   const kurz = (z) => new Intl.DateTimeFormat('de-DE', { month: 'short' }).format(new Date(z.jahr, z.monat - 1, 1)).replace('.', '')
     + ` ${String(z.jahr).slice(2)}`;
 
-  const umschalter = h('button', {
-    type: 'button',
-    class: 'knopf knopf-klein',
-    onclick: () => { zustand.alsTabelle = !zustand.alsTabelle; neu(); },
-  }, zustand.alsTabelle ? 'Als Diagramm' : 'Als Tabelle');
   const vorjahrKnopf = vorjahr.some(Boolean) && h('button', {
     type: 'button',
     class: 'knopf knopf-klein',
@@ -731,7 +725,7 @@ function verlaufBereich(zeilen, neu, vorjahr = []) {
     onclick: () => { zustand.vorjahr = !zustand.vorjahr; neu(); },
   }, zustand.vorjahr ? 'Vorjahr ausblenden' : 'Vorjahr zeigen');
   const kopf = h('div', { class: 'bereich-kopf' }, h('h2', {}, 'Ausgaben je Monat'),
-    h('div', { class: 'knopfreihe' }, vorjahrKnopf, umschalter));
+    vorjahrKnopf && h('div', { class: 'knopfreihe' }, vorjahrKnopf)); // D131: nur noch das Diagramm
   const legende = h('div', { class: 'legende' },
     h('span', {}, h('span', { class: 'legende-punkt ausgabe' }), 'gebucht'),
     !ohneErwartung && h('span', {}, h('span', { class: 'legende-punkt ausgabe offen-teil' }), 'erwartet (vorgemerkt, offen, Budget)'),
@@ -739,21 +733,6 @@ function verlaufBereich(zeilen, neu, vorjahr = []) {
     h('span', { class: 'klein' }, 'letzte 6 und nächste 6 Monate · unabhängig vom Zeitraum'));
   const hinweis = ohneErwartung && h('p', { class: 'hinweis' },
     'Erwartete Ausgaben lassen sich nur mit Konto- und Kategoriefilter zuordnen – bei Filtern auf Empfänger, Suche oder Betrag fehlen sie.');
-
-  if (zustand.alsTabelle) {
-    const vj = (i) => (vorjahr[i] ? formatEuro(vorjahr[i].ausgaben) : '–');
-    return h('section', { class: 'bereich' }, kopf, hinweis,
-      h('div', { class: 'tabelle-rahmen' },
-        h('table', { class: 'tabelle' },
-          h('thead', {}, h('tr', {}, h('th', {}, 'Monat'), h('th', {}, 'Gebucht'), h('th', {}, 'Erwartet'), h('th', {}, 'Zusammen'),
-            mitVorjahr && h('th', {}, 'Vorjahr'))),
-          h('tbody', {}, zeilen.map((z, i) => h('tr', { class: z.aktuell ? 'aktuell' : z.zukunft ? 'zukunft' : null },
-            h('td', {}, formatMonat(z.jahr, z.monat)),
-            h('td', {}, z.zukunft ? '–' : formatEuro(z.ist)),
-            h('td', { class: 'annahme' }, z.erwartet == null ? '–' : formatEuro(z.erwartet)),
-            h('td', { class: (z.aktuell || z.zukunft) ? 'annahme' : '' }, formatEuro(z.ist + (z.erwartet ?? 0))),
-            mitVorjahr && h('td', { class: 'gedaempft' }, vj(i))))))));
-  }
 
   const max = schoeneObergrenze(Math.max(...zeilen.map((z) => z.ist + (z.erwartet ?? 0)),
     ...(mitVorjahr ? vorjahr.filter(Boolean).map((z) => z.ausgaben) : []), 1));

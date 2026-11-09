@@ -799,8 +799,6 @@ button.ka-zeile:hover { background: var(--akzent-leicht); }
 .balken-paar.mit-vorjahr .balken-stapel { width: min(10px, 40%); }
 .spalte.aktuell .spalte-label { color: var(--text); font-weight: 600; }
 .spalte.zukunft .spalte-label { font-style: italic; }
-.tabelle tr.aktuell td { font-weight: 600; }
-.tabelle tr.zukunft td:first-child { font-style: italic; }
 /* D126: aktive Filter farbig */
 .mehrfach.aktiv > .mehrfach-knopf { border-color: var(--akzent); background: var(--akzent-leicht); color: var(--akzent); font-weight: 600; }
 .filter input.aktiv { border-color: var(--akzent); background: var(--akzent-leicht); }
