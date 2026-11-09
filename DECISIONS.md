@@ -1799,3 +1799,13 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
   01.08.–31.10.2026, auch über den Jahreswechsel richtig.
 - „Eigener Zeitraum“ bleibt, auch weil „Ansehen“ eines archivierten Jahres (Stammdaten) ihn nutzt.
 - Bei „Alles“ steht im Summenblock „Alles bis TT.MM.JJJJ“ (nur Buchungen bis heute, D121).
+
+## D123 – „Alle Buchungen“: Suche und Betrag oben, Status und „ohne Beleg“ entfallen
+*Wunsch des Nutzers*
+
+- **Suche, Betrag ab und Betrag bis** stehen ganz oben im Filterbereich, über den Zeitraum-Kacheln und den
+  Auswahllisten. Am PC in einer Zeile, am Handy die Suche über den beiden Beträgen.
+- Der Filter **Status** entfällt. Es werden ohnehin nur gebuchte Buchungen gezeigt (D120).
+- **„Nur Buchungen ohne Beleg“** entfällt vorerst (CLAUDE.md angepasst). Die Filterlogik
+  (`filter.ohneBeleg`) bleibt im Code, falls er wiederkommen soll.
+- Damit gibt es keinen aufklappbaren Bereich „Weitere Filter“ mehr.

@@ -685,6 +685,12 @@ button.ka-zeile:hover { background: var(--akzent-leicht); }
   gap: 0 12px;
 }
 .filter-reihe { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+/* D123: Suche und Betrag ab/bis ganz oben – am PC in einer Zeile, am Handy Suche über den Beträgen */
+.filter-suche { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr); gap: 0 12px; }
+@media (max-width: 767px) {
+  .filter-suche { grid-template-columns: 1fr 1fr; }
+  .filter-suche > .feld:first-child { grid-column: 1 / -1; }
+}
 .filter .feld { margin-bottom: 10px; }
 .feld-label { display: block; font-weight: 500; font-size: .85rem; margin-bottom: 4px; color: var(--text-2); }
 .feld-fehler { display: block; color: var(--gefahr); font-size: .8rem; margin-top: 4px; }

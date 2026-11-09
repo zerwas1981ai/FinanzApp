@@ -3,7 +3,7 @@
 import { h } from '../dom.js';
 import * as db from '../db.js';
 import { formatEuro, formatEuroRund, formatProzent, formatDatum, formatMonat, heuteIso, parseEuro } from '../format.js';
-import { schalter, herunterladen, toast } from '../ui.js';
+import { herunterladen, toast } from '../ui.js';
 import { archivInhalt } from '../sync/abgleich.js';
 import { buchungenAlsCsv, exportName } from '../export.js';
 import {
@@ -252,12 +252,6 @@ function filterBereich({ konten, kategorien, buchungen }, aktualisiere, neuZeich
     alleText: 'Alle Arten',
     beiAenderung: (w) => setze('arten', w),
   });
-  const statusAuswahl = mehrfachAuswahl({
-    optionen: [{ wert: 'gebucht', text: 'Gebucht' }, { wert: 'vorgemerkt', text: 'Vorgemerkt' }],
-    gewaehlt: f.status,
-    alleText: 'Jeder Status',
-    beiAenderung: (w) => setze('status', w),
-  });
 
   const katOptionen = ['einnahme', 'ausgabe'].flatMap((art) => kategorien
     .filter((k) => !k.elternId && k.art === art)
@@ -332,9 +326,14 @@ function filterBereich({ konten, kategorien, buchungen }, aktualisiere, neuZeich
     },
   }, 'Filter zurücksetzen');
 
-  const weitereOffen = f.betragMin != null || f.betragMax != null || f.ohneBeleg
-    || JSON.stringify(f.status) !== JSON.stringify(STANDARD_FILTER.status);
+  // D123: Suche und Betrag ganz oben; Status („nur gebuchte“, D120) und „ohne Beleg“ entfallen
+  // in der Oberfläche – damit gibt es keinen Bereich „Weitere Filter“ mehr
   return h('section', { class: 'bereich filter' },
+    h('div', { class: 'filter-suche' },
+      feld('Suche', suche),
+      betragFeld('betragMin', 'Betrag ab'),
+      betragFeld('betragMax', 'Betrag bis'),
+    ),
     zeitraum,
     eigenerZeitraum,
     h('div', { class: 'filter-raster' },
@@ -342,17 +341,6 @@ function filterBereich({ konten, kategorien, buchungen }, aktualisiere, neuZeich
       feld('Art', artAuswahl),
       feld('Kategorie', kategorieAuswahl),
       feld('Empfänger/Absender', partnerAuswahl),
-      feld('Suche', suche),
-    ),
-    h('details', { class: 'weitere-filter', open: weitereOffen },
-      h('summary', {}, 'Weitere Filter'),
-      h('div', { class: 'filter-raster' },
-        feld('Status', statusAuswahl),
-        betragFeld('betragMin', 'Betrag ab'),
-        betragFeld('betragMax', 'Betrag bis'),
-      ),
-      schalter('Nur Buchungen ohne Beleg', f.ohneBeleg, (an) => setze('ohneBeleg', an)),
-      h('p', { class: 'hinweis' }, 'Belege hängst du im Buchungsdialog an (Foto oder PDF).'),
     ),
     h('div', { class: 'filter-fuss' }, resetKnopf),
   );

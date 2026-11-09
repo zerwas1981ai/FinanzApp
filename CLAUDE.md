@@ -71,8 +71,8 @@ Oberfläche auf Deutsch, Währung Euro, deutsches Datums- und Zahlenformat.
      immer sichtbar (komprimiert, aufklappbar), Folgejahre bis 2050 einzeln
      ein- und ausblendbar. Zukunftswerte optisch klar als Annahme
      gekennzeichnet (z. B. kursiv oder schraffiert).
-2. Alle Buchungen: über alle Konten filtern, sortieren, analysieren; Filter
-   "ohne Beleg"
+2. Alle Buchungen: über alle Konten filtern, sortieren, analysieren; nur gebuchte
+   Buchungen bis heute (D120/D121); Filter "ohne Beleg" vorerst entfallen (D123)
 3. Projekte: Einmalausgaben (echte und geplante Buchungen) einem Projekt
    zuordnen, z. B. Umbau oder Urlaub; Gesamtkosten mit optionalem Rahmen.
    Projektausgaben zählen nicht gegen das Monatsbudget. (Ersetzt die
