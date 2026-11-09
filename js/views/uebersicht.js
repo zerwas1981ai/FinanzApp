@@ -77,13 +77,7 @@ export async function zeigeUebersicht(container) {
     container.replaceChildren(...[
       ...oben,
       kontoAuswahl(aktive, null, faelligJeKonto, waehle),
-      h('section', { class: 'bereich konto-kopf' },
-        h('div', {},
-          h('div', { class: 'klein' }, `Alle Konten heute (${formatDatum(heute)})`),
-          h('div', { class: 'gross' + (prognose.gesamtHeute < 0 ? ' negativ' : '') }, formatEuro(prognose.gesamtHeute)),
-          h('div', { class: 'klein' }, 'Prognose Monatsende: ',
-            h('span', { class: 'annahme' }, formatEuro(prognose.gesamtPrognose))),
-          h('div', { class: 'klein' }, 'Umbuchungen zwischen deinen Konten heben sich in dieser Sicht auf.'))),
+      kontenAufstellung(aktive, zl, heute, waehle),
       zeitleisteBereich(zl.gesamt, ALLE, aendern),
     ].filter(Boolean));
     return;
@@ -186,6 +180,39 @@ function zukunftsMonat(zeilen, monat, startStand, m, konto, konten, kategorien, 
     // Schon erfasste Buchungen mit Datum in diesem Monat bleiben anklickbar
     m.anzahl > 0 && buchungsliste(m, konto, konten, kategorien),
   ];
+}
+
+/* ---------- „Alle Konten“: Aufstellung je Konto (D118) ---------- */
+
+/**
+ * Wie setzen sich die Summen oben zusammen? Je Konto Stand heute, Prognose Monats- und Jahresende,
+ * darunter die Summe (dieselben Werte wie oben). Eine Zeile antippen öffnet das Konto.
+ */
+function kontenAufstellung(konten, zl, heute, waehle) {
+  const p = zl.start;
+  const jahr = heute.slice(0, 4);
+  const wert = (cent, annahme = false, mindest = null) => h('span', {
+    class: 'betrag' + (annahme ? ' annahme' : '') + (cent != null && cent < 0 ? ' negativ' : '')
+      + (mindest != null && cent != null && cent < mindest ? ' warn-text' : ''),
+    title: mindest != null && cent != null && cent < mindest ? `Unter dem Mindestsaldo von ${formatEuro(mindest)}` : null,
+  }, cent == null ? '–' : formatEuro(cent));
+  const kopf = h('div', { class: 'ka-zeile ka-kopf', 'aria-hidden': 'true' },
+    h('span', { class: 'ka-name' }, 'Konto'), h('span', {}, 'Heute'), h('span', {}, 'Monatsende'), h('span', {}, `Jahresende ${jahr}`));
+  const zeilen = konten.map((k) => {
+    const kd = p.jeKonto.get(k.id);
+    const min = k.mindestsaldoCent;
+    return h('button', { type: 'button', class: 'ka-zeile', title: `${k.name} öffnen`, onclick: () => waehle(k.id) },
+      h('span', { class: 'ka-name' }, k.name),
+      wert(kd?.heute ?? null, false, min),
+      wert(kd?.prognose ?? null, true, min),
+      wert(prognoseJahresende(zl, heute, k.id), true, min));
+  });
+  const summe = h('div', { class: 'ka-zeile ka-summe' },
+    h('span', { class: 'ka-name' }, 'Alle Konten'),
+    wert(p.gesamtHeute), wert(p.gesamtPrognose, true), wert(prognoseJahresende(zl, heute), true));
+  return h('section', { class: 'bereich konten-aufstellung', 'aria-label': 'Aufstellung je Konto' },
+    kopf, ...zeilen, summe,
+    h('p', { class: 'hinweis' }, 'Konto antippen, um es zu öffnen. Umbuchungen zwischen deinen Konten heben sich in der Summe auf.'));
 }
 
 /* ---------- Kontoauswahl ---------- */

@@ -232,3 +232,14 @@ test('Prognose Jahresende über alle Konten (D116)', () => {
   const imDezember = zeitleiste(basisDaten(), '2026-12-10');
   assert.equal(prognoseJahresende(imDezember, '2026-12-10'), imDezember.start.gesamtPrognose, 'Dezember: Prognose Monatsende');
 });
+
+test('Prognose Jahresende je Konto (D118)', () => {
+  const zl = zeitleiste(basisDaten(), heute);
+  const giroDez = zl.jeKonto.get('giro').find((z) => z.monat === '2026-12');
+  assert.equal(prognoseJahresende(zl, heute, 'giro'), giroDez.stand);
+  const summe = [...zl.jeKonto.keys()].reduce((s, id) => s + prognoseJahresende(zl, heute, id), 0);
+  assert.equal(summe, prognoseJahresende(zl, heute), 'Konten zusammen = Gesamtwert');
+  const imDezember = zeitleiste(basisDaten(), '2026-12-10');
+  assert.equal(prognoseJahresende(imDezember, '2026-12-10', 'giro'), imDezember.start.jeKonto.get('giro').prognose);
+  assert.equal(prognoseJahresende(zl, heute, 'gibtsnicht'), null);
+});

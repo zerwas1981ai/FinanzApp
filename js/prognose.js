@@ -713,9 +713,11 @@ export function zeitleiste(daten, heute, bisMonat = LETZTER_MONAT) {
  * Prognose zum Jahresende über alle Konten (D116): Stand Ende Dezember des laufenden Jahres aus der
  * Zeitleiste. Im Dezember selbst ist das die Prognose zum Monatsende.
  */
-export function prognoseJahresende(zl, heute) {
-  if (heute.slice(5, 7) === '12') return zl.start.gesamtPrognose;
-  return zl.gesamt.find((g) => g.monat === `${heute.slice(0, 4)}-12`)?.stand ?? null;
+export function prognoseJahresende(zl, heute, kontoId = null) {
+  // kontoId (D118): nur dieses Konto, sonst alle Konten
+  if (heute.slice(5, 7) === '12') return kontoId ? zl.start.jeKonto.get(kontoId)?.prognose ?? null : zl.start.gesamtPrognose;
+  const zeilen = kontoId ? zl.jeKonto.get(kontoId) ?? [] : zl.gesamt;
+  return zeilen.find((g) => g.monat === `${heute.slice(0, 4)}-12`)?.stand ?? null;
 }
 
 /** Monatszeilen zu Jahren zusammenfassen: [{ jahr, einnahmen, ausgaben, umbuchungen, stand, monate }] */

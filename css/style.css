@@ -588,6 +588,25 @@ fieldset.feld { border: none; padding: 0; margin: 0 0 14px; }
   .kopf-zeile .abstimm-info { margin-left: 0; text-align: left; }
 }
 
+/* „Alle Konten“: Aufstellung je Konto (D118) */
+.ka-zeile { display: grid; grid-template-columns: minmax(0, 1.4fr) repeat(3, minmax(0, 1fr)); gap: 12px; align-items: baseline; }
+.ka-zeile > span:not(.ka-name) { text-align: right; }
+.ka-kopf { font-size: .75rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--text-2); padding: 0 8px 6px; border-bottom: 1px solid var(--rand); }
+button.ka-zeile { width: 100%; padding: 9px 8px; border: 0; border-bottom: 1px solid var(--rand); background: none; color: var(--text); font: inherit; text-align: left; cursor: pointer; border-radius: 0; }
+button.ka-zeile:hover { background: var(--akzent-leicht); }
+.ka-name { font-weight: 500; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ka-summe { padding: 10px 8px 2px; font-weight: 700; border-top: 2px solid var(--rand); margin-top: -1px; }
+.ka-summe .ka-name { font-weight: 700; }
+.konten-aufstellung .hinweis { margin: 10px 0 0; font-size: .8rem; }
+@media (max-width: 767px) {
+  /* Handy: Kontoname über der Zeile, darunter die drei Werte */
+  .ka-zeile { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2px 8px; font-size: .9rem; }
+  .ka-zeile > .ka-name { grid-column: 1 / -1; }
+  .ka-kopf > span:first-child { display: none; }
+  .ka-kopf { padding: 0 4px 6px; font-size: .7rem; }
+  button.ka-zeile, .ka-summe { padding-left: 4px; padding-right: 4px; }
+}
+
 /* Monatsnavigation */
 .monat-nav { display: flex; align-items: center; gap: 8px; margin: 2px 0 8px; }
 .monat-nav .icon-knopf { font-size: 1.5rem; line-height: 1; }

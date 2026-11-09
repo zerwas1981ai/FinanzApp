@@ -1741,3 +1741,16 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
   feinen Linie dazwischen.
 - Grund: Am Handy füllten zwei Hinweise fast den ganzen ersten Bildschirm, die Konten kamen erst nach
   dem Wischen.
+
+## D118 – „Alle Konten“: Aufstellung je Konto
+*Wunsch des Nutzers*
+
+- Bei „Alle Konten“ wiederholte der Block unter der Kontoauswahl nur die Werte aus dem Kopf. Er ist
+  ersetzt durch eine **Aufstellung je Konto**: Stand heute, Prognose Monatsende und Prognose Jahresende,
+  darunter die Summe „Alle Konten“. Das sind dieselben Werte wie oben im Kopf.
+- Prognosen kursiv (Annahme). Werte unter dem Mindestsaldo des Kontos in Warnfarbe, mit Tooltip.
+- Eine Zeile antippen öffnet das Konto.
+- Am PC eine Tabelle mit vier Spalten. Am Handy steht der Kontoname über den drei Werten.
+- Der Kopf (Kennzahlen oben) und „Zukunft bis 2050“ (alle Konten) bleiben unverändert.
+- `prognoseJahresende(zl, heute, kontoId)` liefert den Wert auch je Konto, mit Test (Konten zusammen =
+  Gesamtwert).

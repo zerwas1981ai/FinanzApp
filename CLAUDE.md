@@ -63,6 +63,7 @@ Oberfläche auf Deutsch, Währung Euro, deutsches Datums- und Zahlenformat.
      (eingeklappt in einer Zeile, D117).
      Keine Kategorie-Kacheln (Budgetauslastung steht je Konto unter „Noch
      erwartet“, siehe DECISIONS.md D78)
+   - „Alle Konten“: Aufstellung je Konto (heute, Monats-, Jahresende) mit Summe (D118)
    - Konten nebeneinander oder umschaltbar, je Konto Monatsansicht mit
      Zwischensummen; am PC Buchungen als Tabelle mit Tageszeilen (Tagesstand), am Handy
      einzeilig. Umbuchungen per Knopf ein-/ausblendbar (D75–D78)
