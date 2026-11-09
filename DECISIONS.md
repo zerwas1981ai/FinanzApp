@@ -1906,3 +1906,16 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
 - **Hauptkategorien** haben wieder den Anteilsbalken, der Mini-Trend aus D125 entfällt, weil der Verlauf
   im Diagramm steht. Ein **„+“** links klappt die Unterkategorien auf, „−“ wieder zu. Der Knopf
   „Alle Buchungen ‚X‘ anzeigen“ entfällt, weil die Zeile selbst das jetzt tut.
+
+## D129 – Analyse: Auswahl ohne Seitenwechsel, Anteile je Hauptkategorie, mehr Gitterlinien
+*Wunsch des Nutzers (ändert D128)*
+
+- **In der Analyse bleiben:** Kategorie (Haupt/Unter) oder Empfänger antippen setzt den Filter. Man bleibt
+  auf der Analyse-Seite, Diagramm und Summen folgen sofort. Die Liste („Liste“) ist ebenfalls gefiltert.
+  Die gewählte Zeile ist hervorgehoben. **Erneut antippen hebt den Filter auf.**
+- **Unterkategorie gefiltert:** Die Kategorientabelle zeigt ihre Hauptkategorie trotzdem vollständig, also
+  mit Gesamtsumme und allen Unterkategorien, aufgeklappt. Die gewählte Unterkategorie ist hervorgehoben.
+  Liste, Summenblock und Diagramm bleiben auf die Unterkategorie gefiltert.
+- **Anteil der Unterkategorien** bezieht sich immer auf ihre Hauptkategorie, zusammen 100 %. Die
+  Hauptkategorien zeigen weiter ihren Anteil am Gesamtwert.
+- **Gitterlinien** im Diagramm verdoppelt (9 statt 5 Linien, jeweils beschriftet).

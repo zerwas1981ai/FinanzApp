@@ -155,6 +155,8 @@ test('Summen je Kategorie mit Anteil und Durchschnitt', () => {
   assert.equal(s[0].schnitt, 95000, 'Ø ohne laufenden Monat (nur Oktober-Miete)');
   assert.equal(s[0].unter.find((u) => u.name === 'Strom').schnitt, 0, 'Strom gab es nur im November');
   assert.ok(Math.abs(s[0].anteil + s[1].anteil - 1) < 1e-9);
+  // D129: Unterkategorien – Anteil an ihrer Hauptkategorie, zusammen 100 %
+  for (const g of s) assert.ok(Math.abs(g.unter.reduce((x, u) => x + u.anteil, 0) - 1) < 1e-9);
   assert.deepEqual(s[0].unter.map((u) => u.name), ['Miete', 'Strom']);
   assert.deepEqual(summenJeKategorie(e, kategorien, 'einnahme', schnittMonate)[0].summe, 600000);
   // Ohne abgeschlossene Monate: kein Ø

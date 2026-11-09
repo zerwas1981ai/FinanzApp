@@ -355,8 +355,13 @@ export function summenJeKategorie(eintraege, kategorien, art, schnittMonate = []
     anteil: gesamt ? x.summe / gesamt : 0,
     schnitt: n ? Math.round(x.schnittSumme / n) : null,
   });
+  // D129: Unterkategorien zeigen ihren Anteil an der Hauptkategorie (nicht am Gesamtwert)
   return [...haupt.values()]
-    .map((h) => ({ ...mitAnteil(h), unter: [...h.unter.values()].map(mitAnteil).sort((a, b) => b.summe - a.summe) }))
+    .map((h) => ({
+      ...mitAnteil(h),
+      unter: [...h.unter.values()].map((u) => ({ ...mitAnteil(u), anteil: h.summe ? u.summe / h.summe : 0 }))
+        .sort((a, b) => b.summe - a.summe),
+    }))
     .sort((a, b) => b.summe - a.summe);
 }
 

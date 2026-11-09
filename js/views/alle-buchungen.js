@@ -575,9 +575,23 @@ function analyse(eintraege, daten, heute, neu) {
     verlaufBereich(verlauf, neu, vorjahr),
     zustand.analyseGruppe === 'partner'
       ? partnerBereich(eintraege, monate, heute, neu)
-      : kategorieBereich(eintraege, daten, monate, heute, neu, erster),
+      : kategorieBereich(kategorieEintraege(eintraege, daten, heute), daten, monate, heute, neu, erster),
     groessteBereich(eintraege, daten, neu),
   );
+}
+
+/**
+ * D129: Ist auf Unterkategorien gefiltert, zeigt die Kategorientabelle deren Hauptkategorie vollständig
+ * (Gesamtsumme der Hauptkategorie, alle Unterkategorien mit Anteil daran). Die gewählte Unterkategorie
+ * wird hervorgehoben. Liste, Summen und Diagramm bleiben auf die Unterkategorie gefiltert.
+ */
+function kategorieEintraege(eintraege, daten, heute) {
+  const ids = zustand.filter.kategorieIds;
+  if (!ids.length) return eintraege;
+  const kat = new Map(daten.kategorien.map((k) => [k.id, k]));
+  if (!ids.some((id) => kat.get(id)?.elternId)) return eintraege;
+  const haupt = [...new Set(ids.map((id) => kat.get(id)?.elternId ?? id))];
+  return filtere(daten.buchungen, { ...zustand.filter, kategorieIds: haupt }, { ...daten, heute });
 }
 
 /** Umschalter: Analyse nach Kategorien oder nach Empfänger/Absender */
@@ -637,14 +651,16 @@ function partnerBereich(eintraege, monate, heute, neu) {
     return klickbar
       ? h('button', {
         type: 'button',
-        class: 'kat-zeile ebene-1 kat-zeile-knopf',
-        title: 'Liste nach diesem Empfänger/Absender filtern',
+        class: 'kat-zeile ebene-1 kat-zeile-knopf' + (zustand.filter.partner.length === 1
+          && zustand.filter.partner[0] === (x.id === OHNE_PARTNER ? OHNE_PARTNER : x.name) ? ' gewaehlt' : ''),
+        title: 'Nach diesem Empfänger/Absender filtern (erneut antippen hebt auf)',
         onclick: () => {
-          zustand.filter.partner = [x.id === OHNE_PARTNER ? OHNE_PARTNER : x.name];
-          zustand.modus = 'liste';
+          // D129: in der Analyse bleiben; die Liste ist trotzdem mitgefiltert. Erneut antippen hebt auf.
+          const wert = x.id === OHNE_PARTNER ? OHNE_PARTNER : x.name;
+          const schon = zustand.filter.partner.length === 1 && zustand.filter.partner[0] === wert;
+          zustand.filter.partner = schon ? [] : [wert];
           zustand.sichtbar = SEITE;
           window.dispatchEvent(new Event('daten-geaendert'));
-          window.scrollTo({ top: 0 });
         },
       }, inhalt)
       : h('div', { class: 'kat-zeile ebene-1' }, inhalt);
@@ -726,7 +742,7 @@ function verlaufBereich(zeilen, neu, vorjahr = []) {
 
   const max = schoeneObergrenze(Math.max(...zeilen.map((z) => z.ist + (z.erwartet ?? 0)),
     ...(mitVorjahr ? vorjahr.filter(Boolean).map((z) => z.ausgaben) : []), 1));
-  const ticks = [0, 0.25, 0.5, 0.75, 1];
+  const ticks = [0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1]; // D129: doppelt so viele Linien
   const tooltip = h('div', { class: 'tooltip', role: 'status', hidden: true });
   const zeigeTooltip = (spalte, z, v) => {
     tooltip.replaceChildren(
@@ -820,13 +836,15 @@ function veraenderung(jetzt, vorher) {
   return ` (${p > 0 ? '+' : ''}${p} %)`;
 }
 
-/** D125: Liste auf eine Kategorie (Haupt- oder Unterkategorie) filtern und zur Liste wechseln */
-function zeigeKategorieInListe(id) {
-  zustand.filter.kategorieIds = [id];
-  zustand.modus = 'liste';
+/**
+ * D125/D129: auf eine Kategorie (Haupt- oder Unterkategorie) filtern. Man bleibt in der Analyse –
+ * Diagramm, Summen und die Liste („Liste“) folgen dem Filter. Erneut antippen hebt den Filter auf.
+ */
+function filtereKategorie(id) {
+  const schon = zustand.filter.kategorieIds.length === 1 && zustand.filter.kategorieIds[0] === id;
+  zustand.filter.kategorieIds = schon ? [] : [id];
   zustand.sichtbar = SEITE;
   window.dispatchEvent(new Event('daten-geaendert'));
-  window.scrollTo({ top: 0 });
 }
 
 /**
@@ -884,12 +902,13 @@ function kategorieBereich(eintraege, daten, monate, heute, neu, erster) {
   // „+“ links klappt die Unterkategorien auf
   const hauptZeile = (g, klapp) => {
     const info = [budgetText(g), vergleich(g.summe, vpSummen.get(g.id))].filter(Boolean);
-    const filtern = () => g.id !== 'unbekannt' && zeigeKategorieInListe(g.id);
+    const filtern = () => g.id !== 'unbekannt' && filtereKategorie(g.id);
     return h('div', {
-      class: 'kat-zeile ebene-1 kat-zeile-knopf',
+      class: 'kat-zeile ebene-1 kat-zeile-knopf' + (gewaehlt.has(g.id) ? ' gewaehlt' : ''),
       role: 'button',
       tabindex: '0',
-      title: 'Liste auf diese Kategorie filtern',
+      'aria-pressed': String(gewaehlt.has(g.id)),
+      title: gewaehlt.has(g.id) ? 'Filter aufheben' : 'Auf diese Kategorie filtern',
       onclick: filtern,
       onkeydown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); filtern(); } },
     },
@@ -900,11 +919,13 @@ function kategorieBereich(eintraege, daten, monate, heute, neu, erster) {
     mitSchnitt && h('span', { class: 'kat-schnitt' }, `Ø ${formatEuro(g.schnitt)}`),
     info.length > 0 && h('span', { class: 'kat-info' }, info));
   };
+  const gewaehlt = new Set(zustand.filter.kategorieIds);
   const unterZeile = (u) => h('button', {
     type: 'button',
-    class: 'kat-zeile ebene-2 kat-zeile-knopf',
-    title: 'Liste auf diese Unterkategorie filtern',
-    onclick: () => u.id !== 'unbekannt' && zeigeKategorieInListe(u.id),
+    class: 'kat-zeile ebene-2 kat-zeile-knopf' + (gewaehlt.has(u.id) ? ' gewaehlt' : ''),
+    'aria-pressed': String(gewaehlt.has(u.id)),
+    title: gewaehlt.has(u.id) ? 'Filter aufheben' : 'Auf diese Unterkategorie filtern',
+    onclick: () => u.id !== 'unbekannt' && filtereKategorie(u.id),
   },
   h('span', { class: 'kat-zeile-name' }, u.name),
   balken(u.summe),
@@ -923,7 +944,7 @@ function kategorieBereich(eintraege, daten, monate, heute, neu, erster) {
           h('span', {}, 'Kategorie'), h('span', {}), h('span', {}, 'Summe'), h('span', {}, 'Anteil'),
           mitSchnitt && h('span', {}, 'Ø/Monat')),
         gruppen.map((g) => {
-          const offen = zustand.offen.has(g.id);
+          const offen = zustand.offen.has(g.id) || g.unter.some((u) => gewaehlt.has(u.id));
           const unter = h('div', { class: 'kat-unter', hidden: !offen }, g.unter.map(unterZeile));
           const klapp = h('button', {
             type: 'button',
@@ -949,8 +970,8 @@ function kategorieBereich(eintraege, daten, monate, heute, neu, erster) {
           mitSchnitt && h('span', { class: 'kat-schnitt' }, `Ø ${formatEuro(gesamtSchnitt)}`),
           vp && h('span', { class: 'kat-info' }, vergleich(gesamt, vpGesamt)))),
     h('p', { class: 'hinweis erklaerung' },
-      'Eine Kategorie antippen zeigt ihre Buchungen in der Liste (und das Diagramm „Ausgaben je Monat“ folgt diesem Filter); '
-      + '„+“ klappt die Unterkategorien auf. '
+      'Eine Kategorie antippen filtert darauf – Diagramm, Summen und die Liste folgen; erneut antippen hebt den Filter auf. '
+      + '„+“ klappt die Unterkategorien auf; ihr Anteil bezieht sich auf die Hauptkategorie. '
       + (mitSchnitt ? `Ø = Durchschnitt pro Monat über ${anzahlMonate === 1 ? '1 abgeschlossenen Monat' : `${anzahlMonate} abgeschlossene Monate`} `
         + `(${formatMonat(...schnittMonate[0])}${anzahlMonate > 1 ? ` bis ${formatMonat(...schnittMonate.at(-1))}` : ''}); der laufende Monat zählt nicht mit. ` : '')
       + (art === 'ausgabe' && mitSchnitt ? 'Budget Ø = Monatsbudgets im selben Zeitraum, Jahresbudgets mit einem Zwölftel je Monat. ' : '')
