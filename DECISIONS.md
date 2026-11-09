@@ -1681,3 +1681,18 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
 - Der **Monatsname** hat eine feste Breite, damit die Pfeile ‹ › beim Blättern nicht springen.
 - **„Zuletzt abgestimmt …“** steht rechtsbündig in derselben Zeile wie „Niedrigster erwarteter Stand“.
   Am Handy rutscht es bei Platzmangel in die nächste Zeile, bleibt aber rechtsbündig.
+
+## D113 – Übersicht nachgeschärft (Kontokopf, Klappköpfe, Handy)
+*Rückmeldung des Nutzers zu D112, geprüft in Pixel-9-Pro-Breite (427 px), 800 px und 1280/1600 px*
+
+- **Kontokopf als Raster:** oben links die Stände, oben rechts „Abstimmen“. Die letzte Zeile reicht über
+  die volle Breite: links „Niedrigster erwarteter Stand“, **ganz rechts** (bündig mit dem Knopf)
+  „Zuletzt abgestimmt …“. Am Handy rutscht der Abstimm-Text bei Platzmangel in eine eigene Zeile,
+  bleibt aber rechtsbündig.
+- **Köpfe der Klappblöcke immer einzeilig:** Der Titel kürzt sich notfalls mit „…“, der Betrag bricht nie um.
+  Am Handy steht kürzer „Prognose 5.663,44 €“ bzw. „Monatsende …“. Die Marke „Annahme“ entfällt dort,
+  die kursive Schrift kennzeichnet die Annahme.
+- „Noch erwartet“ am Handy: Summenzeile „Wiederkehrend und geplant“ (statt der langen Fassung).
+  Die Unterzeile eines Budgets bricht um, statt abgeschnitten zu werden.
+- „Noch erwartet bis Monatsende“ erscheint wie bisher nur im **laufenden** Monat, nicht in
+  abgeschlossenen Monaten und nicht unter „Alle Konten“.

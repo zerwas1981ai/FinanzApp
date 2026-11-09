@@ -574,9 +574,12 @@ fieldset.feld { border: none; padding: 0; margin: 0 0 14px; }
 .chip[aria-pressed="true"] { background: var(--akzent); border-color: transparent; color: var(--auf-akzent); }
 
 .konto-kopf { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
-.konto-kopf > div:first-child { flex: 1; min-width: 0; }
 .abstimm-info { margin-top: 4px; }
-/* D112: niedrigster Stand links, Abstimmung rechtsbündig in einer Zeile */
+/* D113: Kontokopf als Raster – die letzte Zeile reicht über die volle Breite, Abstimmung ganz rechts */
+.konto-kopf.konto-kopf-raster { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 12px; align-items: start; }
+.konto-kopf-raster > .kopf-staende { grid-column: 1; min-width: 0; }
+.konto-kopf-raster > .kopf-abstimmen { grid-column: 2; grid-row: 1; }
+.konto-kopf-raster > .kopf-zeile { grid-column: 1 / -1; }
 .kopf-zeile { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 2px 16px; }
 .kopf-zeile .abstimm-info { margin-top: 0; margin-left: auto; text-align: right; }
 
@@ -1088,15 +1091,24 @@ details[open] > .zl-zeile > .zl-name::before { transform: rotate(90deg); }
 }
 
 /* Einklappbare Bereiche (D112) */
+/* D113: Kopf immer einzeilig – Titel kürzt sich notfalls mit „…“, der Betrag bricht nie um */
 .klapp-bereich > .klapp-kopf {
-  display: flex; align-items: baseline; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap;
-  list-style: none; cursor: pointer; font-weight: 600;
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  list-style: none; cursor: pointer; font-weight: 600; font-size: 1.05rem;
 }
 .klapp-bereich > .klapp-kopf::-webkit-details-marker { display: none; }
-.klapp-titel { display: inline-flex; align-items: baseline; gap: 8px; }
-.klapp-titel::before { content: "\25B8"; display: inline-block; width: 1em; color: var(--text-2); transition: transform .15s; }
+.klapp-titel { display: flex; align-items: baseline; gap: 8px; min-width: 0; flex: 1 1 auto; }
+.klapp-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.klapp-titel .marke { flex: none; }
+.klapp-titel::before { content: "\25B8"; flex: none; display: inline-block; width: 1em; color: var(--text-2); transition: transform .15s; }
 .klapp-bereich[open] > .klapp-kopf .klapp-titel::before { transform: rotate(90deg); }
-.klapp-wert { font-variant-numeric: tabular-nums; margin-left: auto; }
+.klapp-wert { flex: none; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.klapp-wert-text { font-weight: 400; font-size: .85rem; color: var(--text-2); }
+.klapp-bereich > .klapp-kopf:hover .klapp-titel::before { color: var(--akzent); }
+@media (max-width: 767px) {
+  .klapp-bereich > .klapp-kopf { font-size: 1rem; }
+  .klapp-titel .annahme-marke { display: none; } /* am Handy reicht die kursive Schrift als Kennzeichen */
+}
 .klapp-bereich[open] > .klapp-inhalt { margin-top: 10px; }
 .klapp-bereich.summen > .klapp-inhalt { display: grid; gap: 3px; }
 /* Je Konto: noch erwartet bis Monatsende */
@@ -1104,6 +1116,9 @@ details[open] > .zl-zeile > .zl-name::before { transform: rotate(90deg); }
 /* D112: Summenzeilen kräftiger, die beiden Teile durch eine dünne Linie getrennt */
 .erwartet-summe { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0 6px; font-weight: 700; font-size: .95rem; }
 .erwartet-summe .annahme { font-variant-numeric: tabular-nums; }
+/* Budget-Zeile darf umbrechen statt abgeschnitten zu werden (am Handy zu lang) */
+.budget-eintrag .buchung-unter { white-space: normal; }
+.erwartet-summe .annahme { flex: none; }
 .erwartet-teil + .erwartet-teil { border-top: 1px solid var(--rand); margin-top: 10px; padding-top: 10px; }
 .erwartet .bereich-kopf { margin-bottom: 2px; }
 .buchung.geplant .buchung-titel { font-style: italic; }

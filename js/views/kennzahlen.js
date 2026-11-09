@@ -160,7 +160,9 @@ export function erwartetBereich(kd, daten) {
   },
     // D112: die beiden Teile mit kräftigerer Summenzeile, getrennt durch eine dünne Linie
     terminZeilen.length > 0 && h('div', { class: 'erwartet-teil' },
-      h('div', { class: 'erwartet-summe' }, h('span', {}, 'Wiederkehrende und geplante Buchungen'), h('span', { class: 'annahme' }, mitVorzeichen(kd.offenWirkung))),
+      h('div', { class: 'erwartet-summe' },
+        h('span', {}, h('span', { class: 'nur-breit' }, 'Wiederkehrende und geplante Buchungen'), h('span', { class: 'nur-schmal' }, 'Wiederkehrend und geplant')),
+        h('span', { class: 'annahme' }, mitVorzeichen(kd.offenWirkung))),
       h('ul', { class: 'liste' }, terminZeilen),
       h('div', { class: 'ub-reihe' }, umbuchungKnopf(kd.termine.filter((t) => t.wiederkehrend.art === 'umbuchung').length))),
     budgetZeilen.length > 0 && h('div', { class: 'erwartet-teil' },

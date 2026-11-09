@@ -160,7 +160,8 @@ function zukunftsMonat(zeilen, monat, startStand, m, konto, konten, kategorien, 
       klasse: 'summen zukunft',
       titel: 'Prognose',
       zusatz: h('span', { class: 'marke annahme-marke' }, 'Annahme'),
-      rechts: h('span', { class: 'annahme' + (z.stand < 0 ? ' negativ' : '') }, `Monatsende ${formatEuro(z.stand)}`),
+      rechts: h('span', { class: 'annahme' + (z.stand < 0 ? ' negativ' : '') },
+        h('span', { class: 'klapp-wert-text' }, 'Monatsende '), formatEuro(z.stand)),
       offen: ansicht.summenOffen,
       beiWechsel: (offen) => { ansicht.summenOffen = offen; },
     },
@@ -228,28 +229,29 @@ function kontoKopf(konto, buchungen, abstimmungen, prognoseCent, niedrigsterCent
       (differenz === 0 ? 'stimmt ✓' : `Differenz ${formatEuro(differenz)}`);
   }
 
-  return h('section', { class: 'bereich konto-kopf' },
-    h('div', {},
+  // D113: Raster – oben links die Stände, oben rechts „Abstimmen“; die letzte Zeile geht über die volle Breite
+  // (links niedrigster erwarteter Stand, ganz rechts der Stand der Kontoabstimmung)
+  return h('section', { class: 'bereich konto-kopf konto-kopf-raster' },
+    h('div', { class: 'kopf-staende' },
       h('div', { class: 'klein' }, `Kontostand heute (${formatDatum(heute)})`),
       h('div', { class: 'gross' + (stand < 0 ? ' negativ' : '') }, formatEuro(stand)),
       vorgemerkt !== 0 && h('div', { class: 'klein' }, `davon vorgemerkt: ${formatEuro(vorgemerkt)}`),
       prognoseCent !== undefined && h('div', { class: 'klein' }, 'Prognose Monatsende: ',
         h('span', { class: 'annahme' + (prognoseCent < 0 ? ' negativ' : '') }, formatEuro(prognoseCent)),
         konto.mindestsaldoCent != null && prognoseCent < konto.mindestsaldoCent && h('span', { class: 'warn-text' }, ' – unter Mindestsaldo')),
-      // D110: ungünstigster Fall bis Monatsende – heute minus alle erwarteten Belastungen, ohne offene Eingänge.
-      // D112: in derselben Zeile rechtsbündig der Stand der Kontoabstimmung
-      h('div', { class: 'kopf-zeile' },
-        niedrigsterCent !== undefined ? h('div', {
-          class: 'klein gedaempft niedrigster',
-          title: 'Stand heute mit allen bis Monatsende noch erwarteten Ausgaben, Umbuchungen und Budgetresten – '
-            + 'noch ausstehende Einnahmen zählen nicht mit.',
-        }, 'Niedrigster erwarteter Stand: ',
-        h('span', { class: 'annahme' + (niedrigsterCent < 0 ? ' negativ' : '') }, formatEuro(niedrigsterCent)),
-        konto.mindestsaldoCent != null && niedrigsterCent < konto.mindestsaldoCent && h('span', { class: 'warn-text' }, ' – unter Mindestsaldo'))
-          : h('span'),
-        h('div', { class: 'klein abstimm-info' + (letzte && letzte.bankstandCent !== kontostand(konto, buchungen, letzte.datum) ? ' warn-text' : '') }, abstimmText)),
     ),
-    h('button', { type: 'button', class: 'knopf', onclick: () => abstimmungsDialog(konto, buchungen) }, 'Abstimmen'),
+    h('button', { type: 'button', class: 'knopf kopf-abstimmen', onclick: () => abstimmungsDialog(konto, buchungen) }, 'Abstimmen'),
+    // D110: ungünstigster Fall bis Monatsende – heute minus alle erwarteten Belastungen, ohne offene Eingänge
+    h('div', { class: 'kopf-zeile' },
+      niedrigsterCent !== undefined ? h('div', {
+        class: 'klein niedrigster',
+        title: 'Stand heute mit allen bis Monatsende noch erwarteten Ausgaben, Umbuchungen und Budgetresten – '
+          + 'noch ausstehende Einnahmen zählen nicht mit.',
+      }, 'Niedrigster erwarteter Stand: ',
+      h('span', { class: 'annahme' + (niedrigsterCent < 0 ? ' negativ' : '') }, formatEuro(niedrigsterCent)),
+      konto.mindestsaldoCent != null && niedrigsterCent < konto.mindestsaldoCent && h('span', { class: 'warn-text' }, ' – unter Mindestsaldo'))
+        : h('span'),
+      h('div', { class: 'klein abstimm-info' + (letzte && letzte.bankstandCent !== kontostand(konto, buchungen, letzte.datum) ? ' warn-text' : '') }, abstimmText)),
   );
 }
 
@@ -277,8 +279,12 @@ function summenKarte(konto, m, kd) {
   return klappBereich({
     klasse: 'summen',
     titel: 'Monatsübersicht',
+    // am Handy kürzer ("Prognose 5.663,44 €"), damit der Kopf einzeilig bleibt
     rechts: h('span', { class: (kd ? 'annahme' : '') + (ergebnis < 0 ? ' negativ' : '') },
-      `${kd ? 'Prognose Monatsende' : 'Stand Monatsende'} ${formatEuro(ergebnis)}`),
+      h('span', { class: 'klapp-wert-text' },
+        h('span', { class: 'nur-breit' }, kd ? 'Prognose Monatsende ' : 'Stand Monatsende '),
+        h('span', { class: 'nur-schmal' }, kd ? 'Prognose ' : 'Monatsende ')),
+      formatEuro(ergebnis)),
     offen: ansicht.summenOffen,
     beiWechsel: (offen) => { ansicht.summenOffen = offen; },
   },

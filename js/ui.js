@@ -217,7 +217,7 @@ export function richteErklaerungenEin(wurzel) {
 export function klappBereich({ klasse = '', titel, zusatz = null, rechts = null, offen = false, beiWechsel = null }, ...inhalt) {
   const d = h('details', { class: `bereich klapp-bereich ${klasse}`.trim(), open: offen },
     h('summary', { class: 'klapp-kopf' },
-      h('span', { class: 'klapp-titel' }, titel, zusatz),
+      h('span', { class: 'klapp-titel' }, h('span', { class: 'klapp-text' }, titel), zusatz),
       rechts && h('span', { class: 'klapp-wert' }, rechts)),
     h('div', { class: 'klapp-inhalt' }, ...inhalt));
   if (beiWechsel) d.addEventListener('toggle', () => beiWechsel(d.open));
