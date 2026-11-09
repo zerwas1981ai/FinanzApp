@@ -321,14 +321,20 @@ export async function backups() {
     .sort((a, b) => b.zeit.localeCompare(a.zeit));
 }
 
+/** Backup nur laden und auf die aktuelle Datenversion bringen – ändert nichts (Vorschau, D108) */
+export async function backupLaden(backupId) {
+  return { ...migriereDaten(await drive.ladeJson(backupId)).daten, version: DATENMODELL_VERSION };
+}
+
 /**
  * Backup wiederherstellen: ersetzt den Stand auf diesem Gerät UND in Drive.
  * Der bisherige Stand wird vorher selbst als Backup gesichert.
+ * geladen: schon mit backupLaden() geholter Inhalt (spart das zweite Herunterladen)
  */
-export async function wiederherstellen(backupId) {
+export async function wiederherstellen(backupId, geladen = null) {
   const alt = await db.leseDatenstand();
   await backup(JSON.stringify({ ...alt, version: DATENMODELL_VERSION }), 'vor-wiederherstellung');
-  const daten = { ...migriereDaten(await drive.ladeJson(backupId)).daten, version: DATENMODELL_VERSION };
+  const daten = geladen ?? await backupLaden(backupId);
   await db.schreibeDatenstand(daten);
   const datei = await drive.datenDatei();
   const { haupt } = await drive.ordner();

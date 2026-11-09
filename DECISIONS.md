@@ -1119,6 +1119,7 @@ Wird eine Entscheidung geändert, den alten Eintrag nicht löschen, sondern als
   (Haupt › Unter) · Konto · Notiz · Betrag. Die Kopfzeile bleibt beim Scrollen oben stehen.
   Zeilen leicht gestreift, Antippen öffnet wie bisher die Buchung. „vorgemerkt“ und „Archiv“
   bleiben als Marke beim Empfänger/Absender.
+- *Seit D103 nur noch eine Sortierstufe – der folgende Absatz gilt nicht mehr.*
 - **Sortieren:** Klick auf einen Spaltenkopf macht diese Spalte zur ersten Sortierstufe. Die
   vorher angeklickten Spalten bleiben als 2. und 3. Stufe erhalten (höchstens 3). Ein erneuter
   Klick auf die erste Spalte dreht die Richtung um. Ziffern im Kopf zeigen die Reihenfolge,
@@ -1550,3 +1551,87 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
   beim Neuzeichnen nicht.
 - Unverändert: Eine neu angeklickte Spalte beginnt bei Datum und Betrag absteigend, bei Texten A–Z.
   Erneutes Antippen dreht die Richtung um. „Sortierung zurücksetzen“ führt auf Datum ↓.
+
+
+## D103 – Sortierung in „Alle Buchungen“ nur nach einer Spalte
+*Vereinfachung, vom Nutzer bestätigt; ersetzt die Mehrstufigkeit aus D73*
+
+- Ein Klick auf einen Spaltenkopf sortiert **nur** nach dieser Spalte. Ein erneuter Klick dreht die
+  Richtung um. Die erste Richtung ist bei Datum und Betrag absteigend, bei Texten A–Z.
+- Bei Gleichstand steht immer die neueste Buchung oben. Bei Sortierung nach Datum gilt dessen
+  Richtung, danach die Erfassungszeit.
+- Grund: Die Stufen („Betrag, dann Kategorie, dann Datum“) waren schwer zu durchschauen und die
+  Ursache des Fehlers aus D102. Die Funktion `sortiere()` kann intern weiterhin mehrere Stufen, die
+  Oberfläche setzt aber nur eine.
+
+## D104 – Vorlagen für häufige Buchungen
+*Aus CLAUDE.md „Komfort“, vom Nutzer bestätigt: selbst anlegen, Betrag optional*
+
+- Neue Sammlung `vorlagen` (Datenversion 17, DB-Struktur 9), wird mit Drive abgeglichen.
+  Datensatz: Name, Art, Konto, bei Umbuchung Zielkonto und optional Budget, sonst optional
+  Unterkategorie, Empfänger/Absender, Notiz, optional Betrag, Reihenfolge.
+- **Anlegen:** im Buchungsdialog unten „☆ Als Vorlage speichern“. Es nimmt die gerade eingetragenen
+  Werte, der Name wird aus dem Empfänger bzw. der Kategorie vorgeschlagen. „Betrag mitspeichern“
+  ist ein Häkchen.
+- **Benutzen:** Im Dialog „Neue Buchung“ stehen oben die Vorlagen als Knöpfe. Ein Tipp füllt die
+  Felder und setzt den Cursor ins Betragsfeld. Beim Buchen eines fälligen Termins erscheint die
+  Leiste nicht.
+- **Verwalten:** Stammdaten → Vorlagen: ▲/▼ (wie bei Konten), Bearbeiten (Name, Konto, Kategorie,
+  Empfänger, Notiz, Betrag), Löschen. Buchungen bleiben dabei unverändert.
+- Archivierte oder gelöschte Konten/Kategorien einer Vorlage werden beim Anwenden weggelassen,
+  dann gilt der normale Vorschlag.
+
+## D105 – Kurzbefehle am App-Symbol
+*Vom Nutzer bestätigt*
+
+- Im Manifest stehen drei `shortcuts`: „Neue Ausgabe“ (`?neu=ausgabe`), „Neue Einnahme“
+  (`?neu=einnahme`) und „Belegfoto“ (`?neu=beleg`). Unter Android erscheinen sie bei langem Druck auf
+  das App-Symbol, unter Windows per Rechtsklick auf das Symbol der installierten App.
+- Die App öffnet den Dialog erst **nach dem Anmelden** und entfernt den Zusatz danach aus der Adresse.
+  Ein Neuladen öffnet ihn deshalb nicht noch einmal.
+- „Belegfoto“ öffnet eine neue Ausgabe mit dem Belegfeld ganz oben. Die Kamera selbst darf der Browser
+  erst nach einem Tipp öffnen, deshalb ist „📷 Foto aufnehmen“ ein Tipp entfernt.
+
+## D106 – Belege per „Teilen“ an die App schicken (Android)
+*Vom Nutzer bestätigt*
+
+- Das Manifest meldet die App als Teilen-Ziel (`share_target`, POST an `./teilen`) für Bilder und PDF.
+- Der Service Worker nimmt die Dateien an und legt sie kurz in einen eigenen Zwischenspeicher
+  (`finanzapp-geteilt`, nur auf diesem Gerät, keine Finanzdaten außer der Belegdatei selbst). Dann
+  öffnet er die App mit `?geteilt=1`.
+- Nach dem Anmelden holt die App die Dateien, löscht den Zwischenspeicher und öffnet „Neue Buchung mit
+  Beleg“ (Ausgabe) mit den angehängten Dateien. Sie werden verkleinert wie bei „Datei wählen“.
+- Funktioniert nur, wenn die App auf dem Handy **installiert** ist („Zum Startbildschirm hinzufügen“).
+  Nach dem Update muss sie einmal neu geöffnet werden, damit Android das neue Teilen-Ziel kennt.
+
+## D107 – Verlauf: Vorjahresvergleich und Sparquote
+*Vom Nutzer bestätigt: im bestehenden „Verlauf je Monat“*
+
+- Knopf „Vorjahr zeigen“: Neben jedem Monat stehen blasse Balken für denselben Monat ein Jahr früher,
+  mit denselben Filtern außer dem Zeitraum. Monate vor der ersten erfassten Buchung zählen als „noch
+  nicht erfasst“, nicht als 0 €. Der Knopf erscheint nur, wenn es Vorjahresdaten gibt.
+- **Sparquote** = (Einnahmen − Ausgaben) / Einnahmen. Sie steht über dem Diagramm für den ganzen
+  Zeitraum, je Monat im Tooltip und in der Tabellenansicht (dort auch eine Summenzeile). Ohne
+  Einnahmen in der Auswahl gibt es keine Quote (z. B. bei Filter auf eine Ausgabenkategorie).
+- Der Tooltip zeigt mit Vorjahr auch die Veränderung in Prozent.
+- Am Handy beginnt das seitlich scrollbare Diagramm bei den neuesten Monaten.
+
+## D108 – Vorschau vor dem Wiederherstellen eines Backups
+*„Notfallprobe Datensicherung“, vom Nutzer bestätigt: Vorschau*
+
+- „Wiederherstellen“ bei einem Drive-Backup ersetzt nicht mehr sofort. Die App lädt das Backup zuerst
+  und zeigt jetzigen Stand und Backup nebeneinander: Anzahl Buchungen, letzte Buchung, Papierkorb,
+  wiederkehrende, Budgets, geplante, Projekte, Vorlagen und den Kontostand je Konto bis heute.
+  Unterschiede sind hervorgehoben.
+- Erst der Knopf „Wiederherstellen“ im Dialog ersetzt die Daten. Wie bisher wird der jetzige Stand
+  vorher als Backup gesichert. Das Backup wird dafür nur einmal heruntergeladen.
+
+## D109 – Lange Erklärtexte hinter „ⓘ“
+*Vereinfachung, vom Nutzer bestätigt*
+
+- Lange, rein erklärende Absätze (Klasse `erklaerung`) sind eingeklappt. Ein kleines „ⓘ“ an der
+  zugehörigen Überschrift blendet sie ein und aus. Was aufgeklappt ist, bleibt so, solange die App
+  offen ist.
+- Sichtbar bleiben kurze Hinweise, Statuszeilen und Warnungen (z. B. bei „Alles löschen“).
+- Umgesetzt zentral in `ui.js` (`richteErklaerungenEin`). Ein Beobachter erledigt das auch für
+  Bereiche, die sich später neu zeichnen.

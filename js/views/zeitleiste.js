@@ -54,7 +54,7 @@ export function zeitleisteBereich(zeilen, schluessel, beiKlick = null) {
 
   bereich.append(...[
     h('div', { class: 'bereich-kopf' }, h('h2', { id: `titel-zukunft-${schluessel}` }, 'Zukunft bis 2050')),
-    h('p', { class: 'hinweis' },
+    h('p', { class: 'hinweis erklaerung' },
       'Annahmen aus wiederkehrenden Buchungen, Budgets und geplanten Einmalbuchungen – ohne Prozent-Steigerungen. ' +
       'Zum Aufklappen auf eine Zeile tippen, einen Posten antippen zum Ändern.'),
     h('div', { class: 'zl-kopf' }, h('span', {}, 'Zeitraum'), h('span', {}, 'Veränderung'), h('span', {}, 'Stand am Ende')),

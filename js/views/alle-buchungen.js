@@ -9,6 +9,7 @@ import { buchungenAlsCsv, exportName } from '../export.js';
 import {
   STANDARD_FILTER, STANDARD_SORTIERUNG, filtere, sortiere, summen, zeitraumFuer,
   monateDerAuswertung, ersterErfassterTag, abgeschlosseneMonate, verlaufJeMonat, summenJeKategorie, schoeneObergrenze,
+  sparquote, vorjahrJeMonat,
   OHNE_PARTNER, partnerListe, partnerSchluessel, summenJePartner, sortiereNach,
 } from '../auswertung.js';
 import { oeffneBuchungsdialog } from './buchung-dialog.js';
@@ -26,6 +27,7 @@ const zustand = {
   analyseArt: 'ausgabe',
   analyseGruppe: 'kategorie', // kategorie | partner
   alsTabelle: false,
+  vorjahr: false, // Vorjahr im Verlauf zeigen (D107)
   sichtbar: SEITE,
   offen: new Set(), // aufgeklappte Kategorien in der Analyse
 };
@@ -403,22 +405,20 @@ const SPALTEN = [
 ];
 
 function tabellenKopf(neu) {
-  const stufen = zustand.sortierung.stufen;
+  const { feld: aktivFeld, richtung } = zustand.sortierung.stufen[0];
   return h('div', { class: 'btab-kopf', role: 'row' }, SPALTEN.map((sp) => {
-    const stufe = stufen.findIndex((x) => x.feld === sp.feld);
-    const aktiv = stufe >= 0;
-    const ab = aktiv && stufen[stufe].richtung === 'ab';
+    const aktiv = sp.feld === aktivFeld;
+    const ab = aktiv && richtung === 'ab';
     return h('button', {
       type: 'button',
       role: 'columnheader',
-      class: `btab-sort btab-${sp.feld}` + (stufe === 0 ? ' erste' : aktiv ? ' weitere' : '') + (sp.handy ? '' : ' nur-breit'),
-      'aria-sort': stufe === 0 ? (ab ? 'descending' : 'ascending') : 'none',
-      title: stufe === 0 ? 'Richtung umdrehen' : 'Nach dieser Spalte sortieren',
+      class: `btab-sort btab-${sp.feld}` + (aktiv ? ' erste' : '') + (sp.handy ? '' : ' nur-breit'),
+      'aria-sort': aktiv ? (ab ? 'descending' : 'ascending') : 'none',
+      title: aktiv ? 'Richtung umdrehen' : 'Nach dieser Spalte sortieren',
       onclick: () => { zustand.sortierung = sortiereNach(zustand.sortierung, sp.feld); neu(); },
     },
     h('span', { class: 'btab-sort-text' }, sp.kurz ? [h('span', { class: 'nur-breit' }, sp.text), h('span', { class: 'nur-schmal' }, sp.kurz)] : sp.text),
-    aktiv && h('span', { class: 'btab-pfeil', 'aria-hidden': 'true' }, ab ? '↓' : '↑'),
-    aktiv && stufen.length > 1 && h('span', { class: 'btab-stufe', 'aria-hidden': 'true' }, String(stufe + 1)));
+    aktiv && h('span', { class: 'btab-pfeil', 'aria-hidden': 'true' }, ab ? '↓' : '↑'));
   }));
 }
 
@@ -445,9 +445,9 @@ function liste(eintraege, daten, neu) {
     },
   }, 'Als CSV (Excel)');
 
-  const stufen = zustand.sortierung.stufen;
-  const sortText = stufen.map((x) => SPALTEN.find((sp) => sp.feld === x.feld)?.text + (x.richtung === 'ab' ? ' ↓' : ' ↑')).join(', dann ');
-  const zuruecksetzen = (stufen.length > 1 || stufen[0].feld !== 'datum' || stufen[0].richtung !== 'ab') && h('button', {
+  const [stufe] = zustand.sortierung.stufen;
+  const sortText = SPALTEN.find((sp) => sp.feld === stufe.feld)?.text + (stufe.richtung === 'ab' ? ' ↓' : ' ↑');
+  const zuruecksetzen = (stufe.feld !== 'datum' || stufe.richtung !== 'ab') && h('button', {
     type: 'button',
     class: 'knopf knopf-klein',
     onclick: () => { zustand.sortierung = STANDARD_SORTIERUNG; neu(); },
@@ -505,7 +505,7 @@ function liste(eintraege, daten, neu) {
       tabellenKopf(neu),
       h('ul', { class: 'btab-liste', role: 'rowgroup' }, zeigen.map(zeile))),
     h('p', { class: 'hinweis btab-hinweis' }, 'Spaltenkopf antippen zum Sortieren, erneut antippen dreht die Richtung um. ' +
-      'Die zuletzt gewählte Spalte zählt zuerst, die vorherigen gelten bei Gleichstand.'),
+      'Bei Gleichstand steht die neueste Buchung oben.'),
     sortiert.length > zeigen.length && h('div', { class: 'mehr' },
       h('button', {
         type: 'button',
@@ -523,8 +523,10 @@ function analyse(eintraege, daten, heute, neu) {
   if (eintraege.length === 0 || monate.length === 0) {
     return h('section', { class: 'bereich' }, h('p', { class: 'leer' }, 'Keine Buchungen für eine Auswertung.'));
   }
+  // Vorjahr: dieselben Filter, aber ohne Zeitraum – sonst fehlten die Monate ein Jahr früher
+  const ohneZeitraum = filtere(daten.buchungen, { ...zustand.filter, zeitraum: 'alles' }, { ...daten, heute });
   return h('div', {},
-    verlaufBereich(verlaufJeMonat(eintraege, monate), neu),
+    verlaufBereich(verlaufJeMonat(eintraege, monate), neu, vorjahrJeMonat(ohneZeitraum, monate, erster)),
     zustand.analyseGruppe === 'partner'
       ? partnerBereich(eintraege, monate, heute, neu)
       : kategorieBereich(eintraege, daten.kategorien, monate, heute, neu),
@@ -618,8 +620,24 @@ function partnerBereich(eintraege, monate, heute, neu) {
   );
 }
 
-/** Balkendiagramm Einnahmen/Ausgaben je Monat, mit Tooltip und Tabellenansicht */
-function verlaufBereich(zeilen, neu) {
+/** Prozent mit Vorzeichen-Logik für die Sparquote; ohne Einnahmen "–" */
+const quoteText = (q) => (q == null ? '–' : formatProzent(q));
+
+/** Veränderung zum Vorjahr als Text, z. B. "+12 %" (ohne Vorjahreswert leer) */
+function veraenderung(jetzt, vorher) {
+  if (!vorher) return '';
+  const p = Math.round(((jetzt - vorher) / vorher) * 100);
+  return ` (${p > 0 ? '+' : ''}${p} % zum Vorjahr)`;
+}
+
+/**
+ * Balkendiagramm Einnahmen/Ausgaben je Monat, mit Tooltip und Tabellenansicht.
+ * D107: optional die Vorjahresmonate als blasse Balken daneben, Sparquote je Monat und gesamt.
+ */
+function verlaufBereich(zeilen, neu, vorjahr = []) {
+  const mitVorjahr = zustand.vorjahr && vorjahr.some(Boolean);
+  const summe = zeilen.reduce((s, z) => ({ e: s.e + z.einnahmen, a: s.a + z.ausgaben }), { e: 0, a: 0 });
+  const quoteGesamt = sparquote(summe.e, summe.a);
   const mehrereJahre = new Set(zeilen.map((z) => z.jahr)).size > 1;
   const kurz = (z) => new Intl.DateTimeFormat('de-DE', { month: 'short' }).format(new Date(z.jahr, z.monat - 1, 1)).replace('.', '')
     + (mehrereJahre ? ` ${String(z.jahr).slice(2)}` : '');
@@ -629,33 +647,62 @@ function verlaufBereich(zeilen, neu) {
     class: 'knopf knopf-klein',
     onclick: () => { zustand.alsTabelle = !zustand.alsTabelle; neu(); },
   }, zustand.alsTabelle ? 'Als Diagramm' : 'Als Tabelle');
+  const vorjahrKnopf = vorjahr.some(Boolean) && h('button', {
+    type: 'button',
+    class: 'knopf knopf-klein',
+    'aria-pressed': String(zustand.vorjahr),
+    onclick: () => { zustand.vorjahr = !zustand.vorjahr; neu(); },
+  }, zustand.vorjahr ? 'Vorjahr ausblenden' : 'Vorjahr zeigen');
 
-  const kopf = h('div', { class: 'bereich-kopf' }, h('h2', {}, 'Verlauf je Monat'), umschalter);
+  const kopf = h('div', { class: 'bereich-kopf' }, h('h2', {}, 'Verlauf je Monat'),
+    h('div', { class: 'knopfreihe' }, vorjahrKnopf, umschalter));
+  // Sparquote über den ganzen Zeitraum (nur sinnvoll, wenn Einnahmen in der Auswahl sind)
+  const quoteZeile = quoteGesamt != null && h('p', { class: 'sparquote' },
+    h('span', {}, 'Sparquote im Zeitraum: '), h('strong', { class: quoteGesamt < 0 ? 'negativ' : '' }, formatProzent(quoteGesamt)),
+    h('span', { class: 'klein' }, ' – Anteil der Einnahmen, der nach den Ausgaben übrig bleibt'));
 
   if (zustand.alsTabelle) {
-    return h('section', { class: 'bereich' }, kopf,
+    const vj = (i, feld) => (vorjahr[i] ? formatEuro(vorjahr[i][feld]) : '–');
+    return h('section', { class: 'bereich' }, kopf, quoteZeile,
       h('div', { class: 'tabelle-rahmen' },
         h('table', { class: 'tabelle' },
-          h('thead', {}, h('tr', {}, h('th', {}, 'Monat'), h('th', {}, 'Einnahmen'), h('th', {}, 'Ausgaben'), h('th', {}, 'Saldo'))),
-          h('tbody', {}, zeilen.map((z) => h('tr', {},
+          h('thead', {}, h('tr', {}, h('th', {}, 'Monat'), h('th', {}, 'Einnahmen'), mitVorjahr && h('th', {}, 'Vorjahr'),
+            h('th', {}, 'Ausgaben'), mitVorjahr && h('th', {}, 'Vorjahr'), h('th', {}, 'Saldo'), h('th', {}, 'Sparquote'))),
+          h('tbody', {}, zeilen.map((z, i) => h('tr', {},
             h('td', {}, formatMonat(z.jahr, z.monat)),
             h('td', {}, formatEuro(z.einnahmen)),
+            mitVorjahr && h('td', { class: 'gedaempft' }, vj(i, 'einnahmen')),
             h('td', {}, formatEuro(z.ausgaben)),
-            h('td', { class: z.saldo < 0 ? 'negativ' : '' }, formatEuro(z.saldo))))))));
+            mitVorjahr && h('td', { class: 'gedaempft' }, vj(i, 'ausgaben')),
+            h('td', { class: z.saldo < 0 ? 'negativ' : '' }, formatEuro(z.saldo)),
+            h('td', { class: (sparquote(z.einnahmen, z.ausgaben) ?? 0) < 0 ? 'negativ' : '' }, quoteText(sparquote(z.einnahmen, z.ausgaben)))))),
+          h('tfoot', {}, h('tr', {},
+            h('th', {}, 'Gesamt'),
+            h('th', {}, formatEuro(summe.e)),
+            mitVorjahr && h('th', {}),
+            h('th', {}, formatEuro(summe.a)),
+            mitVorjahr && h('th', {}),
+            h('th', { class: summe.e - summe.a < 0 ? 'negativ' : '' }, formatEuro(summe.e - summe.a)),
+            h('th', {}, quoteText(quoteGesamt)))))));
   }
 
-  const max = schoeneObergrenze(Math.max(...zeilen.map((z) => Math.max(z.einnahmen, z.ausgaben)), 1));
+  const max = schoeneObergrenze(Math.max(...zeilen.map((z) => Math.max(z.einnahmen, z.ausgaben)),
+    ...(mitVorjahr ? vorjahr.filter(Boolean).map((z) => Math.max(z.einnahmen, z.ausgaben)) : []), 1));
   const ticks = [0, 0.25, 0.5, 0.75, 1];
   const tooltip = h('div', { class: 'tooltip', role: 'status', hidden: true });
   // Bei vielen Monaten nur jede n-te Beschriftung zeigen
   const jedeNte = Math.ceil(zeilen.length / 12);
 
-  const zeigeTooltip = (spalte, z) => {
+  const zeigeTooltip = (spalte, z, v) => {
+    const q = sparquote(z.einnahmen, z.ausgaben);
     tooltip.replaceChildren(
       h('strong', {}, formatMonat(z.jahr, z.monat)),
-      h('div', {}, h('span', { class: 'legende-punkt einnahme' }), `Einnahmen ${formatEuro(z.einnahmen)}`),
-      h('div', {}, h('span', { class: 'legende-punkt ausgabe' }), `Ausgaben ${formatEuro(z.ausgaben)}`),
-      h('div', { class: 'tooltip-saldo' }, `Saldo ${formatEuro(z.saldo)}`),
+      h('div', {}, h('span', { class: 'legende-punkt einnahme' }), `Einnahmen ${formatEuro(z.einnahmen)}${mitVorjahr ? veraenderung(z.einnahmen, v?.einnahmen) : ''}`),
+      h('div', {}, h('span', { class: 'legende-punkt ausgabe' }), `Ausgaben ${formatEuro(z.ausgaben)}${mitVorjahr ? veraenderung(z.ausgaben, v?.ausgaben) : ''}`),
+      mitVorjahr && h('div', { class: 'klein' }, v
+        ? `Vorjahr: Einnahmen ${formatEuro(v.einnahmen)} · Ausgaben ${formatEuro(v.ausgaben)}`
+        : 'Vorjahr: noch nicht erfasst'),
+      h('div', { class: 'tooltip-saldo' }, `Saldo ${formatEuro(z.saldo)}`, q != null && ` · Sparquote ${formatProzent(q)}`),
     );
     tooltip.hidden = false;
     const flaeche = spalte.closest('.diagramm-flaeche').getBoundingClientRect();
@@ -665,33 +712,43 @@ function verlaufBereich(zeilen, neu) {
   };
 
   const spalten = zeilen.map((z, i) => {
+    const v = vorjahr[i];
+    const hoehe = (cent) => `height:${(cent / max) * 100}%`;
     const spalte = h('div', {
       class: 'spalte',
       tabindex: '0',
-      'aria-label': `${formatMonat(z.jahr, z.monat)}: Einnahmen ${formatEuro(z.einnahmen)}, Ausgaben ${formatEuro(z.ausgaben)}`,
+      'aria-label': `${formatMonat(z.jahr, z.monat)}: Einnahmen ${formatEuro(z.einnahmen)}, Ausgaben ${formatEuro(z.ausgaben)}`
+        + (mitVorjahr && v ? `; Vorjahr Einnahmen ${formatEuro(v.einnahmen)}, Ausgaben ${formatEuro(v.ausgaben)}` : ''),
     },
-    h('div', { class: 'balken-paar' },
-      h('div', { class: 'balken einnahme', style: `height:${(z.einnahmen / max) * 100}%` }),
-      h('div', { class: 'balken ausgabe', style: `height:${(z.ausgaben / max) * 100}%` })),
+    h('div', { class: 'balken-paar' + (mitVorjahr ? ' mit-vorjahr' : '') },
+      mitVorjahr && h('div', { class: 'balken einnahme vorjahr', style: hoehe(v?.einnahmen ?? 0) }),
+      h('div', { class: 'balken einnahme', style: hoehe(z.einnahmen) }),
+      mitVorjahr && h('div', { class: 'balken ausgabe vorjahr', style: hoehe(v?.ausgaben ?? 0) }),
+      h('div', { class: 'balken ausgabe', style: hoehe(z.ausgaben) })),
     h('div', { class: 'spalte-label' }, i % jedeNte === 0 ? kurz(z) : ''));
-    spalte.addEventListener('mouseenter', () => zeigeTooltip(spalte, z));
-    spalte.addEventListener('focus', () => zeigeTooltip(spalte, z));
+    spalte.addEventListener('mouseenter', () => zeigeTooltip(spalte, z, v));
+    spalte.addEventListener('focus', () => zeigeTooltip(spalte, z, v));
     spalte.addEventListener('mouseleave', () => { tooltip.hidden = true; });
     spalte.addEventListener('blur', () => { tooltip.hidden = true; });
     return spalte;
   });
 
-  return h('section', { class: 'bereich' }, kopf,
+  // Ist das Diagramm breiter als der Bildschirm (Handy), zuerst die neuesten Monate zeigen
+  const flaeche = h('div', { class: 'diagramm-flaeche' },
+    h('div', { class: 'gitter' }, ticks.map((t) => h('span', { style: `bottom:${t * 100}%` }))),
+    h('div', { class: 'spalten', style: `min-width:${zeilen.length * (mitVorjahr ? 48 : 34)}px` }, spalten),
+    tooltip);
+  requestAnimationFrame(() => { flaeche.scrollLeft = flaeche.scrollWidth; });
+
+  return h('section', { class: 'bereich' }, kopf, quoteZeile,
     h('div', { class: 'legende' },
       h('span', {}, h('span', { class: 'legende-punkt einnahme' }), 'Einnahmen'),
       h('span', {}, h('span', { class: 'legende-punkt ausgabe' }), 'Ausgaben'),
+      mitVorjahr && h('span', {}, h('span', { class: 'legende-punkt einnahme vorjahr' }), h('span', { class: 'legende-punkt ausgabe vorjahr' }), 'blass = Vorjahr'),
       h('span', { class: 'klein' }, 'Umbuchungen zählen nicht mit')),
     h('div', { class: 'diagramm' },
       h('div', { class: 'achse' }, [...ticks].reverse().map((t) => h('span', {}, formatEuroRund(max * t)))),
-      h('div', { class: 'diagramm-flaeche' },
-        h('div', { class: 'gitter' }, ticks.map((t) => h('span', { style: `bottom:${t * 100}%` }))),
-        h('div', { class: 'spalten', style: `min-width:${zeilen.length * 34}px` }, spalten),
-        tooltip)),
+      flaeche),
   );
 }
 
@@ -738,7 +795,7 @@ function kategorieBereich(eintraege, kategorien, monate, heute, neu) {
           h('span', { class: 'betrag' }, formatEuro(gesamt)),
           h('span', { class: 'kat-anteil' }, '100 %'),
           mitSchnitt && h('span', { class: 'kat-schnitt' }, `Ø ${formatEuro(gesamtSchnitt)}`))),
-    mitSchnitt && h('p', { class: 'hinweis' },
+    mitSchnitt && h('p', { class: 'hinweis erklaerung' },
       `Ø = Durchschnitt pro Monat über ${anzahlMonate === 1 ? '1 abgeschlossenen Monat' : `${anzahlMonate} abgeschlossene Monate`} ` +
       (anzahlMonate === 1
         ? `(${formatMonat(...schnittMonate[0])}). `

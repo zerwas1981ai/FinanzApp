@@ -742,6 +742,25 @@ fieldset.feld { border: none; padding: 0; margin: 0 0 14px; }
 .balken { width: min(14px, 40%); border-radius: 4px 4px 0 0; min-height: 0; }
 .balken.einnahme { background: var(--serie-einnahme); }
 .balken.ausgabe { background: var(--serie-ausgabe); }
+/* Vorjahr (D107): dieselbe Farbe, blass */
+.balken.vorjahr, .legende-punkt.vorjahr { opacity: .35; }
+.balken-paar.mit-vorjahr { gap: 1px; }
+.balken-paar.mit-vorjahr .balken { width: min(10px, 22%); }
+.balken-paar.mit-vorjahr .balken.ausgabe.vorjahr { margin-left: 3px; }
+.sparquote { margin: 0 0 10px; font-size: .9rem; }
+/* Erklärtexte hinter „ⓘ“ (D109) */
+.info-knopf {
+  display: inline-grid; place-items: center; width: 1.6em; height: 1.6em; margin-left: 2px; padding: 0;
+  border: 0; border-radius: 50%; background: none; color: var(--text-2);
+  font: inherit; font-size: .8em; font-weight: 400; line-height: 1; vertical-align: middle; cursor: pointer;
+}
+.info-knopf:hover { color: var(--akzent); background: var(--akzent-leicht); }
+.info-knopf[aria-expanded="true"] { color: var(--akzent); }
+p.erklaerung { margin-top: 0; }
+/* Vorschau vor dem Wiederherstellen (D108) */
+.backup-vergleich tr.anders td { font-weight: 600; }
+.backup-vergleich tr.anders td:last-child { color: var(--akzent); }
+.sparquote strong { font-variant-numeric: tabular-nums; }
 .spalte-label { font-size: .72rem; color: var(--text-2); padding-top: 6px; white-space: nowrap; height: 1.6em; }
 
 .tooltip {
@@ -1190,14 +1209,8 @@ body.gesperrt .kopf, body.gesperrt main, body.gesperrt .fab, body.gesperrt #neue
 }
 .btab-sort:hover { color: var(--text); }
 .btab-sort.erste { color: var(--akzent); }
-.btab-sort.weitere { color: var(--text); }
 .btab-sort-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .btab-pfeil { font-size: .9rem; line-height: 1; }
-.btab-stufe {
-  display: inline-grid; place-items: center; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px;
-  background: var(--flaeche-2); color: var(--text-2); font-size: .68rem; letter-spacing: 0;
-}
-.btab-sort.erste .btab-stufe { background: var(--akzent-leicht); color: var(--akzent); }
 .btab-sort.btab-betrag { justify-content: flex-end; }
 .btab-liste { list-style: none; margin: 0; padding: 0; }
 .btab-liste > li + li { border-top: 1px solid var(--rand); }
@@ -1271,6 +1284,9 @@ body.gesperrt .kopf, body.gesperrt main, body.gesperrt .fab, body.gesperrt #neue
 .btab-fest { cursor: default; }
 .btab-fest:hover { color: var(--text-2); }
 .beleg-zahl { margin-left: 6px; font-size: .85rem; color: var(--text-2); }
+/* Vorlagen-Leiste oben im Dialog "Neue Buchung" (D104) */
+.vorlagen-leiste { margin-bottom: 12px; }
+.vorlagen-leiste .chips { margin: 4px 0 0; flex-wrap: wrap; overflow: visible; }
 /* Spalte "Beleg" ganz rechts, direkt anklickbar (D101) */
 .relevant .btab { --relevant-spalten: 92px minmax(0, 1.3fr) minmax(0, 1.5fr) minmax(0, 1.3fr) 112px; --btab-spalten: var(--relevant-spalten) 56px; }
 @media (min-width: 768px) { .relevant .btab-zeile { grid-template-columns: var(--relevant-spalten); } }

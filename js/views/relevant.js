@@ -62,7 +62,7 @@ export async function relevantBereich(daten) {
     h('div', { class: 'bereich-kopf' },
       h('h2', { id: 'titel-relevant' }, 'Relevante Ausgaben'),
       h('button', { type: 'button', class: 'knopf knopf-klein', onclick: () => relevantDialog(null, daten) }, '+ Ausgabe')),
-    h('p', { class: 'hinweis' },
+    h('p', { class: 'hinweis erklaerung' },
       'Sammle hier Ausgaben, die dir wichtig sind – auch aus früheren Jahren. Eigene Einträge zählen in keinem Konto, ' +
       'Budget und nicht in der Prognose. Echte Buchungen erscheinen hier, wenn du im Buchungsdialog „Relevante Ausgabe“ ' +
       'anhakst. Belege liegen in Google Drive zusätzlich im Ordner „Relevante Ausgaben“.'),

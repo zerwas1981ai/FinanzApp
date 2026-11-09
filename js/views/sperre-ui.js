@@ -308,7 +308,7 @@ export async function sperreBereich(neu) {
 
   return h('section', { class: 'bereich', 'aria-labelledby': 'titel-sperre' },
     h('h2', { id: 'titel-sperre' }, 'App-Login'),
-    h('p', { class: 'hinweis' },
+    h('p', { class: 'hinweis erklaerung' },
       'Die App ist nur mit Passwort nutzbar – auf allen Geräten dasselbe (wird über Google Drive abgeglichen). ' +
       'Auf diesem Gerät geht es auch mit Passkey' + (passkeyMoeglich ? ' (Fingerabdruck, Gesicht bzw. Windows Hello)' : '') + '. ' +
       'Der Login schützt den Zugang, verschlüsselt die Daten im Browser aber nicht.'),

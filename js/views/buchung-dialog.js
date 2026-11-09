@@ -11,6 +11,8 @@ import { sortiereKonten } from '../konten.js';
 import { wiederkehrendDialog } from './annahmen.js';
 import { monatsende, tageImMonat } from '../prognose.js';
 import { relevanteZeilen, gruppenListe, MAX_GRUPPE } from '../relevant.js';
+import { vorlageZuWerten } from '../vorlagen.js';
+import { vorlagenLeiste, vorlageSpeichernDialog } from './vorlagen.js';
 
 const nachName = (a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base' });
 
@@ -18,10 +20,12 @@ const nachName = (a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'ba
  * buchung: beim Bearbeiten eine bestehende Buchung (bei Umbuchung eine der beiden Hälften)
  * vorgaben (nur neue Buchungen): { kontoId, art, betragCent, kategorieId, gegenkontoId, datum, notiz, partner, projektId, relevant, relevantGruppe,
  *   titel, wiederkehrendId, faelligAm } – z. B. beim Buchen eines fälligen Termins
+ *   dateien: Belegdateien, die gleich angehängt werden ("Teilen an Finanzen", D106)
+ *   belegZuerst: Belegfeld direkt unter dem Betrag (Kurzbefehl "Belegfoto", D105)
  */
 export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
-  const [konten, kategorien, alle, projekte, relevantListe] = await Promise.all(
-    ['konten', 'kategorien', 'buchungen', 'projekte', 'relevant'].map((s) => db.alle(s)),
+  const [konten, kategorien, alle, projekte, relevantListe, vorlagen] = await Promise.all(
+    ['konten', 'kategorien', 'buchungen', 'projekte', 'relevant', 'vorlagen'].map((s) => db.alle(s)),
   );
   // Immer die aktuelle Fassung aus der Datenbank nehmen – der Abgleich kann sie im Hintergrund
   // geändert haben (z. B. Drive-Kennung eines hochgeladenen Belegs)
@@ -104,7 +108,7 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
   // Belege: Dateiname aus Datum und Empfänger/Absender bzw. Kategorie
   const belege = belegeFeld(ref?.belege ?? [], () => [
     datum.input.value,
-    partner.input.value.trim() || kategorie.select.selectedOptions[0]?.textContent || 'Beleg',
+    partner.input.value.trim() || (kategorie.select.value && kategorie.select.selectedOptions[0]?.textContent) || 'Beleg',
   ].filter(Boolean).join(' '));
 
   function aktualisiere() {
@@ -174,10 +178,38 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
   }, '↻ Als wiederkehrend anlegen');
   const extras = buchung && h('div', { class: 'knopfreihe dialog-extras' }, kopieren, alsWiederkehrend);
 
+  // ---------- Vorlagen (D104) ----------
+  // Leiste nur bei wirklich neuen Buchungen – nicht beim Buchen eines fälligen Termins
+  const wendeVorlageAn = (v) => {
+    const w = vorlageZuWerten(v, { konten, kategorien });
+    artKnoepfe.querySelector(`[data-wert="${w.art}"]`)?.click(); // setzt art und baut die Felder um
+    if (w.betragCent != null) betrag.input.value = centZuEingabe(w.betragCent);
+    partner.input.value = w.partner;
+    notiz.input.value = w.notiz;
+    if (w.kontoId) konto.select.value = w.kontoId;
+    if (w.gegenkontoId) gegenkonto.select.value = w.gegenkontoId;
+    budgetFeld.select.value = w.budgetKategorieId ?? '';
+    if (w.art !== 'umbuchung') kategorie.select.value = [...kategorie.select.options].some((o) => o.value === w.kategorieId) ? w.kategorieId : '';
+    betrag.input.focus();
+    betrag.input.select();
+  };
+  const leiste = !buchung && !vorgaben.wiederkehrendId && !vorgaben.geplantId && vorlagenLeiste(vorlagen, wendeVorlageAn);
+  const alsVorlage = h('div', { class: 'knopfreihe' }, h('button', {
+    type: 'button',
+    class: 'knopf knopf-klein',
+    onclick: () => {
+      const w = aktuelleWerte();
+      vorlageSpeichernDialog({ ...w, kategorieId: w.kategorieId ?? null, gegenkontoId: w.gegenkontoId ?? null });
+    },
+  }, '☆ Als Vorlage speichern'));
+
   // ---------- Dialog ----------
   const dlg = dialog({
     titel: buchung ? (ref.art === 'umbuchung' ? 'Umbuchung bearbeiten' : 'Buchung bearbeiten') : (vorgaben.titel ?? 'Neue Buchung'),
-    inhalt: [extras, artKnoepfe, betrag.feld, partner.feld, kategorie.feld, konto.feld, gegenkonto.feld, budgetFeld.feld, datum.feld, status.feld, notiz.feld, projekt?.feld, relevantFeld, belege.feld].filter(Boolean),
+    inhalt: (vorgaben.belegZuerst || vorgaben.dateien?.length
+      ? [leiste, artKnoepfe, belege.feld, betrag.feld, partner.feld, kategorie.feld, konto.feld, gegenkonto.feld, budgetFeld.feld, datum.feld, status.feld, notiz.feld, projekt?.feld, relevantFeld, alsVorlage]
+      : [extras, leiste, artKnoepfe, betrag.feld, partner.feld, kategorie.feld, konto.feld, gegenkonto.feld, budgetFeld.feld, datum.feld, status.feld, notiz.feld, projekt?.feld, relevantFeld, belege.feld, alsVorlage]
+    ).filter(Boolean),
     speichernText: buchung ? 'Speichern' : 'Erfassen',
     zusatz: buchung && {
       text: 'In den Papierkorb',
@@ -217,6 +249,7 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
       datenGeaendert();
     },
   });
+  if (vorgaben.dateien?.length) await belege.fuegeHinzu(vorgaben.dateien);
   return dlg;
 }
 

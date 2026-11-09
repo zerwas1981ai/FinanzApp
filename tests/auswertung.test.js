@@ -209,21 +209,16 @@ test('Mehrfachauswahl Empfänger/Absender', async () => {
   assert.deepEqual(ids(['Kiosk', OHNE_PARTNER]), ['3', '4']);
 });
 
-test('Mehrstufige Sortierung per Spaltenkopf (D73)', async () => {
+test('Sortierung per Spaltenkopf: immer genau eine Spalte (D103)', async () => {
   const { sortiereNach, STANDARD_SORTIERUNG } = await import('../js/auswertung.js');
-  // Klickfolge: Kategorie, dann Betrag → Betrag zuerst, Kategorie bei Gleichstand
   let s = sortiereNach(STANDARD_SORTIERUNG, 'kategorie');
-  assert.deepEqual(s.stufen, [{ feld: 'kategorie', richtung: 'auf' }, { feld: 'datum', richtung: 'ab' }]);
+  assert.deepEqual(s.stufen, [{ feld: 'kategorie', richtung: 'auf' }], 'Texte zuerst A–Z');
   s = sortiereNach(s, 'betrag');
-  assert.deepEqual(s.stufen.map((x) => x.feld), ['betrag', 'kategorie', 'datum']);
-  assert.equal(s.stufen[0].richtung, 'ab', 'Betrag zuerst absteigend');
+  assert.deepEqual(s.stufen, [{ feld: 'betrag', richtung: 'ab' }], 'Zahlen zuerst absteigend, nur eine Stufe');
   s = sortiereNach(s, 'betrag');
-  assert.equal(s.stufen[0].richtung, 'auf', 'gleiche Spalte erneut: Richtung umdrehen');
-  assert.deepEqual(s.stufen.map((x) => x.feld), ['betrag', 'kategorie', 'datum']);
-  s = sortiereNach(s, 'konto');
-  assert.deepEqual(s.stufen.map((x) => x.feld), ['konto', 'betrag', 'kategorie'], 'höchstens 3 Stufen');
-  s = sortiereNach(s, 'kategorie');
-  assert.deepEqual(s.stufen.map((x) => x.feld), ['kategorie', 'konto', 'betrag'], 'schon vorhandene Spalte rückt nach vorn');
+  assert.deepEqual(s.stufen, [{ feld: 'betrag', richtung: 'auf' }], 'gleiche Spalte erneut: Richtung umdrehen');
+  s = sortiereNach(s, 'datum');
+  assert.deepEqual(s.stufen, [{ feld: 'datum', richtung: 'ab' }]);
   assert.equal(STANDARD_SORTIERUNG.stufen.length, 1, 'Standard bleibt unverändert');
 
   // Sortieren: Kategorie A–Z, innerhalb gleicher Kategorie Betrag absteigend
@@ -246,14 +241,27 @@ test('Datum nach Betrag: Datum entscheidet, Richtung lässt sich umschalten (D10
   let s = sortiereNach(STANDARD_SORTIERUNG, 'betrag');
   assert.equal(ids(s), 'badc', 'Betrag ↓ (kleinste Ausgabe zuerst)');
   s = sortiereNach(s, 'datum');
-  assert.deepEqual(s.stufen.map((x) => `${x.feld}${x.richtung}`), ['datumab', 'betragab']);
-  assert.equal(ids(s), 'bdca', 'Datum ↓, am selben Tag Betrag ↓');
+  assert.deepEqual(s.stufen, [{ feld: 'datum', richtung: 'ab' }]);
+  assert.equal(ids(s), 'dbca', 'Datum ↓, am selben Tag nach Erfassung/ID');
   s = sortiereNach(s, 'datum');
   assert.equal(ids(s), 'acbd', 'Datum ↑');
   s = sortiereNach(s, 'datum');
-  assert.equal(ids(s), 'bdca', 'wieder Datum ↓');
+  assert.equal(ids(s), 'dbca', 'wieder Datum ↓');
   // Ohne Datums-Stufe: bei Gleichstand neueste zuerst
   const gleich = [b('x', '2026-10-01', 100), b('y', '2026-10-05', 100)];
   assert.deepEqual(sortiere(gleich, { stufen: [{ feld: 'betrag', richtung: 'auf' }] }).map((x) => x.buchung.id), ['y', 'x']);
 });
 
+
+test('Sparquote und Vorjahr je Monat (D107)', async () => {
+  const { sparquote, vorjahrJeMonat } = await import('../js/auswertung.js');
+  assert.equal(sparquote(300000, 240000), 0.2);
+  assert.equal(sparquote(100000, 150000), -0.5, 'mehr ausgegeben als eingenommen');
+  assert.equal(sparquote(0, 5000), null, 'ohne Einnahmen keine Quote');
+  const e = (datum, art, cent) => ({ buchung: { datum, art, betragCent: cent }, wirkung: art === 'einnahme' ? cent : -cent });
+  const alle = [e('2025-10-05', 'ausgabe', 1000), e('2025-11-02', 'einnahme', 5000), e('2025-11-03', 'umbuchung', 999), e('2026-10-05', 'ausgabe', 2000)];
+  const vj = vorjahrJeMonat(alle, [[2026, 9], [2026, 10], [2026, 11]], '2025-10-01');
+  assert.equal(vj[0], null, 'September 2025: vor der ersten Buchung → nicht erfasst');
+  assert.deepEqual(vj[1], { jahr: 2025, monat: 10, einnahmen: 0, ausgaben: 1000, saldo: -1000 });
+  assert.deepEqual(vj[2], { jahr: 2025, monat: 11, einnahmen: 5000, ausgaben: 0, saldo: 5000 }, 'Umbuchung zählt nicht');
+});

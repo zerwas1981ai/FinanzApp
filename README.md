@@ -145,6 +145,8 @@ js/konten.js                               Reihenfolge der Konten
 js/jahresbudget.js                         Jahresbudgets in Tranchen (D90)
 js/kategorien.js                           Unterkategorie verschieben (D93)
 js/relevant.js                             Relevante Ausgaben (Liste unten im Tab Projekte)
+js/vorlagen.js                             Vorlagen für häufige Buchungen (D104)
+js/datensicherung.js                       Vorschau vor dem Wiederherstellen eines Backups (D108)
 js/startdaten.js, js/testdaten.js          Kategorie-Startsatz, Testdaten
 js/ui.js, js/dom.js                        Bausteine der Oberfläche
 js/views/                                  die Tabs und Dialoge

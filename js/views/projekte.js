@@ -26,7 +26,7 @@ export async function zeigeProjekte(container) {
     h('div', { class: 'seitenkopf' },
       h('h1', { class: 'seitentitel' }, 'Projekte'),
       h('button', { type: 'button', class: 'knopf knopf-primaer', onclick: () => projektDialog(null, daten) }, '+ Projekt')),
-    h('p', { class: 'hinweis' },
+    h('p', { class: 'hinweis erklaerung' },
       'Fasse Einmalausgaben zu einem Projekt zusammen, z. B. „Umbau Bad“ oder „Urlaub 2027“. Zugeordnet werden echte ' +
       'Buchungen und geplante Einmalbuchungen (Feld „Projekt“ im Buchungsdialog bzw. unter Annahmen). Projektausgaben ' +
       'zählen im Kontostand und in der Prognose, aber nicht gegen das Monatsbudget ihrer Kategorie.'),

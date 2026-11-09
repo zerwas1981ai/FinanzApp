@@ -2,12 +2,13 @@
 
 import { h } from '../dom.js';
 import * as db from '../db.js';
-import { heuteIso } from '../format.js';
+import { heuteIso, formatEuro, formatDatum } from '../format.js';
 import { frage, toast, herunterladen, dialog, eingabe } from '../ui.js';
 import * as abgleich from '../sync/abgleich.js';
 import { buchungenAlsCsv, exportName } from '../export.js';
 import { DATENMODELL_VERSION } from '../migrationen.js';
 import { naechstesArchivJahr, letztesArchiv } from '../archiv.js';
+import { standUebersicht, vergleiche } from '../datensicherung.js';
 
 const zeit = (iso) => (iso ? new Date(iso).toLocaleString('de-DE', { dateStyle: 'medium', timeStyle: 'short' }) : '–');
 const groesse = (bytes) => `${Math.max(1, Math.round(bytes / 1024))} KB`;
@@ -16,6 +17,34 @@ const groesse = (bytes) => `${Math.max(1, Math.round(bytes / 1024))} KB`;
 const sicher = (fn) => async (...args) => {
   try { await fn(...args); } catch (err) { toast(err.message ?? String(err)); }
 };
+
+/**
+ * Vorschau vor dem Wiederherstellen (D108): jetziger Stand und Backup nebeneinander,
+ * Unterschiede hervorgehoben. Erst „Wiederherstellen“ ersetzt etwas.
+ */
+async function wiederherstellenDialog(b, inhalt) {
+  const heute = heuteIso();
+  const zeilen = vergleiche(standUebersicht(await db.leseDatenstand(), heute), standUebersicht(inhalt, heute), { euro: formatEuro, datum: formatDatum });
+  dialog({
+    titel: 'Backup wiederherstellen?',
+    inhalt: [
+      h('p', {}, `So sieht der Stand vom ${zeit(b.zeit)} im Vergleich zu jetzt aus (Kontostände bis heute). Unterschiede sind markiert.`),
+      h('div', { class: 'tabelle-rahmen' },
+        h('table', { class: 'tabelle backup-vergleich' },
+          h('thead', {}, h('tr', {}, h('th', {}, ''), h('th', {}, 'Jetzt'), h('th', {}, 'Backup'))),
+          h('tbody', {}, zeilen.map((z) => h('tr', { class: z.anders ? 'anders' : null },
+            h('td', {}, z.text), h('td', {}, z.jetzt), h('td', {}, z.backup)))))),
+      h('p', { class: 'hinweis' }, 'Wiederherstellen ersetzt deine Daten auf diesem Gerät und in Google Drive. '
+        + 'Der jetzige Stand wird vorher selbst als Backup gesichert – du kannst also zurück.'),
+    ],
+    speichernText: 'Wiederherstellen',
+    gefahr: true,
+    onSpeichern: async () => {
+      await abgleich.wiederherstellen(b.id, inhalt);
+      toast(`Stand vom ${zeit(b.zeit)} wiederhergestellt`);
+    },
+  });
+}
 
 export function driveBereich(neu) {
   const eingerichtet = abgleich.istEingerichtet();
@@ -45,16 +74,9 @@ export function driveBereich(neu) {
             type: 'button',
             class: 'knopf knopf-klein',
             onclick: sicher(async () => {
-              const ok = await frage({
-                titel: 'Backup wiederherstellen?',
-                text: [`Der Stand vom ${zeit(b.zeit)} ersetzt deine Daten auf diesem Gerät und in Google Drive.`,
-                  'Der jetzige Stand wird vorher selbst als Backup gesichert – du kannst also zurück.'],
-                jaText: 'Wiederherstellen',
-                gefahr: true,
-              });
-              if (!ok) return;
-              await abgleich.wiederherstellen(b.id);
-              toast(`Stand vom ${zeit(b.zeit)} wiederhergestellt`);
+              toast('Backup wird geladen …');
+              const inhalt = await abgleich.backupLaden(b.id);
+              wiederherstellenDialog(b, inhalt);
             }),
           }, 'Wiederherstellen'))))));
     }),
@@ -62,7 +84,7 @@ export function driveBereich(neu) {
 
   return h('section', { class: 'bereich', 'aria-labelledby': 'titel-drive' },
     h('h2', { id: 'titel-drive' }, 'Google Drive'),
-    h('p', { class: 'hinweis' },
+    h('p', { class: 'hinweis erklaerung' },
       'Deine Daten liegen auf diesem Gerät und werden mit einer Datei in deinem Google Drive abgeglichen ' +
       '(Ordner „Finanzapp“). So hast du dieselben Daten auf PC und Handy. Die App sieht in deinem Drive nur ' +
       'die Dateien, die sie selbst angelegt hat. Bei jedem Speichern entsteht ein Backup (die letzten 30 ' +
@@ -114,7 +136,7 @@ export function driveBereich(neu) {
 export function exportBereich() {
   return h('section', { class: 'bereich', 'aria-labelledby': 'titel-export' },
     h('h2', { id: 'titel-export' }, 'Export'),
-    h('p', { class: 'hinweis' },
+    h('p', { class: 'hinweis erklaerung' },
       'Alle Buchungen (ohne Papierkorb) als CSV-Datei, die Excel direkt öffnet. Eine gefilterte Liste ' +
       'exportierst du unter „Alle Buchungen“. Zusätzlich lässt sich der komplette Datenstand als JSON sichern.'),
     h('div', { class: 'knopfreihe' },
@@ -200,11 +222,11 @@ export async function archivBereich(neu) {
 
   return h('section', { class: 'bereich', 'aria-labelledby': 'titel-archiv' },
     h('h2', { id: 'titel-archiv' }, 'Archiv alter Jahre'),
-    h('p', { class: 'hinweis' },
+    h('p', { class: 'hinweis erklaerung' },
       'Ein abgeschlossenes Jahr kann in eine eigene Datei in Google Drive wandern. Das passiert nur, wenn du es hier ' +
       'auslöst – nie automatisch. Ebenso holst du ein Jahr nur von Hand zurück. ' +
       'Die Konten starten danach am 1. Januar mit dem Kontostand vom 31. Dezember – die Kontostände ändern sich nicht.'),
-    h('p', { class: 'hinweis' },
+    h('p', { class: 'hinweis erklaerung' },
       'Unter „Alle Buchungen“ bleiben archivierte Jahre in Liste, Filtern, Analyse und Durchschnitten enthalten ' +
       '(gekennzeichnet mit „Archiv“, nur lesen). Nur die Budgethinweise der Übersicht schauen auf die letzten Monate ' +
       'außerhalb des Archivs – deshalb am besten erst im Frühjahr archivieren.'),

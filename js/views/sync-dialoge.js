@@ -10,7 +10,7 @@ const SAMMLUNG_TEXT = {
   konten: 'Konto', kategorien: 'Kategorie', buchungen: 'Buchung', abstimmungen: 'Kontoabstimmung',
   budgets: 'Budget', wiederkehrend: 'Wiederkehrende Buchung', hinweise: 'Budgethinweis',
   einstellungen: 'Einstellung', geplant: 'Geplante Einmalbuchung', projekte: 'Projekt',
-  relevant: 'Relevante Ausgabe',
+  relevant: 'Relevante Ausgabe', vorlagen: 'Vorlage',
 };
 
 const zeit = (iso) => (iso ? new Date(iso).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' }) : '');

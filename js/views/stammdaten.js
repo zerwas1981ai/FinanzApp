@@ -15,6 +15,7 @@ import { driveBereich, exportBereich, neuBeginnenBereich, archivBereich } from '
 import { sperreBereich } from './sperre-ui.js';
 import { sortiereKonten, verschiebeKonto, naechsteReihenfolge } from '../konten.js';
 import { moeglicheZiele, verschiebeUnterkategorie } from '../kategorien.js';
+import { vorlagenBereich } from './vorlagen.js';
 
 // Alle Buchungen (auch im Papierkorb) – für die Löschsperre. Wird bei jedem Zeichnen neu geladen.
 let buchungen = [];
@@ -63,8 +64,8 @@ const ART_TEXT = { einnahme: 'Einnahme', ausgabe: 'Ausgabe' };
 const IST_ENTWICKLUNG = ['localhost', '127.0.0.1'].includes(location.hostname);
 
 export async function zeigeStammdaten(container) {
-  const [konten, kategorien, alleBuchungen, budgets, wiederkehrend, geplant, projekte, relevant] = await Promise.all(
-    ['konten', 'kategorien', 'buchungen', 'budgets', 'wiederkehrend', 'geplant', 'projekte', 'relevant'].map((s) => db.alle(s)),
+  const [konten, kategorien, alleBuchungen, budgets, wiederkehrend, geplant, projekte, relevant, vorlagen] = await Promise.all(
+    ['konten', 'kategorien', 'buchungen', 'budgets', 'wiederkehrend', 'geplant', 'projekte', 'relevant', 'vorlagen'].map((s) => db.alle(s)),
   );
   buchungen = alleBuchungen;
   relevantListe = relevant;
@@ -75,6 +76,7 @@ export async function zeigeStammdaten(container) {
     h('h1', { class: 'seitentitel' }, 'Stammdaten'),
     kontenBereich(konten, neu),
     kategorienBereich(kategorien, neu),
+    vorlagenBereich(vorlagen, konten, kategorien, neu),
     schwellenBereich(await leseEinstellungen()),
     driveBereich(neu),
     await sperreBereich(neu),
@@ -255,7 +257,7 @@ function kategorienBereich(kategorien, neu) {
       h('h2', { id: 'titel-kategorien' }, 'Kategorien'),
       h('button', { type: 'button', class: 'knopf knopf-primaer', onclick: () => hauptDialog(null, kategorien, neu) }, '+ Hauptkategorie'),
     ),
-    h('p', { class: 'hinweis' }, 'Gebucht wird später immer auf eine Unterkategorie. Budgets gelten für die ganze Hauptkategorie. Zum Aufklappen auf eine Kategorie tippen.'),
+    h('p', { class: 'hinweis erklaerung' }, 'Gebucht wird später immer auf eine Unterkategorie. Budgets gelten für die ganze Hauptkategorie. Zum Aufklappen auf eine Kategorie tippen.'),
     gruppe('einnahme', 'Einnahmen'),
     gruppe('ausgabe', 'Ausgaben'),
     anzahlArchiv > 0 && schalter(`Archivierte Kategorien anzeigen (${anzahlArchiv})`, ansicht.kategorienArchiv, (an) => {
@@ -447,7 +449,7 @@ function schwellenBereich(einstellungen) {
   const fehler = h('p', { class: 'dialog-fehler', role: 'alert' });
   return h('section', { class: 'bereich', 'aria-labelledby': 'titel-schwellen' },
     h('h2', { id: 'titel-schwellen' }, 'Schwellen für Budgethinweise'),
-    h('p', { class: 'hinweis' },
+    h('p', { class: 'hinweis erklaerung' },
       'Ein Hinweis erscheint, wenn eine Kategorie so viele abgeschlossene Monate in Folge über (oder in Folge unter) ' +
       'ihrem Budget liegt und dabei im Schnitt um mehr als diesen Prozentsatz abweicht.'),
     h('div', { class: 'feld-paar' }, monate.feld, prozent.feld),
@@ -564,7 +566,7 @@ function testdatenBereich(konten, kategorien, neu) {
   const vorhanden = hatTestdaten(konten, kategorien, buchungen, ...testAnnahmen);
   return h('section', { class: 'bereich', 'aria-labelledby': 'titel-testdaten' },
     h('h2', { id: 'titel-testdaten' }, 'Testdaten'),
-    h('p', { class: 'hinweis' },
+    h('p', { class: 'hinweis erklaerung' },
       'Erfundene Beispielkonten, -kategorien, Buchungen der letzten drei Monate, Budgets und ' +
       'wiederkehrende Buchungen zum Ausprobieren. ' +
       'Konten und Kategorien sind mit „(Test)“ markiert. „Testdaten löschen“ entfernt nur diese ' +
@@ -600,7 +602,7 @@ function testdatenBereich(konten, kategorien, neu) {
 function infoBereich() {
   return h('section', { class: 'bereich', 'aria-labelledby': 'titel-info' },
     h('h2', { id: 'titel-info' }, 'Über die Daten'),
-    h('p', { class: 'hinweis' },
+    h('p', { class: 'hinweis erklaerung' },
       'Deine Daten liegen in diesem Browser auf diesem Gerät und – wenn verbunden – in deinem Google Drive. ' +
       'Der Programmcode enthält keine Finanzdaten und keine Zugangsdaten.'),
     h('p', { class: 'hinweis' }, `Datenmodell-Version: ${DATENMODELL_VERSION}`),

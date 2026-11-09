@@ -2,6 +2,7 @@
 
 import { initialisiere } from './db.js';
 import { h } from './dom.js';
+import { toast, richteErklaerungenEin } from './ui.js';
 import { zeigeAnnahmen } from './views/annahmen.js';
 import { zeigeBuchungen } from './views/alle-buchungen.js';
 import { zeigeProjekte } from './views/projekte.js';
@@ -86,6 +87,7 @@ async function start() {
   // App-Login (D83): erst nach dem Anmelden (beim ersten Mal: Passwort festlegen) etwas anzeigen
   await richteSperreEin();
   window.addEventListener('hashchange', () => zeigeTab());
+  richteErklaerungenEin(inhalt); // lange Erklärtexte hinter „ⓘ“ (D109)
   // Nach dem Speichern irgendwo: aktuellen Tab neu zeichnen, Scrollposition behalten
   window.addEventListener('daten-geaendert', () => zeigeTab({ nachOben: false }));
   document.getElementById('neue-buchung').addEventListener('click', () => {
@@ -94,6 +96,44 @@ async function start() {
   await zeigeTab();
   // Etappe 6: Abgleich mit Google Drive (Statusanzeige oben rechts)
   richteSyncEin();
+  startAktion().catch(zeigeFehler);
+}
+
+/**
+ * Start über einen Kurzbefehl am App-Symbol (D105: ?neu=ausgabe|einnahme|beleg) oder über
+ * "Teilen an Finanzen" (D106: ?geteilt=1). Erst nach dem Anmelden. Die Adresse wird danach
+ * bereinigt, damit ein Neuladen den Dialog nicht noch einmal öffnet.
+ */
+async function startAktion() {
+  const params = new URLSearchParams(location.search);
+  const neu = params.get('neu');
+  const geteilt = params.has('geteilt');
+  if (!neu && !geteilt) return;
+  history.replaceState(null, '', location.pathname + location.hash);
+  if (geteilt) {
+    const dateien = await holeGeteilteDateien();
+    await oeffneBuchungsdialog(null, { art: 'ausgabe', dateien, titel: 'Neue Buchung mit Beleg' });
+    if (!dateien.length) toast('Die geteilte Datei konnte nicht gelesen werden. Bitte über „+ Datei wählen“ anhängen.');
+  } else if (neu === 'ausgabe' || neu === 'einnahme') {
+    await oeffneBuchungsdialog(null, { art: neu });
+  } else if (neu === 'beleg') {
+    await oeffneBuchungsdialog(null, { art: 'ausgabe', belegZuerst: true, titel: 'Neue Buchung mit Belegfoto' });
+  }
+}
+
+/** Geteilte Dateien aus dem Zwischenspeicher des Service Workers holen und dort löschen */
+async function holeGeteilteDateien() {
+  if (!('caches' in window)) return [];
+  const speicher = await caches.open('finanzapp-geteilt');
+  const dateien = [];
+  for (const anfrage of await speicher.keys()) {
+    const antwort = await speicher.match(anfrage);
+    const blob = await antwort.blob();
+    const name = decodeURIComponent(antwort.headers.get('X-Dateiname') ?? 'Beleg');
+    dateien.push(new File([blob], name, { type: blob.type }));
+    await speicher.delete(anfrage);
+  }
+  return dateien;
 }
 
 if ('serviceWorker' in navigator) {

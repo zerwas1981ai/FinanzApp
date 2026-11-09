@@ -29,7 +29,7 @@ export async function zeigeAnnahmen(container) {
 
   container.replaceChildren(
     h('h1', { class: 'seitentitel' }, 'Annahmen'),
-    h('p', { class: 'hinweis' },
+    h('p', { class: 'hinweis erklaerung' },
       'Hier legst du fest, womit die App für die Zukunft rechnet. Alles sind feste Beträge – ' +
       'keine Prozent-Steigerungen. Nichts davon wird automatisch gebucht. Mit dem Häkchen links ' +
       'schaltest du einen Posten für die Prognose ein oder aus, ohne ihn zu löschen.'),
@@ -128,7 +128,7 @@ function budgetBereich(daten) {
     h('div', { class: 'bereich-kopf' },
       h('h2', { id: 'titel-budgets' }, 'Budgets'),
       h('button', { type: 'button', class: 'knopf knopf-primaer', onclick: () => budgetDialog(null, daten) }, '+ Budget')),
-    h('p', { class: 'hinweis' },
+    h('p', { class: 'hinweis erklaerung' },
       'Ein Budget gilt je Hauptkategorie, Konto und Monat. Nur Ausgaben der Unterkategorien auf diesem Konto ' +
       'verbrauchen es, ein Rest verfällt am Monatsende. Einmalige Budgets kommen im jeweiligen Monat dazu. ' +
       'Jahresbudgets wirken in Tranchen; ein Rest wandert ins Restbudget zum 31.12. und verfällt am Jahresende.'),
@@ -308,7 +308,7 @@ function wiederkehrendBereich(daten) {
     h('div', { class: 'bereich-kopf' },
       h('h2', { id: 'titel-wiederkehrend' }, 'Wiederkehrende Buchungen'),
       h('button', { type: 'button', class: 'knopf knopf-primaer', onclick: () => wiederkehrendDialog(null, daten) }, '+ Wiederkehrend')),
-    h('p', { class: 'hinweis' },
+    h('p', { class: 'hinweis erklaerung' },
       'Fällige Termine erscheinen in der Übersicht. Erst wenn du dort auf „Buchen“ tippst, entsteht eine echte Buchung.'),
     sortiert.length === 0
       ? h('p', { class: 'leer' }, 'Noch keine wiederkehrenden Buchungen.')
@@ -531,7 +531,7 @@ function geplantBereich(daten) {
     h('div', { class: 'bereich-kopf' },
       h('h2', { id: 'titel-geplant' }, 'Geplante Einmalbuchungen'),
       h('button', { type: 'button', class: 'knopf knopf-primaer', onclick: () => geplantDialog(null, daten) }, '+ Geplant')),
-    h('p', { class: 'hinweis' },
+    h('p', { class: 'hinweis erklaerung' },
       'Bekannte, einmalige Zahlungen (z. B. Autoreparatur, Steuererstattung). Wird sie fällig, erscheint sie beim Konto unter ' +
       '„Noch erwartet“ – dort buchst du sie oder markierst sie als schon gebucht. So zählt sie nie doppelt.'),
     offen.length === 0

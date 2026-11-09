@@ -3,7 +3,7 @@
 // Nur wenn das Netz fehlt, wird die zuletzt gespeicherte Kopie verwendet.
 // Finanzdaten werden hier NICHT gespeichert – nur Programmdateien.
 
-const CACHE = 'finanzapp-v45';
+const CACHE = 'finanzapp-v46';
 
 const APP_DATEIEN = [
   './',
@@ -45,6 +45,9 @@ const APP_DATEIEN = [
   './js/archiv.js',
   './js/relevant.js',
   './js/views/relevant.js',
+  './js/vorlagen.js',
+  './js/views/vorlagen.js',
+  './js/datensicherung.js',
   './js/views/sperre-ui.js',
   './js/views/stammdaten.js',
   './js/views/uebersicht.js',
@@ -67,17 +70,48 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
+// Geteilte Belege (D106) liegen kurz in einem eigenen Zwischenspeicher, bis die App sie abholt.
+// Er ist KEIN Programm-Cache und wird beim Aktualisieren nicht gelöscht.
+const GETEILT = 'finanzapp-geteilt';
+
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
-      .then((namen) => Promise.all(namen.filter((n) => n !== CACHE).map((n) => caches.delete(n))))
+      .then((namen) => Promise.all(namen.filter((n) => n !== CACHE && n !== GETEILT).map((n) => caches.delete(n))))
       .then(() => self.clients.claim()),
   );
 });
 
+// "Teilen an Finanzen" (Android, D106): Die geteilten Dateien kommen als Formular (POST) an.
+// Sie werden nur auf diesem Gerät zwischengespeichert, dann öffnet sich die App mit ?geteilt=1
+// und legt daraus eine neue Buchung an (Belege wie aus "Datei wählen").
+async function nimmGeteilteAn(req) {
+  try {
+    const form = await req.formData();
+    const dateien = form.getAll('belege').filter((f) => f && typeof f === 'object' && f.size > 0);
+    const speicher = await caches.open(GETEILT);
+    for (const alt of await speicher.keys()) await speicher.delete(alt);
+    let n = 0;
+    for (const f of dateien) {
+      n += 1;
+      await speicher.put(new Request(`./geteilt/${n}`), new Response(f, {
+        headers: { 'Content-Type': f.type || 'application/octet-stream', 'X-Dateiname': encodeURIComponent(f.name || `Beleg ${n}`) },
+      }));
+    }
+  } catch (err) {
+    // Ohne lesbare Datei öffnet sich trotzdem eine neue Buchung
+  }
+  return Response.redirect('./?geteilt=1', 303);
+}
+
 self.addEventListener('fetch', (event) => {
   const req = event.request;
-  if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return;
+  const url = new URL(req.url);
+  if (req.method === 'POST' && url.origin === self.location.origin && url.pathname.endsWith('/teilen')) {
+    event.respondWith(nimmGeteilteAn(req));
+    return;
+  }
+  if (req.method !== 'GET' || url.origin !== self.location.origin) return;
 
   event.respondWith(
     frisch(req)

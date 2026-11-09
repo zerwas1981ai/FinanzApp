@@ -9,6 +9,21 @@
   "orientation": "any",
   "background_color": "#f5f6f8",
   "theme_color": "#2563eb",
+  "shortcuts": [
+    { "name": "Neue Ausgabe", "short_name": "Ausgabe", "url": "./?neu=ausgabe", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" }] },
+    { "name": "Neue Einnahme", "short_name": "Einnahme", "url": "./?neu=einnahme", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" }] },
+    { "name": "Belegfoto", "short_name": "Beleg", "url": "./?neu=beleg", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" }] }
+  ],
+  "share_target": {
+    "action": "./teilen",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "titel",
+      "text": "text",
+      "files": [{ "name": "belege", "accept": ["image/*", "application/pdf", ".pdf", ".jpg", ".jpeg", ".png"] }]
+    }
+  },
   "icons": [
     { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },

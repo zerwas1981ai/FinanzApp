@@ -159,6 +159,57 @@ export function knopf(text, onclick, variante = '') {
   return h('button', { type: 'button', class: `knopf knopf-klein ${variante}`.trim(), onclick }, text);
 }
 
+/**
+ * Erklärtexte hinter „ⓘ“ (D109): Absätze mit der Klasse "erklaerung" sind eingeklappt. Ein kleiner
+ * ⓘ-Knopf an der zugehörigen Überschrift (die nächste davor) blendet sie ein und aus. Ein Beobachter
+ * erledigt das auch für Bereiche, die sich später neu zeichnen. Was aufgeklappt ist, bleibt so,
+ * solange die App offen ist.
+ */
+const offeneErklaerungen = new Set();
+
+function ueberschriftVor(el, wurzel) {
+  for (let x = el; x && x !== wurzel; x = x.parentElement) {
+    for (let s = x.previousElementSibling; s; s = s.previousElementSibling) {
+      const kopf = s.matches('h1, h2, h3') ? s : s.querySelector('h1, h2, h3');
+      if (kopf) return kopf;
+    }
+  }
+  return null;
+}
+
+function bereiteErklaerungVor(p, wurzel) {
+  p.dataset.bereit = '1';
+  const kopf = ueberschriftVor(p, wurzel);
+  if (!kopf) return; // ohne Überschrift bleibt der Text sichtbar
+  const schluessel = `${kopf.textContent.trim()}|${p.textContent.slice(0, 40)}`;
+  let knopf = kopf.querySelector('.info-knopf');
+  if (!knopf) {
+    knopf = h('button', { type: 'button', class: 'info-knopf', 'aria-expanded': 'false', title: 'Erklärung anzeigen', 'aria-label': 'Erklärung anzeigen' }, 'ⓘ');
+    knopf.erklaerungen = [];
+    knopf.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const auf = knopf.getAttribute('aria-expanded') !== 'true';
+      knopf.setAttribute('aria-expanded', String(auf));
+      for (const { absatz, key } of knopf.erklaerungen) {
+        absatz.hidden = !auf;
+        if (auf) offeneErklaerungen.add(key); else offeneErklaerungen.delete(key);
+      }
+    });
+    kopf.append(' ', knopf);
+  }
+  knopf.erklaerungen.push({ absatz: p, key: schluessel });
+  const auf = offeneErklaerungen.has(schluessel);
+  p.hidden = !auf;
+  if (auf) knopf.setAttribute('aria-expanded', 'true');
+}
+
+export function richteErklaerungenEin(wurzel) {
+  const bearbeite = () => wurzel.querySelectorAll('p.erklaerung:not([data-bereit])').forEach((p) => bereiteErklaerungVor(p, wurzel));
+  new MutationObserver(bearbeite).observe(wurzel, { childList: true, subtree: true });
+  bearbeite();
+}
+
 /** Ein-/Aus-Schalter (Checkbox mit Text) */
 export function schalter(text, an, beiAenderung) {
   return h('label', { class: 'schalter' },

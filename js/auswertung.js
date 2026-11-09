@@ -49,22 +49,19 @@ export function partnerListe(buchungen) {
 }
 
 /**
- * Sortierung (D73): Liste von Stufen, die erste zählt zuerst. Eine angeklickte Spalte rückt
- * nach vorn, die vorher angeklickten bleiben als weitere Stufen erhalten.
+ * Sortierung (D103, vereinfacht D73): genau EINE Spalte. Bei Gleichstand gilt das Datum
+ * (neueste zuerst; bei Sortierung nach Datum in dessen Richtung). Die Form { stufen: [...] }
+ * bleibt, damit sortiere() auch mehrere Stufen könnte – die Oberfläche setzt aber nur eine.
  */
 export const STANDARD_SORTIERUNG = Object.freeze({ stufen: Object.freeze([Object.freeze({ feld: 'datum', richtung: 'ab' })]) });
-export const MAX_SORTIERSTUFEN = 3;
 
 /** Neue Sortierung nach Klick auf eine Spalte (reine Funktion) */
 export function sortiereNach(sortierung, feld) {
-  const stufen = sortierung.stufen ?? [sortierung];
-  if (stufen[0]?.feld === feld) {
-    // Gleiche Spalte erneut: Richtung umdrehen
-    return { stufen: [{ feld, richtung: stufen[0].richtung === 'ab' ? 'auf' : 'ab' }, ...stufen.slice(1)] };
-  }
-  // Zahlen und Datum zuerst absteigend, Texte zuerst A–Z
-  const richtung = feld === 'datum' || feld === 'betrag' ? 'ab' : 'auf';
-  return { stufen: [{ feld, richtung }, ...stufen.filter((x) => x.feld !== feld)].slice(0, MAX_SORTIERSTUFEN) };
+  const aktuell = (sortierung.stufen ?? [sortierung])[0];
+  // Gleiche Spalte erneut: Richtung umdrehen
+  if (aktuell?.feld === feld) return { stufen: [{ feld, richtung: aktuell.richtung === 'ab' ? 'auf' : 'ab' }] };
+  // Neue Spalte: Zahlen und Datum zuerst absteigend, Texte zuerst A–Z
+  return { stufen: [{ feld, richtung: feld === 'datum' || feld === 'betrag' ? 'ab' : 'auf' }] };
 }
 
 const letzterTag = (jahr, monat) => {
@@ -274,6 +271,26 @@ export function verlaufJeMonat(eintraege, monate) {
   }
   for (const z of zeilen) z.saldo = z.einnahmen - z.ausgaben;
   return zeilen;
+}
+
+/**
+ * Sparquote (D107): Anteil der Einnahmen, der übrig bleibt = (Einnahmen − Ausgaben) / Einnahmen.
+ * Ohne Einnahmen gibt es keine Quote (null). Negativ = mehr ausgegeben als eingenommen.
+ */
+export function sparquote(einnahmen, ausgaben) {
+  return einnahmen > 0 ? (einnahmen - ausgaben) / einnahmen : null;
+}
+
+/**
+ * Vorjahreswerte zu jedem Monat (D107): gleicher Monat ein Jahr früher, mit denselben Filtern
+ * außer dem Zeitraum (eintraegeOhneZeitraum). Monate vor der ersten erfassten Buchung → null,
+ * damit „noch nichts erfasst“ nicht wie „0 €“ aussieht.
+ */
+export function vorjahrJeMonat(eintraegeOhneZeitraum, monate, erster) {
+  const vorher = monate.map(([j, m]) => [j - 1, m]);
+  const werte = verlaufJeMonat(eintraegeOhneZeitraum, vorher);
+  const ersterMonat = erster ? erster.slice(0, 7) : null;
+  return werte.map((z) => (ersterMonat && isoMonatsanfang(z.jahr, z.monat).slice(0, 7) >= ersterMonat ? z : null));
 }
 
 /** Nur die abgeschlossenen Monate (vor dem aktuellen Monat) – Grundlage für den Ø */
