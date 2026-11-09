@@ -460,7 +460,8 @@ export function groessteBuchungen(eintraege, art, anzahl = 10) {
 }
 
 /**
- * Ausgaben-Verlauf (D126): die letzten 12 Monate (bis einschließlich des laufenden) und die nächsten 12.
+ * Ausgaben-Verlauf (D126/D127): die letzten 6 abgeschlossenen Monate, der laufende und die nächsten 6.
+ * Vergangene Monate vor der ersten erfassten Buchung (erster) entfallen – dort gibt es noch keine Werte.
  * Ergebnis je Monat: { jahr, monat, ist, erwartet, aktuell, zukunft }
  * - ist: gebuchte Ausgaben (aus istEintraege – schon nach allen Filtern gefiltert, bis heute)
  * - erwartet (nur laufender und künftige Monate, null = nicht berechenbar):
@@ -469,14 +470,19 @@ export function groessteBuchungen(eintraege, art, anzahl = 10) {
  * Berücksichtigt werden Konto- und Kategoriefilter; bei Filtern auf Empfänger, Suche oder Betrag lassen sich
  * die erwarteten Werte nicht sinnvoll zuordnen → erwartet = null.
  */
-export function ausgabenVerlauf({ istEintraege, zl, buchungen, kategorien, filter, heute }) {
+export function ausgabenVerlauf({ istEintraege, zl, buchungen, kategorien, filter, heute, erster = null, zurueck = 6, voraus = 6 }) {
   const [hj, hm] = [Number(heute.slice(0, 4)), Number(heute.slice(5, 7))];
-  const monate = [];
-  let [j, m] = [hj, hm];
-  for (let i = 0; i < 11; i++) [j, m] = vorigerMonat(j, m);
-  for (let i = 0; i < 24; i++) { monate.push([j, m]); [j, m] = naechsterMonat(j, m); }
   const aktuellerMonat = heute.slice(0, 7);
   const schluessel = ([y, mo]) => isoMonatsanfang(y, mo).slice(0, 7);
+  const ersterMonat = erster ? erster.slice(0, 7) : null;
+  const monate = [];
+  let [j, m] = [hj, hm];
+  for (let i = 0; i < zurueck; i++) [j, m] = vorigerMonat(j, m);
+  for (let i = 0; i < zurueck + 1 + voraus; i++) {
+    const k = schluessel([j, m]);
+    if (k >= aktuellerMonat || !ersterMonat || k >= ersterMonat) monate.push([j, m]);
+    [j, m] = naechsterMonat(j, m);
+  }
 
   const ist = new Map();
   for (const { buchung: b } of istEintraege) {

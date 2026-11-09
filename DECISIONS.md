@@ -1875,3 +1875,14 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
     Tabellenansicht zeigt Gebucht, Erwartet und Zusammen. Am Handy rückt der laufende Monat in die Mitte.
 - Rechenfunktion `ausgabenVerlauf()` in `auswertung.js` mit Test. Die Zeitleisten-Posten tragen dafür
   jetzt `hauptId`/`unterId`.
+
+## D127 – Ausgaben je Monat: 6 zurück, 6 voraus; leere Monate weg; Monatsnamen lesbar
+*Wunsch des Nutzers (ändert D126)*
+
+- Das Diagramm zeigt die letzten **6 abgeschlossenen Monate**, den laufenden Monat und die **nächsten
+  6 Monate** (statt 12/12).
+- Vergangene Monate **vor der ersten erfassten Buchung** entfallen, weil es dort noch keine Werte gibt.
+  Vorjahresbalken erscheinen nur, wo es im Vorjahr Ausgaben gibt. Der Knopf „Vorjahr zeigen“ erscheint
+  wie bisher nur, wenn es überhaupt Vorjahreswerte gibt.
+- **Monatsnamen:** Jeder Monat ist beschriftet, mit mehr Platz in der Höhe und etwas breiteren Spalten.
+  Am PC wurden die Namen bisher unten teilweise abgeschnitten bzw. überlappten.

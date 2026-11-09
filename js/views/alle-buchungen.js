@@ -567,9 +567,9 @@ function analyse(eintraege, daten, heute, neu) {
   const ohneZeitraum = filtere(daten.buchungen, { ...zustand.filter, zeitraum: 'alles' }, { ...daten, heute });
   // D126: Ausgaben der letzten 12 und nächsten 12 Monate – immer Ausgaben, egal welche Art gefiltert ist
   const nurAusgaben = filtere(daten.buchungen, { ...zustand.filter, zeitraum: 'alles', arten: ['ausgabe'] }, { ...daten, heute });
-  const zl = zeitleiste(nurWirksam({ ...daten, buchungen: daten.hauptBuchungen }), heute, plusMonate(heute.slice(0, 7), 12));
+  const zl = zeitleiste(nurWirksam({ ...daten, buchungen: daten.hauptBuchungen }), heute, plusMonate(heute.slice(0, 7), 6));
   const verlauf = ausgabenVerlauf({
-    istEintraege: nurAusgaben, zl, buchungen: daten.hauptBuchungen, kategorien: daten.kategorien, filter: zustand.filter, heute,
+    istEintraege: nurAusgaben, zl, buchungen: daten.hauptBuchungen, kategorien: daten.kategorien, filter: zustand.filter, heute, erster,
   });
   const vorjahr = vorjahrJeMonat(nurAusgaben, verlauf.map((z) => [z.jahr, z.monat]), erster);
   return h('div', {},
@@ -704,7 +704,7 @@ function verlaufBereich(zeilen, neu, vorjahr = []) {
     h('span', {}, h('span', { class: 'legende-punkt ausgabe' }), 'gebucht'),
     !ohneErwartung && h('span', {}, h('span', { class: 'legende-punkt ausgabe offen-teil' }), 'erwartet (vorgemerkt, offen, Budget)'),
     mitVorjahr && h('span', {}, h('span', { class: 'legende-punkt ausgabe vorjahr' }), 'Vorjahr'),
-    h('span', { class: 'klein' }, 'letzte 12 und nächste 12 Monate · unabhängig vom Zeitraum'));
+    h('span', { class: 'klein' }, 'letzte 6 und nächste 6 Monate · unabhängig vom Zeitraum'));
   const hinweis = ohneErwartung && h('p', { class: 'hinweis' },
     'Erwartete Ausgaben lassen sich nur mit Konto- und Kategoriefilter zuordnen – bei Filtern auf Empfänger, Suche oder Betrag fehlen sie.');
 
@@ -749,12 +749,13 @@ function verlaufBereich(zeilen, neu, vorjahr = []) {
       'aria-label': `${formatMonat(z.jahr, z.monat)}: gebucht ${formatEuro(z.ist)}` + (z.erwartet != null ? `, erwartet ${formatEuro(z.erwartet)}` : ''),
     },
     h('div', { class: 'balken-paar' + (mitVorjahr ? ' mit-vorjahr' : '') },
-      mitVorjahr && h('div', { class: 'balken ausgabe vorjahr', style: hoehe(v?.ausgaben ?? 0) }),
+      // D127: Vorjahresbalken nur, wo es im Vorjahr Werte gibt
+      mitVorjahr && v?.ausgaben > 0 && h('div', { class: 'balken ausgabe vorjahr', style: hoehe(v.ausgaben) }),
       // gestapelt: unten gebucht, oben (heller) erwartet
       h('div', { class: 'balken-stapel', style: hoehe(z.ist + (z.erwartet ?? 0)) },
         z.erwartet > 0 && h('div', { class: 'balken ausgabe offen-teil', style: `flex:${z.erwartet}` }),
         z.ist > 0 && h('div', { class: 'balken ausgabe', style: `flex:${z.ist}` }))),
-    h('div', { class: 'spalte-label' }, i % 2 === 0 || z.aktuell ? kurz(z) : ''));
+    h('div', { class: 'spalte-label' }, kurz(z)));
     spalte.addEventListener('mouseenter', () => zeigeTooltip(spalte, z, v));
     spalte.addEventListener('focus', () => zeigeTooltip(spalte, z, v));
     spalte.addEventListener('mouseleave', () => { tooltip.hidden = true; });
@@ -765,7 +766,7 @@ function verlaufBereich(zeilen, neu, vorjahr = []) {
   // Am Handy ist das Diagramm breiter als der Bildschirm: zuerst den laufenden Monat zeigen
   const flaeche = h('div', { class: 'diagramm-flaeche' },
     h('div', { class: 'gitter' }, ticks.map((t) => h('span', { style: `bottom:${t * 100}%` }))),
-    h('div', { class: 'spalten', style: `min-width:${zeilen.length * (mitVorjahr ? 40 : 30)}px` }, spalten),
+    h('div', { class: 'spalten', style: `min-width:${zeilen.length * (mitVorjahr ? 46 : 40)}px` }, spalten),
     tooltip);
   requestAnimationFrame(() => {
     const aktuell = flaeche.querySelector('.spalte.aktuell');

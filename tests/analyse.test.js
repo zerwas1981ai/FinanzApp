@@ -75,13 +75,17 @@ test('Ausgaben-Verlauf: 12 Monate zurück, 12 voraus, erwartete Ausgaben heller 
   const wiederkehrende = [{ id: 'm', art: 'ausgabe', kontoId: 'giro', kategorieId: 'miete', start: '2026-11-15', intervall: 'monatlich', stufen: [{ ab: '2026-11-15', betragCent: 90000 }], erstelltAm: '2026-11-01T00:00:00Z' }];
   const budgets = [{ kategorieId: 'leben', kontoId: 'giro', typ: 'wiederkehrend', startMonat: '2026-01', endMonat: null, stufen: [{ ab: '2026-01', betragCent: 20000 }] }];
   const daten = { konten, kategorien: kat, buchungen, budgets, wiederkehrende, geplant: [] };
-  const zl = zeitleiste(daten, heute, '2027-11');
+  const zl = zeitleiste(daten, heute, '2027-05');
   const filter = { ...STANDARD_FILTER };
   const istEintraege = filtere(buchungen, { ...filter, zeitraum: 'alles' }, { kategorien: kat, konten, heute });
   const v = ausgabenVerlauf({ istEintraege, zl, buchungen, kategorien: kat, filter, heute });
-  assert.equal(v.length, 24);
-  assert.deepEqual([v[0].jahr, v[0].monat], [2025, 12]);
-  assert.deepEqual([v.at(-1).jahr, v.at(-1).monat], [2027, 11]);
+  assert.equal(v.length, 13, '6 zurück, laufender, 6 voraus (D127)');
+  assert.deepEqual([v[0].jahr, v[0].monat], [2026, 5]);
+  assert.deepEqual([v.at(-1).jahr, v.at(-1).monat], [2027, 5]);
+  // Monate vor der ersten erfassten Buchung entfallen
+  const abOktober = ausgabenVerlauf({ istEintraege, zl, buchungen, kategorien: kat, filter, heute, erster: '2026-10-05' });
+  assert.deepEqual([abOktober[0].jahr, abOktober[0].monat], [2026, 10]);
+  assert.equal(abOktober.length, 8);
   const nov = v.find((x) => x.aktuell);
   assert.equal(nov.ist, 3000, 'nur gebucht bis heute');
   // erwartet: vorgemerkt 20 + später datiert 40 + Miete 900 + Budgetrest Lebensmittel (200 − 30 − 20 − 40 = 110)
