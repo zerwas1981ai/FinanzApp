@@ -1809,3 +1809,14 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
 - **„Nur Buchungen ohne Beleg“** entfällt vorerst (CLAUDE.md angepasst). Die Filterlogik
   (`filter.ohneBeleg`) bleibt im Code, falls er wiederkommen soll.
 - Damit gibt es keinen aufklappbaren Bereich „Weitere Filter“ mehr.
+
+## D124 – „Alle Buchungen“: zunächst 20 Buchungen
+*Wunsch des Nutzers*
+
+- Die Liste zeigt zunächst die ersten **20 Buchungen** in der gewählten Sortierung. Darunter blendet der Knopf
+  „Alle weiteren anzeigen (x Buchungen)“ den Rest auf einmal ein (bisher je 200).
+- Ausgeblendete Umbuchungen zählen bei den 20 nicht mit (wie D79 in der Übersicht). Filtert man ausdrücklich
+  nach Umbuchungen, zählen sie.
+- Ein neuer Zeitraum, eine Filteränderung oder „Filter zurücksetzen“ beginnt wieder mit 20. Beim Sortieren
+  und nach dem Bearbeiten einer Buchung bleibt die aufgeklappte Liste offen.
+- Summenblock, Analyse und CSV-Export beziehen sich weiterhin auf **alle** gefilterten Buchungen.

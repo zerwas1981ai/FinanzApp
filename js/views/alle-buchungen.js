@@ -17,7 +17,8 @@ import { umbuchungKnopf } from './kennzahlen.js';
 import { sortiereKonten } from '../konten.js';
 
 const nachName = (a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base' });
-const SEITE = 200; // so viele Zeilen werden auf einmal gezeigt
+// D124: zunächst 20 Buchungen (Umbuchungen zählen dabei nicht mit), der Rest per Knopf darunter
+const SEITE = 20;
 
 // Zustand bleibt erhalten, solange die App offen ist (beim Neuladen: Standard)
 const zustand = {
@@ -218,7 +219,7 @@ function filterBereich({ konten, kategorien, buchungen }, aktualisiere, neuZeich
   const f = zustand.filter;
   const setze = (schluessel, wert, ganzNeu = false) => {
     f[schluessel] = wert;
-    if (ganzNeu) neuZeichnen();
+    if (ganzNeu) { zustand.sichtbar = SEITE; neuZeichnen(); }
     else {
       resetKnopf.hidden = !filterGeaendert();
       aktualisiere();
@@ -322,6 +323,7 @@ function filterBereich({ konten, kategorien, buchungen }, aktualisiere, neuZeich
     hidden: !filterGeaendert(),
     onclick: () => {
       zustand.filter = { ...STANDARD_FILTER };
+      zustand.sichtbar = SEITE;
       neuZeichnen();
     },
   }, 'Filter zurücksetzen');
@@ -448,7 +450,17 @@ function liste(eintraege, daten, neu) {
     return h('section', { class: 'bereich' }, h('p', { class: 'leer' }, 'Keine Buchungen passen zu diesen Filtern.'));
   }
 
-  const zeigen = sortiert.slice(0, zustand.sichtbar);
+  // D124: die ersten SEITE Einnahmen/Ausgaben zeigen; Umbuchungen dazwischen kommen mit (sie sind
+  // ausblendbar und sollen die Zahl nicht verringern). Ausdrücklich gefilterte Umbuchungen zählen mit.
+  let bisher = 0;
+  let ende = sortiert.length;
+  for (let i = 0; i < sortiert.length; i++) {
+    const zaehlt = sortiert[i].buchung.art !== 'umbuchung' || umbuchungGefiltert;
+    if (zaehlt && bisher >= zustand.sichtbar) { ende = i; break; }
+    if (zaehlt) bisher += 1;
+  }
+  const zeigen = sortiert.slice(0, ende);
+  const uebrig = sortiert.slice(ende).filter((e) => e.buchung.art !== 'umbuchung' || umbuchungGefiltert).length;
   // Export der gefilterten Liste (Etappe 6). Bei Umbuchungen kommen beide Hälften mit, damit die CSV vollständig ist.
   const exportKnopf = h('button', {
     type: 'button',
@@ -521,12 +533,12 @@ function liste(eintraege, daten, neu) {
       h('ul', { class: 'btab-liste', role: 'rowgroup' }, zeigen.map(zeile))),
     h('p', { class: 'hinweis btab-hinweis' }, 'Spaltenkopf antippen zum Sortieren, erneut antippen dreht die Richtung um. ' +
       'Bei Gleichstand steht die neueste Buchung oben.'),
-    sortiert.length > zeigen.length && h('div', { class: 'mehr' },
+    uebrig > 0 && h('div', { class: 'mehr' },
       h('button', {
         type: 'button',
         class: 'knopf',
-        onclick: () => { zustand.sichtbar += SEITE; neu(); },
-      }, `Weitere anzeigen (${sortiert.length - zeigen.length} übrig)`)),
+        onclick: () => { zustand.sichtbar = Infinity; neu(); },
+      }, `Alle weiteren anzeigen (${uebrig === 1 ? '1 Buchung' : `${uebrig} Buchungen`})`)),
   );
 }
 
