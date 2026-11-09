@@ -1953,3 +1953,9 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
   bleibt immer sichtbar, damit man es abwählen kann. Gibt es nichts, steht ein kurzer Hinweis da.
 - **Empfänger/Absender gefiltert:** Der Block „Größte Ausgaben/Einnahmen“ entfällt, weil er dann nur die
   Liste wiederholt.
+
+## D133 – „Größte Ausgaben“ nur in der Ansicht „Nach Kategorien“
+*Wunsch des Nutzers (ergänzt D132)*
+
+- Der Block „Größte Ausgaben/Einnahmen“ erscheint nur, wenn die Analyse „Nach Kategorien“ zeigt. In der
+  Ansicht „Nach Empfänger/Absender“ entfällt er, ebenso weiterhin bei einem Empfänger-Filter.

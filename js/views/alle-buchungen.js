@@ -631,8 +631,8 @@ function analyse(eintraege, daten, heute, neu) {
     zustand.analyseGruppe === 'partner'
       ? partnerBereich(eintraege, monate, heute, neu)
       : kategorieBereich(kategorieEintraege(eintraege, daten, heute), daten, monate, heute, neu, erster),
-    // D132: bei einem Empfänger-Filter bringt die Top-10-Liste nichts Neues
-    zustand.filter.partner.length === 0 && groessteBereich(eintraege, daten, neu),
+    // D132/D133: die Top-10-Liste nur in der Ansicht „Nach Kategorien“ und ohne Empfänger-Filter
+    zustand.analyseGruppe === 'kategorie' && zustand.filter.partner.length === 0 && groessteBereich(eintraege, daten, neu),
   );
 }
 
