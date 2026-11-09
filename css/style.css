@@ -784,10 +784,22 @@ button.ka-zeile:hover { background: var(--akzent-leicht); }
 .balken.ausgabe { background: var(--serie-ausgabe); }
 /* Vorjahr (D107): dieselbe Farbe, blass */
 .balken.vorjahr, .legende-punkt.vorjahr { opacity: .35; }
+/* D126: gestapelter Balken – unten gebucht, oben heller die erwarteten Ausgaben */
+.balken-stapel { display: flex; flex-direction: column; width: min(16px, 55%); min-height: 0; }
+.balken-stapel > .balken { width: 100%; min-height: 0; border-radius: 0; }
+.balken-stapel > .balken:first-child { border-radius: 4px 4px 0 0; }
+.balken.offen-teil, .legende-punkt.offen-teil { opacity: .4; }
+.balken-paar.mit-vorjahr .balken-stapel { width: min(10px, 40%); }
+.spalte.aktuell .spalte-label { color: var(--text); font-weight: 600; }
+.spalte.zukunft .spalte-label { font-style: italic; }
+.tabelle tr.aktuell td { font-weight: 600; }
+.tabelle tr.zukunft td:first-child { font-style: italic; }
+/* D126: aktive Filter farbig */
+.mehrfach.aktiv > .mehrfach-knopf { border-color: var(--akzent); background: var(--akzent-leicht); color: var(--akzent); font-weight: 600; }
+.filter input.aktiv { border-color: var(--akzent); background: var(--akzent-leicht); }
 .balken-paar.mit-vorjahr { gap: 1px; }
-.balken-paar.mit-vorjahr .balken { width: min(10px, 22%); }
-.balken-paar.mit-vorjahr .balken.ausgabe.vorjahr { margin-left: 3px; }
-.sparquote { margin: 0 0 10px; font-size: .9rem; }
+.balken-paar.mit-vorjahr > .balken { width: min(10px, 40%); }
+.balken-paar.mit-vorjahr > .balken.vorjahr { margin-right: 2px; }
 /* Erklärtexte hinter „ⓘ“ (D109) */
 .info-knopf {
   display: inline-grid; place-items: center; width: 1.6em; height: 1.6em; margin-left: 2px; padding: 0;
@@ -800,7 +812,6 @@ p.erklaerung { margin-top: 0; }
 /* Vorschau vor dem Wiederherstellen (D108) */
 .backup-vergleich tr.anders td { font-weight: 600; }
 .backup-vergleich tr.anders td:last-child { color: var(--akzent); }
-.sparquote strong { font-variant-numeric: tabular-nums; }
 .spalte-label { font-size: .72rem; color: var(--text-2); padding-top: 6px; white-space: nowrap; height: 1.6em; }
 
 .tooltip {

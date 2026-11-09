@@ -8,12 +8,14 @@ import { archivInhalt } from '../sync/abgleich.js';
 import { buchungenAlsCsv, exportName } from '../export.js';
 import {
   STANDARD_FILTER, STANDARD_SORTIERUNG, filtere, sortiere, summen, zeitraumFuer,
-  monateDerAuswertung, ersterErfassterTag, abgeschlosseneMonate, verlaufJeMonat, summenJeKategorie, schoeneObergrenze,
-  sparquote, vorjahrJeMonat,
+  monateDerAuswertung, ersterErfassterTag, abgeschlosseneMonate, summenJeKategorie, schoeneObergrenze,
+  vorjahrJeMonat,
   vorperiode, monatsSummenJeKategorie, letzteZwoelfMonate, budgetSchnitt, groessteBuchungen, veraenderungProzent,
+  ausgabenVerlauf,
   OHNE_PARTNER, partnerListe, partnerSchluessel, summenJePartner, sortiereNach,
 } from '../auswertung.js';
 import { oeffneBuchungsdialog } from './buchung-dialog.js';
+import { zeitleiste, nurWirksam, plusMonate } from '../prognose.js';
 import { umbuchungKnopf } from './kennzahlen.js';
 import { sortiereKonten } from '../konten.js';
 
@@ -72,8 +74,8 @@ export async function ladeArchive(archive, anmelden) {
 }
 
 export async function zeigeBuchungen(container, { archivAnmelden = false } = {}) {
-  const [konten, kategorien, buchungen, projekte, archive, budgets] = await Promise.all(
-    ['konten', 'kategorien', 'buchungen', 'projekte', 'archive', 'budgets'].map((s) => db.alle(s)),
+  const [konten, kategorien, buchungen, projekte, archive, budgets, wiederkehrende, geplant] = await Promise.all(
+    ['konten', 'kategorien', 'buchungen', 'projekte', 'archive', 'budgets', 'wiederkehrend', 'geplant'].map((s) => db.alle(s)),
   );
   const gewuenscht = sessionStorage.getItem('finanzapp-bestand');
   if (gewuenscht) {
@@ -90,6 +92,8 @@ export async function zeigeBuchungen(container, { archivAnmelden = false } = {})
     projekte: vereint(projekte, geladen.flatMap((a) => a.inhalt.projekte ?? [])),
     buchungen: [...geladen.flatMap(({ eintrag, inhalt }) => inhalt.buchungen.map((b) => ({ ...b, archivJahr: eintrag.jahr }))), ...buchungen],
     budgets, // für „Ist vs. Budget“ in der Analyse (D125)
+    // D126: für die erwarteten Ausgaben (Zeitleiste) – ohne Archiv-Buchungen, die stecken schon im Anfangssaldo
+    wiederkehrende, geplant, hauptBuchungen: buchungen,
   };
 
   const ergebnis = h('div', { class: 'ergebnis' });
@@ -139,6 +143,7 @@ document.addEventListener('click', (e) => {
  */
 function mehrfachAuswahl({ optionen, gewaehlt, alleText, gleich = (a, b) => a === b, beiAenderung }) {
   let auswahl = [...gewaehlt];
+  let d = null; // die Aufklappliste (wird unten erzeugt)
   const istGewaehlt = (wert) => auswahl.some((w) => gleich(w, wert));
   const anzeige = h('span', { class: 'mehrfach-text' });
   const kaesten = [];
@@ -165,6 +170,8 @@ function mehrfachAuswahl({ optionen, gewaehlt, alleText, gleich = (a, b) => a ==
       input.disabled = durchEltern;
     }
     leeren.hidden = auswahl.length === 0;
+    // D126: ein aktiver Filter ist farbig hervorgehoben
+    d?.classList.toggle('aktiv', auswahl.length > 0);
   }
 
   // D120: Unterkategorien zunächst eingeklappt; „+“ an der Hauptkategorie klappt sie auf.
@@ -210,7 +217,7 @@ function mehrfachAuswahl({ optionen, gewaehlt, alleText, gleich = (a, b) => a ==
     return h('div', { class: 'mehrfach-gruppe-zeile' }, zeile, knopf);
   });
 
-  const d = h('details', { class: 'mehrfach' },
+  d = h('details', { class: 'mehrfach' },
     h('summary', { class: 'mehrfach-knopf' }, anzeige),
     h('div', { class: 'mehrfach-liste' }, leeren, zeilen));
   aktualisiereAnzeige();
@@ -292,7 +299,9 @@ function filterBereich({ konten, kategorien, buchungen }, aktualisiere, neuZeich
     placeholder: 'Suchen in An/Von, Notiz, Kategorie, Konto …',
     value: f.suche,
     'aria-label': 'Suchen',
+    class: f.suche.trim() ? 'aktiv' : null,
     oninput: (e) => {
+      e.target.classList.toggle('aktiv', e.target.value.trim() !== ''); // D126: aktiver Filter farbig
       clearTimeout(timer);
       timer = setTimeout(() => setze('suche', e.target.value), 200);
     },
@@ -306,10 +315,12 @@ function filterBereich({ konten, kategorien, buchungen }, aktualisiere, neuZeich
       inputmode: 'decimal',
       placeholder: label === 'Betrag ab' ? 'z. B. 50' : 'z. B. 500',
       value: f[schluessel] == null ? '' : String(f[schluessel] / 100).replace('.', ','),
+      class: f[schluessel] != null ? 'aktiv' : null,
       onchange: (e) => {
         try {
           const cent = parseEuro(e.target.value, label);
           fehler.textContent = '';
+          e.target.classList.toggle('aktiv', cent !== null);
           setze(schluessel, cent === null ? null : Math.abs(cent));
         } catch (err) {
           fehler.textContent = err.message;
@@ -552,11 +563,17 @@ function analyse(eintraege, daten, heute, neu) {
   if (eintraege.length === 0 || monate.length === 0) {
     return h('section', { class: 'bereich' }, h('p', { class: 'leer' }, 'Keine Buchungen für eine Auswertung.'));
   }
-  // Vorjahr: dieselben Filter, aber ohne Zeitraum – sonst fehlten die Monate ein Jahr früher
+  // Dieselben Filter ohne Zeitraum: für Trend (D125) und den Ausgaben-Verlauf (D126)
   const ohneZeitraum = filtere(daten.buchungen, { ...zustand.filter, zeitraum: 'alles' }, { ...daten, heute });
+  // D126: Ausgaben der letzten 12 und nächsten 12 Monate – immer Ausgaben, egal welche Art gefiltert ist
+  const nurAusgaben = filtere(daten.buchungen, { ...zustand.filter, zeitraum: 'alles', arten: ['ausgabe'] }, { ...daten, heute });
+  const zl = zeitleiste(nurWirksam({ ...daten, buchungen: daten.hauptBuchungen }), heute, plusMonate(heute.slice(0, 7), 12));
+  const verlauf = ausgabenVerlauf({
+    istEintraege: nurAusgaben, zl, buchungen: daten.hauptBuchungen, kategorien: daten.kategorien, filter: zustand.filter, heute,
+  });
+  const vorjahr = vorjahrJeMonat(nurAusgaben, verlauf.map((z) => [z.jahr, z.monat]), erster);
   return h('div', {},
-    // D125: Verlauf erst ab zwei Monaten – bei einem Monat zeigt er nur einen Balken
-    monate.length > 1 && verlaufBereich(verlaufJeMonat(eintraege, monate), neu, vorjahrJeMonat(ohneZeitraum, monate, erster)),
+    verlaufBereich(verlauf, neu, vorjahr),
     zustand.analyseGruppe === 'partner'
       ? partnerBereich(eintraege, monate, heute, neu)
       : kategorieBereich(eintraege, daten, monate, heute, neu, ohneZeitraum, erster),
@@ -575,8 +592,16 @@ function gruppeWahl(neu) {
     }, text)));
 }
 
+/** Genau eine Art (Ausgabe oder Einnahme) im Filter? Dann richtet sich die Analyse danach. */
+function eineGefilterteArt() {
+  const arten = zustand.filter.arten.filter((x) => x !== 'umbuchung');
+  return arten.length === 1 ? arten[0] : null;
+}
+
 /** Ausgaben/Einnahmen-Umschalter der Analyse */
 function artWahlAnalyse(neu) {
+  // D126: Ist im Filter genau eine Art gewählt (Standard: Ausgaben), gibt es nichts umzuschalten
+  if (eineGefilterteArt()) return null;
   return h('div', { class: 'segmente', role: 'group', 'aria-label': 'Art' },
     [['ausgabe', 'Ausgaben'], ['einnahme', 'Einnahmen']].map(([wert, text]) => h('button', {
       type: 'button',
@@ -592,7 +617,7 @@ const MAX_PARTNER = 25; // so viele Empfänger/Absender einzeln, der Rest als "W
 function partnerBereich(eintraege, monate, heute, neu) {
   const schnittMonate = abgeschlosseneMonate(monate, heute);
   const anzahlMonate = schnittMonate.length;
-  const art = zustand.analyseArt;
+  const art = eineGefilterteArt() ?? zustand.analyseArt;
   const alle = summenJePartner(eintraege, art, schnittMonate);
   const gesamt = alle.reduce((s, g) => s + g.summe, 0);
   const max = Math.max(...alle.map((g) => g.summe), 1);
@@ -651,27 +676,16 @@ function partnerBereich(eintraege, monate, heute, neu) {
   );
 }
 
-/** Prozent mit Vorzeichen-Logik für die Sparquote; ohne Einnahmen "–" */
-const quoteText = (q) => (q == null ? '–' : formatProzent(q));
-
-/** Veränderung zum Vorjahr als Text, z. B. "+12 %" (ohne Vorjahreswert leer) */
-function veraenderung(jetzt, vorher) {
-  if (!vorher) return '';
-  const p = Math.round(((jetzt - vorher) / vorher) * 100);
-  return ` (${p > 0 ? '+' : ''}${p} % zum Vorjahr)`;
-}
-
 /**
- * Balkendiagramm Einnahmen/Ausgaben je Monat, mit Tooltip und Tabellenansicht.
- * D107: optional die Vorjahresmonate als blasse Balken daneben, Sparquote je Monat und gesamt.
+ * D126: Ausgaben-Verlauf – die letzten 12 und die nächsten 12 Monate, unabhängig vom gewählten Zeitraum.
+ * Gebuchte Ausgaben kräftig; im laufenden Monat darauf heller die noch erwarteten (vorgemerkt, offen, Budgetrest),
+ * in den Folgemonaten nur die erwarteten Auszahlungen (hell). Optional das Vorjahr als blasse Balken daneben.
  */
 function verlaufBereich(zeilen, neu, vorjahr = []) {
   const mitVorjahr = zustand.vorjahr && vorjahr.some(Boolean);
-  const summe = zeilen.reduce((s, z) => ({ e: s.e + z.einnahmen, a: s.a + z.ausgaben }), { e: 0, a: 0 });
-  const quoteGesamt = sparquote(summe.e, summe.a);
-  const mehrereJahre = new Set(zeilen.map((z) => z.jahr)).size > 1;
+  const ohneErwartung = zeilen.some((z) => (z.aktuell || z.zukunft) && z.erwartet === null);
   const kurz = (z) => new Intl.DateTimeFormat('de-DE', { month: 'short' }).format(new Date(z.jahr, z.monat - 1, 1)).replace('.', '')
-    + (mehrereJahre ? ` ${String(z.jahr).slice(2)}` : '');
+    + ` ${String(z.jahr).slice(2)}`;
 
   const umschalter = h('button', {
     type: 'button',
@@ -684,79 +698,63 @@ function verlaufBereich(zeilen, neu, vorjahr = []) {
     'aria-pressed': String(zustand.vorjahr),
     onclick: () => { zustand.vorjahr = !zustand.vorjahr; neu(); },
   }, zustand.vorjahr ? 'Vorjahr ausblenden' : 'Vorjahr zeigen');
-
-  const kopf = h('div', { class: 'bereich-kopf' }, h('h2', {}, 'Verlauf je Monat'),
+  const kopf = h('div', { class: 'bereich-kopf' }, h('h2', {}, 'Ausgaben je Monat'),
     h('div', { class: 'knopfreihe' }, vorjahrKnopf, umschalter));
-  // Sparquote über den ganzen Zeitraum (nur sinnvoll, wenn Einnahmen in der Auswahl sind)
-  const quoteZeile = quoteGesamt != null && h('p', { class: 'sparquote' },
-    h('span', {}, 'Sparquote im Zeitraum: '), h('strong', { class: quoteGesamt < 0 ? 'negativ' : '' }, formatProzent(quoteGesamt)),
-    h('span', { class: 'klein' }, ' – Anteil der Einnahmen, der nach den Ausgaben übrig bleibt'));
+  const legende = h('div', { class: 'legende' },
+    h('span', {}, h('span', { class: 'legende-punkt ausgabe' }), 'gebucht'),
+    !ohneErwartung && h('span', {}, h('span', { class: 'legende-punkt ausgabe offen-teil' }), 'erwartet (vorgemerkt, offen, Budget)'),
+    mitVorjahr && h('span', {}, h('span', { class: 'legende-punkt ausgabe vorjahr' }), 'Vorjahr'),
+    h('span', { class: 'klein' }, 'letzte 12 und nächste 12 Monate · unabhängig vom Zeitraum'));
+  const hinweis = ohneErwartung && h('p', { class: 'hinweis' },
+    'Erwartete Ausgaben lassen sich nur mit Konto- und Kategoriefilter zuordnen – bei Filtern auf Empfänger, Suche oder Betrag fehlen sie.');
 
   if (zustand.alsTabelle) {
-    const vj = (i, feld) => (vorjahr[i] ? formatEuro(vorjahr[i][feld]) : '–');
-    return h('section', { class: 'bereich' }, kopf, quoteZeile,
+    const vj = (i) => (vorjahr[i] ? formatEuro(vorjahr[i].ausgaben) : '–');
+    return h('section', { class: 'bereich' }, kopf, hinweis,
       h('div', { class: 'tabelle-rahmen' },
         h('table', { class: 'tabelle' },
-          h('thead', {}, h('tr', {}, h('th', {}, 'Monat'), h('th', {}, 'Einnahmen'), mitVorjahr && h('th', {}, 'Vorjahr'),
-            h('th', {}, 'Ausgaben'), mitVorjahr && h('th', {}, 'Vorjahr'), h('th', {}, 'Saldo'), h('th', {}, 'Sparquote'))),
-          h('tbody', {}, zeilen.map((z, i) => h('tr', {},
+          h('thead', {}, h('tr', {}, h('th', {}, 'Monat'), h('th', {}, 'Gebucht'), h('th', {}, 'Erwartet'), h('th', {}, 'Zusammen'),
+            mitVorjahr && h('th', {}, 'Vorjahr'))),
+          h('tbody', {}, zeilen.map((z, i) => h('tr', { class: z.aktuell ? 'aktuell' : z.zukunft ? 'zukunft' : null },
             h('td', {}, formatMonat(z.jahr, z.monat)),
-            h('td', {}, formatEuro(z.einnahmen)),
-            mitVorjahr && h('td', { class: 'gedaempft' }, vj(i, 'einnahmen')),
-            h('td', {}, formatEuro(z.ausgaben)),
-            mitVorjahr && h('td', { class: 'gedaempft' }, vj(i, 'ausgaben')),
-            h('td', { class: z.saldo < 0 ? 'negativ' : '' }, formatEuro(z.saldo)),
-            h('td', { class: (sparquote(z.einnahmen, z.ausgaben) ?? 0) < 0 ? 'negativ' : '' }, quoteText(sparquote(z.einnahmen, z.ausgaben)))))),
-          h('tfoot', {}, h('tr', {},
-            h('th', {}, 'Gesamt'),
-            h('th', {}, formatEuro(summe.e)),
-            mitVorjahr && h('th', {}),
-            h('th', {}, formatEuro(summe.a)),
-            mitVorjahr && h('th', {}),
-            h('th', { class: summe.e - summe.a < 0 ? 'negativ' : '' }, formatEuro(summe.e - summe.a)),
-            h('th', {}, quoteText(quoteGesamt)))))));
+            h('td', {}, z.zukunft ? '–' : formatEuro(z.ist)),
+            h('td', { class: 'annahme' }, z.erwartet == null ? '–' : formatEuro(z.erwartet)),
+            h('td', { class: (z.aktuell || z.zukunft) ? 'annahme' : '' }, formatEuro(z.ist + (z.erwartet ?? 0))),
+            mitVorjahr && h('td', { class: 'gedaempft' }, vj(i))))))));
   }
 
-  const max = schoeneObergrenze(Math.max(...zeilen.map((z) => Math.max(z.einnahmen, z.ausgaben)),
-    ...(mitVorjahr ? vorjahr.filter(Boolean).map((z) => Math.max(z.einnahmen, z.ausgaben)) : []), 1));
+  const max = schoeneObergrenze(Math.max(...zeilen.map((z) => z.ist + (z.erwartet ?? 0)),
+    ...(mitVorjahr ? vorjahr.filter(Boolean).map((z) => z.ausgaben) : []), 1));
   const ticks = [0, 0.25, 0.5, 0.75, 1];
   const tooltip = h('div', { class: 'tooltip', role: 'status', hidden: true });
-  // Bei vielen Monaten nur jede n-te Beschriftung zeigen
-  const jedeNte = Math.ceil(zeilen.length / 12);
-
   const zeigeTooltip = (spalte, z, v) => {
-    const q = sparquote(z.einnahmen, z.ausgaben);
     tooltip.replaceChildren(
-      h('strong', {}, formatMonat(z.jahr, z.monat)),
-      h('div', {}, h('span', { class: 'legende-punkt einnahme' }), `Einnahmen ${formatEuro(z.einnahmen)}${mitVorjahr ? veraenderung(z.einnahmen, v?.einnahmen) : ''}`),
-      h('div', {}, h('span', { class: 'legende-punkt ausgabe' }), `Ausgaben ${formatEuro(z.ausgaben)}${mitVorjahr ? veraenderung(z.ausgaben, v?.ausgaben) : ''}`),
-      mitVorjahr && h('div', { class: 'klein' }, v
-        ? `Vorjahr: Einnahmen ${formatEuro(v.einnahmen)} · Ausgaben ${formatEuro(v.ausgaben)}`
-        : 'Vorjahr: noch nicht erfasst'),
-      h('div', { class: 'tooltip-saldo' }, `Saldo ${formatEuro(z.saldo)}`, q != null && ` · Sparquote ${formatProzent(q)}`),
+      h('strong', {}, formatMonat(z.jahr, z.monat) + (z.zukunft ? ' (Prognose)' : z.aktuell ? ' (laufend)' : '')),
+      !z.zukunft && h('div', {}, h('span', { class: 'legende-punkt ausgabe' }), `Gebucht ${formatEuro(z.ist)}`),
+      z.erwartet != null && h('div', {}, h('span', { class: 'legende-punkt ausgabe offen-teil' }), `Erwartet ${formatEuro(z.erwartet)}`),
+      (z.aktuell && z.erwartet != null) && h('div', { class: 'tooltip-saldo' }, `Zusammen ${formatEuro(z.ist + z.erwartet)}`),
+      mitVorjahr && h('div', { class: 'klein' }, v ? `Vorjahr ${formatEuro(v.ausgaben)}${veraenderung(z.ist + (z.erwartet ?? 0), v.ausgaben)}` : 'Vorjahr: noch nicht erfasst'),
     );
     tooltip.hidden = false;
     const flaeche = spalte.closest('.diagramm-flaeche').getBoundingClientRect();
     const r = spalte.getBoundingClientRect();
-    const mitte = r.left + r.width / 2 - flaeche.left;
-    tooltip.style.left = `${Math.min(Math.max(mitte, 80), flaeche.width - 80)}px`;
+    tooltip.style.left = `${Math.min(Math.max(r.left + r.width / 2 - flaeche.left, 80), flaeche.width - 80)}px`;
   };
-
+  const hoehe = (cent) => `height:${(cent / max) * 100}%`;
   const spalten = zeilen.map((z, i) => {
     const v = vorjahr[i];
-    const hoehe = (cent) => `height:${(cent / max) * 100}%`;
     const spalte = h('div', {
-      class: 'spalte',
+      class: 'spalte' + (z.aktuell ? ' aktuell' : '') + (z.zukunft ? ' zukunft' : ''),
       tabindex: '0',
-      'aria-label': `${formatMonat(z.jahr, z.monat)}: Einnahmen ${formatEuro(z.einnahmen)}, Ausgaben ${formatEuro(z.ausgaben)}`
-        + (mitVorjahr && v ? `; Vorjahr Einnahmen ${formatEuro(v.einnahmen)}, Ausgaben ${formatEuro(v.ausgaben)}` : ''),
+      'aria-label': `${formatMonat(z.jahr, z.monat)}: gebucht ${formatEuro(z.ist)}` + (z.erwartet != null ? `, erwartet ${formatEuro(z.erwartet)}` : ''),
     },
     h('div', { class: 'balken-paar' + (mitVorjahr ? ' mit-vorjahr' : '') },
-      mitVorjahr && h('div', { class: 'balken einnahme vorjahr', style: hoehe(v?.einnahmen ?? 0) }),
-      h('div', { class: 'balken einnahme', style: hoehe(z.einnahmen) }),
       mitVorjahr && h('div', { class: 'balken ausgabe vorjahr', style: hoehe(v?.ausgaben ?? 0) }),
-      h('div', { class: 'balken ausgabe', style: hoehe(z.ausgaben) })),
-    h('div', { class: 'spalte-label' }, i % jedeNte === 0 ? kurz(z) : ''));
+      // gestapelt: unten gebucht, oben (heller) erwartet
+      h('div', { class: 'balken-stapel', style: hoehe(z.ist + (z.erwartet ?? 0)) },
+        z.erwartet > 0 && h('div', { class: 'balken ausgabe offen-teil', style: `flex:${z.erwartet}` }),
+        z.ist > 0 && h('div', { class: 'balken ausgabe', style: `flex:${z.ist}` }))),
+    h('div', { class: 'spalte-label' }, i % 2 === 0 || z.aktuell ? kurz(z) : ''));
     spalte.addEventListener('mouseenter', () => zeigeTooltip(spalte, z, v));
     spalte.addEventListener('focus', () => zeigeTooltip(spalte, z, v));
     spalte.addEventListener('mouseleave', () => { tooltip.hidden = true; });
@@ -764,26 +762,29 @@ function verlaufBereich(zeilen, neu, vorjahr = []) {
     return spalte;
   });
 
-  // Ist das Diagramm breiter als der Bildschirm (Handy), zuerst die neuesten Monate zeigen
+  // Am Handy ist das Diagramm breiter als der Bildschirm: zuerst den laufenden Monat zeigen
   const flaeche = h('div', { class: 'diagramm-flaeche' },
     h('div', { class: 'gitter' }, ticks.map((t) => h('span', { style: `bottom:${t * 100}%` }))),
-    h('div', { class: 'spalten', style: `min-width:${zeilen.length * (mitVorjahr ? 48 : 34)}px` }, spalten),
+    h('div', { class: 'spalten', style: `min-width:${zeilen.length * (mitVorjahr ? 40 : 30)}px` }, spalten),
     tooltip);
-  requestAnimationFrame(() => { flaeche.scrollLeft = flaeche.scrollWidth; });
+  requestAnimationFrame(() => {
+    const aktuell = flaeche.querySelector('.spalte.aktuell');
+    if (aktuell && flaeche.scrollWidth > flaeche.clientWidth) flaeche.scrollLeft = aktuell.offsetLeft - flaeche.clientWidth / 2;
+  });
 
-  return h('section', { class: 'bereich' }, kopf, quoteZeile,
-    h('div', { class: 'legende' },
-      h('span', {}, h('span', { class: 'legende-punkt einnahme' }), 'Einnahmen'),
-      h('span', {}, h('span', { class: 'legende-punkt ausgabe' }), 'Ausgaben'),
-      mitVorjahr && h('span', {}, h('span', { class: 'legende-punkt einnahme vorjahr' }), h('span', { class: 'legende-punkt ausgabe vorjahr' }), 'blass = Vorjahr'),
-      h('span', { class: 'klein' }, 'Umbuchungen zählen nicht mit')),
+  return h('section', { class: 'bereich' }, kopf, legende, hinweis,
     h('div', { class: 'diagramm' },
       h('div', { class: 'achse' }, [...ticks].reverse().map((t) => h('span', {}, formatEuroRund(max * t)))),
-      flaeche),
-  );
+      flaeche));
 }
 
-/** Summen je Haupt-/Unterkategorie mit Anteil und Durchschnitt pro Monat */
+/** Veränderung zum Vorjahr als Text, z. B. " (+12 % zum Vorjahr)" (ohne Vorjahreswert leer) */
+function veraenderung(jetzt, vorher) {
+  if (!vorher) return '';
+  const p = Math.round(((jetzt - vorher) / vorher) * 100);
+  return ` (${p > 0 ? '+' : ''}${p} %)`;
+}
+
 /** D125: Liste auf eine Kategorie (Haupt- oder Unterkategorie) filtern und zur Liste wechseln */
 function zeigeKategorieInListe(id) {
   zustand.filter.kategorieIds = [id];
@@ -815,7 +816,7 @@ function kategorieBereich(eintraege, daten, monate, heute, neu, ohneZeitraum, er
   // Ø nur über abgeschlossene Monate – der laufende Monat würde ihn verfälschen
   const schnittMonate = abgeschlosseneMonate(monate, heute);
   const anzahlMonate = schnittMonate.length;
-  const art = zustand.analyseArt;
+  const art = eineGefilterteArt() ?? zustand.analyseArt;
   const gruppen = summenJeKategorie(eintraege, kategorien, art, schnittMonate);
   const gesamt = gruppen.reduce((s, g) => s + g.summe, 0);
   const gesamtSchnitt = anzahlMonate ? Math.round(gruppen.reduce((s, g) => s + g.schnittSumme, 0) / anzahlMonate) : null;
@@ -920,7 +921,7 @@ function kategorieBereich(eintraege, daten, monate, heute, neu, ohneZeitraum, er
 
 /** D125: die zehn größten Einzelbuchungen der gewählten Art im Zeitraum – antippen öffnet die Buchung */
 function groessteBereich(eintraege, daten, neu) {
-  const art = zustand.analyseArt;
+  const art = eineGefilterteArt() ?? zustand.analyseArt;
   const top = groessteBuchungen(eintraege, art, 10);
   if (top.length === 0) return null;
   const kat = new Map(daten.kategorien.map((k) => [k.id, k]));

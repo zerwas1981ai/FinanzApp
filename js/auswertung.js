@@ -9,7 +9,7 @@
 
 import { wirkungCent, istAktiv } from './rechnen.js';
 import { isoMonatsanfang, naechsterMonat, vorigerMonat } from './format.js';
-import { budgetFuerMonat, wirksam } from './prognose.js';
+import { budgetFuerMonat, wirksam, monatsende } from './prognose.js';
 import { istJaehrlich, giltImJahr, tranchen } from './jahresbudget.js';
 
 export const STANDARD_FILTER = Object.freeze({
@@ -18,7 +18,7 @@ export const STANDARD_FILTER = Object.freeze({
   bis: '',
   // Mehrfachauswahl (D72): leere Liste = alle
   kontoIds: Object.freeze([]),
-  arten: Object.freeze([]), // einnahme | ausgabe | umbuchung
+  arten: Object.freeze(['ausgabe']), // einnahme | ausgabe | umbuchung – Standard nur Ausgaben (D126)
   kategorieIds: Object.freeze([]), // Haupt- oder Unterkategorien
   partner: Object.freeze([]), // Empfänger/Absender: Namen oder OHNE_PARTNER
   status: Object.freeze(['gebucht']), // gebucht | vorgemerkt – Standard nur gebuchte (D120)
@@ -457,6 +457,82 @@ export function groessteBuchungen(eintraege, art, anzahl = 10) {
     .filter((e) => e.buchung.art === art)
     .sort((a, b) => b.buchung.betragCent - a.buchung.betragCent || b.buchung.datum.localeCompare(a.buchung.datum))
     .slice(0, anzahl);
+}
+
+/**
+ * Ausgaben-Verlauf (D126): die letzten 12 Monate (bis einschließlich des laufenden) und die nächsten 12.
+ * Ergebnis je Monat: { jahr, monat, ist, erwartet, aktuell, zukunft }
+ * - ist: gebuchte Ausgaben (aus istEintraege – schon nach allen Filtern gefiltert, bis heute)
+ * - erwartet (nur laufender und künftige Monate, null = nicht berechenbar):
+ *   laufender Monat: vorgemerkte und später datierte erfasste Ausgaben + offene Ausgaben-Termine + offener Budgetrest;
+ *   Folgemonate: erwartete Auszahlungen aus der Zeitleiste (ohne Umbuchungen)
+ * Berücksichtigt werden Konto- und Kategoriefilter; bei Filtern auf Empfänger, Suche oder Betrag lassen sich
+ * die erwarteten Werte nicht sinnvoll zuordnen → erwartet = null.
+ */
+export function ausgabenVerlauf({ istEintraege, zl, buchungen, kategorien, filter, heute }) {
+  const [hj, hm] = [Number(heute.slice(0, 4)), Number(heute.slice(5, 7))];
+  const monate = [];
+  let [j, m] = [hj, hm];
+  for (let i = 0; i < 11; i++) [j, m] = vorigerMonat(j, m);
+  for (let i = 0; i < 24; i++) { monate.push([j, m]); [j, m] = naechsterMonat(j, m); }
+  const aktuellerMonat = heute.slice(0, 7);
+  const schluessel = ([y, mo]) => isoMonatsanfang(y, mo).slice(0, 7);
+
+  const ist = new Map();
+  for (const { buchung: b } of istEintraege) {
+    if (b.art !== 'ausgabe') continue;
+    ist.set(b.datum.slice(0, 7), (ist.get(b.datum.slice(0, 7)) ?? 0) + b.betragCent);
+  }
+
+  const kat = new Map(kategorien.map((k) => [k.id, k]));
+  const ids = new Set(filter.kategorieIds ?? []);
+  const passtKat = (hauptId, unterId) => !ids.size || ids.has(hauptId) || (unterId != null && ids.has(unterId));
+  const hauptVon = (unterId) => kat.get(unterId)?.elternId ?? null;
+  const kontoIds = filter.kontoIds?.length ? new Set(filter.kontoIds) : null;
+  const passtKonto = (id) => !kontoIds || kontoIds.has(id);
+  const unzuordenbar = (filter.partner?.length ?? 0) > 0 || (filter.suche ?? '').trim() !== ''
+    || filter.betragMin != null || filter.betragMax != null || filter.ohneBeleg;
+
+  const erwartet = new Map();
+  if (!unzuordenbar && zl) {
+    // laufender Monat
+    let summe = 0;
+    const ende = monatsende(heute);
+    for (const b of buchungen) {
+      if (!istAktiv(b) || b.art !== 'ausgabe' || b.datum.slice(0, 7) !== aktuellerMonat || b.datum > ende) continue;
+      if (!(b.status === 'vorgemerkt' || b.datum > heute)) continue;
+      if (passtKonto(b.kontoId) && passtKat(hauptVon(b.kategorieId), b.kategorieId)) summe += b.betragCent;
+    }
+    for (const [kontoId, kd] of zl.start.jeKonto) {
+      if (!passtKonto(kontoId)) continue;
+      for (const t of kd.termine) {
+        const w = t.wiederkehrend;
+        if (w.art === 'ausgabe' && t.wirkung < 0 && passtKat(hauptVon(w.kategorieId), w.kategorieId)) summe -= t.wirkung;
+      }
+      for (const z of kd.budgets) if (z.rest > 0 && (!ids.size || ids.has(z.id))) summe += z.rest;
+    }
+    erwartet.set(aktuellerMonat, summe);
+    // Folgemonate
+    for (const [kontoId, zeilen] of zl.jeKonto) {
+      if (!passtKonto(kontoId)) continue;
+      for (const z of zeilen) {
+        let s = 0;
+        for (const p of z.posten) if (p.wirkung < 0 && !p.umbuchung && passtKat(p.hauptId, p.unterId)) s -= p.wirkung;
+        erwartet.set(z.monat, (erwartet.get(z.monat) ?? 0) + s);
+      }
+    }
+  }
+
+  return monate.map((mo) => {
+    const k = schluessel(mo);
+    const zukunft = k > aktuellerMonat;
+    const aktuell = k === aktuellerMonat;
+    return {
+      jahr: mo[0], monat: mo[1], aktuell, zukunft,
+      ist: zukunft ? 0 : ist.get(k) ?? 0,
+      erwartet: aktuell || zukunft ? (unzuordenbar || !zl ? null : erwartet.get(k) ?? 0) : null,
+    };
+  });
 }
 
 /** Veränderung in Prozent (gerundet) von `vorher` zu `jetzt`; ohne Vorwert null */

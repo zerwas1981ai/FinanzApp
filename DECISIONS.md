@@ -1606,6 +1606,7 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
   Nach dem Update muss sie einmal neu geöffnet werden, damit Android das neue Teilen-Ziel kennt.
 
 ## D107 – Verlauf: Vorjahresvergleich und Sparquote
+*Seit D126 zeigt der Verlauf nur Ausgaben; die Sparquote entfällt dort.*
 *Vom Nutzer bestätigt: im bestehenden „Verlauf je Monat“*
 
 - Knopf „Vorjahr zeigen“: Neben jedem Monat stehen blasse Balken für denselben Monat ein Jahr früher,
@@ -1850,3 +1851,27 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
   unter dem Namen.
 - Reine Rechenfunktionen in `auswertung.js` (`vorperiode`, `monatsSummenJeKategorie`, `letzteZwoelfMonate`,
   `budgetSchnitt`, `groessteBuchungen`, `veraenderungProzent`), mit Tests in `tests/analyse.test.js`.
+
+## D126 – Analyse: Ausgaben-Verlauf mit Prognose, Art-Standard „Ausgaben“, farbige Filter
+*Wunsch des Nutzers*
+
+- **Art-Filter:** Standard ist jetzt „Ausgaben“. Ist genau eine Art gefiltert, entfällt in der Analyse der
+  Umschalter Ausgaben/Einnahmen, die Analyse folgt dann der gefilterten Art.
+- **Aktive Filter farbig:** Eine Auswahlliste mit Auswahl sowie ausgefüllte Felder (Suche, Betrag ab/bis)
+  haben Akzent-Rahmen und -Hintergrund. Das gilt auch für den Standard „Ausgaben“, weil das ein echter
+  Filter ist.
+- **„Ausgaben je Monat“** (ersetzt „Verlauf je Monat“) zeigt nur Ausgaben, immer die **letzten 12 und die
+  nächsten 12 Monate**, unabhängig vom gewählten Zeitraum. Die übrigen Filter gelten, die Art ist immer
+  „Ausgabe“.
+  - Vergangene Monate: gebuchte Ausgaben (kräftig).
+  - Laufender Monat: gebucht (kräftig) und darauf gestapelt **heller** die noch erwarteten: vorgemerkte und
+    später datierte erfasste Ausgaben, offene Ausgaben-Termine (wiederkehrend/geplant, auch überfällige)
+    und der offene Budgetrest.
+  - Folgemonate: nur die erwarteten Auszahlungen aus der Zeitleiste (Budgets, wiederkehrende, geplante,
+    schon erfasste), im selben hellen Ton. Umbuchungen zählen nicht.
+  - Erwartete Werte berücksichtigen Konto- und Kategoriefilter. Bei Filtern auf Empfänger, Suche oder
+    Betrag lassen sie sich nicht zuordnen und entfallen (Hinweis im Diagramm).
+  - „Vorjahr zeigen“ bleibt (blasse Balken). Die Sparquote entfällt, weil sie Einnahmen braucht. Die
+    Tabellenansicht zeigt Gebucht, Erwartet und Zusammen. Am Handy rückt der laufende Monat in die Mitte.
+- Rechenfunktion `ausgabenVerlauf()` in `auswertung.js` mit Test. Die Zeitleisten-Posten tragen dafür
+  jetzt `hauptId`/`unterId`.

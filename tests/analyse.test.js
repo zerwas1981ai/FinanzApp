@@ -55,3 +55,44 @@ test('Größte Buchungen und Veränderung in Prozent', () => {
   assert.equal(veraenderungProzent(50, 100), -50);
   assert.equal(veraenderungProzent(50, 0), null);
 });
+
+test('Ausgaben-Verlauf: 12 Monate zurück, 12 voraus, erwartete Ausgaben heller (D126)', async () => {
+  const { ausgabenVerlauf, filtere, STANDARD_FILTER } = await import('../js/auswertung.js');
+  const { zeitleiste } = await import('../js/prognose.js');
+  const heute = '2026-11-09';
+  const konten = [{ id: 'giro', name: 'Giro', anfangssaldoCent: 500000, stichtag: '2026-01-01' }];
+  const kat = [
+    { id: 'wohnen', name: 'Wohnen', elternId: null, art: 'ausgabe' }, { id: 'miete', name: 'Miete', elternId: 'wohnen' },
+    { id: 'leben', name: 'Lebensmittel', elternId: null, art: 'ausgabe' }, { id: 'super', name: 'Supermarkt', elternId: 'leben' },
+  ];
+  const b = (id, datum, cent, kategorieId, status = 'gebucht') => ({ id, datum, art: 'ausgabe', betragCent: cent, kontoId: 'giro', kategorieId, status, partner: '', notiz: '', belege: [] });
+  const buchungen = [
+    b('a', '2026-10-05', 10000, 'super'),
+    b('b', '2026-11-02', 3000, 'super'),
+    b('c', '2026-11-05', 2000, 'super', 'vorgemerkt'),
+    b('d', '2026-11-20', 4000, 'super'), // erfasst, aber später datiert
+  ];
+  const wiederkehrende = [{ id: 'm', art: 'ausgabe', kontoId: 'giro', kategorieId: 'miete', start: '2026-11-15', intervall: 'monatlich', stufen: [{ ab: '2026-11-15', betragCent: 90000 }], erstelltAm: '2026-11-01T00:00:00Z' }];
+  const budgets = [{ kategorieId: 'leben', kontoId: 'giro', typ: 'wiederkehrend', startMonat: '2026-01', endMonat: null, stufen: [{ ab: '2026-01', betragCent: 20000 }] }];
+  const daten = { konten, kategorien: kat, buchungen, budgets, wiederkehrende, geplant: [] };
+  const zl = zeitleiste(daten, heute, '2027-11');
+  const filter = { ...STANDARD_FILTER };
+  const istEintraege = filtere(buchungen, { ...filter, zeitraum: 'alles' }, { kategorien: kat, konten, heute });
+  const v = ausgabenVerlauf({ istEintraege, zl, buchungen, kategorien: kat, filter, heute });
+  assert.equal(v.length, 24);
+  assert.deepEqual([v[0].jahr, v[0].monat], [2025, 12]);
+  assert.deepEqual([v.at(-1).jahr, v.at(-1).monat], [2027, 11]);
+  const nov = v.find((x) => x.aktuell);
+  assert.equal(nov.ist, 3000, 'nur gebucht bis heute');
+  // erwartet: vorgemerkt 20 + später datiert 40 + Miete 900 + Budgetrest Lebensmittel (200 − 30 − 20 − 40 = 110)
+  assert.equal(nov.erwartet, 2000 + 4000 + 90000 + 11000);
+  const dez = v.find((x) => x.jahr === 2026 && x.monat === 12);
+  assert.equal(dez.ist, 0);
+  assert.equal(dez.erwartet, 90000 + 20000, 'Miete + volles Budget');
+  assert.equal(v.find((x) => x.monat === 10 && x.jahr === 2026).erwartet, null, 'Vergangenheit ohne Erwartung');
+  // Kategoriefilter: nur Wohnen
+  const nurWohnen = ausgabenVerlauf({ istEintraege, zl, buchungen, kategorien: kat, filter: { ...filter, kategorieIds: ['wohnen'] }, heute });
+  assert.equal(nurWohnen.find((x) => x.aktuell).erwartet, 90000);
+  // Empfängerfilter: Erwartung nicht zuordenbar
+  assert.equal(ausgabenVerlauf({ istEintraege, zl, buchungen, kategorien: kat, filter: { ...filter, partner: ['X'] }, heute }).find((x) => x.aktuell).erwartet, null);
+});

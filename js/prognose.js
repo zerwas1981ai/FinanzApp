@@ -575,7 +575,7 @@ export function zeitleiste(daten, heute, bisMonat = LETZTER_MONAT) {
     if (b.art === 'umbuchung' && b.richtung !== 'ab') continue; // Umbuchung nur einmal
     merke({
       art: b.art, kontoId: b.kontoId, gegenkontoId: b.gegenkontoId, betragCent: b.betragCent, datum: b.datum,
-      hauptId: hauptVon(b.kategorieId), text: [b.partner, b.notiz || kat.get(b.kategorieId)?.name || 'Umbuchung'].filter(Boolean).join(' · '), quelle: 'gebucht',
+      hauptId: hauptVon(b.kategorieId), unterId: b.kategorieId ?? null, text: [b.partner, b.notiz || kat.get(b.kategorieId)?.name || 'Umbuchung'].filter(Boolean).join(' · '), quelle: 'gebucht',
       projektId: b.projektId ?? null, budgetKategorieId: b.budgetKategorieId ?? null,
     });
   }
@@ -584,7 +584,7 @@ export function zeitleiste(daten, heute, bisMonat = LETZTER_MONAT) {
       if (t.datum < (stichtag.get(w.kontoId) ?? '')) continue;
       merke({
         art: w.art, kontoId: w.kontoId, gegenkontoId: w.gegenkontoId, betragCent: t.betragCent, datum: t.datum,
-        hauptId: hauptVon(w.kategorieId), text: annahmeTitel(w, kategorien), quelle: 'wiederkehrend', budgetKategorieId: w.budgetKategorieId ?? null,
+        hauptId: hauptVon(w.kategorieId), unterId: w.kategorieId ?? null, text: annahmeTitel(w, kategorien), quelle: 'wiederkehrend', budgetKategorieId: w.budgetKategorieId ?? null,
         ref: { wiederkehrend: w, termin: t.termin, einzelBetrag: t.einzelBetrag, verschoben: t.verschoben },
       });
     }
@@ -594,7 +594,7 @@ export function zeitleiste(daten, heute, bisMonat = LETZTER_MONAT) {
     if (g.erledigtAm || gebucht.has(g.id) || g.datum < von || g.datum > bis) continue;
     merke({
       art: g.art, kontoId: g.kontoId, gegenkontoId: g.gegenkontoId, betragCent: g.betragCent, datum: g.datum,
-      hauptId: hauptVon(g.kategorieId), text: g.bezeichnung, quelle: 'geplant', budgetKategorieId: g.budgetKategorieId ?? null,
+      hauptId: hauptVon(g.kategorieId), unterId: g.kategorieId ?? null, text: g.bezeichnung, quelle: 'geplant', budgetKategorieId: g.budgetKategorieId ?? null,
       projektId: g.projektId ?? null, ref: { geplant: g },
     });
   }
@@ -640,7 +640,7 @@ export function zeitleiste(daten, heute, bisMonat = LETZTER_MONAT) {
         continue;
       }
       const wirkung = x.art === 'einnahme' ? x.betragCent : -x.betragCent;
-      const posten = { datum: x.datum, text: x.text, wirkung, quelle: x.quelle, ref: x.ref };
+      const posten = { datum: x.datum, text: x.text, wirkung, quelle: x.quelle, ref: x.ref, hauptId: x.hauptId, unterId: x.unterId };
       for (const z of [zeilen.get(x.kontoId), kontoIds.has(x.kontoId) ? g : null]) {
         if (!z) continue;
         if (wirkung > 0) z.einnahmen += wirkung;
@@ -664,7 +664,7 @@ export function zeitleiste(daten, heute, bisMonat = LETZTER_MONAT) {
       const text = `Budget ${kat.get(id)?.name ?? '?'}` + (zaehler.get(id) > 1 ? ` (${kontoName.get(kontoId) ?? '?'})` : '');
       // ref: für "nur diesen Monat ändern" (Budget, Ist/Verplantes und Rest dieses Monats)
       const posten = {
-        datum: monatsende(`${m}-01`), text, wirkung: -rest, quelle: 'budget',
+        datum: monatsende(`${m}-01`), text, wirkung: -rest, quelle: 'budget', hauptId: id,
         ref: { budget: {
           kategorieId: id, kontoId, monat: m, betragCent: b.betragCent, verbrauchtCent: verbraucht,
           einzelBetrag: budgets.some((x) => x.kategorieId === id && x.kontoId === kontoId && (x.ausnahmen ?? []).some((a) => a.monat === m)),
@@ -685,7 +685,7 @@ export function zeitleiste(daten, heute, bisMonat = LETZTER_MONAT) {
       const posten = {
         datum: monatsende(`${m}-01`),
         text: `${p.art === 'rest' ? 'Restbudget' : 'Budget'} ${name} (Jahr)` + ((zaehler.get(p.kategorieId) ?? 0) + (jahrKonten.get(p.kategorieId)?.size ?? 0) > 1 ? ` (${kontoName.get(p.kontoId) ?? '?'})` : ''),
-        wirkung: -p.restCent, quelle: 'budget',
+        wirkung: -p.restCent, quelle: 'budget', hauptId: p.kategorieId,
       };
       const z = zeilen.get(p.kontoId);
       if (z) {

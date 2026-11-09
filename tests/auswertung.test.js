@@ -39,7 +39,7 @@ const daten = [
 ];
 const ctx = { kategorien, konten, heute };
 // Filterlogik mit jedem Status und – wie früher als Standard – im laufenden Monat prüfen
-const f = (aenderung) => ({ ...STANDARD_FILTER, zeitraum: 'monat', status: [], ...aenderung });
+const f = (aenderung) => ({ ...STANDARD_FILTER, zeitraum: 'monat', status: [], arten: [], ...aenderung });
 
 test('Zeiträume', () => {
   assert.deepEqual(zeitraumFuer(f({ zeitraum: 'monat' }), heute), { von: '2026-11-01', bis: '2026-11-30' });
@@ -182,11 +182,11 @@ test('Empfänger/Absender: Filter, Suche, Sortierung, Liste und Summen', async (
     b('5', '2026-10-09', 'umbuchung', 300, '', { richtung: 'ab', gegenkontoId: 'tg' }),
   ];
   const ctx = { heute: '2026-10-20' };
-  const mit = (f) => filtere(buchungen, { ...STANDARD_FILTER, zeitraum: 'alles', ...f }, ctx).map((e) => e.buchung.id);
+  const mit = (f) => filtere(buchungen, { ...STANDARD_FILTER, arten: [], zeitraum: 'alles', ...f }, ctx).map((e) => e.buchung.id);
   assert.deepEqual(mit({ partner: ['SUPERMARKT muster'] }).sort(), ['1', '2'], 'Groß/klein und Leerzeichen egal');
   assert.deepEqual(mit({ partner: [OHNE_PARTNER] }), ['3'], 'ohne Angabe – Umbuchungen nicht');
   assert.deepEqual(mit({ suche: 'gmbh' }), ['4']);
-  const sortiert = sortiere(filtere(buchungen, { ...STANDARD_FILTER, zeitraum: 'alles' }, ctx), { feld: 'partner', richtung: 'auf' });
+  const sortiert = sortiere(filtere(buchungen, { ...STANDARD_FILTER, arten: [], zeitraum: 'alles' }, ctx), { feld: 'partner', richtung: 'auf' });
   assert.deepEqual(sortiert.map((e) => e.buchung.id).slice(0, 3), ['4', '2', '1'], 'gleicher Name: neueste zuerst (D102)');
 
   const liste = partnerListe(buchungen);
@@ -293,4 +293,10 @@ test('Zeitraum: Standard „Alles“, „Letzte 3 Monate“ = drei abgeschlossen
   assert.deepEqual(zeitraumFuer({ zeitraum: 'letzte3' }, '2026-11-09'), { von: '2026-08-01', bis: '2026-10-31' });
   assert.deepEqual(zeitraumFuer({ zeitraum: 'letzte3' }, '2027-02-15'), { von: '2026-11-01', bis: '2027-01-31' }, 'über den Jahreswechsel');
   assert.deepEqual(zeitraumFuer({ zeitraum: 'letzte3' }, '2027-03-31'), { von: '2026-12-01', bis: '2027-02-28' }, 'Februar endet am 28.');
+});
+
+test('Standard-Art: nur Ausgaben (D126)', () => {
+  assert.deepEqual([...STANDARD_FILTER.arten], ['ausgabe']);
+  const e = filtere(daten, { ...STANDARD_FILTER, zeitraum: 'alles', status: [] }, ctx);
+  assert.ok(e.length > 0 && e.every((x) => x.buchung.art === 'ausgabe'));
 });
