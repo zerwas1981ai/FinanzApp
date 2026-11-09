@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  zeitleiste, jahresZeilen, mindestsaldoWarnungen, wirksam, nurWirksam,
+  zeitleiste, jahresZeilen, mindestsaldoWarnungen, wirksam, nurWirksam, prognoseJahresende,
   offeneTermine, monatsprognose,
 } from '../js/prognose.js';
 import { baueGeplant, baueProjekt, projektZahlen, geplantErledigt, mitAusnahme, budgetMitMonatsAusnahme, baueBudget } from '../js/annahmen.js';
@@ -223,4 +223,12 @@ test('Budget nur für einen Monat ändern', () => {
   const bp = dez.posten.find((x) => x.quelle === 'budget');
   assert.equal(bp.wirkung, -60000);
   assert.deepEqual([bp.ref.budget.kategorieId, bp.ref.budget.monat], ['lebensm', '2026-12']);
+});
+
+test('Prognose Jahresende über alle Konten (D116)', () => {
+  const zl = zeitleiste(basisDaten(), heute);
+  const dez = zl.gesamt.find((g) => g.monat === '2026-12');
+  assert.equal(prognoseJahresende(zl, heute), dez.stand, 'November: Stand Ende Dezember aus der Zeitleiste');
+  const imDezember = zeitleiste(basisDaten(), '2026-12-10');
+  assert.equal(prognoseJahresende(imDezember, '2026-12-10'), imDezember.start.gesamtPrognose, 'Dezember: Prognose Monatsende');
 });

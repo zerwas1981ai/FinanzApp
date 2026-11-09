@@ -19,7 +19,7 @@ const mitVorzeichen = (cent) => (cent > 0 ? '+' : '') + formatEuro(cent);
 
 /* =========================== Kennzahlen oben =========================== */
 
-export function kennzahlenBereich(p, daten, heute, warnungen = p.warnungen) {
+export function kennzahlenBereich(p, daten, heute, warnungen = p.warnungen, jahresendeCent = null) {
   const monat = monatText(p.monat);
   return h('section', { class: 'kennzahlen', 'aria-label': 'Kennzahlen' },
     warnungen.length > 0 && h('div', { class: 'warnkarte', role: 'status' },
@@ -40,6 +40,10 @@ export function kennzahlenBereich(p, daten, heute, warnungen = p.warnungen) {
       h('div', { class: 'kz' },
         h('div', { class: 'klein' }, 'Prognose Monatsende'),
         h('div', { class: 'kz-wert annahme' + (p.gesamtPrognose < 0 ? ' negativ' : '') }, formatEuro(p.gesamtPrognose))),
+      // D116: Stand Ende Dezember über alle Konten (aus der Zeitleiste)
+      jahresendeCent != null && h('div', { class: 'kz' },
+        h('div', { class: 'klein' }, `Prognose Jahresende ${heute.slice(0, 4)}`),
+        h('div', { class: 'kz-wert annahme' + (jahresendeCent < 0 ? ' negativ' : '') }, formatEuro(jahresendeCent))),
       // Die drei wählbaren Kategorien sind entfallen (D75 Handy, D78 auch am PC),
       // die Kacheln „Einnahmen/Ausgaben des Monats“ ebenso (D115)
     ),

@@ -1718,3 +1718,14 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
   über alle Konten unter „Alle Buchungen“.
 - „Noch erwartet“ → Budgets: Die Unterzeile endet mit „Rest x €“ (ohne „in der Prognose“).
 - Die Trennlinie zwischen „Wiederkehrend/geplant“ und „Budgets“ ist 3 px dick.
+
+## D116 – Kennzahl „Prognose Jahresende“
+*Wunsch des Nutzers*
+
+- Oben in der Übersicht steht neben „Alle Konten heute“ und „Prognose Monatsende“ jetzt
+  **„Prognose Jahresende JJJJ“**: der erwartete Stand aller Konten am 31.12. des laufenden Jahres. Er kommt
+  aus derselben Zeitleiste wie „Zukunft bis 2050“ (Dezember-Zeile unter „Alle Konten“), im Dezember
+  selbst ist es die Prognose zum Monatsende. Kursiv, weil Annahme.
+- **PC:** drei gleich breite Spalten. **Handy:** „Alle Konten heute“ etwas größer über die ganze Breite,
+  darunter die beiden Prognosen nebeneinander.
+- Funktion `prognoseJahresende(zl, heute)` in `prognose.js`, mit Test.

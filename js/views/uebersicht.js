@@ -12,7 +12,7 @@ import { monatsuebersicht, kontostand, vorgemerktBis, wirkungCent } from '../rec
 import { dialog, eingabe, hinweis, toast, geraet, datenGeaendert, klappBereich } from '../ui.js';
 import { oeffneBuchungsdialog } from './buchung-dialog.js';
 import { sortiereKonten } from '../konten.js';
-import { faelligListe, budgetHinweise, zeitleiste, nurWirksam, mindestsaldoWarnungen, LETZTER_MONAT } from '../prognose.js';
+import { faelligListe, budgetHinweise, zeitleiste, nurWirksam, mindestsaldoWarnungen, LETZTER_MONAT, prognoseJahresende } from '../prognose.js';
 import { umbuchungKnopf, kennzahlenBereich, erwartetBereich, hinweisBereich } from './kennzahlen.js';
 import { zeitleisteBereich, postenListe } from './zeitleiste.js';
 import { oeffnePostenDialog } from './posten-dialog.js';
@@ -64,7 +64,7 @@ export async function zeigeUebersicht(container) {
   }
   const oben = [
     h('h1', { class: 'seitentitel' }, 'Übersicht'),
-    kennzahlenBereich(prognose, alleDaten, heute, warnungen),
+    kennzahlenBereich(prognose, alleDaten, heute, warnungen, prognoseJahresende(zl, heute)),
     hinweisBereich(hinweise, daten),
     h('h2', { class: 'zwischentitel' }, 'Konten'),
   ];

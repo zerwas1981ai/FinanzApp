@@ -1044,7 +1044,8 @@ details[open] > .zl-zeile > .zl-name::before { transform: rotate(90deg); }
 /* Kompakte Kennzahlen-Leiste oben */
 .kz-leiste {
   display: grid;
-  grid-template-columns: 1fr 1fr; /* D115: nur noch „Alle Konten heute“ und „Prognose Monatsende“ */
+  /* D116: heute · Monatsende · Jahresende nebeneinander (D115: ohne Einnahmen/Ausgaben) */
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
   gap: 10px 16px;
 }
 .kz-wert { font-size: 1.2rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.25; }
@@ -1076,7 +1077,10 @@ details[open] > .zl-zeile > .zl-name::before { transform: rotate(90deg); }
   .kz-kategorie > .klein { grid-column: 1 / -1; }
 }
 @media (max-width: 480px) {
+  /* Handy: „Alle Konten heute“ groß über die ganze Breite, darunter die beiden Prognosen */
   .kz-leiste { grid-template-columns: 1fr 1fr; }
+  .kz-leiste > .kz:first-child { grid-column: 1 / -1; }
+  .kz-leiste > .kz:first-child .kz-wert { font-size: 1.3rem; }
   .kz-wert { font-size: 1.05rem; }
 }
 
