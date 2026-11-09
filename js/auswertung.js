@@ -404,30 +404,6 @@ export function vorperiode(filter, heute) {
   }
 }
 
-/** Monatssummen je Hauptkategorie für eine Art: Map hauptId → [Cent je Monat in `monate` ([[j, m], …])] */
-export function monatsSummenJeKategorie(eintraege, kategorien, art, monate) {
-  const kat = new Map(kategorien.map((k) => [k.id, k]));
-  const index = new Map(monate.map(([j, m], i) => [isoMonatsanfang(j, m).slice(0, 7), i]));
-  const ergebnis = new Map();
-  for (const { buchung: b } of eintraege) {
-    if (b.art !== art) continue;
-    const i = index.get(b.datum.slice(0, 7));
-    if (i === undefined) continue;
-    const hId = kat.get(kat.get(b.kategorieId)?.elternId)?.id ?? 'unbekannt';
-    if (!ergebnis.has(hId)) ergebnis.set(hId, monate.map(() => 0));
-    ergebnis.get(hId)[i] += b.betragCent;
-  }
-  return ergebnis;
-}
-
-/** Die 12 Monate bis einschließlich `bisIso` (für den Trend je Kategorie) */
-export function letzteZwoelfMonate(bisIso) {
-  let [j, m] = [Number(bisIso.slice(0, 4)), Number(bisIso.slice(5, 7))];
-  const monate = [];
-  for (let i = 0; i < 12; i++) { monate.unshift([j, m]); [j, m] = vorigerMonat(j, m); }
-  return monate;
-}
-
 /**
  * Durchschnittliches Budget je Monat einer Hauptkategorie über die Monate `monate` – summiert über die
  * Konten (kontoIds leer = alle). Monats- und einmalige Budgets wie in der Prognose, Jahresbudgets mit

@@ -741,7 +741,8 @@ button.ka-zeile:hover { background: var(--akzent-leicht); }
 .legende-punkt.ausgabe { background: var(--serie-ausgabe); }
 
 /* Balkendiagramm */
-.diagramm { display: flex; gap: 8px; }
+/* D128: Abstand zur Legende, damit die oberste Gitterlinie samt Betrag frei steht */
+.diagramm { display: flex; gap: 8px; padding-top: 12px; }
 .achse {
   display: flex;
   flex-direction: column;
@@ -759,6 +760,11 @@ button.ka-zeile:hover { background: var(--akzent-leicht); }
 .gitter span { position: absolute; left: 0; right: 0; border-top: 1px solid var(--gitter); }
 .gitter span:first-child { border-top-color: var(--rand); }
 .spalten { position: relative; display: flex; align-items: stretch; }
+/* D128: laufender Monat leicht umrahmt; antippbare Monate; gewählter Monat hervorgehoben */
+.spalte.aktuell { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--akzent) 55%, transparent); background: color-mix(in srgb, var(--akzent) 6%, transparent); }
+.spalte.klickbar { cursor: pointer; }
+.spalte.gewaehlt .balken-paar { background: var(--akzent-leicht); }
+.spalte.gewaehlt .spalte-label { color: var(--akzent); font-weight: 700; }
 .spalte {
   flex: 1;
   display: flex;
@@ -843,8 +849,6 @@ p.erklaerung { margin-top: 0; }
 .tabelle th:first-child, .tabelle td:first-child { text-align: left; }
 
 /* Kategorien-Auswertung */
-.kat-tabelle details > summary { list-style: none; cursor: pointer; }
-.kat-tabelle details > summary::-webkit-details-marker { display: none; }
 .kat-zeile {
   display: grid;
   grid-template-columns: minmax(90px, 1.3fr) 2fr auto 3.2em;
@@ -855,20 +859,11 @@ p.erklaerung { margin-top: 0; }
   font-size: .92rem;
 }
 .mit-schnitt .kat-zeile { grid-template-columns: minmax(90px, 1.3fr) 2fr auto 3.2em 7.5em; }
-.kat-tabelle details > summary .kat-zeile-name::before {
-  content: "▸";
-  display: inline-block;
-  width: 1em;
-  color: var(--text-2);
-  transition: transform .15s;
-}
-.kat-tabelle details[open] > summary .kat-zeile-name::before { transform: rotate(90deg); }
 .kat-zeile:hover { background: var(--flaeche-2); }
 .kat-zeile-knopf { width: 100%; text-align: left; font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
 .segmente + .segmente { margin-top: 6px; }
 .kat-zeile.ebene-1 .kat-zeile-name { font-weight: 600; }
 .kat-zeile.ebene-2 { font-size: .85rem; color: var(--text-2); }
-.kat-zeile.ebene-2 .kat-zeile-name { padding-left: 1.2em; }
 .kat-zeile-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .kat-balken-spur { display: block; height: 10px; }
 .kat-balken { display: block; height: 100%; border-radius: 0 4px 4px 0; min-width: 2px; }
@@ -879,17 +874,24 @@ p.erklaerung { margin-top: 0; }
 .kat-anteil, .kat-schnitt { text-align: right; color: var(--text-2); font-variant-numeric: tabular-nums; font-size: .85rem; white-space: nowrap; }
 .summe-zeile { font-weight: 700; border-bottom: none; }
 
-/* D125: Spaltenköpfe, Mini-Trend, Zusatzzeile (Budget, Vorperiode), Filter-Knopf */
+/* D128: Hauptkategorie-Zeile antippbar, „+“ zum Aufklappen */
+.kat-gruppe { border-bottom: 1px solid var(--rand); }
+.kat-gruppe > .kat-zeile.ebene-1 { border-bottom: none; }
+.kat-unter > .kat-zeile.ebene-2.kat-zeile-knopf { border-bottom: none; border-top: 1px solid var(--rand); }
+.kat-unter[hidden] { display: none; }
+.kat-zeile.ebene-1.kat-zeile-knopf { cursor: pointer; }
+.kat-zeile.ebene-1.kat-zeile-knopf:hover .kat-zeile-name { color: var(--akzent); }
+.kat-klapp {
+  display: inline-grid; place-items: center; width: 22px; height: 22px; margin-right: 6px; padding: 0; vertical-align: middle;
+  border: 1px solid var(--rand); border-radius: 5px; background: var(--flaeche); color: var(--text); font: inherit; font-size: .95rem; line-height: 1; cursor: pointer;
+}
+.kat-klapp:hover { border-color: var(--akzent); color: var(--akzent); }
+.kat-zeile.ebene-2 .kat-zeile-name { padding-left: 28px; }
+/* D125: Spaltenköpfe, Zusatzzeile (Budget, Vorperiode) */
 .kat-kopf { font-size: .72rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--text-2); padding-top: 0; }
 .kat-kopf > span:nth-child(n+3) { text-align: right; }
 .kat-kopf:hover { background: none; }
-.kat-trend { display: flex; align-items: flex-end; gap: 2px; height: 22px; max-width: 160px; }
-.trend-balken { flex: 1; min-width: 3px; border-radius: 2px 2px 0 0; opacity: .75; }
-.trend-balken.ausgabe { background: var(--serie-ausgabe); }
-.trend-balken.einnahme { background: var(--serie-einnahme); }
-.trend-balken:last-child { opacity: 1; }
 .kat-info { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 2px 16px; font-size: .8rem; font-weight: 400; color: var(--text-2); padding-left: 1em; }
-.kat-filter-reihe { padding: 6px 4px 10px 1.2em; border-bottom: 1px solid var(--rand); }
 .kat-zeile.ebene-2.kat-zeile-knopf { border-bottom: 1px solid var(--rand); }
 .kat-zeile.ebene-2.kat-zeile-knopf:hover .kat-zeile-name { color: var(--akzent); }
 /* Größte Ausgaben/Einnahmen */
@@ -910,9 +912,8 @@ p.erklaerung { margin-top: 0; }
     grid-template-areas: "name betrag anteil" "balken balken schnitt" "info info info";
   }
   .kat-zeile-name { grid-area: name; }
-  .kat-balken-spur, .kat-trend { grid-area: balken; }
+  .kat-balken-spur { grid-area: balken; }
   .kat-balken-spur { height: 6px; }
-  .kat-trend { height: 16px; max-width: none; }
   .kat-zeile .betrag { grid-area: betrag; }
   .kat-anteil { grid-area: anteil; }
   .kat-schnitt { grid-area: schnitt; font-size: .78rem; }

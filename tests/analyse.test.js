@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  vorperiode, monatsSummenJeKategorie, letzteZwoelfMonate, budgetSchnitt, groessteBuchungen, veraenderungProzent,
+  vorperiode, budgetSchnitt, groessteBuchungen, veraenderungProzent,
 } from '../js/auswertung.js';
 
 test('Vorperiode je Zeitraum, gleich lang wie der gezeigte Zeitraum (bis heute)', () => {
@@ -22,17 +22,6 @@ const kategorien = [
   { id: 'kino', name: 'Kino', elternId: 'frei' },
 ];
 const e = (datum, cent, kategorieId, art = 'ausgabe') => ({ buchung: { datum, betragCent: cent, kategorieId, art }, wirkung: -cent });
-
-test('Trend: Monatssummen je Hauptkategorie über 12 Monate', () => {
-  const monate = letzteZwoelfMonate('2026-11-09');
-  assert.equal(monate.length, 12);
-  assert.deepEqual(monate[0], [2025, 12]);
-  assert.deepEqual(monate.at(-1), [2026, 11]);
-  const summen = monatsSummenJeKategorie([e('2026-11-02', 500, 'super'), e('2026-11-20', 300, 'super'), e('2026-01-05', 900, 'kino'), e('2024-01-01', 1, 'kino')], kategorien, 'ausgabe', monate);
-  assert.equal(summen.get('leben').at(-1), 800);
-  assert.equal(summen.get('frei')[1], 900, 'Januar 2026');
-  assert.equal(summen.get('frei').reduce((s, x) => s + x, 0), 900, 'außerhalb der 12 Monate zählt nicht');
-});
 
 test('Budget je Monat: Monats- und Jahresbudget, Kontofilter, ausgeschaltete zählen nicht', () => {
   const budgets = [

@@ -1886,3 +1886,23 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
   wie bisher nur, wenn es überhaupt Vorjahreswerte gibt.
 - **Monatsnamen:** Jeder Monat ist beschriftet, mit mehr Platz in der Höhe und etwas breiteren Spalten.
   Am PC wurden die Namen bisher unten teilweise abgeschnitten bzw. überlappten.
+
+## D128 – Ausgaben je Monat ↔ Kategorien verknüpft; Diagramm nachgeschärft
+*Wunsch des Nutzers (ändert D125)*
+
+- **Diagramm:**
+  - Mehr Abstand zur Legende, damit die oberste Gitterlinie mit ihrem Betrag frei steht.
+  - Die Gitterlinien reichen über die ganze Breite, auch über die Zukunftsmonate und beim seitlichen
+    Wischen am Handy.
+  - Der **laufende Monat** hat einen leichten Rahmen.
+- **Monatsbalken antippen** (nur Monate mit gebuchten Ausgaben): Alles darunter zeigt nur diesen Monat,
+  also Summenblock, Kategorien/Empfänger, größte Ausgaben und auf Wunsch die Liste. Technisch ist das
+  der Zeitraum „Eigener Zeitraum“ für diesen Monat. Der Balken ist hervorgehoben. Erneut antippen stellt
+  den vorherigen Zeitraum wieder her, ebenso eine Zeitraum-Kachel oder „Filter zurücksetzen“. Das
+  Diagramm selbst zeigt weiter seine 6+6 Monate.
+- **Kategorie oder Empfänger antippen:** setzt den Filter und springt zur Einzelpostenliste. Das gilt
+  jetzt auch für **Hauptkategorien**. Weil das Diagramm allen Filtern folgt, zeigt „Ausgaben je Monat“
+  danach den Verlauf genau dieser Kategorie bzw. dieses Empfängers.
+- **Hauptkategorien** haben wieder den Anteilsbalken, der Mini-Trend aus D125 entfällt, weil der Verlauf
+  im Diagramm steht. Ein **„+“** links klappt die Unterkategorien auf, „−“ wieder zu. Der Knopf
+  „Alle Buchungen ‚X‘ anzeigen“ entfällt, weil die Zeile selbst das jetzt tut.
