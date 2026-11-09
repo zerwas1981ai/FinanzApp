@@ -574,12 +574,17 @@ fieldset.feld { border: none; padding: 0; margin: 0 0 14px; }
 .chip[aria-pressed="true"] { background: var(--akzent); border-color: transparent; color: var(--auf-akzent); }
 
 .konto-kopf { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.konto-kopf > div:first-child { flex: 1; min-width: 0; }
 .abstimm-info { margin-top: 4px; }
+/* D112: niedrigster Stand links, Abstimmung rechtsbündig in einer Zeile */
+.kopf-zeile { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 2px 16px; }
+.kopf-zeile .abstimm-info { margin-top: 0; margin-left: auto; text-align: right; }
 
 /* Monatsnavigation */
 .monat-nav { display: flex; align-items: center; gap: 8px; margin: 2px 0 8px; }
 .monat-nav .icon-knopf { font-size: 1.5rem; line-height: 1; }
-.monat-titel { font-size: 1.2rem; min-width: 0; flex: 0 1 auto; text-align: center; padding: 0 4px; }
+/* D112: feste Breite, damit die Pfeile beim Blättern nicht springen (längster Monat: "September 2026") */
+.monat-titel { font-size: 1.2rem; min-width: 0; flex: 0 0 9.5em; width: 9.5em; text-align: center; padding: 0 4px; white-space: nowrap; }
 .monat-nav .knopf { margin-left: auto; }
 
 /* Zwischensummen */
@@ -1082,8 +1087,24 @@ details[open] > .zl-zeile > .zl-name::before { transform: rotate(90deg); }
   font-weight: 700;
 }
 
+/* Einklappbare Bereiche (D112) */
+.klapp-bereich > .klapp-kopf {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap;
+  list-style: none; cursor: pointer; font-weight: 600;
+}
+.klapp-bereich > .klapp-kopf::-webkit-details-marker { display: none; }
+.klapp-titel { display: inline-flex; align-items: baseline; gap: 8px; }
+.klapp-titel::before { content: "\25B8"; display: inline-block; width: 1em; color: var(--text-2); transition: transform .15s; }
+.klapp-bereich[open] > .klapp-kopf .klapp-titel::before { transform: rotate(90deg); }
+.klapp-wert { font-variant-numeric: tabular-nums; margin-left: auto; }
+.klapp-bereich[open] > .klapp-inhalt { margin-top: 10px; }
+.klapp-bereich.summen > .klapp-inhalt { display: grid; gap: 3px; }
 /* Je Konto: noch erwartet bis Monatsende */
 .erwartet { border-style: dashed; }
+/* D112: Summenzeilen kräftiger, die beiden Teile durch eine dünne Linie getrennt */
+.erwartet-summe { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0 6px; font-weight: 700; font-size: .95rem; }
+.erwartet-summe .annahme { font-variant-numeric: tabular-nums; }
+.erwartet-teil + .erwartet-teil { border-top: 1px solid var(--rand); margin-top: 10px; padding-top: 10px; }
 .erwartet .bereich-kopf { margin-bottom: 2px; }
 .buchung.geplant .buchung-titel { font-style: italic; }
 .datum-klein { color: var(--text-2); font-size: .8rem; font-style: normal; margin-right: 8px; font-variant-numeric: tabular-nums; }

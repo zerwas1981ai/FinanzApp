@@ -1666,3 +1666,18 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
 - Kennzahlen oben in der Übersicht: Der Wert „Einnahmen“ steht in normaler Schrift, nicht mehr grün.
 - Zwischensummen-Karte (Monatsblock): Die Beschriftungen „Einnahmen“ und „Noch offene Einnahmen“ haben
   dieselbe Schriftfarbe wie „Ausgaben“. Die Beträge bleiben farbig (Einnahmen grün, Ausgaben rot).
+
+## D112 – Übersicht: Blöcke eingeklappt, feste Monatspfeile, Abstimmung rechts
+*Wunsch des Nutzers*
+
+- Die **Monatsübersicht** (Zwischensummen unter der Monatsauswahl) ist standardmäßig eingeklappt. Im Kopf
+  steht das Ergebnis: im laufenden Monat „Prognose Monatsende“, in vergangenen Monaten „Stand Monatsende“.
+  Der Block „Prognose“ in Zukunftsmonaten verhält sich genauso.
+- **„Noch erwartet bis Monatsende“** ist ebenfalls standardmäßig eingeklappt. Im Kopf steht die Summe aus
+  offenen Buchungen und Budgetrest. Die Summenzeilen „Wiederkehrende und geplante Buchungen“ und „Budgets“
+  sind fett und etwas größer. Eine dünne Linie trennt die beiden Teile.
+- Aufgeklappt bleibt aufgeklappt, solange die App offen ist (auch beim Blättern). Nach dem Neustart ist
+  wieder alles zu. Baustein: `klappBereich()` in `ui.js`.
+- Der **Monatsname** hat eine feste Breite, damit die Pfeile ‹ › beim Blättern nicht springen.
+- **„Zuletzt abgestimmt …“** steht rechtsbündig in derselben Zeile wie „Niedrigster erwarteter Stand“.
+  Am Handy rutscht es bei Platzmangel in die nächste Zeile, bleibt aber rechtsbündig.

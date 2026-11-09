@@ -6,7 +6,7 @@
 import { h } from '../dom.js';
 import * as db from '../db.js';
 import { formatEuro, formatDatum, formatMonat, formatProzent, formatTag, heuteIso, istGueltigesDatum } from '../format.js';
-import { dialog, eingabe, toast, datenGeaendert, auswahl } from '../ui.js';
+import { dialog, eingabe, toast, datenGeaendert, auswahl, klappBereich } from '../ui.js';
 import { plusMonate, plusTage, annahmeTitel } from '../prognose.js';
 import { budgetMitVorschlag, merkeHinweis } from '../annahmen.js';
 import { oeffneBuchungsdialog } from './buchung-dialog.js';
@@ -81,6 +81,9 @@ export function umbuchungKnopf(anzahl) {
  * kd = prognose.jeKonto.get(konto.id). Zeigt offene Termine (mit Aktionen) und die
  * Budgets, die dieses Konto belasten, jeweils mit ihrer Wirkung auf die Prognose.
  */
+// D112: "Noch erwartet bis Monatsende" standardmäßig eingeklappt; bleibt offen, solange die App offen ist
+let erwartetOffen = false;
+
 export function erwartetBereich(kd, daten) {
   if (!kd || (kd.termine.length === 0 && kd.budgets.length === 0)) return null;
   const heute = heuteIso();
@@ -146,16 +149,22 @@ export function erwartetBereich(kd, daten) {
       }, ...inhalt));
   });
 
-  return h('section', { class: 'bereich erwartet', 'aria-labelledby': 'titel-erwartet' },
-    h('div', { class: 'bereich-kopf' },
-      h('h2', { id: 'titel-erwartet' }, 'Noch erwartet bis Monatsende'),
-      h('span', { class: 'marke annahme-marke' }, 'Annahme')),
-    terminZeilen.length > 0 && h('div', {},
-      h('div', { class: 'tag-kopf' }, h('span', {}, 'Wiederkehrende und geplante Buchungen'), h('span', { class: 'tag-stand annahme' }, mitVorzeichen(kd.offenWirkung))),
+  const gesamt = kd.offenWirkung - kd.rest;
+  return klappBereich({
+    klasse: 'erwartet',
+    titel: 'Noch erwartet bis Monatsende',
+    zusatz: h('span', { class: 'marke annahme-marke' }, 'Annahme'),
+    rechts: h('span', { class: 'annahme' + (gesamt < 0 ? ' negativ' : gesamt > 0 ? ' plus' : '') }, mitVorzeichen(gesamt)),
+    offen: erwartetOffen,
+    beiWechsel: (offen) => { erwartetOffen = offen; },
+  },
+    // D112: die beiden Teile mit kräftigerer Summenzeile, getrennt durch eine dünne Linie
+    terminZeilen.length > 0 && h('div', { class: 'erwartet-teil' },
+      h('div', { class: 'erwartet-summe' }, h('span', {}, 'Wiederkehrende und geplante Buchungen'), h('span', { class: 'annahme' }, mitVorzeichen(kd.offenWirkung))),
       h('ul', { class: 'liste' }, terminZeilen),
       h('div', { class: 'ub-reihe' }, umbuchungKnopf(kd.termine.filter((t) => t.wiederkehrend.art === 'umbuchung').length))),
-    budgetZeilen.length > 0 && h('div', {},
-      h('div', { class: 'tag-kopf' }, h('span', {}, 'Budgets (belasten dieses Konto)'), h('span', { class: 'tag-stand annahme' }, formatEuro(-kd.rest))),
+    budgetZeilen.length > 0 && h('div', { class: 'erwartet-teil' },
+      h('div', { class: 'erwartet-summe' }, h('span', {}, 'Budgets (belasten dieses Konto)'), h('span', { class: 'annahme' }, formatEuro(-kd.rest))),
       h('ul', { class: 'liste' }, budgetZeilen),
       kd.budgets.some((b) => !b.jaehrlich) && h('p', { class: 'hinweis' }, 'Budget antippen, um es nur für diesen Monat zu ändern.')),
   );

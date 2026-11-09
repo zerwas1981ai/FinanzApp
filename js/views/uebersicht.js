@@ -9,7 +9,7 @@ import {
   isoMonatsanfang, naechsterMonat, vorigerMonat, istGueltigesDatum,
 } from '../format.js';
 import { monatsuebersicht, kontostand, vorgemerktBis, wirkungCent } from '../rechnen.js';
-import { dialog, eingabe, hinweis, toast, geraet, datenGeaendert } from '../ui.js';
+import { dialog, eingabe, hinweis, toast, geraet, datenGeaendert, klappBereich } from '../ui.js';
 import { oeffneBuchungsdialog } from './buchung-dialog.js';
 import { sortiereKonten } from '../konten.js';
 import { faelligListe, budgetHinweise, zeitleiste, nurWirksam, mindestsaldoWarnungen, LETZTER_MONAT } from '../prognose.js';
@@ -21,7 +21,8 @@ const ALLE = '__alle'; // gemerkte Auswahl "Alle Konten"
 
 const nachName = (a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base' });
 // alleAnzeigen: "kontoId|JJJJ-MM-01", wenn für dieses Konto/diesen Monat alle Buchungen gezeigt werden
-const ansicht = { jahr: null, monat: null, alleAnzeigen: null };
+// summenOffen (D112): Monatsblock aufgeklappt? Standard zu, bleibt so, solange die App offen ist
+const ansicht = { jahr: null, monat: null, alleAnzeigen: null, summenOffen: false };
 const MAX_BUCHUNGEN = 10; // so viele Buchungen zeigt die Monatsansicht standardmäßig
 
 const monatVon = (iso) => [Number(iso.slice(0, 4)), Number(iso.slice(5, 7))];
@@ -155,10 +156,14 @@ function zukunftsMonat(zeilen, monat, startStand, m, konto, konten, kategorien, 
   const mitVorzeichen = (cent) => (cent > 0 ? '+' : '') + formatEuro(cent);
 
   return [
-    h('section', { class: 'bereich summen zukunft' },
-      h('div', { class: 'bereich-kopf' },
-        h('h2', {}, 'Prognose'),
-        h('span', { class: 'marke annahme-marke' }, 'Annahme')),
+    klappBereich({
+      klasse: 'summen zukunft',
+      titel: 'Prognose',
+      zusatz: h('span', { class: 'marke annahme-marke' }, 'Annahme'),
+      rechts: h('span', { class: 'annahme' + (z.stand < 0 ? ' negativ' : '') }, `Monatsende ${formatEuro(z.stand)}`),
+      offen: ansicht.summenOffen,
+      beiWechsel: (offen) => { ansicht.summenOffen = offen; },
+    },
       zeile('Erwarteter Stand am Monatsanfang', anfang),
       zeile('Einnahmen', z.einnahmen, 'plus', true),
       zeile('Ausgaben', -z.ausgaben, '', true),
@@ -231,15 +236,18 @@ function kontoKopf(konto, buchungen, abstimmungen, prognoseCent, niedrigsterCent
       prognoseCent !== undefined && h('div', { class: 'klein' }, 'Prognose Monatsende: ',
         h('span', { class: 'annahme' + (prognoseCent < 0 ? ' negativ' : '') }, formatEuro(prognoseCent)),
         konto.mindestsaldoCent != null && prognoseCent < konto.mindestsaldoCent && h('span', { class: 'warn-text' }, ' – unter Mindestsaldo')),
-      // D110: ungünstigster Fall bis Monatsende – heute minus alle erwarteten Belastungen, ohne offene Eingänge
-      niedrigsterCent !== undefined && h('div', {
-        class: 'klein gedaempft niedrigster',
-        title: 'Stand heute mit allen bis Monatsende noch erwarteten Ausgaben, Umbuchungen und Budgetresten – '
-          + 'noch ausstehende Einnahmen zählen nicht mit.',
-      }, 'Niedrigster erwarteter Stand: ',
-      h('span', { class: 'annahme' + (niedrigsterCent < 0 ? ' negativ' : '') }, formatEuro(niedrigsterCent)),
-      konto.mindestsaldoCent != null && niedrigsterCent < konto.mindestsaldoCent && h('span', { class: 'warn-text' }, ' – unter Mindestsaldo')),
-      h('div', { class: 'klein abstimm-info' + (letzte && letzte.bankstandCent !== kontostand(konto, buchungen, letzte.datum) ? ' warn-text' : '') }, abstimmText),
+      // D110: ungünstigster Fall bis Monatsende – heute minus alle erwarteten Belastungen, ohne offene Eingänge.
+      // D112: in derselben Zeile rechtsbündig der Stand der Kontoabstimmung
+      h('div', { class: 'kopf-zeile' },
+        niedrigsterCent !== undefined ? h('div', {
+          class: 'klein gedaempft niedrigster',
+          title: 'Stand heute mit allen bis Monatsende noch erwarteten Ausgaben, Umbuchungen und Budgetresten – '
+            + 'noch ausstehende Einnahmen zählen nicht mit.',
+        }, 'Niedrigster erwarteter Stand: ',
+        h('span', { class: 'annahme' + (niedrigsterCent < 0 ? ' negativ' : '') }, formatEuro(niedrigsterCent)),
+        konto.mindestsaldoCent != null && niedrigsterCent < konto.mindestsaldoCent && h('span', { class: 'warn-text' }, ' – unter Mindestsaldo'))
+          : h('span'),
+        h('div', { class: 'klein abstimm-info' + (letzte && letzte.bankstandCent !== kontostand(konto, buchungen, letzte.datum) ? ' warn-text' : '') }, abstimmText)),
     ),
     h('button', { type: 'button', class: 'knopf', onclick: () => abstimmungsDialog(konto, buchungen) }, 'Abstimmen'),
   );
@@ -263,8 +271,17 @@ function summenKarte(konto, m, kd) {
   const zeile = (label, cent, klasse = '', vorzeichen = false) => h('div', { class: `summe ${klasse}` },
     h('span', {}, label),
     h('span', { class: 'betrag' + (cent < 0 ? ' negativ' : '') }, (vorzeichen && cent > 0 ? '+' : '') + formatEuro(cent)));
+  // D112: standardmäßig eingeklappt; im Kopf steht das Ergebnis des Monats
+  const ergebnis = kd ? kd.prognose : m.ende;
 
-  return h('section', { class: 'bereich summen' },
+  return klappBereich({
+    klasse: 'summen',
+    titel: 'Monatsübersicht',
+    rechts: h('span', { class: (kd ? 'annahme' : '') + (ergebnis < 0 ? ' negativ' : '') },
+      `${kd ? 'Prognose Monatsende' : 'Stand Monatsende'} ${formatEuro(ergebnis)}`),
+    offen: ansicht.summenOffen,
+    beiWechsel: (offen) => { ansicht.summenOffen = offen; },
+  },
     zeile(m.stichtagImMonat ? `Anfangssaldo am ${formatDatum(konto.stichtag)}` : `Stand am ${formatDatum(m.erster)}`, m.anfang),
     zeile('Einnahmen', m.einnahmen, 'plus', true),
     zeile('Ausgaben', -m.ausgaben, '', true),
