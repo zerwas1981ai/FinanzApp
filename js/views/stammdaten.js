@@ -61,6 +61,8 @@ const nachName = (a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'ba
 const gleicherName = (a, b) => a.trim().toLocaleLowerCase('de') === b.trim().toLocaleLowerCase('de');
 const jetzt = () => new Date().toISOString();
 const ART_TEXT = { einnahme: 'Einnahme', ausgabe: 'Ausgabe' };
+// D140: „Alles löschen und neu beginnen“ ist ausgeblendet; zum Wiedereinblenden auf true setzen
+const ZEIGE_NEU_BEGINNEN = false;
 const IST_ENTWICKLUNG = ['localhost', '127.0.0.1'].includes(location.hostname);
 
 export async function zeigeStammdaten(container) {
@@ -85,7 +87,8 @@ export async function zeigeStammdaten(container) {
     await archivBereich(neu),
     // Testdaten nur beim Entwickeln am PC (localhost), nicht in der veröffentlichten App (D66)
     IST_ENTWICKLUNG && testdatenBereich(konten, kategorien, neu),
-    neuBeginnenBereich(),
+    // D140: auf Wunsch ausgeblendet – zum Wiedereinblenden auf true setzen (die Funktion bleibt im Code)
+    ZEIGE_NEU_BEGINNEN && neuBeginnenBereich(),
     infoBereich(),
   ].filter(Boolean));
 }

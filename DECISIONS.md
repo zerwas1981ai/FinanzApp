@@ -2006,3 +2006,9 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
 - **Geplante Einmalbuchungen** stehen jetzt auch am PC in einer Zeile: Bezeichnung (mit Marken wie
   „überfällig“ oder Projekt) · Datum · Konto/Kategorie, Betrag rechts. Am Handy nur Bezeichnung und Betrag
   (die Projekt-Marke entfällt dort, „überfällig“ bleibt als Warnung).
+
+## D140 – „Alles löschen und neu beginnen“ ausgeblendet
+*Wunsch des Nutzers*
+
+- Der Bereich erscheint in den Stammdaten nicht mehr. Die Funktion bleibt im Code (`neuBeginnenBereich`
+  in `drive-bereich.js`). Zum Wiedereinblenden genügt `ZEIGE_NEU_BEGINNEN = true` in `stammdaten.js`.
