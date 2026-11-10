@@ -1959,3 +1959,10 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
 
 - Der Block „Größte Ausgaben/Einnahmen“ erscheint nur, wenn die Analyse „Nach Kategorien“ zeigt. In der
   Ansicht „Nach Empfänger/Absender“ entfällt er, ebenso weiterhin bei einem Empfänger-Filter.
+
+## D134 – Summenblock: drei Werte bündig ausgerichtet
+*Wunsch des Nutzers*
+
+- Über „Liste/Analyse“ stehen Summe, Anzahl und Ø je Buchung in drei gleich breiten Spalten:
+  **Summe linksbündig, Anzahl mittig, Ø rechtsbündig**. Die Zeile schließt damit links und rechts mit dem
+  Kasten ab. Bisher waren alle drei linksbündig, sodass „Ø je Buchung“ am Handy zu weit links wirkte.

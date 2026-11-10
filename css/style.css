@@ -718,6 +718,11 @@ button.ka-zeile:hover { background: var(--akzent-leicht); }
   margin-top: 8px;
 }
 .kachel .betrag { font-size: 1.15rem; }
+/* D134: drei Werte als Zeile ausgerichtet – Summe links, Anzahl mittig, Ø rechts (bündig mit dem Kasten) */
+.summen-kopf .kacheln { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.summen-kopf .kachel:nth-child(2) { text-align: center; }
+.summen-kopf .kachel:nth-child(3) { text-align: right; }
+.summen-kopf .kachel:nth-child(n+4) { text-align: left; }
 
 .sortierung { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 6px 0 4px; }
 .sortierung select {
