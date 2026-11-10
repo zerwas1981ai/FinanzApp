@@ -1203,6 +1203,19 @@ details[open] > .zl-zeile > .zl-name::before { transform: rotate(90deg); }
 }
 .klapp-bereich[open] > .klapp-inhalt { margin-top: 10px; }
 .klapp-bereich.summen > .klapp-inhalt { display: grid; gap: 3px; }
+/* D138: Annahmen-Zeilen einzeilig – Titel und Details in einer Zeile, notfalls mit „…“ gekürzt */
+.zeile-1 .buchung-text { flex-direction: row; align-items: baseline; flex: 1 1 auto; overflow: hidden; white-space: nowrap; }
+.zeile-1 .buchung-titel { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.zeile-1 .zeile-info { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-left: 8px; color: var(--text-2); font-size: .85rem; }
+.zeile-1 .zeile-info::before { content: "· "; }
+.zeile-1 > .betrag, .zeile-1-handy > .betrag { flex: none; white-space: nowrap; }
+@media (max-width: 767px) {
+  .zeile-1 .zeile-info { display: none; }
+  .zeile-1 .buchung-titel { flex: 1 1 auto; }
+  .zeile-1-handy .buchung-text { flex-direction: row; flex: 1 1 auto; overflow: hidden; white-space: nowrap; }
+  .zeile-1-handy .buchung-titel { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .zeile-1-handy .buchung-unter { display: none; }
+}
 /* Je Konto: noch erwartet bis Monatsende */
 .erwartet { border-style: dashed; }
 /* D112: Summenzeilen kräftiger, die beiden Teile durch eine dünne Linie getrennt */

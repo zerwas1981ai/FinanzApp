@@ -115,13 +115,16 @@ function budgetBereich(daten) {
       if (teile.length) zusatz = teile.join(' · ');
       beendet = Boolean(b.endMonat && b.endMonat < monat);
     }
+    // D138: eine Zeile – am PC Kategorie · Rhythmus · Abweichungen (notfalls „…“), am Handy nur die Kategorie
+    const details = [info, zusatz].filter(Boolean).join(' · ');
     return zeileMitSchalter(b, 'budgets',
-      h('button', { type: 'button', class: 'buchung' + (beendet ? ' archiviert' : ''), onclick: () => budgetDialog(b, daten) },
-        h('span', { class: 'buchung-text' },
-          h('span', { class: 'buchung-titel' }, name, beendet && h('span', { class: 'marke' }, 'abgelaufen')),
-          h('span', { class: 'buchung-unter' }, info),
-          zusatz && h('span', { class: 'buchung-unter annahme' }, zusatz)),
-        h('span', { class: 'betrag' }, betrag)));
+      h('button', {
+        type: 'button', class: 'buchung zeile-1' + (beendet ? ' archiviert' : ''), title: `${name} · ${details}`, onclick: () => budgetDialog(b, daten),
+      },
+      h('span', { class: 'buchung-text' },
+        h('span', { class: 'buchung-titel' }, name, beendet && h('span', { class: 'marke' }, 'abgelaufen')),
+        h('span', { class: 'zeile-info nur-breit' }, details)),
+      h('span', { class: 'betrag' }, betrag)));
   };
 
   return h('section', { class: 'bereich', 'aria-labelledby': 'titel-budgets' },
@@ -351,13 +354,19 @@ function wiederkehrendZeile(w, daten, heute, kat, kontoName) {
   // D94: feste Abweichungen je Kalendermonat
   const abweichend = (w.kalenderMonate ?? []).map((k) => `jeden ${MONATSNAMEN[k.monat - 1]}: ${formatEuro(k.betragCent)}`).join(' · ');
   const text = w.art === 'umbuchung' ? formatEuro(cent) : (w.art === 'einnahme' ? '+' : '') + formatEuro(w.art === 'ausgabe' ? -cent : cent);
+  // D138: eine Zeile – am PC Titel · nächster Termin · Kategorie · Abweichungen, am Handy der Empfänger/Absender
+  const details = [info, abweichend].filter(Boolean).join(' · ');
+  const handyTitel = w.art === 'umbuchung' ? zuordnung : (w.partner?.trim() || titel);
   return zeileMitSchalter(w, 'wiederkehrend',
-    h('button', { type: 'button', class: 'buchung' + (beendet ? ' archiviert' : ''), onclick: () => wiederkehrendDialog(w, daten) },
-      h('span', { class: 'buchung-text' },
-        h('span', { class: 'buchung-titel' }, titel, beendet && h('span', { class: 'marke' }, 'beendet')),
-        h('span', { class: 'buchung-unter' }, info),
-        abweichend && h('span', { class: 'buchung-unter annahme' }, abweichend)),
-      h('span', { class: 'betrag ' + (w.art === 'einnahme' ? 'plus' : w.art === 'umbuchung' ? 'gedaempft' : '') }, text)));
+    h('button', {
+      type: 'button', class: 'buchung zeile-1' + (beendet ? ' archiviert' : ''), title: `${titel} · ${details}`, onclick: () => wiederkehrendDialog(w, daten),
+    },
+    h('span', { class: 'buchung-text' },
+      h('span', { class: 'buchung-titel' },
+        h('span', { class: 'nur-breit' }, titel), h('span', { class: 'nur-schmal' }, handyTitel),
+        beendet && h('span', { class: 'marke' }, 'beendet')),
+      h('span', { class: 'zeile-info nur-breit' }, details)),
+    h('span', { class: 'betrag ' + (w.art === 'einnahme' ? 'plus' : w.art === 'umbuchung' ? 'gedaempft' : '') }, text)));
 }
 
 /**
@@ -520,7 +529,11 @@ function geplantBereich(daten) {
     else if (g.datum < heute) status = h('span', { class: 'marke marke-warn' }, 'überfällig');
     const text = g.art === 'umbuchung' ? formatEuro(g.betragCent) : (g.art === 'einnahme' ? '+' : '') + formatEuro(g.art === 'ausgabe' ? -g.betragCent : g.betragCent);
     return zeileMitSchalter(g, 'geplant',
-      h('button', { type: 'button', class: 'buchung' + (e ? ' archiviert' : ''), onclick: () => geplantDialog(g, daten) },
+      // D138: am Handy nur eine Zeile (Bezeichnung und Betrag), am PC wie bisher mit Datum und Zuordnung
+      h('button', {
+        type: 'button', class: 'buchung zeile-1-handy' + (e ? ' archiviert' : ''), title: `${g.bezeichnung} · ${formatDatum(g.datum)} · ${zuordnung}`,
+        onclick: () => geplantDialog(g, daten),
+      },
         h('span', { class: 'buchung-text' },
           h('span', { class: 'buchung-titel' }, g.bezeichnung, status, projektMarke(g, daten.projekte)),
           h('span', { class: 'buchung-unter' }, `${formatDatum(g.datum)} · ${zuordnung}`)),

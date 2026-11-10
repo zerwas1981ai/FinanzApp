@@ -1986,3 +1986,15 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
 - In der Übersicht (Monatsliste je Konto, PC und Handy) und in „Alle Buchungen“ (Sortierung nach Datum,
   in beide Richtungen) stehen Umbuchungen innerhalb eines Tages immer **nach** den Einnahmen und Ausgaben.
 - Der Stand je Zeile in der Übersicht folgt dieser Reihenfolge. Der Tagesstand am Abend ändert sich nicht.
+
+## D138 – Annahmen: Zeilen einzeilig
+*Wunsch des Nutzers*
+
+- **Budgets** (PC und Handy) stehen in einer Zeile. Am PC: Kategorie · Rhythmus · Abweichungen (notfalls
+  mit „…“ gekürzt), Betrag rechts. Am Handy nur Kategorie und Betrag.
+- **Wiederkehrende Buchungen** (PC und Handy) stehen in einer Zeile. Am PC: Titel · nächster Termin ·
+  Kategorie · Abweichungen. Am Handy der Empfänger/Absender (sonst der Titel, bei Umbuchungen das
+  Zielkonto), notfalls gekürzt.
+- **Geplante Einmalbuchungen**: Am Handy eine Zeile (Bezeichnung und Betrag), am PC wie bisher mit Datum
+  und Zuordnung darunter.
+- Der vollständige Text steht jeweils im Tooltip, Antippen öffnet wie bisher den Dialog.
