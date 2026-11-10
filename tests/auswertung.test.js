@@ -302,3 +302,10 @@ test('Standard-Art: nur Ausgaben (D126)', () => {
   const e = filtere(daten, { ...STANDARD_FILTER, zeitraum: 'alles', status: [] }, ctx);
   assert.ok(e.length > 0 && e.every((x) => x.buchung.art === 'ausgabe'));
 });
+
+test('Umbuchungen stehen innerhalb eines Tages am Ende (D137)', () => {
+  const e = (id, art, erstelltAm) => ({ buchung: { id, datum: '2026-11-05', art, betragCent: 100, erstelltAm }, wirkung: art === 'einnahme' ? 100 : -100 });
+  const liste = [e('u', 'umbuchung', '2026-11-05T12:00:00Z'), e('a', 'ausgabe', '2026-11-05T08:00:00Z'), e('b', 'einnahme', '2026-11-05T09:00:00Z')];
+  assert.deepEqual(sortiere(liste, { stufen: [{ feld: 'datum', richtung: 'ab' }] }).map((x) => x.buchung.id), ['b', 'a', 'u']);
+  assert.deepEqual(sortiere(liste, { stufen: [{ feld: 'datum', richtung: 'auf' }] }).map((x) => x.buchung.id), ['a', 'b', 'u']);
+});

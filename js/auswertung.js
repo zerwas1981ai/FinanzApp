@@ -204,6 +204,11 @@ export function sortiere(eintraege, sortierung, { kategorien = [], konten = [] }
     for (const { feld, richtung } of stufen) {
       const v = (vergleicher[feld] ?? (() => 0))(a, b);
       if (v) return richtung === 'auf' ? v : -v;
+      // D137: am selben Tag stehen Umbuchungen immer am Ende – egal in welcher Richtung sortiert wird
+      if (feld === 'datum') {
+        const u = Number(a.buchung.art === 'umbuchung') - Number(b.buchung.art === 'umbuchung');
+        if (u) return u;
+      }
     }
     return (datumRichtung === 'auf' ? 1 : -1) * zuletzt(a, b);
   });

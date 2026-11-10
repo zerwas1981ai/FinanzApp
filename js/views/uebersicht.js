@@ -353,8 +353,11 @@ function buchungsliste(m, konto, konten, kategorien) {
     if (rest <= 0) break;
     let stand = tag.standAbend;
     const zeilen = [];
-    for (const b of [...tag.buchungen].reverse()) {
-      if (rest <= 0) break;
+    // D137: innerhalb eines Tages stehen Umbuchungen immer am Ende (der Tagesstand je Zeile folgt dieser Reihenfolge)
+    const absteigend = [...tag.buchungen].reverse();
+    const reihenfolge = [...absteigend.filter((b) => !istUmbuchung(b)), ...absteigend.filter(istUmbuchung)];
+    for (const b of reihenfolge) {
+      if (rest <= 0 && !istUmbuchung(b)) break;
       zeilen.push({ buchung: b, stand });
       stand -= wirkungCent(b);
       if (!istUmbuchung(b)) rest -= 1;

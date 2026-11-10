@@ -1979,3 +1979,10 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
 
 - Am Handy steht die Zahl unter „Anzahl“ wieder **mittig** (weiterhin ohne „Buchungen“). Am PC bleibt sie
   unter dem „A“, mit „Buchungen“.
+
+## D137 – Umbuchungen innerhalb eines Tages am Ende
+*Wunsch des Nutzers*
+
+- In der Übersicht (Monatsliste je Konto, PC und Handy) und in „Alle Buchungen“ (Sortierung nach Datum,
+  in beide Richtungen) stehen Umbuchungen innerhalb eines Tages immer **nach** den Einnahmen und Ausgaben.
+- Der Stand je Zeile in der Übersicht folgt dieser Reihenfolge. Der Tagesstand am Abend ändert sich nicht.
