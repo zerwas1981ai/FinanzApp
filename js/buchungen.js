@@ -78,6 +78,8 @@ export function baueBuchungen(eingabe, { konten, bestehende = [], jetzt = new Da
       : normGruppe(eingabe.relevantGruppe === undefined ? bestehende[0]?.relevantGruppe : eingabe.relevantGruppe),
     geaendertAm: jetzt,
   };
+  // D142: relevante Ausgabe → Notiz ist Pflicht (sie benennt auch den Beleg)
+  if (gemeinsam.relevant && !gemeinsam.notiz) throw new Error('Bei einer relevanten Ausgabe ist die Notiz Pflicht – sie benennt auch den Beleg.');
   const basis = (alt) => ({
     belege: [],
     geloeschtAm: null,

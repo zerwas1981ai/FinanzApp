@@ -2023,3 +2023,20 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
 - Am Handy (einzeilige Liste) bleibt die Marke „vorgemerkt“, weil es dort keine Spalten gibt.
 - In „Alle Buchungen“ gibt es keine v-Spalte, weil dort nur gebuchte Buchungen erscheinen (D120) und sie
   immer leer wäre.
+
+## D142 – Relevante Ausgaben: Notiz ist Pflicht und benennt den Beleg
+*Wunsch des Nutzers*
+
+- Bei **relevanten Ausgaben** ist die **Notiz Pflicht**. Das gilt für eigene Einträge unter Projekte →
+  Relevante Ausgaben und für Buchungen mit dem Häkchen „Relevante Ausgabe“. Ohne Notiz erscheint beim
+  Speichern ein Hinweis, der Dialog bleibt offen.
+- Die Beschriftung des Feldes zeigt das an: „Notiz (Pflicht – benennt den Beleg)“. Ohne Häkchen bleibt sie
+  „Notiz (optional)“.
+- **Belegname:** „JJJJ-MM-TT Notiz“, also Datum der Ausgabe und Notiz. Weitere Belege derselben Ausgabe
+  bekommen „ (2)“, „ (3)“ usw. Die Dateiendung bleibt erhalten. Zeichen, die in Dateinamen nicht erlaubt
+  sind (z. B. `/`), werden zu „-“.
+- Die Namen werden **beim Speichern** gesetzt. Ändert man Datum oder Notiz später, werden die Namen der
+  noch nicht hochgeladenen Belege angepasst. Belege, die schon in Google Drive liegen, behalten ihren
+  Namen.
+- Auch eine bestehende relevante Buchung ohne Notiz lässt sich erst wieder speichern, wenn eine Notiz
+  eingetragen ist.

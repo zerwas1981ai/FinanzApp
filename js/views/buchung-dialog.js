@@ -10,7 +10,7 @@ import { belegeFeld } from './belege.js';
 import { sortiereKonten } from '../konten.js';
 import { wiederkehrendDialog } from './annahmen.js';
 import { monatsende, tageImMonat } from '../prognose.js';
-import { relevanteZeilen, gruppenListe, MAX_GRUPPE } from '../relevant.js';
+import { relevanteZeilen, gruppenListe, MAX_GRUPPE, benenneBelege } from '../relevant.js';
 import { vorlageZuWerten } from '../vorlagen.js';
 import { vorlagenLeiste, vorlageSpeichernDialog } from './vorlagen.js';
 
@@ -98,17 +98,23 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
     gruppenListe(relevanteZeilen({ relevant: relevantListe, buchungen: alle })),
     ref?.relevantGruppe ?? vorgaben.relevantGruppe ?? '',
   );
-  const zeigeGruppe = () => { relevantGruppe.feld.hidden = !relevantHaken.checked; };
+  // D142: bei relevanter Ausgabe ist die Notiz Pflicht – die Beschriftung zeigt das an
+  const zeigeGruppe = () => {
+    relevantGruppe.feld.hidden = !relevantHaken.checked;
+    const pflicht = relevantHaken.checked && art === 'ausgabe';
+    notiz.feld.querySelector('label').textContent = pflicht ? 'Notiz (Pflicht – benennt den Beleg)' : 'Notiz (optional)';
+  };
   relevantHaken.addEventListener('change', zeigeGruppe);
   zeigeGruppe();
   const relevantFeld = h('div', { class: 'relevant-feld' },
     h('label', { class: 'schalter feld-schalter' }, relevantHaken, 'Relevante Ausgabe (erscheint unter Projekte → Relevante Ausgaben, Belege zusätzlich im Drive-Ordner)'),
     relevantGruppe.feld);
 
-  // Belege: Dateiname aus Datum und Empfänger/Absender bzw. Kategorie
+  // Belege: Dateiname aus Datum und Empfänger/Absender bzw. Kategorie; bei relevanter Ausgabe Datum und Notiz (D142)
   const belege = belegeFeld(ref?.belege ?? [], () => [
     datum.input.value,
-    partner.input.value.trim() || (kategorie.select.value && kategorie.select.selectedOptions[0]?.textContent) || 'Beleg',
+    (relevantHaken.checked && art === 'ausgabe' && notiz.input.value.trim())
+      || partner.input.value.trim() || (kategorie.select.value && kategorie.select.selectedOptions[0]?.textContent) || 'Beleg',
   ].filter(Boolean).join(' '));
 
   function aktualisiere() {
@@ -117,6 +123,7 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
     if (projekt) projekt.feld.hidden = istUmbuchung;
     belege.feld.hidden = istUmbuchung;
     relevantFeld.hidden = art !== 'ausgabe';
+    zeigeGruppe(); // D142: Notiz-Beschriftung (Pflicht/optional) passend zur Art
     partner.setzeArt(art);
     gegenkonto.feld.hidden = !istUmbuchung;
     budgetFeld.feld.hidden = !istUmbuchung;
@@ -241,6 +248,8 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
         relevant: art === 'ausgabe' && relevantHaken.checked,
         relevantGruppe: relevantGruppe.input.value,
       };
+      // D142: relevante Ausgabe → neue Belege heißen „JJJJ-MM-TT Notiz“
+      if (werte.relevant && werte.notiz.trim()) belege.umbenennen((l) => benenneBelege(l, werte.datum, werte.notiz));
       werte.belege = art === 'umbuchung' ? undefined : belege.liste();
       await speichereBuchung(werte, gruppe);
       if (art !== 'umbuchung') await belege.uebernehme(); // neue Dateien ablegen, entfernte vormerken

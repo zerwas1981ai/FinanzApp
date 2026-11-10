@@ -17,6 +17,20 @@ export const MAX_GRUPPE = 40;
 /** Zählt eine Buchung als relevante Ausgabe? */
 export const istRelevanteBuchung = (b) => Boolean(b.relevant) && b.art === 'ausgabe' && !b.geloeschtAm;
 
+/**
+ * D142: Belegname für relevante Ausgaben: „JJJJ-MM-TT Notiz“, mehrere Belege mit „ (2)“, „ (3)“ …
+ * Unzulässige Zeichen für Dateinamen werden durch „-“ ersetzt. Nur noch nicht hochgeladene Belege
+ * (ohne driveId) werden umbenannt – Dateien in Google Drive behalten ihren Namen.
+ */
+export function benenneBelege(belege, datum, notiz) {
+  const basis = `${datum} ${String(notiz ?? '').trim().replace(/\s+/g, ' ')}`.trim();
+  return belege.map((b, i) => {
+    if (b.driveId) return b;
+    const endung = (b.name ?? '').includes('.') ? b.name.split('.').pop() : (b.mime === 'application/pdf' ? 'pdf' : 'jpg');
+    return { ...b, name: `${basis}${i > 0 ? ` (${i + 1})` : ''}.${endung}`.replace(/[\\/:*?"<>|]/g, '-') };
+  });
+}
+
 /** Gruppe vereinheitlichen: Leerzeichen am Rand weg, höchstens 40 Zeichen */
 export const normGruppe = (text) => String(text ?? '').trim().replace(/\s+/g, ' ').slice(0, MAX_GRUPPE);
 const gruppenSchluessel = (text) => normGruppe(text).toLocaleLowerCase('de');
@@ -28,6 +42,8 @@ export function baueRelevant(eingabe, { alt = null, jetzt = new Date().toISOStri
   if (betragCent < 0) throw new Error('Bitte den Betrag ohne Minus eingeben.');
   if (!istGueltigesDatum(datum)) throw new Error('Bitte ein gültiges Datum wählen.');
   if (datum < '1990-01-01') throw new Error('Bitte ein Datum ab 1990 wählen.');
+  // D142: Notiz ist Pflicht (sie benennt auch den Beleg)
+  if (!String(eingabe.notiz ?? '').trim()) throw new Error('Bei einer relevanten Ausgabe ist die Notiz Pflicht – sie benennt auch den Beleg.');
   return {
     belege: [],
     geloeschtAm: null,

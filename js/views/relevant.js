@@ -7,7 +7,7 @@ import * as db from '../db.js';
 import { formatEuro, formatDatum, parseEuro, centZuEingabe, heuteIso } from '../format.js';
 import { dialog, toast, eingabe, auswahl, datenGeaendert } from '../ui.js';
 import {
-  baueRelevant, relevanteZeilen, gruppenListe, filtereGruppe, nachJahren, OHNE_GRUPPE,
+  baueRelevant, relevanteZeilen, gruppenListe, filtereGruppe, nachJahren, OHNE_GRUPPE, benenneBelege,
 } from '../relevant.js';
 import { belegeFeld, zeigeBeleg } from './belege.js';
 import { oeffneBuchungsdialog, partnerFeld, fuelleKategorien, gruppeFeld } from './buchung-dialog.js';
@@ -169,10 +169,11 @@ export function relevantDialog(e, daten) {
   const datum = eingabe({ label: 'Datum', type: 'date', value: e?.datum ?? heuteIso(), min: '1990-01-01' });
   const gruppen = gruppenListe(relevanteZeilen({ relevant: daten.relevant, buchungen: daten.buchungen }));
   const gruppe = gruppeFeld(gruppen, e?.gruppe ?? '');
-  const notiz = eingabe({ label: 'Notiz (optional)', maxlength: 200, value: e?.notiz ?? '', placeholder: 'z. B. Einbauküche, Garantie bis 2030' });
+  // D142: Notiz ist Pflicht und benennt den Beleg („JJJJ-MM-TT Notiz“)
+  const notiz = eingabe({ label: 'Notiz (Pflicht – benennt den Beleg)', maxlength: 200, value: e?.notiz ?? '', placeholder: 'z. B. Einbauküche, Garantie bis 2030' });
   const belege = belegeFeld(e?.belege ?? [], () => [
     datum.input.value,
-    partner.input.value.trim() || notiz.input.value.trim() || 'Relevante Ausgabe',
+    notiz.input.value.trim() || 'Relevante Ausgabe',
   ].filter(Boolean).join(' '));
 
   dialog({
@@ -194,6 +195,7 @@ export function relevantDialog(e, daten) {
       },
     },
     onSpeichern: async () => {
+      if (notiz.input.value.trim()) belege.umbenennen((l) => benenneBelege(l, datum.input.value, notiz.input.value));
       const eintrag = baueRelevant({
         betragCent: parseEuro(betrag.input.value, 'Betrag'),
         datum: datum.input.value,

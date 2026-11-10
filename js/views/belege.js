@@ -103,6 +103,11 @@ export function belegeFeld(bestehende = [], namensVorschlag = () => 'Beleg', { l
     feld,
     /** Die neue belege-Liste für die Buchung (ohne etwas zu speichern) */
     liste: () => [...liste],
+    /** D142: Namen neu setzen (z. B. „JJJJ-MM-TT Notiz“ bei relevanten Ausgaben) – fn(liste) → neue Liste */
+    umbenennen(fn) {
+      liste = fn(liste);
+      zeichne();
+    },
     /** Dateien von außen hinzufügen (z. B. über "Teilen an Finanzen", D106) – wie "Datei wählen" */
     fuegeHinzu: (dateien) => hinzufuegen(dateien),
     /** Erst NACH dem erfolgreichen Speichern der Buchung aufrufen: Dateien ablegen, Entferntes vormerken */

@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   baueRelevant, relevanteZeilen, gruppenListe, filtereGruppe, nachJahren, kopienAufgaben, istRelevanteBuchung, OHNE_GRUPPE,
+  benenneBelege,
 } from '../js/relevant.js';
 import { baueBuchungen } from '../js/buchungen.js';
 
@@ -16,7 +17,7 @@ test('Eigener Eintrag: prüfen und bauen', () => {
   assert.throws(() => baueRelevant({ betragCent: -5, datum: '2012-05-03' }), /ohne Minus/);
   assert.throws(() => baueRelevant({ betragCent: 5, datum: '2012-02-30' }), /Datum/);
   // Bearbeiten: ID, Belege und erstelltAm bleiben
-  const neu = baueRelevant({ betragCent: 1, datum: '2013-01-01' }, { alt: { ...e, belege: [{ id: 'x' }] }, jetzt: 'T2' });
+  const neu = baueRelevant({ betragCent: 1, datum: '2013-01-01', notiz: 'Küche' }, { alt: { ...e, belege: [{ id: 'x' }] }, jetzt: 'T2' });
   assert.equal(neu.id, e.id);
   assert.equal(neu.erstelltAm, 'T1');
   assert.deepEqual(neu.belege, [{ id: 'x' }]);
@@ -24,7 +25,7 @@ test('Eigener Eintrag: prüfen und bauen', () => {
 
 test('Häkchen an der Buchung: nur Ausgaben, beim Bearbeiten erhalten', () => {
   const konten = [{ id: 'giro', name: 'Giro', stichtag: '2026-01-01' }];
-  const basis = { art: 'ausgabe', betragCent: 100, datum: '2026-10-01', kontoId: 'giro', kategorieId: 'k1' };
+  const basis = { art: 'ausgabe', betragCent: 100, datum: '2026-10-01', kontoId: 'giro', kategorieId: 'k1', notiz: 'Waschmaschine' };
   const [b] = baueBuchungen({ ...basis, relevant: true, relevantGruppe: ' Garantie ' }, { konten });
   assert.equal(b.relevant, true);
   assert.equal(b.relevantGruppe, 'Garantie');
@@ -33,6 +34,37 @@ test('Häkchen an der Buchung: nur Ausgaben, beim Bearbeiten erhalten', () => {
   const [e] = baueBuchungen({ ...basis, art: 'einnahme', relevant: true }, { konten });
   assert.equal(e.relevant, false, 'Einnahmen nie');
   assert.equal(istRelevanteBuchung({ ...b, geloeschtAm: 'X' }), false, 'Papierkorb zählt nicht');
+});
+
+test('D142: Notiz ist Pflicht bei relevanten Ausgaben', () => {
+  assert.throws(() => baueRelevant({ betragCent: 5, datum: '2012-05-03' }), /Notiz Pflicht/);
+  assert.throws(() => baueRelevant({ betragCent: 5, datum: '2012-05-03', notiz: '   ' }), /Notiz Pflicht/);
+  const konten = [{ id: 'giro', name: 'Giro', stichtag: '2026-01-01' }];
+  const basis = { art: 'ausgabe', betragCent: 100, datum: '2026-10-01', kontoId: 'giro', kategorieId: 'k1' };
+  assert.throws(() => baueBuchungen({ ...basis, relevant: true }, { konten }), /Notiz Pflicht/);
+  // ohne Häkchen bleibt die Notiz freiwillig, Einnahmen sind nie relevant
+  assert.equal(baueBuchungen({ ...basis }, { konten })[0].notiz, '');
+  assert.equal(baueBuchungen({ ...basis, art: 'einnahme', relevant: true }, { konten })[0].relevant, false);
+  // bestehende relevante Buchung ohne Notiz kann nicht ohne Notiz gespeichert werden
+  const [alt] = baueBuchungen({ ...basis, relevant: true, notiz: 'Herd' }, { konten });
+  assert.throws(() => baueBuchungen({ ...basis }, { konten, bestehende: [alt] }), /Notiz Pflicht/);
+});
+
+test('D142: Belegname „JJJJ-MM-TT Notiz“, hochgeladene behalten ihren Namen', () => {
+  const liste = [
+    { id: 'a', name: '2026-10-01 Muster.jpg' },
+    { id: 'b', name: 'scan.PDF' },
+    { id: 'c', name: 'alt.pdf', driveId: 'd1' },
+    { id: 'd', name: 'ohne-endung', mime: 'application/pdf' },
+  ];
+  const neu = benenneBelege(liste, '2026-10-05', '  Herd /  Küche ');
+  assert.deepEqual(neu.map((b) => b.name), [
+    '2026-10-05 Herd - Küche.jpg',
+    '2026-10-05 Herd - Küche (2).PDF',
+    'alt.pdf',
+    '2026-10-05 Herd - Küche (4).pdf',
+  ]);
+  assert.equal(neu[0].id, 'a');
 });
 
 test('Liste: eigene Einträge, markierte Buchungen und Archiv, nach Jahren', () => {
