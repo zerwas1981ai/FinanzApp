@@ -1973,3 +1973,9 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
 - Die Kachel „Anzahl“ steht als Block in der Mitte, Beschriftung und Zahl sind darin linksbündig. Die Zahl
   beginnt also genau unter dem „A“ von „Anzahl“.
 - Am Handy steht nur die Zahl (z. B. „43“), am PC weiterhin „43 Buchungen“.
+
+## D136 – Anzahl am Handy mittig
+*Wunsch des Nutzers (ändert D135 nur fürs Handy)*
+
+- Am Handy steht die Zahl unter „Anzahl“ wieder **mittig** (weiterhin ohne „Buchungen“). Am PC bleibt sie
+  unter dem „A“, mit „Buchungen“.

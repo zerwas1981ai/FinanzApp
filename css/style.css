@@ -722,6 +722,8 @@ button.ka-zeile:hover { background: var(--akzent-leicht); }
 .summen-kopf .kacheln { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 /* D135: Anzahl als Block in der Mitte, Zahl beginnt unter dem „A“ von „Anzahl“ */
 .summen-kopf .kachel:nth-child(2) { justify-self: center; text-align: left; }
+/* D136: am Handy die Zahl mittig unter „Anzahl“ (am PC bleibt sie unter dem „A“) */
+@media (max-width: 767px) { .summen-kopf .kachel:nth-child(2) { text-align: center; } }
 .summen-kopf .kachel:nth-child(3) { text-align: right; }
 .summen-kopf .kachel:nth-child(n+4) { text-align: left; }
 
