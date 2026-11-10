@@ -1966,3 +1966,10 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
 - Über „Liste/Analyse“ stehen Summe, Anzahl und Ø je Buchung in drei gleich breiten Spalten:
   **Summe linksbündig, Anzahl mittig, Ø rechtsbündig**. Die Zeile schließt damit links und rechts mit dem
   Kasten ab. Bisher waren alle drei linksbündig, sodass „Ø je Buchung“ am Handy zu weit links wirkte.
+
+## D135 – Anzahl: Zahl unter dem „A“, am Handy ohne „Buchungen“
+*Wunsch des Nutzers (ergänzt D134)*
+
+- Die Kachel „Anzahl“ steht als Block in der Mitte, Beschriftung und Zahl sind darin linksbündig. Die Zahl
+  beginnt also genau unter dem „A“ von „Anzahl“.
+- Am Handy steht nur die Zahl (z. B. „43“), am PC weiterhin „43 Buchungen“.

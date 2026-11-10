@@ -720,7 +720,8 @@ button.ka-zeile:hover { background: var(--akzent-leicht); }
 .kachel .betrag { font-size: 1.15rem; }
 /* D134: drei Werte als Zeile ausgerichtet – Summe links, Anzahl mittig, Ø rechts (bündig mit dem Kasten) */
 .summen-kopf .kacheln { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.summen-kopf .kachel:nth-child(2) { text-align: center; }
+/* D135: Anzahl als Block in der Mitte, Zahl beginnt unter dem „A“ von „Anzahl“ */
+.summen-kopf .kachel:nth-child(2) { justify-self: center; text-align: left; }
 .summen-kopf .kachel:nth-child(3) { text-align: right; }
 .summen-kopf .kachel:nth-child(n+4) { text-align: left; }
 

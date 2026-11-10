@@ -469,7 +469,8 @@ function summenKarte(s, von, bis) {
     h('div', { class: 'kacheln' },
       // D121: nur Summe, Anzahl und Ø (Einnahmen/Ausgaben einzeln entfallen)
       kachel('Summe', s.summe, '', true),
-      textKachel('Anzahl', s.anzahl === 1 ? '1 Buchung' : `${s.anzahl} Buchungen`),
+      // D135: am Handy nur die Zahl, am PC mit „Buchungen“
+      textKachel('Anzahl', [String(s.anzahl), h('span', { class: 'nur-breit' }, s.anzahl === 1 ? ' Buchung' : ' Buchungen')]),
       s.schnitt != null ? kachel('Ø je Buchung', s.schnitt, '', true) : textKachel('Ø je Buchung', '–'),
       zustand.filter.kontoIds.length > 0 && s.umbuchungen !== 0 && kachel('Umbuchungen', s.umbuchungen, 'gedaempft', true),
     ),
