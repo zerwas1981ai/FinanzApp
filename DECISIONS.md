@@ -2012,3 +2012,14 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
 
 - Der Bereich erscheint in den Stammdaten nicht mehr. Die Funktion bleibt im Code (`neuBeginnenBereich`
   in `drive-bereich.js`). Zum Wiedereinblenden genügt `ZEIGE_NEU_BEGINNEN = true` in `stammdaten.js`.
+
+## D141 – Umbuchungen ganz grau, Spalte „v“ für vorgemerkte Buchungen
+*Wunsch des Nutzers (ändert D100 für die PC-Tabelle der Übersicht)*
+
+- **Umbuchungen** erscheinen in den Tabellen (Übersicht am PC, „Alle Buchungen“) in der **ganzen Zeile** im
+  leichten Grau, also Datum, Empfänger, Kategorie, Konto, Notiz und Betrag.
+- **Übersicht am PC:** Zwischen Datum und Empfänger steht eine schmale Spalte. Bei vorgemerkten Buchungen
+  steht dort ein kleines „v“ (Tooltip „vorgemerkt“) statt der Marke „vorgemerkt“ hinter dem Empfänger.
+- Am Handy (einzeilige Liste) bleibt die Marke „vorgemerkt“, weil es dort keine Spalten gibt.
+- In „Alle Buchungen“ gibt es keine v-Spalte, weil dort nur gebuchte Buchungen erscheinen (D120) und sie
+  immer leer wäre.

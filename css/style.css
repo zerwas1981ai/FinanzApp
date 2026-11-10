@@ -1394,6 +1394,11 @@ body.gesperrt .kopf, body.gesperrt main, body.gesperrt .fab, body.gesperrt #neue
 .btab-notiz { grid-column: 5; grid-row: 1; color: var(--text-2); }
 .btab-betrag { grid-column: 6; grid-row: 1; text-align: right; font-variant-numeric: tabular-nums; }
 .btab-zeile.umbuchung .btab-partner { color: var(--text-2); font-style: italic; }
+/* D141: Umbuchungen – die ganze Zeile im leichten Grau */
+.btab-zeile.umbuchung, .btab-zeile.umbuchung .btab-zelle, .btab-zeile.umbuchung .btab-zelle.betrag { color: var(--text-2); }
+/* D141: schmale Spalte „v“ für vorgemerkte Buchungen (Übersicht, PC) zwischen Datum und Empfänger */
+.btab-status { grid-column: 2; grid-row: 1; text-align: center; color: var(--text-2); font-size: .8rem; font-weight: 600; }
+
 .btab-hinweis { margin: 10px 0 0; font-size: .8rem; }
 .nur-schmal { display: none; }
 
@@ -1415,6 +1420,9 @@ body.gesperrt .kopf, body.gesperrt main, body.gesperrt .fab, body.gesperrt #neue
   }
   .btab-liste > li:nth-child(even) .btab-zeile { background: none; }
   .btab-partner { grid-column: 1; grid-row: 1; }
+  .btab-zeile > .btab-status { display: none; } /* D141: am Handy steht weiter die Marke „vorgemerkt“ */
+  .btab-konto .btab-partner { grid-column: 1; }
+  .btab-konto .btab-betrag { grid-column: 2; }
   .btab-betrag { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
   .btab-unter {
     grid-column: 1; grid-row: 2; display: block; min-width: 0;
@@ -1497,9 +1505,11 @@ body:not(.umbuchungen-sichtbar) .ub-ausblendbar { display: none; }
 /* Übersicht am PC: Buchungen als Tabelle mit Stand-Spalte (D78) */
 .nur-handy { display: none; }
 /* D80: ohne Spalte "Stand" – der Tagesstand steht in der Tageszeile rechts unter "Betrag" */
-.btab-konto { --btab-spalten: 92px minmax(0, 1.4fr) minmax(0, 1.6fr) minmax(0, 1.4fr) 120px; margin-top: 4px; }
-.btab-konto .btab-notiz { grid-column: 4; }
-.btab-konto .btab-betrag { grid-column: 5; }
+.btab-konto { --btab-spalten: 92px 14px minmax(0, 1.4fr) minmax(0, 1.6fr) minmax(0, 1.4fr) 120px; margin-top: 4px; }
+.btab-konto .btab-partner { grid-column: 3; }
+.btab-konto .btab-kategorie { grid-column: 4; }
+.btab-konto .btab-notiz { grid-column: 5; }
+.btab-konto .btab-betrag { grid-column: 6; }
 @media (max-width: 767px) {
   .nur-handy { display: block; }
   .nur-pc { display: none !important; }

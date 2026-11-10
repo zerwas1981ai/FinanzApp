@@ -580,6 +580,7 @@ function liste(eintraege, daten, neu) {
           ? h('span', { class: 'btab-partner-name' }, partnerText)
           // Ohne Empfänger/Absender: am Handy steht die Kategorie als Titel, am PC ein Strich
           : [h('span', { class: 'nur-breit gedaempft' }, '–'), h('span', { class: 'nur-schmal btab-partner-name' }, unterName)],
+        // D141: keine v-Spalte hier – „Alle Buchungen“ zeigt nur gebuchte Buchungen (D120)
         b.status === 'vorgemerkt' && h('span', { class: 'marke marke-vorgemerkt' }, 'vorgemerkt'),
         b.archivJahr && h('span', { class: 'marke' }, 'Archiv')),
       h('span', { class: 'btab-unter' },

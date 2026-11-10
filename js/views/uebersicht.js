@@ -404,7 +404,8 @@ function buchungsliste(m, konto, konten, kategorien) {
 
 /** Tabelle der Buchungen eines Kontos am PC (D78–D80): neueste oben, Tageszeilen mit Tagesstand (in der Spalte Betrag) */
 function kontoTabelle(auswahl, tagesKopf, katName, kontoName) {
-  const spalten = [['datum', 'Datum'], ['partner', 'Empfänger/Absender'], ['kategorie', 'Kategorie'], ['notiz', 'Notiz'], ['betrag', 'Betrag']];
+  // D141: schmale Spalte „v“ (vorgemerkt) zwischen Datum und Empfänger
+  const spalten = [['datum', 'Datum'], ['status', ''], ['partner', 'Empfänger/Absender'], ['kategorie', 'Kategorie'], ['notiz', 'Notiz'], ['betrag', 'Betrag']];
   const zeile = ({ buchung: b }) => {
     const wirkung = wirkungCent(b);
     let partner;
@@ -420,9 +421,9 @@ function kontoTabelle(auswahl, tagesKopf, katName, kontoName) {
     }
     return h('li', { role: 'row', class: b.art === 'umbuchung' ? 'ub-ausblendbar' : null },
       h('button', { type: 'button', class: 'btab-zeile' + (b.art === 'umbuchung' ? ' umbuchung' : ''), onclick: () => oeffneBuchungsdialog(b) },
+        h('span', { class: 'btab-zelle btab-status', title: b.status === 'vorgemerkt' ? 'vorgemerkt' : null }, b.status === 'vorgemerkt' ? 'v' : ''),
         h('span', { class: 'btab-zelle btab-partner', title: partner || null },
-          partner ? h('span', { class: 'btab-partner-name' }, partner) : h('span', { class: 'gedaempft' }, '–'),
-          b.status === 'vorgemerkt' && h('span', { class: 'marke marke-vorgemerkt' }, 'vorgemerkt')),
+          partner ? h('span', { class: 'btab-partner-name' }, partner) : h('span', { class: 'gedaempft' }, '–')),
         h('span', { class: 'btab-unter' },
           h('span', { class: 'btab-zelle btab-datum' }, formatDatum(b.datum)),
           h('span', { class: 'btab-zelle btab-kategorie', title: katText }, katText),
