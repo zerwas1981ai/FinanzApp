@@ -8,9 +8,9 @@ import * as db from '../db.js';
 import { formatEuro, formatDatum, formatMonat, centZuEingabe, parseEuro, heuteIso } from '../format.js';
 import { dialog, frage, toast, eingabe, auswahl, datenGeaendert } from '../ui.js';
 import { baueBudget, baueWiederkehrend, baueGeplant, geplantErledigt, haeufigstesKonto, mitAusnahme } from '../annahmen.js';
-import { budgetFuerMonat, betragAm, terminBetrag, naechsterTermin, plusMonate, monatsende, annahmeTitel } from '../prognose.js';
+import { betragAm, terminBetrag, naechsterTermin, plusMonate, monatsende, annahmeTitel } from '../prognose.js';
 import { artWahl, fuelleKategorien, projektFeld, oeffneBuchungsdialog, partnerFeld, budgetZuordnungFeld } from './buchung-dialog.js';
-import { VERTEILUNGEN, istJaehrlich, trancheImMonat } from '../jahresbudget.js';
+import { VERTEILUNGEN, istJaehrlich } from '../jahresbudget.js';
 
 const nachName = (a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base' });
 const INTERVALL_TEXT = { monatlich: 'monatlich', vierteljaehrlich: 'vierteljährlich', jaehrlich: 'jährlich' };
@@ -79,13 +79,7 @@ function budgetBereich(daten) {
   const gruppen = sortiereKonten(konten.filter((k) => kontoIds.has(k.id))).map((k) => ({ id: k.id, name: k.name }));
   if (budgets.some((b) => !kontoName.has(b.kontoId))) gruppen.push({ id: null, name: 'Unbekanntes Konto' });
   const imKonto = (g) => budgets.filter((b) => (g.id === null ? !kontoName.has(b.kontoId) : b.kontoId === g.id));
-  // Summen immer für den Folgemonat (D87): wiederkehrend + einmalig + Tranchen von Jahresbudgets (D90)
-  const folgemonat = plusMonate(monat, 1);
-  const summeKonto = (liste) => [...new Set(liste.map((b) => b.kategorieId))]
-    .reduce((s, id) => s + budgetFuerMonat(liste, id, folgemonat).betragCent, 0)
-    + liste.filter(istJaehrlich).reduce((s, b) => s + trancheImMonat(b, folgemonat), 0);
-
-  const summeMonat = summeKonto(budgets);
+  // D139: Zwischensummen je Konto und Gesamtsumme (D86/D87) entfallen
 
   const zeile = (b) => {
     const name = kat.get(b.kategorieId)?.name ?? 'Unbekannte Kategorie';
@@ -147,13 +141,8 @@ function budgetBereich(daten) {
             return teil.length > 0 && h('div', { class: 'budget-art' },
               h('div', { class: 'budget-art-kopf' }, ART_UEBERSCHRIFT[art]),
               h('ul', { class: 'liste' }, [...teil].sort(nachKategorie).map(zeile)));
-          }).filter(Boolean),
-          h('div', { class: 'summe zwischensumme' },
-            h('span', {}, `Zwischensumme ${g.name} · ${monatText(folgemonat)}`),
-            h('span', { class: 'betrag' }, formatEuro(summeKonto(liste)))));
+          }).filter(Boolean));
       }),
-    budgets.length > 0 && h('div', { class: 'summe ergebnis' },
-      h('span', {}, `Budgets ${monatText(folgemonat)} zusammen`), h('span', { class: 'betrag' }, formatEuro(summeMonat))),
   );
 }
 
@@ -529,14 +518,14 @@ function geplantBereich(daten) {
     else if (g.datum < heute) status = h('span', { class: 'marke marke-warn' }, 'überfällig');
     const text = g.art === 'umbuchung' ? formatEuro(g.betragCent) : (g.art === 'einnahme' ? '+' : '') + formatEuro(g.art === 'ausgabe' ? -g.betragCent : g.betragCent);
     return zeileMitSchalter(g, 'geplant',
-      // D138: am Handy nur eine Zeile (Bezeichnung und Betrag), am PC wie bisher mit Datum und Zuordnung
+      // D138/D139: eine Zeile – am PC Bezeichnung · Datum · Zuordnung, am Handy nur die Bezeichnung
       h('button', {
-        type: 'button', class: 'buchung zeile-1-handy' + (e ? ' archiviert' : ''), title: `${g.bezeichnung} · ${formatDatum(g.datum)} · ${zuordnung}`,
+        type: 'button', class: 'buchung zeile-1' + (e ? ' archiviert' : ''), title: `${g.bezeichnung} · ${formatDatum(g.datum)} · ${zuordnung}`,
         onclick: () => geplantDialog(g, daten),
       },
         h('span', { class: 'buchung-text' },
           h('span', { class: 'buchung-titel' }, g.bezeichnung, status, projektMarke(g, daten.projekte)),
-          h('span', { class: 'buchung-unter' }, `${formatDatum(g.datum)} · ${zuordnung}`)),
+          h('span', { class: 'zeile-info nur-breit' }, `${formatDatum(g.datum)} · ${zuordnung}`)),
         h('span', { class: 'betrag ' + (e ? '' : 'annahme ') + (g.art === 'einnahme' ? 'plus' : g.art === 'umbuchung' ? 'gedaempft' : '') }, text)));
   };
 

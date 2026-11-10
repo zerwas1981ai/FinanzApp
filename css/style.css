@@ -1208,13 +1208,11 @@ details[open] > .zl-zeile > .zl-name::before { transform: rotate(90deg); }
 .zeile-1 .buchung-titel { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .zeile-1 .zeile-info { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-left: 8px; color: var(--text-2); font-size: .85rem; }
 .zeile-1 .zeile-info::before { content: "· "; }
-.zeile-1 > .betrag, .zeile-1-handy > .betrag { flex: none; white-space: nowrap; }
+.zeile-1 > .betrag { flex: none; white-space: nowrap; }
 @media (max-width: 767px) {
   .zeile-1 .zeile-info { display: none; }
+  .zeile-1 .marke-projekt { display: none; } /* D139: am Handy nur die Bezeichnung */
   .zeile-1 .buchung-titel { flex: 1 1 auto; }
-  .zeile-1-handy .buchung-text { flex-direction: row; flex: 1 1 auto; overflow: hidden; white-space: nowrap; }
-  .zeile-1-handy .buchung-titel { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .zeile-1-handy .buchung-unter { display: none; }
 }
 /* Je Konto: noch erwartet bis Monatsende */
 .erwartet { border-style: dashed; }

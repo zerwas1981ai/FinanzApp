@@ -1998,3 +1998,11 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
 - **Geplante Einmalbuchungen**: Am Handy eine Zeile (Bezeichnung und Betrag), am PC wie bisher mit Datum
   und Zuordnung darunter.
 - Der vollständige Text steht jeweils im Tooltip, Antippen öffnet wie bisher den Dialog.
+
+## D139 – Annahmen: keine Budget-Summen, geplante Einmalbuchungen einzeilig
+*Wunsch des Nutzers (ändert D86/D87, ergänzt D138)*
+
+- Bei den Budgets entfallen die Zwischensummen je Konto und die Gesamtsumme für den Folgemonat.
+- **Geplante Einmalbuchungen** stehen jetzt auch am PC in einer Zeile: Bezeichnung (mit Marken wie
+  „überfällig“ oder Projekt) · Datum · Konto/Kategorie, Betrag rechts. Am Handy nur Bezeichnung und Betrag
+  (die Projekt-Marke entfällt dort, „überfällig“ bleibt als Warnung).
