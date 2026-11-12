@@ -9,7 +9,7 @@ import { formatEuro, formatDatum, formatMonat, centZuEingabe, parseEuro, heuteIs
 import { dialog, frage, toast, eingabe, auswahl, datenGeaendert } from '../ui.js';
 import { baueBudget, baueWiederkehrend, baueGeplant, geplantErledigt, haeufigstesKonto, mitAusnahme } from '../annahmen.js';
 import { betragAm, terminBetrag, naechsterTermin, plusMonate, monatsende, annahmeTitel } from '../prognose.js';
-import { artWahl, fuelleKategorien, projektFeld, oeffneBuchungsdialog, partnerFeld, budgetZuordnungFeld } from './buchung-dialog.js';
+import { artWahl, fuelleKategorien, projektFeld, oeffneBuchungsdialog, partnerFeld, budgetZuordnungFeld, vertragFeld } from './buchung-dialog.js';
 import { VERTEILUNGEN, istJaehrlich } from '../jahresbudget.js';
 
 const nachName = (a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base' });
@@ -23,7 +23,7 @@ const ART_UEBERSCHRIFT = { wiederkehrend: 'Monatlich', jaehrlich: 'Jährlich', e
 const QUARTALSENDE = ['31.03.', '30.06.', '30.09.', '31.12.'];
 
 export async function zeigeAnnahmen(container) {
-  const namen = ['konten', 'kategorien', 'buchungen', 'budgets', 'wiederkehrend', 'geplant', 'projekte'];
+  const namen = ['konten', 'kategorien', 'buchungen', 'budgets', 'wiederkehrend', 'geplant', 'projekte', 'vertraege'];
   const werte = await Promise.all(namen.map((n) => db.alle(n)));
   const daten = Object.fromEntries(namen.map((n, i) => [n, werte[i]]));
 
@@ -391,6 +391,7 @@ export function wiederkehrendDialog(w, daten, vorgaben = {}) {
   const konto = auswahl({ label: 'Konto', optionen: kontoOptionen, wert: v.kontoId ?? waehlbar[0].id });
   const gegenkonto = auswahl({ label: 'Auf Konto', optionen: kontoOptionen, wert: v.gegenkontoId ?? waehlbar.find((k) => k.id !== konto.select.value)?.id });
   const budgetFeld = budgetZuordnungFeld(kategorien, v.budgetKategorieId ?? null); // D98
+  const vertrag = vertragFeld(daten.vertraege, v.vertragId ?? null); // D148
   const intervall = auswahl({
     label: 'Intervall',
     optionen: Object.entries(INTERVALL_TEXT).map(([wert, text]) => ({ wert, text: text[0].toUpperCase() + text.slice(1) })),
@@ -453,8 +454,8 @@ export function wiederkehrendDialog(w, daten, vorgaben = {}) {
     titel: w ? 'Wiederkehrende Buchung bearbeiten' : (vorgaben.titel ?? 'Neue wiederkehrende Buchung'),
     inhalt: [
       artKnoepfe, stufen.feld, kalender.feld, partner.feld, kategorie.feld, konto.feld, gegenkonto.feld, budgetFeld.feld,
-      intervall.feld, monatsletzterFeld, h('div', { class: 'feld-paar' }, start.feld, ende.feld), notiz.feld, ausnahmenListe,
-    ],
+      intervall.feld, monatsletzterFeld, h('div', { class: 'feld-paar' }, start.feld, ende.feld), notiz.feld, vertrag?.feld, ausnahmenListe,
+    ].filter(Boolean),
     zusatz: w && {
       text: 'Löschen',
       variante: 'knopf-gefahr',
@@ -487,6 +488,7 @@ export function wiederkehrendDialog(w, daten, vorgaben = {}) {
         stufen: stufen.werte(),
         kalenderMonate: kalender.werte(),
         partner: partner.input.value,
+        vertragId: vertrag ? vertrag.select.value : undefined,
       }, { konten, kategorien, alt: w });
       await db.speichere('wiederkehrend', { ...datensatz, ausnahmen });
       toast(w ? 'Gespeichert' : 'Wiederkehrende Buchung angelegt');

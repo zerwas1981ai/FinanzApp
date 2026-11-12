@@ -2087,3 +2087,32 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
 - Er öffnet eine Liste aller vorgemerkten Buchungen des Kontos (älteste zuerst) mit Häkchen, anfangs
   alle angehakt. „Als gebucht markieren“ setzt die angehakten auf „gebucht“. Bei Umbuchungen werden
   beide Hälften geändert.
+
+## D148 – Verträge als Klammer um Zahlungen
+*Wunsch des Nutzers (12.11.2026, im Detail besprochen)*
+
+- **Neue Sammlung „vertraege“** (Datenversion 18, DB-Struktur 10). Ein Vertrag hat Name (Pflicht), Anbieter,
+  Vertragsnummer (nur zur Zuordnung, keine Zugangsdaten), Beginn, Mindestlaufzeit (Monate), Verlängerung
+  (Monate; 0 = endet von selbst), Kündigungsfrist (Tage/Wochen/Monate), Erinnerung (Tage vorher,
+  Standard 28), „Gekündigt zum“, Notiz und Unterlagen (Dateien, in Drive im Ordner „Verträge“, Name
+  „Vertrag Name Anbieter“). Ein Vertrag kann auch ganz ohne Buchungen angelegt werden.
+- **Zuordnung:** Buchungen und wiederkehrende Buchungen haben das Feld „Vertrag (optional)“ (Auswahlliste
+  aller laufenden Verträge). **Rückwirkend:** Buchungen, die aus einer zugeordneten wiederkehrenden Buchung
+  entstanden sind, gehören automatisch dazu (eigene Zuordnung einer Buchung hat Vorrang). Zusätzlich im
+  Vertrag „Buchungen zuordnen …“: Suche in Empfänger/Notiz (vorbelegt mit dem Anbieter), per Häkchen
+  auswählen (Umbuchungen mit beiden Hälften).
+- **Laufzeit:** Ende = Beginn + Mindestlaufzeit − 1 Tag; ist die Kündigungsfrist dafür verpasst, verlängert
+  sich der Vertrag um die Verlängerung (beliebig oft). Ohne Mindestlaufzeit „jederzeit kündbar“ (keine
+  Erinnerung). Monatsrechnung kürzt auf den Monatsletzten (31.01. + 1 Monat = 28./29.02.).
+- **Zahlen:** Kosten je Vertrag pro Monat und Jahr aus den zugeordneten wiederkehrenden Buchungen
+  (eingeschaltet, nicht beendet, aktueller Betrag; Einnahmen mindern). Feste Abweichungen einzelner
+  Kalendermonate (D94) bleiben dabei außen vor. Oben im Bereich die Summe aller laufenden Verträge.
+- **Bereich „Verträge“** im Tab Projekte zwischen den Projekten und den relevanten Ausgaben: je Vertrag eine
+  aufklappbare Zeile (Name · Anbieter, Stand wie „kündbar bis …“, Kosten/Monat) mit Angaben, Unterlagen,
+  wiederkehrenden Buchungen und Buchungen (neueste 6, ältere einklappbar). Beendete Verträge eingeklappt.
+- **Erinnerung:** Liegt der letzte Kündigungstag innerhalb des Vorlaufs, erscheint oben in der Übersicht ein
+  einklappbarer Hinweis (wie die Budgethinweise, D117) mit „Gekündigt …“ (öffnet den Vertrag mit vorbelegtem
+  Enddatum), „Behalten“ (Hinweis bis zum nächsten Kündigungstermin aus) und „Zum Vertrag“.
+- **Kündigung:** Wird „Gekündigt zum“ neu eingetragen, fragt die App, ob die zugeordneten wiederkehrenden
+  Buchungen zu diesem Tag enden sollen. Nur bei „Ja“ wird das Ende gesetzt – die App ändert nie still etwas.
+- Die Suche (D146) findet auch Verträge (Name, Anbieter, Vertragsnummer, Notiz, Unterlagen).

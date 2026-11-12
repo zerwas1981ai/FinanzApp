@@ -18,6 +18,7 @@
 //   projektId,              // ab Version 5: zugeordnetes Projekt (oder null)
 //   partner,                // ab Version 8: Empfänger (Ausgabe) bzw. Absender (Einnahme), '' = keine Angabe
 //   relevant, relevantGruppe,  // ab Version 10: Häkchen "Relevante Ausgabe" (nur Ausgaben) und Gruppe (D74)
+//   vertragId,              // ab Version 18: zugeordneter Vertrag (oder null, D148)
 //   erstelltAm, geaendertAm, testdaten?
 // }
 
@@ -76,6 +77,8 @@ export function baueBuchungen(eingabe, { konten, bestehende = [], jetzt = new Da
     relevant: art === 'ausgabe' && (eingabe.relevant === undefined ? Boolean(bestehende[0]?.relevant) : Boolean(eingabe.relevant)),
     relevantGruppe: art !== 'ausgabe' ? ''
       : normGruppe(eingabe.relevantGruppe === undefined ? bestehende[0]?.relevantGruppe : eingabe.relevantGruppe),
+    // Vertrag (Datenversion 18, D148): undefined = unverändert, '' oder null = keiner
+    vertragId: eingabe.vertragId === undefined ? bestehende[0]?.vertragId ?? null : eingabe.vertragId || null,
     geaendertAm: jetzt,
   };
   // D142: relevante Ausgabe → Notiz ist Pflicht (sie benennt auch den Beleg)

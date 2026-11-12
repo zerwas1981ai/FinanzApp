@@ -8,6 +8,7 @@ export const BEREICHE = [
   { schluessel: 'buchung', titel: 'Buchungen' },
   { schluessel: 'relevant', titel: 'Relevante Ausgaben (eigene Einträge)' },
   { schluessel: 'projekt', titel: 'Projekte' },
+  { schluessel: 'vertrag', titel: 'Verträge' },
   { schluessel: 'wiederkehrend', titel: 'Wiederkehrende Buchungen' },
   { schluessel: 'geplant', titel: 'Geplante Einmalbuchungen' },
 ];
@@ -79,6 +80,13 @@ export function suche(begriff, daten) {
       titel: p.name, details: [p.abgeschlossen ? 'abgeschlossen' : 'laufend', p.rahmenCent != null && 'Rahmen', p.notiz].filter(Boolean).join(' · '),
     });
   }
+  for (const v of daten.vertraege ?? []) { // D148
+    if (!passt([v.name, v.anbieter, v.vertragsnummer, v.notiz, belegNamen(v)])) continue;
+    ergebnis.vertrag.push({
+      bereich: 'vertrag', id: v.id, datum: null, art: null, betragCent: null, ref: v,
+      titel: v.name, details: [v.anbieter, v.vertragsnummer && `Nr. ${v.vertragsnummer}`, v.gekuendigtZum && `gekündigt zum ${formatDatum(v.gekuendigtZum)}`].filter(Boolean).join(' · '),
+    });
+  }
   for (const w of daten.wiederkehrend ?? []) {
     const betrag = [...(w.stufen ?? [])].sort((a, b) => a.ab.localeCompare(b.ab)).pop()?.betragCent ?? null;
     if (!passt([w.partner, w.notiz, katText(w.kategorieId), konto.get(w.kontoId), konto.get(w.gegenkontoId), betragTexte(betrag)])) continue;
@@ -103,5 +111,6 @@ export function suche(begriff, daten) {
   ergebnis.relevant.sort(neuesteZuerst);
   ergebnis.geplant.sort(neuesteZuerst);
   ergebnis.projekt.sort((a, b) => a.titel.localeCompare(b.titel, 'de'));
+  ergebnis.vertrag.sort((a, b) => a.titel.localeCompare(b.titel, 'de'));
   return ergebnis;
 }

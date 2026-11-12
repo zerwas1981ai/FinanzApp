@@ -10,6 +10,7 @@
 //     finanzapp-daten.json          (der Datenstand)
 //     Belege/                       (Fotos und PDFs)
 //     Relevante Ausgaben/           (Belege der relevanten Ausgaben, D74)
+//     Verträge/                     (Vertragsunterlagen, D148)
 //     Backups/                      (backup-JJJJ-MM-TTTHH-MM-SS.json)
 
 const GSI_URL = 'https://accounts.google.com/gsi/client';
@@ -149,7 +150,9 @@ export async function ordner() {
   const belege = (await suche('belege-ordner', haupt.id))[0] ?? await neuerOrdner('Belege', 'belege-ordner', haupt.id);
   const backups = (await suche('backup-ordner', haupt.id))[0] ?? await neuerOrdner('Backups', 'backup-ordner', haupt.id);
   const relevant = (await suche('relevant-ordner', haupt.id))[0] ?? await neuerOrdner('Relevante Ausgaben', 'relevant-ordner', haupt.id);
-  ordnerCache = { haupt: haupt.id, belege: belege.id, backups: backups.id, relevant: relevant.id };
+  // D148: Vertragsunterlagen
+  const vertraege = (await suche('vertraege-ordner', haupt.id))[0] ?? await neuerOrdner('Verträge', 'vertraege-ordner', haupt.id);
+  ordnerCache = { haupt: haupt.id, belege: belege.id, backups: backups.id, relevant: relevant.id, vertraege: vertraege.id };
   return ordnerCache;
 }
 

@@ -13,6 +13,7 @@ import { monatsende, tageImMonat } from '../prognose.js';
 import { relevanteZeilen, gruppenListe, MAX_GRUPPE, benenneBelege } from '../relevant.js';
 import { vorlageZuWerten } from '../vorlagen.js';
 import { vorlagenLeiste, vorlageSpeichernDialog } from './vorlagen.js';
+import { istAktiv } from '../vertraege.js';
 
 const nachName = (a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base' });
 
@@ -24,8 +25,8 @@ const nachName = (a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'ba
  *   belegZuerst: Belegfeld direkt unter dem Betrag (Kurzbefehl "Belegfoto", D105)
  */
 export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
-  const [konten, kategorien, alle, projekte, relevantListe, vorlagen] = await Promise.all(
-    ['konten', 'kategorien', 'buchungen', 'projekte', 'relevant', 'vorlagen'].map((s) => db.alle(s)),
+  const [konten, kategorien, alle, projekte, relevantListe, vorlagen, vertraege, wiederkehrendListe] = await Promise.all(
+    ['konten', 'kategorien', 'buchungen', 'projekte', 'relevant', 'vorlagen', 'vertraege', 'wiederkehrend'].map((s) => db.alle(s)),
   );
   // Immer die aktuelle Fassung aus der Datenbank nehmen – der Abgleich kann sie im Hintergrund
   // geändert haben (z. B. Drive-Kennung eines hochgeladenen Belegs)
@@ -92,6 +93,9 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
   });
   const notiz = eingabe({ label: 'Notiz (optional)', maxlength: 200, value: ref?.notiz ?? vorgaben.notiz ?? '', placeholder: 'z. B. Wocheneinkauf' });
   const projekt = projektFeld(projekte, ref?.projektId ?? vorgaben.projektId ?? null);
+  // D148: Vertrag – vorbelegt mit dem eigenen oder dem der wiederkehrenden Buchung (rückwirkend)
+  const ausWiederkehrend = wiederkehrendListe.find((w) => w.id === (ref?.wiederkehrendId ?? vorgaben.wiederkehrendId))?.vertragId ?? null;
+  const vertrag = vertragFeld(vertraege, ref?.vertragId ?? vorgaben.vertragId ?? ausWiederkehrend);
   // Relevante Ausgabe (D74): Häkchen + optionale Gruppe, nur bei Ausgaben
   const relevantHaken = h('input', { type: 'checkbox', checked: Boolean(ref?.relevant ?? vorgaben.relevant) });
   const relevantGruppe = gruppeFeld(
@@ -213,8 +217,8 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
   const dlg = dialog({
     titel: buchung ? (ref.art === 'umbuchung' ? 'Umbuchung bearbeiten' : 'Buchung bearbeiten') : (vorgaben.titel ?? 'Neue Buchung'),
     inhalt: (vorgaben.belegZuerst || vorgaben.dateien?.length
-      ? [leiste, artKnoepfe, belege.feld, betrag.feld, partner.feld, kategorie.feld, konto.feld, gegenkonto.feld, budgetFeld.feld, datum.feld, status.feld, notiz.feld, projekt?.feld, relevantFeld, alsVorlage]
-      : [extras, leiste, artKnoepfe, betrag.feld, partner.feld, kategorie.feld, konto.feld, gegenkonto.feld, budgetFeld.feld, datum.feld, status.feld, notiz.feld, projekt?.feld, relevantFeld, belege.feld, alsVorlage]
+      ? [leiste, artKnoepfe, belege.feld, betrag.feld, partner.feld, kategorie.feld, konto.feld, gegenkonto.feld, budgetFeld.feld, datum.feld, status.feld, notiz.feld, projekt?.feld, vertrag?.feld, relevantFeld, alsVorlage]
+      : [extras, leiste, artKnoepfe, betrag.feld, partner.feld, kategorie.feld, konto.feld, gegenkonto.feld, budgetFeld.feld, datum.feld, status.feld, notiz.feld, projekt?.feld, vertrag?.feld, relevantFeld, belege.feld, alsVorlage]
     ).filter(Boolean),
     speichernText: buchung ? 'Speichern' : 'Erfassen',
     zusatz: buchung && {
@@ -244,6 +248,7 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
         faelligAm: buchung ? undefined : vorgaben.faelligAm,
         geplantId: buchung ? undefined : vorgaben.geplantId,
         projektId: projekt ? projekt.select.value : undefined,
+        vertragId: vertrag ? vertrag.select.value : undefined,
         relevant: art === 'ausgabe' && relevantHaken.checked,
         relevantGruppe: relevantGruppe.input.value,
       };
@@ -321,6 +326,24 @@ export function projektFeld(projekte, wert) {
     optionen: [{ wert: '', text: 'Kein Projekt' }, ...waehlbar.map((p) => ({ wert: p.id, text: p.name + (p.abgeschlossen ? ' (abgeschlossen)' : '') }))],
     wert: wert ?? '',
     hilfe: 'Projektausgaben zählen nicht gegen das Monatsbudget ihrer Kategorie.',
+  });
+}
+
+/**
+ * D148: Auswahl „Vertrag (optional)“ für Buchungen und wiederkehrende Buchungen.
+ * Beendete Verträge nur, wenn schon gewählt. Ohne angelegte Verträge kein Feld (null).
+ */
+export function vertragFeld(vertraege = [], wert, heute = heuteIso()) {
+  if (!vertraege.length) return null;
+  const waehlbar = vertraege.filter((v) => istAktiv(v, heute) || v.id === wert)
+    .sort((a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base' }));
+  if (!waehlbar.length) return null;
+  return auswahl({
+    label: 'Vertrag (optional)',
+    optionen: [{ wert: '', text: 'Kein Vertrag' }, ...waehlbar.map((v) => ({
+      wert: v.id, text: v.name + (v.anbieter ? ` · ${v.anbieter}` : '') + (istAktiv(v, heute) ? '' : ' (beendet)'),
+    }))],
+    wert: wert ?? '',
   });
 }
 

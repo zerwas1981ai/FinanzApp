@@ -14,8 +14,9 @@ import { neueKategorie } from './startdaten.js';
 import { baueBuchungen } from './buchungen.js';
 import { heuteIso } from './format.js';
 import { plusMonate, monatsende } from './prognose.js';
+import { plusMonate as plusMonateIso } from './vertraege.js';
 
-const SAMMLUNGEN_MIT_TESTDATEN = ['konten', 'kategorien', 'buchungen', 'budgets', 'wiederkehrend', 'geplant', 'projekte', 'relevant'];
+const SAMMLUNGEN_MIT_TESTDATEN = ['konten', 'kategorien', 'buchungen', 'budgets', 'wiederkehrend', 'geplant', 'projekte', 'relevant', 'vertraege'];
 
 function konto(name, anfangssaldoCent, stichtag, mindestsaldoCent, archiviert = false) {
   const jetzt = new Date().toISOString();
@@ -98,6 +99,29 @@ export async function ladeTestdaten() {
   wiederkehrend('ausgleich', 'Ausgleich Kreditkarte', 'umbuchung', giro, 25000, 'monatlich', tag(monate[0], 15), { gegenkontoId: kredit.id });
   wiederkehrend('rundfunk', 'Rundfunkbeitrag', 'ausgabe', giro, 5508, 'vierteljaehrlich', tag(aktuell, 15), { kategorieId: kat('Wohnen', 'Rundfunkbeitrag') });
   wiederkehrend('kfz', 'Kfz-Versicherung', 'ausgabe', giro, 48000, 'jaehrlich', `${Number(heute.slice(0, 4)) + 1}-01-10`, { kategorieId: kat('Versicherungen', 'Kfz-Versicherung') });
+  /* ---------- Verträge (D148, erfunden) ---------- */
+  // Internet: 24 Monate ab vor knapp 2 Jahren → Kündigungsfrist naht (Hinweis oben in der Übersicht)
+  const jahr = Number(heute.slice(0, 4));
+  const vertrag = (felder) => ({
+    id: crypto.randomUUID(), anbieter: '', vertragsnummer: '', beginn: null, mindestlaufzeitMonate: null, verlaengerungMonate: null,
+    fristAnzahl: null, fristEinheit: 'monate', erinnerungTage: 28, gekuendigtZum: null, erinnerungAusBis: null, notiz: '',
+    belege: [], erstelltAm: jetzt, geaendertAm: jetzt, testdaten: true, ...felder,
+  });
+  const beginnInternet = `${jahr - 2}-${heute.slice(5, 7)}-01`;
+  const vertraege = {
+    internet: vertrag({ name: 'Internet (Test)', anbieter: 'Telefon AG (Test)', vertragsnummer: 'TEST-4711', beginn: plusMonateIso(beginnInternet, 1),
+      mindestlaufzeitMonate: 24, verlaengerungMonate: 1, fristAnzahl: 1, fristEinheit: 'monate' }),
+    strom: vertrag({ name: 'Strom (Test)', anbieter: 'Stadtwerke Muster', beginn: `${jahr - 3}-03-01`, mindestlaufzeitMonate: 12,
+      verlaengerungMonate: 12, fristAnzahl: 6, fristEinheit: 'wochen' }),
+    streaming: vertrag({ name: 'Streaming (Test)', anbieter: 'Streaming-Dienst (Test)', fristAnzahl: 1, fristEinheit: 'monate', notiz: 'Monatlich kündbar' }),
+    kfz: vertrag({ name: 'Kfz-Versicherung (Test)', anbieter: 'Versicherung Muster', beginn: `${jahr - 5}-01-01`, mindestlaufzeitMonate: 12,
+      verlaengerungMonate: 12, fristAnzahl: 1, fristEinheit: 'monate' }),
+  };
+  await db.speichere('vertraege', Object.values(vertraege));
+  if (wk.internet) wk.internet.vertragId = vertraege.internet.id;
+  if (wk.strom) wk.strom.vertragId = vertraege.strom.id;
+  if (wk.streaming) wk.streaming.vertragId = vertraege.streaming.id;
+  if (wk.kfz) wk.kfz.vertragId = vertraege.kfz.id;
   await db.speichere('wiederkehrend', Object.values(wk));
 
   /* ---------- Buchungen ---------- */
@@ -250,7 +274,7 @@ export async function ladeTestdaten() {
 }
 
 export async function loescheTestdaten() {
-  const [konten, kategorien, buchungen, budgets, wiederkehrend, geplant, projekte, relevant, hinweise] = await Promise.all(
+  const [konten, kategorien, buchungen, budgets, wiederkehrend, geplant, projekte, relevant, vertraege, hinweise] = await Promise.all(
     [...SAMMLUNGEN_MIT_TESTDATEN, 'hinweise'].map((s) => db.alle(s)),
   );
   const kontoIds = new Set(konten.filter((k) => k.testdaten).map((k) => k.id));
@@ -279,6 +303,13 @@ export async function loescheTestdaten() {
   await db.loesche('geplant', geplantWeg.map((g) => g.id));
   await db.loesche('projekte', [...projektWeg]);
   await db.loesche('relevant', relevant.filter((x) => x.testdaten).map((x) => x.id));
+  // Verträge (D148): Test-Verträge weg; eigene Buchungen/wiederkehrende, die dazu gehörten, behalten – ohne Vertrag
+  const vertragWeg = new Set(vertraege.filter((v) => v.testdaten).map((v) => v.id));
+  await db.loesche('vertraege', [...vertragWeg]);
+  for (const [name, liste, ids] of [['buchungen', buchungen, buchungIds], ['wiederkehrend', wiederkehrend, new Set(wkWeg.map((w) => w.id))]]) {
+    const betroffen = liste.filter((x) => !ids.has(x.id) && vertragWeg.has(x.vertragId));
+    if (betroffen.length) await db.speichere(name, betroffen.map((x) => ({ ...x, vertragId: null })));
+  }
   // Eigene Buchungen/Planungen, die einem Test-Projekt zugeordnet waren, behalten – ohne Projekt
   const geplantIds = new Set(geplantWeg.map((g) => g.id));
   for (const [name, liste, ids] of [['buchungen', buchungen, buchungIds], ['geplant', geplant, geplantIds]]) {

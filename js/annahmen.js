@@ -22,7 +22,7 @@
 //   monatsletzter: true|false  // true = jeder Termin am letzten Tag des Monats (fehlt = false)
 //   stufen: [{ ab "JJJJ-MM-TT", betragCent }],
 //   ausnahmen: [{ termin, aktion: 'ueberspringen'|'verschieben'|'aendern', neuesDatum?, betragCent? }],
-//   partner (ab Version 8, Empfänger/Absender), erstelltAm, geaendertAm, testdaten? }
+//   partner (ab Version 8, Empfänger/Absender), vertragId (ab Version 18, D148), erstelltAm, geaendertAm, testdaten? }
 
 import * as db from './db.js';
 import { istGueltigesDatum, formatDatum } from './format.js';
@@ -223,6 +223,8 @@ export function baueWiederkehrend(eingabe, { konten, kategorien, alt = null, jet
     kalenderMonate: eingabe.kalenderMonate === undefined ? (alt?.kalenderMonate ?? []) : pruefeKalenderMonate(eingabe.kalenderMonate, { nullErlaubt: false }),
     partner: partnerVon(eingabe, alt),
     aktiv: eingabe.aktiv ?? alt?.aktiv ?? true,
+    // Vertrag (Datenversion 18, D148): undefined = unverändert, '' oder null = keiner
+    vertragId: eingabe.vertragId === undefined ? alt?.vertragId ?? null : eingabe.vertragId || null,
     erstelltAm: alt?.erstelltAm ?? jetzt,
     geaendertAm: jetzt,
     ...(alt?.testdaten ? { testdaten: true } : {}),

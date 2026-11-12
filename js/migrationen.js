@@ -23,7 +23,7 @@
 import { neueKategorie, INVESTITIONEN_UNTER, BARGELD_UNTER } from './startdaten.js';
 import { startReihenfolge } from './konten.js';
 
-export const DATENMODELL_VERSION = 17;
+export const DATENMODELL_VERSION = 18;
 
 /** Standard-Schwellen für Budgethinweise (in den Stammdaten änderbar) */
 export const STANDARD_EINSTELLUNGEN = Object.freeze({ id: 'hinweise', monate: 3, prozent: 10 });
@@ -221,6 +221,16 @@ export const MIGRATIONEN = [
     beschreibung: 'Vorlagen für häufige Buchungen: neue Sammlung "vorlagen" (D104).',
     migriere(daten) {
       daten.vorlagen ??= [];
+      return daten;
+    },
+  },
+  {
+    nach: 18,
+    beschreibung: 'Verträge: neue Sammlung "vertraege"; Buchungen und wiederkehrende Buchungen bekommen vertragId (D148).',
+    migriere(daten) {
+      daten.vertraege ??= [];
+      for (const b of daten.buchungen ?? []) b.vertragId ??= null;
+      for (const w of daten.wiederkehrend ?? []) w.vertragId ??= null;
       return daten;
     },
   },

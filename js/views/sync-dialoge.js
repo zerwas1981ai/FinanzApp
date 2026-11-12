@@ -10,7 +10,7 @@ const SAMMLUNG_TEXT = {
   konten: 'Konto', kategorien: 'Kategorie', buchungen: 'Buchung', abstimmungen: 'Kontoabstimmung',
   budgets: 'Budget', wiederkehrend: 'Wiederkehrende Buchung', hinweise: 'Budgethinweis',
   einstellungen: 'Einstellung', geplant: 'Geplante Einmalbuchung', projekte: 'Projekt',
-  relevant: 'Relevante Ausgabe', vorlagen: 'Vorlage',
+  relevant: 'Relevante Ausgabe', vorlagen: 'Vorlage', vertraege: 'Vertrag',
 };
 
 const zeit = (iso) => (iso ? new Date(iso).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' }) : '');
@@ -30,6 +30,7 @@ function beschreibe(sammlung, x, kategorien) {
     case 'geplant': return [x.bezeichnung ?? x.notiz, x.partner, formatEuro(x.betragCent ?? x.stufen?.at(-1)?.betragCent ?? 0), x.aktiv === false ? 'ausgeschaltet' : ''].filter(Boolean).join(' · ');
     case 'budgets': return `${kat(x.kategorieId) ?? 'Budget'} · ${formatEuro(x.betragCent ?? x.stufen?.at(-1)?.betragCent ?? 0)}`;
     case 'projekte': return x.name + (x.rahmenCent != null ? ` · Rahmen ${formatEuro(x.rahmenCent)}` : '');
+    case 'vertraege': return [x.name, x.anbieter, x.gekuendigtZum ? `gekündigt zum ${formatDatum(x.gekuendigtZum)}` : ''].filter(Boolean).join(' · ');
     case 'einstellungen':
       return x.id === 'login' ? `App-Passwort, festgelegt am ${zeit(x.geaendertAm)}` : (x.name ?? x.id);
     case 'relevant':

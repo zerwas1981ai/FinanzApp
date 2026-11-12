@@ -360,6 +360,7 @@ async function belegeAbgleichen() {
   let geaendert = await belegeHochladen('buchungen', 'belege');
   // Relevante Ausgaben (D74): eigene Einträge in ihren eigenen Ordner, Kopien markierter Buchungen
   if (await belegeHochladen('relevant', 'relevant')) geaendert = true;
+  if (await belegeHochladen('vertraege', 'vertraege')) geaendert = true; // Vertragsunterlagen (D148)
   if (await kopienAbgleichen()) geaendert = true;
   // Ansicht neu zeichnen, damit Listen die Drive-Kennungen kennen
   if (geaendert) window.dispatchEvent(new Event('daten-geaendert'));

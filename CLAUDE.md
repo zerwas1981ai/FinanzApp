@@ -43,6 +43,9 @@ Oberfläche auf Deutsch, Währung Euro, deutsches Datums- und Zahlenformat.
   abgebenden Konto (auch wiederkehrend/geplant, D98).
 - Budget: pro Hauptkategorie und Konto, monatlich, jährlich (in Tranchen, D90) oder einmalig (D85);
   je Kategorie und Konto entweder Monats- oder Jahresbudget
+- Vertrag (D148): Name, Anbieter, Vertragsnummer, Beginn, Mindestlaufzeit, Verlängerung,
+  Kündigungsfrist, Erinnerung, gekündigt zum, Unterlagen; Klammer um Buchungen und wiederkehrende
+  Buchungen (Feld „Vertrag“, rückwirkend über die wiederkehrende Buchung)
 - Vorlage: Name, Art, Konto (bei Umbuchung auch Zielkonto), optional Kategorie,
   Empfänger/Absender, Notiz, Betrag; Reihenfolge per ▲/▼ (D104)
 - Wiederkehrende Buchung: Intervall (monatlich/vierteljährlich/jährlich),
@@ -73,7 +76,7 @@ Oberfläche auf Deutsch, Währung Euro, deutsches Datums- und Zahlenformat.
      gekennzeichnet (z. B. kursiv oder schraffiert).
 2. Alle Buchungen: über alle Konten filtern, sortieren, analysieren; nur gebuchte
    Buchungen bis heute (D120/D121); Filter "ohne Beleg" vorerst entfallen (D123)
-3. Projekte: Einmalausgaben (echte und geplante Buchungen) einem Projekt
+3. Projekte (darunter Verträge, D148, und relevante Ausgaben): Einmalausgaben (echte und geplante Buchungen) einem Projekt
    zuordnen, z. B. Umbau oder Urlaub; Gesamtkosten mit optionalem Rahmen.
    Projektausgaben zählen nicht gegen das Monatsbudget. (Ersetzt die
    früher geplanten Szenarien „Was wäre wenn“, siehe DECISIONS.md D51.)

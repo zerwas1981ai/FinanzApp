@@ -11,6 +11,8 @@ import {
 import { monatsuebersicht, kontostand, vorgemerktBis, wirkungCent } from '../rechnen.js';
 import { dialog, eingabe, hinweis, toast, geraet, datenGeaendert, klappBereich } from '../ui.js';
 import { oeffneBuchungsdialog } from './buchung-dialog.js';
+import { kuendigungsBereich } from './vertraege.js';
+import { kuendigungsHinweise } from '../vertraege.js';
 import { vorgemerkteVonKonto, alsGebuchtMarkieren } from '../buchungen.js';
 import { sortiereKonten, abstimmungFaellig, tageZwischen, ABSTIMM_ERINNERUNG_TAGE } from '../konten.js';
 import { faelligListe, budgetHinweise, zeitleiste, nurWirksam, mindestsaldoWarnungen, LETZTER_MONAT, prognoseJahresende } from '../prognose.js';
@@ -29,7 +31,7 @@ const MAX_BUCHUNGEN = 10; // so viele Buchungen zeigt die Monatsansicht standard
 const monatVon = (iso) => [Number(iso.slice(0, 4)), Number(iso.slice(5, 7))];
 
 export async function zeigeUebersicht(container) {
-  const namen = ['konten', 'kategorien', 'buchungen', 'abstimmungen', 'budgets', 'wiederkehrend', 'hinweise', 'einstellungen', 'geplant', 'projekte'];
+  const namen = ['konten', 'kategorien', 'buchungen', 'abstimmungen', 'budgets', 'wiederkehrend', 'hinweise', 'einstellungen', 'geplant', 'projekte', 'vertraege'];
   const werte = await Promise.all(namen.map((s) => db.alle(s)));
   const alleDaten = Object.fromEntries(namen.map((n, i) => [n, werte[i]]));
   // Nur eingeschaltete Annahmen (Ein/Aus-Häkchen) zählen in Prognose und Zeitleiste
@@ -67,6 +69,7 @@ export async function zeigeUebersicht(container) {
     h('h1', { class: 'seitentitel' }, 'Übersicht'),
     kennzahlenBereich(prognose, alleDaten, heute, warnungen, prognoseJahresende(zl, heute)),
     hinweisBereich(hinweise, daten),
+    kuendigungsBereich(kuendigungsHinweise(alleDaten.vertraege, heute), alleDaten), // D148
     h('h2', { class: 'zwischentitel' }, 'Konten'),
   ];
 
