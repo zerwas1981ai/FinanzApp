@@ -4,11 +4,11 @@
 
 import { h } from '../dom.js';
 import * as db from '../db.js';
-import { formatEuro, formatDatum, heuteIso } from '../format.js';
+import { formatEuro, formatDatum, formatProzent, heuteIso } from '../format.js';
 import { dialog, frage, toast, eingabe, auswahl, datenGeaendert, klappBereich, geraet } from '../ui.js';
 import {
   baueVertrag, vertragsStand, vertragsKosten, vertragsUebersicht, vertragsBuchungen, endeVorschlag,
-  zuordnungsKandidaten, fristText, FRIST_EINHEITEN, STANDARD_ERINNERUNG_TAGE, vertragVon, aktuellerBetrag, plusMonate, plusTage,
+  zuordnungsKandidaten, fristText, FRIST_EINHEITEN, STANDARD_ERINNERUNG_TAGE, vertragVon, aktuellerBetrag, plusMonate, plusTage, preisVerlauf,
 } from '../vertraege.js';
 import { benenneBelege } from '../relevant.js';
 import { gruppeVon } from '../buchungen.js';
@@ -106,6 +106,14 @@ function vertragZeile({ v, stand }, daten, heute) {
         angabe('Kündigungsfrist', fristText(v)),
         angabe('Nächstes Vertragsende', naechstes),
         angabe('Kosten', kosten.posten.length ? `${formatEuro(kosten.monatCent)} im Monat · ${formatEuro(kosten.jahrCent)} im Jahr` : 'keine wiederkehrende Buchung zugeordnet'),
+        // D166: Preisentwicklung aus den echten Zahlungen je Jahr
+        (() => {
+          const verlauf = preisVerlauf(buchungen);
+          if (!verlauf.length) return null;
+          const teile = verlauf.map((x) => `${x.jahr}: Ø ${formatEuro(x.schnittCent)}` +
+            (x.veraenderung == null ? '' : ` (${x.veraenderung >= 0 ? '+' : '−'}${formatProzent(Math.abs(x.veraenderung))})`));
+          return angabe('Preisentwicklung', teile.join(' → ') + (verlauf.length === 1 ? ` je Zahlung (${verlauf[0].anzahl} Zahlungen) – Vergleich ab dem nächsten Jahr` : ' je Zahlung'));
+        })(),
         angabe('Notiz', v.notiz),
       ].filter(Boolean)),
       v.belege?.length > 0 && h('div', { class: 'vertrag-unterlagen' },

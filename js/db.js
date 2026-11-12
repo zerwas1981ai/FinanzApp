@@ -15,13 +15,14 @@ const DB_NAME = 'finanzapp';
 // 7 = Archiv: archive (abgeglichen), archivDateien (lokaler Zwischenspeicher)
 // 8 = Relevante Ausgaben: relevant (D74); 9 = Vorlagen für häufige Buchungen: vorlagen (D104)
 // 10 = Verträge: vertraege (D148); 11 = Sparziele: sparziele (D157, mit D158 wieder ausgebaut – jetzt alte Schublade)
-const DB_STRUKTUR_VERSION = 11;
+// 12 = Monatsnotizen: monatsnotizen (D165)
+const DB_STRUKTUR_VERSION = 12;
 
 /** Schubladen mit Nutzdaten. "meta" kommt zusätzlich dazu (Versionsnummer usw.). */
 export const SAMMLUNGEN = [
   'konten', 'kategorien', 'buchungen', 'abstimmungen',
   'budgets', 'wiederkehrend', 'hinweise', 'einstellungen',
-  'geplant', 'projekte', 'archive', 'relevant', 'vorlagen', 'vertraege',
+  'geplant', 'projekte', 'archive', 'relevant', 'vorlagen', 'vertraege', 'monatsnotizen',
 ];
 
 /**

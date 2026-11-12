@@ -6,6 +6,8 @@ import { formatEuro, formatDatum, formatProzent, heuteIso } from '../format.js';
 import { dialog, katPunkt } from '../ui.js';
 import { monatsRueckblick, jahresRueckblick, waehlbareZeitraeume, plusMonat, monatLang, monatKurz } from '../rueckblick.js';
 import { farbenZuordnung } from '../farben.js';
+import * as db from '../db.js';
+import { notizKnopf, notizListe } from './monatsnotiz.js';
 
 const zustand = { art: 'monat', monat: null, jahr: null }; // solange die App offen ist
 
@@ -21,7 +23,7 @@ function tabelle(kopf, zeilen, { klasse = '' } = {}) {
 }
 
 /** Inhalt des Rückblicks (wird im Dialog und in der Druckansicht verwendet) */
-export function rueckblickInhalt(rb, daten) {
+export function rueckblickInhalt(rb, daten, notizen = []) {
   const farben = farbenZuordnung(daten.kategorien);
   const kat = new Map(daten.kategorien.map((k) => [k.id, k]));
   const p = rb.perioden;
@@ -67,8 +69,11 @@ export function rueckblickInhalt(rb, daten) {
     ? (rb.art === 'monat' ? 'Der Monat läuft noch – gezählt wird bis heute.' : `Das Jahr läuft noch – gezählt wird bis heute, das Vorjahr bis zum ${formatDatum(rb.vorjahrBis)}.`)
     : null;
 
+  // D165: Notizen der gezeigten Monate
+  const notizMonate = rb.art === 'monat' ? rb.perioden.map((x) => x.schluessel) : (rb.monate ?? []).map((m) => m.schluessel);
   return [
     hinweis && h('p', { class: 'hinweis' }, hinweis),
+    notizListe(notizMonate, notizen),
     h('h3', { class: 'rb-titel' }, 'Einnahmen und Ausgaben'),
     kennzahlen,
     h('p', { class: 'klein gedaempft' }, `Δ = Veränderung ${vergleich}. Umbuchungen zählen nicht mit.`),
@@ -81,7 +86,8 @@ export function rueckblickInhalt(rb, daten) {
   ].filter(Boolean);
 }
 
-export function oeffneRueckblick(daten) {
+export async function oeffneRueckblick(daten) {
+  let notizen = await db.alle('monatsnotizen'); // D165
   const heute = heuteIso();
   const { monate, jahre } = waehlbareZeitraeume(daten.buchungen, heute);
   const vormonat = plusMonat(heute.slice(0, 7), -1);
@@ -90,6 +96,7 @@ export function oeffneRueckblick(daten) {
 
   const inhalt = h('div', { class: 'rb-inhalt' });
   const wahlFeld = h('select', { 'aria-label': 'Zeitraum' });
+  const notizPlatz = h('span', { class: 'rb-notiz' });
   const berechne = () => (zustand.art === 'monat'
     ? monatsRueckblick(daten.buchungen, daten.kategorien, zustand.monat, heute)
     : jahresRueckblick(daten.buchungen, daten.kategorien, zustand.jahr, heute));
@@ -110,7 +117,11 @@ export function oeffneRueckblick(daten) {
       : jahre.map((j) => ({ wert: String(j), text: String(j) }));
     wahlFeld.replaceChildren(...liste.map((o) => h('option', { value: o.wert }, o.text)));
     wahlFeld.value = String(zustand.art === 'monat' ? zustand.monat : zustand.jahr);
-    inhalt.replaceChildren(...rueckblickInhalt(berechne(), daten));
+    // D165: ✎ für die Notiz des gewählten Monats
+    notizPlatz.replaceChildren(zustand.art === 'monat'
+      ? notizKnopf(zustand.monat, notizen, async () => { notizen = await db.alle('monatsnotizen'); zeichne(); })
+      : '');
+    inhalt.replaceChildren(...rueckblickInhalt(berechne(), daten, notizen));
   }
   wahlFeld.addEventListener('change', () => {
     if (zustand.art === 'monat') zustand.monat = wahlFeld.value;
@@ -121,22 +132,22 @@ export function oeffneRueckblick(daten) {
 
   const dlg = dialog({
     titel: 'Rückblick',
-    inhalt: [h('div', { class: 'rb-wahl' }, artKnoepfe, wahlFeld), inhalt],
+    inhalt: [h('div', { class: 'rb-wahl' }, artKnoepfe, wahlFeld, notizPlatz), inhalt],
     speichernText: 'Drucken / PDF',
     abbrechenText: 'Schließen',
     onSpeichern: () => {
       const rb = berechne();
-      setTimeout(() => druckeRueckblick(rb, daten), 50); // erst nach dem Schließen drucken
+      setTimeout(() => druckeRueckblick(rb, daten, notizen), 50); // erst nach dem Schließen drucken
     },
   });
   dlg.classList.add('rb-dialog');
 }
 
-function druckeRueckblick(rb, daten) {
+function druckeRueckblick(rb, daten, notizen) {
   const bereich = h('div', { id: 'druckbereich', class: 'druck-rueckblick' },
     h('h1', {}, rb.titel),
     h('p', {}, `Stand ${formatDatum(heuteIso())}`),
-    ...rueckblickInhalt(rb, daten));
+    ...rueckblickInhalt(rb, daten, notizen));
   document.getElementById('druckbereich')?.remove();
   document.body.append(bereich);
   const weg = () => { bereich.remove(); window.removeEventListener('afterprint', weg); };

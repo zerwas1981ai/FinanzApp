@@ -2260,3 +2260,59 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
 - In der Kopfzeile eines Blocks (Überschrift + Knöpfe) bleiben die Knöpfe immer nebeneinander, z. B. „Liste“ und
   „+ Ausgabe“ bei den relevanten Ausgaben. Am Handy sind sie dafür etwas schmaler; eine lange Überschrift bricht
   notfalls selbst um, statt die Knöpfe untereinander zu schieben.
+
+## D163 – „Frei verfügbar“ und „Kann ich mir das leisten?“
+*Wunsch des Nutzers (Runde 4, Punkte 1 und 5)*
+
+- **Frei verfügbar** = Prognose Monatsende − Mindestsaldo (ohne Mindestsaldo − 0). Alles Erwartete ist darin
+  schon abgezogen, auch offene Budgetreste (gelten als verplant). Dazu „≈ … pro Tag“ (verbleibende Tage
+  einschließlich heute). Oben in der Übersicht für alle Konten mit dem neuen Häkchen „Zählt zu Frei verfügbar“
+  (Konto-Dialog in den Stammdaten; z. B. Tagesgeld aus), zusätzlich im Kontokopf je Konto.
+- **Kann ich mir das leisten?** (Link unter „Frei verfügbar“): Betrag, Datum, Konto eingeben – die App rechnet die
+  Ausgabe probeweise ein und speichert nichts. Geprüft werden der Kaufmonat und die 12 Monate danach gegen den
+  Mindestsaldo (ohne: 0 €). Bewertet werden nur Monate, die ohne den Kauf über der Grenze lägen; fällt das Konto
+  ohnehin irgendwann darunter, steht das als Hinweis darunter. Urteil: „Ja“, „Knapp“ (weniger als 10 % des
+  Betrags bzw. 50 € Luft) oder „Lieber nicht“. Knopf „Als geplante Buchung anlegen“ übernimmt Betrag, Konto, Datum.
+
+## D164 – Übersicht: Überschrift im Kasten, „Konten“ entfällt
+*Wunsch des Nutzers*
+
+- „Übersicht“ steht jetzt oben im Kasten mit den Kennzahlen (wie die Überschriften bei Projekte/Relevante);
+  die Seitenüberschrift ist nur noch für Bildschirmleser da. Die Zwischenüberschrift „Konten“ entfällt, der
+  Abstand zu den Konto-Umschaltern bleibt gleich.
+
+## D165 – Monatsnotiz
+*Punkt 8*
+
+- Neue Sammlung „monatsnotizen“ (Datenversion 21, DB-Struktur 12): ein Satz je Monat für alle Konten.
+  Schreiben über „✎“ neben dem Monatsnamen in der Übersicht oder im Rückblick (Monat); leer = löschen.
+- Anzeige: in der Übersicht unter der Monatsnavigation, im Rückblick (Monat: die drei Monate, Jahr: alle Monate)
+  und in „Alle Buchungen → Analyse“ unter dem Ausgaben-Verlauf.
+
+## D166 – Preisentwicklung im Vertrag
+*Punkt 3*
+
+- Beim aufgeklappten Vertrag: je Kalenderjahr der Durchschnitt je Zahlung aus den echten zugeordneten Buchungen
+  und die Veränderung zum Vorjahr in Prozent (nur Rückblick, keine Prognose; Einnahmen zählen nicht). Mit erst
+  einem Jahr Daten steht „Vergleich ab dem nächsten Jahr“.
+
+## D167 – Steuer-Paket
+*Punkt 6*
+
+- **Steuerthemen:** Handwerkerleistungen, Haushaltsnahe Dienstleistungen, Werbungskosten/Arbeitsmittel,
+  Kinderbetreuung, Krankheitskosten, Versicherungen & Vorsorge, Spenden, Sonstiges.
+- Markierung je **Unterkategorie** (Stammdaten → Unterkategorie bearbeiten → „Steuerthema“, sichtbar als „§ …“)
+  und abweichend je **Buchung** (Buchungsdialog → Weitere Angaben → „Steuer“: wie Kategorie / nicht steuerlich /
+  anderes Thema). Gezählt werden nur Ausgaben, ohne Papierkorb.
+- **„Steuer“** in „Alle Buchungen“ (neben „Rückblick“): Jahr wählen, Summen je Thema und die Buchungen;
+  „Drucken / PDF“, „CSV“ und **„Belege als ZIP“** (je Thema ein Ordner; nicht abrufbare Belege stehen in
+  „Fehlende Belege.txt“). Der ZIP-Ersteller ist eigener Code ohne Fremdbibliothek (unkomprimiert, UTF-8-Namen).
+  Hinweis „keine Steuerberatung“.
+
+## D168 – Notfall-Mappe
+*Punkt 4*
+
+- Stammdaten → „Notfall-Mappe“: eigene Hinweise (Freitext, gespeichert in „einstellungen“, id „notfall“) und
+  „Drucken / PDF“ mit: Hinweisen, Konten (Stand heute, zuletzt abgestimmt), laufenden Verträgen (Empfänger,
+  Vertragsnummer, Kosten/Monat, Kündigungsfrist, Laufzeit), laufenden Zahlungen (wiederkehrende Buchungen) und
+  wo die Daten liegen (Google-Drive-Ordner). Bewusst ohne Zugangsdaten, Passwörter oder PINs.

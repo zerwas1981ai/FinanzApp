@@ -215,3 +215,25 @@ export function zuordnungsKandidaten(vertragId, suchbegriff, buchungen, wiederke
     })
     .sort((a, b) => b.datum.localeCompare(a.datum));
 }
+
+/**
+ * D166: Preisentwicklung eines Vertrags aus den echten Zahlungen: je Kalenderjahr Anzahl, Summe und
+ * Durchschnitt je Zahlung sowie die Veränderung zum Vorjahr in Prozent (nur Rückblick, keine Prognose).
+ * Einnahmen (z. B. Erstattungen) zählen nicht. Älteste Jahre zuerst.
+ */
+export function preisVerlauf(buchungen) {
+  const jahre = new Map();
+  for (const b of buchungen) {
+    if (b.geloeschtAm || b.art === 'einnahme') continue;
+    const j = Number(b.datum.slice(0, 4));
+    const x = jahre.get(j) ?? { jahr: j, anzahl: 0, summeCent: 0 };
+    x.anzahl++;
+    x.summeCent += b.betragCent;
+    jahre.set(j, x);
+  }
+  const liste = [...jahre.values()].sort((a, b) => a.jahr - b.jahr).map((x) => ({ ...x, schnittCent: Math.round(x.summeCent / x.anzahl) }));
+  return liste.map((x, i) => {
+    const vorher = liste[i - 1];
+    return { ...x, veraenderung: vorher && vorher.schnittCent ? (x.schnittCent - vorher.schnittCent) / vorher.schnittCent : null };
+  });
+}

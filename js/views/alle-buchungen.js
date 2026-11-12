@@ -6,6 +6,8 @@ import { formatEuro, formatEuroRund, formatProzent, formatDatum, formatMonat, he
 import { herunterladen, toast, katPunkt } from '../ui.js';
 import { farbenZuordnung, farbeVon } from '../farben.js';
 import { oeffneRueckblick } from './rueckblick.js';
+import { oeffneSteuer } from './steuer.js';
+import { notizListe } from './monatsnotiz.js';
 import { archivInhalt } from '../sync/abgleich.js';
 import { buchungenAlsCsv, exportName } from '../export.js';
 import {
@@ -75,8 +77,8 @@ export async function ladeArchive(archive, anmelden) {
 }
 
 export async function zeigeBuchungen(container, { archivAnmelden = false } = {}) {
-  const [konten, kategorien, buchungen, projekte, archive, budgets, wiederkehrende, geplant] = await Promise.all(
-    ['konten', 'kategorien', 'buchungen', 'projekte', 'archive', 'budgets', 'wiederkehrend', 'geplant'].map((s) => db.alle(s)),
+  const [konten, kategorien, buchungen, projekte, archive, budgets, wiederkehrende, geplant, monatsnotizen] = await Promise.all(
+    ['konten', 'kategorien', 'buchungen', 'projekte', 'archive', 'budgets', 'wiederkehrend', 'geplant', 'monatsnotizen'].map((s) => db.alle(s)),
   );
   const gewuenscht = sessionStorage.getItem('finanzapp-bestand');
   if (gewuenscht) {
@@ -95,6 +97,7 @@ export async function zeigeBuchungen(container, { archivAnmelden = false } = {})
     budgets, // für „Ist vs. Budget“ in der Analyse (D125)
     // D126: für die erwarteten Ausgaben (Zeitleiste) – ohne Archiv-Buchungen, die stecken schon im Anfangssaldo
     wiederkehrende, geplant, hauptBuchungen: buchungen,
+    monatsnotizen, // D165
   };
 
   const ergebnis = h('div', { class: 'ergebnis' });
@@ -447,7 +450,9 @@ function zeigeErgebnis(ziel, daten) {
     summenKarte(s, von, bis && bis < heute ? bis : heute), // D121: angezeigt wird höchstens bis heute
     // D156/D160: „Rückblick“ rechts neben Liste/Analyse (die Seitenüberschrift entfällt)
     h('div', { class: 'modus-zeile' }, modusWahl,
-      h('button', { type: 'button', class: 'knopf knopf-klein', onclick: () => oeffneRueckblick(daten) }, 'Rückblick')),
+      h('div', { class: 'knopfreihe modus-knoepfe' },
+        h('button', { type: 'button', class: 'knopf knopf-klein', onclick: () => oeffneSteuer(daten) }, 'Steuer'), // D167
+        h('button', { type: 'button', class: 'knopf knopf-klein', onclick: () => oeffneRueckblick(daten) }, 'Rückblick'))),
     zustand.modus === 'liste'
       ? liste(eintraege, daten, () => zeigeErgebnis(ziel, daten))
       : analyse(eintraege, daten, heute, () => zeigeErgebnis(ziel, daten)),
@@ -635,6 +640,8 @@ function analyse(eintraege, daten, heute, neu) {
   const mitAusgaben = !zustand.filter.arten.length || zustand.filter.arten.includes('ausgabe');
   return h('div', {},
     mitAusgaben && verlaufBereich(verlauf, neu, vorjahr),
+    // D165: Monatsnotizen der gezeigten Monate
+    mitAusgaben && notizListe(verlauf.map((z) => `${z.jahr}-${String(z.monat).padStart(2, '0')}`), daten.monatsnotizen),
     zustand.analyseGruppe === 'partner'
       ? partnerBereich(eintraege, monate, heute, neu)
       : kategorieBereich(kategorieEintraege(eintraege, daten, heute), daten, monate, heute, neu, erster),

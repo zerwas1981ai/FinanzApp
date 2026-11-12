@@ -13,6 +13,8 @@ import { dialog, eingabe, hinweis, toast, geraet, datenGeaendert, klappBereich, 
 import { farbenZuordnung, farbeVon } from '../farben.js';
 import { oeffneBuchungsdialog } from './buchung-dialog.js';
 import { kuendigungsBereich } from './vertraege.js';
+import { resttage } from '../frei.js';
+import { notizKnopf, notizZeile } from './monatsnotiz.js';
 import { kuendigungsHinweise } from '../vertraege.js';
 import { vorgemerkteVonKonto, alsGebuchtMarkieren } from '../buchungen.js';
 import { sortiereKonten, abstimmungFaellig, tageZwischen, ABSTIMM_ERINNERUNG_TAGE } from '../konten.js';
@@ -32,7 +34,7 @@ const MAX_BUCHUNGEN = 10; // so viele Buchungen zeigt die Monatsansicht standard
 const monatVon = (iso) => [Number(iso.slice(0, 4)), Number(iso.slice(5, 7))];
 
 export async function zeigeUebersicht(container) {
-  const namen = ['konten', 'kategorien', 'buchungen', 'abstimmungen', 'budgets', 'wiederkehrend', 'hinweise', 'einstellungen', 'geplant', 'projekte', 'vertraege'];
+  const namen = ['konten', 'kategorien', 'buchungen', 'abstimmungen', 'budgets', 'wiederkehrend', 'hinweise', 'einstellungen', 'geplant', 'projekte', 'vertraege', 'monatsnotizen'];
   const werte = await Promise.all(namen.map((s) => db.alle(s)));
   const alleDaten = Object.fromEntries(namen.map((n, i) => [n, werte[i]]));
   // Nur eingeschaltete Annahmen (Ein/Aus-Häkchen) zählen in Prognose und Zeitleiste
@@ -67,11 +69,12 @@ export async function zeigeUebersicht(container) {
     faelligJeKonto.set(t.wiederkehrend.kontoId, (faelligJeKonto.get(t.wiederkehrend.kontoId) ?? 0) + 1);
   }
   const oben = [
-    h('h1', { class: 'seitentitel' }, 'Übersicht'),
-    kennzahlenBereich(prognose, alleDaten, heute, warnungen, prognoseJahresende(zl, heute)),
+    h('h1', { class: 'seitentitel unsichtbar' }, 'Übersicht'), // D164: sichtbar steht „Übersicht“ im Kasten
+    kennzahlenBereich(prognose, alleDaten, heute, warnungen, prognoseJahresende(zl, heute), zl),
     hinweisBereich(hinweise, daten),
     kuendigungsBereich(kuendigungsHinweise(alleDaten.vertraege, heute), alleDaten), // D148
-    h('h2', { class: 'zwischentitel' }, 'Konten'),
+    // D164: Überschrift „Konten“ entfällt, der Abstand bleibt gleich
+    h('div', { class: 'konten-abstand', 'aria-hidden': 'true' }),
   ];
 
   const gemerkt = geraet.lies('ansicht-konto');
@@ -110,10 +113,11 @@ export async function zeigeUebersicht(container) {
     ...oben,
     kontoAuswahl(aktive, konto, faelligJeKonto, waehle),
     kontoKopf(konto, buchungen, abstimmungen, kd?.prognose, kd?.niedrigster),
-    monatsNavigation({
+    ...monatsNavigation({
       zurueck: schluessel([ansicht.jahr, ansicht.monat]) > schluessel(minMonat),
       vor: schluessel([ansicht.jahr, ansicht.monat]) < schluessel(maxMonat),
       istAktuellerMonat,
+      notizen: alleDaten.monatsnotizen,
       wechsel: (richtung) => {
         if (richtung === 'heute') [ansicht.jahr, ansicht.monat] = monatVon(heute);
         else [ansicht.jahr, ansicht.monat] = (richtung < 0 ? vorigerMonat : naechsterMonat)(ansicht.jahr, ansicht.monat);
@@ -281,6 +285,14 @@ function kontoKopf(konto, buchungen, abstimmungen, prognoseCent, niedrigsterCent
       prognoseCent !== undefined && h('div', { class: 'klein' }, 'Prognose Monatsende: ',
         h('span', { class: 'annahme' + (prognoseCent < 0 ? ' negativ' : '') }, formatEuro(prognoseCent)),
         konto.mindestsaldoCent != null && prognoseCent < konto.mindestsaldoCent && h('span', { class: 'warn-text' }, ' – unter Mindestsaldo')),
+      // D163: frei verfügbar je Konto (Prognose Monatsende − Mindestsaldo)
+      prognoseCent !== undefined && (() => {
+        const frei = prognoseCent - (konto.mindestsaldoCent ?? 0);
+        const tage = resttage(heute);
+        return h('div', { class: 'klein' }, 'Frei verfügbar: ',
+          h('span', { class: 'annahme' + (frei < 0 ? ' negativ' : '') }, formatEuro(frei)),
+          frei > 0 && ` (≈ ${formatEuro(Math.floor(frei / tage))} pro Tag)`);
+      })(),
     ),
     h('button', { type: 'button', class: 'knopf kopf-abstimmen', onclick: () => abstimmungsDialog(konto, buchungen) }, 'Abstimmen'),
     // D110: ungünstigster Fall bis Monatsende – heute minus alle erwarteten Belastungen, ohne offene Eingänge
@@ -343,13 +355,18 @@ function vorgemerktDialog(konto, buchungen) {
 
 /* ---------- Monatsnavigation ---------- */
 
-function monatsNavigation({ zurueck, vor, istAktuellerMonat, wechsel }) {
-  return h('div', { class: 'monat-nav' },
-    h('button', { type: 'button', class: 'icon-knopf', 'aria-label': 'Voriger Monat', disabled: !zurueck, onclick: () => wechsel(-1) }, '‹'),
-    h('h2', { class: 'monat-titel' }, formatMonat(ansicht.jahr, ansicht.monat)),
-    h('button', { type: 'button', class: 'icon-knopf', 'aria-label': 'Nächster Monat', disabled: !vor, onclick: () => wechsel(1) }, '›'),
-    !istAktuellerMonat && h('button', { type: 'button', class: 'knopf knopf-klein', onclick: () => wechsel('heute') }, 'Heute'),
-  );
+function monatsNavigation({ zurueck, vor, istAktuellerMonat, wechsel, notizen = [] }) {
+  const monat = `${ansicht.jahr}-${String(ansicht.monat).padStart(2, '0')}`;
+  return [
+    h('div', { class: 'monat-nav' },
+      h('button', { type: 'button', class: 'icon-knopf', 'aria-label': 'Voriger Monat', disabled: !zurueck, onclick: () => wechsel(-1) }, '‹'),
+      h('h2', { class: 'monat-titel' }, formatMonat(ansicht.jahr, ansicht.monat)),
+      h('button', { type: 'button', class: 'icon-knopf', 'aria-label': 'Nächster Monat', disabled: !vor, onclick: () => wechsel(1) }, '›'),
+      notizKnopf(monat, notizen), // D165
+      !istAktuellerMonat && h('button', { type: 'button', class: 'knopf knopf-klein', onclick: () => wechsel('heute') }, 'Heute'),
+    ),
+    notizZeile(monat, notizen),
+  ].filter(Boolean);
 }
 
 /* ---------- Zwischensummen ---------- */

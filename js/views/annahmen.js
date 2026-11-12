@@ -568,15 +568,15 @@ export function geplantDialog(g, daten, vorgaben = {}) {
   const erledigt = g ? geplantErledigt(g, buchungen) : false;
 
   const artKnoepfe = artWahl(null, art, (neu) => { art = neu; aktualisiere(); });
-  const bezeichnung = eingabe({ label: 'Bezeichnung', value: g?.bezeichnung ?? '', maxlength: 60, placeholder: 'z. B. Autoreparatur', autofocus: true });
+  const bezeichnung = eingabe({ label: 'Bezeichnung', value: g?.bezeichnung ?? vorgaben.bezeichnung ?? '', maxlength: 60, placeholder: 'z. B. Autoreparatur', autofocus: true });
   const partner = partnerFeld(buchungen, g?.partner ?? '', art);
-  const betrag = eingabe({ label: 'Betrag in €', inputmode: 'decimal', placeholder: '0,00', value: g ? centZuEingabe(g.betragCent) : '', class: 'eingabe-betrag' });
+  const betrag = eingabe({ label: 'Betrag in €', inputmode: 'decimal', placeholder: '0,00', value: g ? centZuEingabe(g.betragCent) : (vorgaben.betragCent ? centZuEingabe(vorgaben.betragCent) : ''), class: 'eingabe-betrag' });
   const kategorie = auswahl({ label: 'Kategorie', optionen: [] });
   const kontoOptionen = waehlbar.map((k) => ({ wert: k.id, text: k.name }));
-  const konto = auswahl({ label: 'Konto', optionen: kontoOptionen, wert: g?.kontoId ?? waehlbar[0].id });
+  const konto = auswahl({ label: 'Konto', optionen: kontoOptionen, wert: g?.kontoId ?? vorgaben.kontoId ?? waehlbar[0].id });
   const gegenkonto = auswahl({ label: 'Auf Konto', optionen: kontoOptionen, wert: g?.gegenkontoId ?? waehlbar.find((k) => k.id !== konto.select.value)?.id });
   const budgetFeld = budgetZuordnungFeld(kategorien, g?.budgetKategorieId ?? null); // D98
-  const datum = eingabe({ label: 'Geplant am', type: 'date', value: g?.datum ?? plusMonate(heute.slice(0, 7), 1) + '-01' });
+  const datum = eingabe({ label: 'Geplant am', type: 'date', value: g?.datum ?? vorgaben.datum ?? plusMonate(heute.slice(0, 7), 1) + '-01' });
   const projekt = projektFeld(daten.projekte ?? [], g?.projektId ?? vorgaben.projektId ?? null);
 
   function aktualisiere() {

@@ -97,7 +97,7 @@ test('D156: Jahresrückblick – laufendes Jahr gegen Vorjahr bis zum gleichen T
 });
 
 test('D158: Migration auf 20 entfernt die Sparziele wieder', () => {
-  const { daten } = migriereDaten({ version: 19, vertraege: [], sparziele: [{ id: 'z' }] });
+  const { daten } = migriereDaten({ version: 19, vertraege: [], sparziele: [{ id: 'z' }] }, undefined, 20);
   assert.equal(daten.sparziele, undefined);
   assert.equal(daten.version, 20);
 });

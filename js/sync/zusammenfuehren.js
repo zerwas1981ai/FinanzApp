@@ -114,7 +114,7 @@ export function loeseKonflikte(daten, konflikte, entscheidungen) {
  */
 export function istFrischerStand(daten) {
   const leer = (s) => (daten[s] ?? []).length === 0;
-  return ['konten', 'buchungen', 'budgets', 'wiederkehrend', 'geplant', 'projekte', 'abstimmungen', 'archive', 'relevant', 'vorlagen', 'vertraege'].every(leer)
+  return ['konten', 'buchungen', 'budgets', 'wiederkehrend', 'geplant', 'projekte', 'abstimmungen', 'archive', 'relevant', 'vorlagen', 'vertraege', 'monatsnotizen'].every(leer)
     && (daten.kategorien ?? []).every((k) => !k.geaendertAm || k.geaendertAm === k.erstelltAm);
 }
 

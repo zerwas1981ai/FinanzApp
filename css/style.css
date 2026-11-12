@@ -1701,3 +1701,39 @@ body:not(.umbuchungen-sichtbar) .ub-ausblendbar { display: none; }
 @media (max-width: 767px) {
   .bereich-kopf .knopf { padding: 6px 10px; }
 }
+
+/* D163: Frei verfügbar + Kann ich mir das leisten? */
+.kz-frei .leisten-knopf { font-size: inherit; padding: 0; }
+.leisten-ergebnis { border-radius: var(--radius-klein); padding: 10px 12px; background: var(--flaeche-2); margin-top: 4px; }
+.leisten-ergebnis p { margin: 4px 0; }
+.leisten-urteil { font-weight: 700; font-size: 1.05rem; }
+.leisten-ja .leisten-urteil { color: var(--einnahme); }
+.leisten-knapp .leisten-urteil { color: var(--warnung); }
+.leisten-nein .leisten-urteil { color: var(--gefahr); }
+
+/* D164: Übersicht – Überschrift im Kennzahlen-Kasten; statt „Konten“ nur der gleiche Abstand */
+.kz-kasten .kz-titel { font-size: 1.15rem; margin: 0 0 10px; }
+.konten-abstand { height: calc(1.1rem * 1.45); margin: 16px 0 8px; }
+
+/* D165: Monatsnotiz */
+.notiz-knopf { font-size: .95rem; color: var(--text-2); }
+.notiz-knopf.hat-notiz { color: var(--akzent); }
+.monatsnotiz { margin: -4px 0 10px; color: var(--text-2); font-style: italic; font-size: .9rem; }
+.notiz-liste { margin: 8px 0; padding: 8px 12px; border-radius: var(--radius-klein); background: var(--flaeche-2); }
+.notiz-liste ul { list-style: none; margin: 4px 0 0; padding: 0; font-size: .9rem; }
+.notiz-liste li + li { margin-top: 2px; }
+.rb-notiz:empty { display: none; }
+
+/* D167: Steuer */
+.modus-knoepfe { margin-top: 0; flex-wrap: nowrap; gap: 6px; }
+.steuer-liste li { display: block; padding: 0; }
+.steuer-zeile {
+  display: grid; grid-template-columns: 84px minmax(0, 1fr) auto auto; gap: 8px; align-items: center; width: 100%;
+  padding: 6px 2px; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer;
+}
+.steuer-zeile:hover { background: var(--flaeche-2); }
+@media (max-width: 767px) { .steuer-zeile { grid-template-columns: 72px minmax(0, 1fr) auto auto; } }
+
+/* D168: Notfall-Mappe */
+.notfall-text { width: 100%; font: inherit; padding: 8px 10px; border-radius: var(--radius-klein); border: 1px solid var(--rand); background: var(--flaeche); color: var(--text); resize: vertical; }
+@media print { .druck-notfall .notfall-hinweise p { margin: 0 0 2pt; } }
