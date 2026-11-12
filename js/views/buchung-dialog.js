@@ -153,6 +153,7 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
       projektId: projekt && art !== 'umbuchung' ? projekt.select.value || null : null,
       relevant: art === 'ausgabe' && relevantHaken.checked,
       relevantGruppe: relevantGruppe.input.value,
+      vertragId: vertrag ? vertrag.select.value || null : null, // D151: Vertrag mit übernehmen
     };
   };
   const kopieren = buchung && h('button', {
@@ -177,7 +178,8 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
       const nt = istLetzter ? tageImMonat(nj, nm) : Math.min(t, tageImMonat(nj, nm));
       const start = `${nj}-${String(nm).padStart(2, '0')}-${String(nt).padStart(2, '0')}`;
       dlg.close();
-      setTimeout(() => wiederkehrendDialog(null, { konten, kategorien, buchungen: alle }, {
+      // D151: mit Verträgen, damit das Feld „Vertrag“ auch hier erscheint
+      setTimeout(() => wiederkehrendDialog(null, { konten, kategorien, buchungen: alle, vertraege }, {
         ...w,
         notiz: w.notiz ?? '', // D96: Notiz statt Bezeichnung
         start: istLetzter ? monatsende(start) : start,

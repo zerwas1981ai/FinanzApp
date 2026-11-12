@@ -2131,3 +2131,9 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
   **„An (Empfänger)“**, mit denselben Vorschlägen aus den bisherigen Buchungen, und ist **Pflicht**.
 - Intern heißt das Feld weiter `anbieter` (keine Datenumstellung nötig). Ältere Verträge ohne Empfänger
   lassen sich erst wieder speichern, wenn einer eingetragen ist.
+
+## D151 – Vertrag auch beim Übernehmen als wiederkehrende Buchung und beim Kopieren
+*Lücke aus D148, auf Wunsch geschlossen*
+
+- „↻ Als wiederkehrend anlegen“ im Buchungsdialog zeigt jetzt ebenfalls das Feld „Vertrag (optional)“,
+  vorbelegt mit dem Vertrag der Buchung. „⧉ Kopieren“ übernimmt den Vertrag ebenso.
