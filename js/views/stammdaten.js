@@ -4,7 +4,7 @@ import { h } from '../dom.js';
 import * as db from '../db.js';
 import { formatEuro, formatDatum, parseEuro, centZuEingabe, heuteIso, istGueltigesDatum } from '../format.js';
 import { dialog, frage, toast, eingabe, auswahl, optionsGruppe, knopf, schalter, geraet, katPunkt } from '../ui.js';
-import { PALETTE, farbenZuordnung } from '../farben.js';
+import { PALETTE, farbenZuordnung, paletteEintrag } from '../farben.js';
 import { hatTestdaten, ladeTestdaten, loescheTestdaten } from '../testdaten.js';
 import { neueKategorie } from '../startdaten.js';
 import { DATENMODELL_VERSION } from '../migrationen.js';
@@ -343,23 +343,35 @@ function hauptDialog(kat, kategorien, neu) {
     optionen: [{ wert: 'ausgabe', text: 'Ausgabe' }, { wert: 'einnahme', text: 'Einnahme' }],
     wert: kat?.art ?? 'ausgabe',
   });
-  // D155: Farbe – „Automatisch“ oder eine Farbe der Palette
-  const autoFarbe = kat ? farbenZuordnung(kategorien.map((x) => (x.id === kat.id ? { ...x, farbe: null } : x))).get(kat.id) : null;
-  let farbe = kat?.farbe ?? '';
-  const farbKnopf = (wert, hex, text) => h('button', {
-    type: 'button', class: 'farb-wahl', style: `--kat-farbe:${hex}`, title: text, 'aria-label': text,
-    'aria-pressed': String(farbe === wert),
-    onclick: (e) => {
-      farbe = wert;
-      e.currentTarget.parentElement.querySelectorAll('.farb-wahl').forEach((b) => b.setAttribute('aria-pressed', String(b === e.currentTarget)));
-    },
-  }, wert === '' ? 'A' : '');
+  // D155/D158: Farbe – „Automatisch“ oder eine der 36 Farben; nur für Ausgaben-Kategorien
+  const autoFarbe = farbenZuordnung([...kategorien.filter((x) => x.id !== kat?.id),
+    { ...(kat ?? { id: '__neu', erstelltAm: '9999' }), art: 'ausgabe', farbe: null }]).get(kat?.id ?? '__neu');
+  let farbe = paletteEintrag(kat?.farbe)?.schluessel ?? '';
+  const alleKnoepfe = [];
+  const farbKnopf = (wert, hex, text) => {
+    const k = h('button', {
+      type: 'button', class: 'farb-wahl' + (wert === '' ? ' farb-auto' : ''), style: `--kat-farbe:${hex}`, title: text, 'aria-label': text,
+      'aria-pressed': String(farbe === wert),
+      onclick: () => {
+        farbe = wert;
+        alleKnoepfe.forEach((b) => b.setAttribute('aria-pressed', String(b === k)));
+      },
+    }, wert === '' ? 'A' : '');
+    alleKnoepfe.push(k);
+    return k;
+  };
+  // Raster: Spalten = Farbton (Rot … Magenta), Zeilen = hell / mittel / dunkel
   const farbFeld = h('div', { class: 'feld' },
     h('span', { class: 'feld-label' }, 'Farbe'),
-    h('div', { class: 'farb-reihe', role: 'group', 'aria-label': 'Farbe' },
+    h('div', { class: 'farb-auto-zeile' },
       farbKnopf('', autoFarbe?.hex ?? '#8a94a3', `Automatisch${autoFarbe ? ` (${autoFarbe.name})` : ''}`),
-      PALETTE.map((p) => farbKnopf(p.schluessel, p.hex, p.name))),
-    h('small', { class: 'feld-hilfe' }, 'Erscheint als kleiner Punkt bei den Buchungen. Unterkategorien haben dieselbe Farbe. „A“ = automatisch.'));
+      h('span', { class: 'klein gedaempft' }, `Automatisch${autoFarbe ? ` (jetzt ${autoFarbe.name})` : ''}`)),
+    h('div', { class: 'farb-raster', role: 'group', 'aria-label': 'Farbe' }, PALETTE.map((p) => farbKnopf(p.schluessel, p.hex, p.name))),
+    h('small', { class: 'feld-hilfe' }, 'Erscheint als kleiner Punkt bei den Buchungen. Unterkategorien haben dieselbe Farbe.'));
+  // D158: Einnahme-Kategorien haben keine Farbe
+  const zeigeFarbe = () => { farbFeld.hidden = art.wert() === 'einnahme'; };
+  art.feld.addEventListener('change', zeigeFarbe);
+  zeigeFarbe();
 
   dialog({
     titel: kat ? 'Hauptkategorie bearbeiten' : 'Neue Hauptkategorie',
@@ -371,10 +383,10 @@ function hauptDialog(kat, kategorien, neu) {
         throw new Error(`Eine Hauptkategorie „${n}“ gibt es schon (eventuell archiviert).`);
       }
       if (kat) {
-        await db.speichere('kategorien', { ...kat, name: n, art: art.wert(), farbe: farbe || null, geaendertAm: jetzt() });
+        await db.speichere('kategorien', { ...kat, name: n, art: art.wert(), farbe: art.wert() === 'einnahme' ? null : farbe || null, geaendertAm: jetzt() });
         toast('Kategorie gespeichert');
       } else {
-        const neueKat = { ...neueKategorie({ name: n, art: art.wert() }), ...(farbe ? { farbe } : {}) };
+        const neueKat = { ...neueKategorie({ name: n, art: art.wert() }), ...(farbe && art.wert() !== 'einnahme' ? { farbe } : {}) };
         await db.speichere('kategorien', neueKat);
         ansicht.offen.add(neueKat.id); // gleich aufgeklappt zeigen
         toast(`„${n}“ angelegt – jetzt Unterkategorien hinzufügen`);

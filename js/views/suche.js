@@ -11,13 +11,12 @@ import { relevantDialog } from './relevant.js';
 import { projektDialog } from './projekte.js';
 import { wiederkehrendDialog, geplantDialog } from './annahmen.js';
 import { vertragDialog } from './vertraege.js';
-import { sparzielDialog } from './sparziele.js';
 
 const MAX_JE_BEREICH = 30;
 let letzterBegriff = ''; // solange die App offen ist
 
 export async function oeffneSuche() {
-  const namen = ['konten', 'kategorien', 'buchungen', 'budgets', 'wiederkehrend', 'geplant', 'projekte', 'relevant', 'archive', 'vertraege', 'sparziele'];
+  const namen = ['konten', 'kategorien', 'buchungen', 'budgets', 'wiederkehrend', 'geplant', 'projekte', 'relevant', 'archive', 'vertraege'];
   const werte = await Promise.all(namen.map((n) => db.alle(n)));
   const daten = Object.fromEntries(namen.map((n, i) => [n, werte[i]]));
 
@@ -34,7 +33,6 @@ export async function oeffneSuche() {
     else if (t.bereich === 'relevant') relevantDialog(t.ref, daten);
     else if (t.bereich === 'projekt') projektDialog(t.ref, daten);
     else if (t.bereich === 'vertrag') vertragDialog(t.ref, daten);
-    else if (t.bereich === 'sparziel') sparzielDialog(t.ref, daten);
     else if (t.bereich === 'wiederkehrend') wiederkehrendDialog(t.ref, daten);
     else if (t.bereich === 'geplant') geplantDialog(t.ref, daten);
   };

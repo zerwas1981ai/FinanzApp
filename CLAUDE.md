@@ -46,7 +46,6 @@ Oberfläche auf Deutsch, Währung Euro, deutsches Datums- und Zahlenformat.
 - Vertrag (D148): Name, Empfänger (Pflicht, D150), Vertragsnummer, Beginn, Mindestlaufzeit, Verlängerung,
   Kündigungsfrist, Erinnerung, gekündigt zum, Unterlagen; Klammer um Buchungen und wiederkehrende
   Buchungen (Feld „Vertrag“, rückwirkend über die wiederkehrende Buchung)
-- Sparziel (D157): Name, Konto, Zielbetrag, optional Zieldatum; gemessen am Kontostand, Prognose aus der Zeitleiste
 - Vorlage: Name, Art, Konto (bei Umbuchung auch Zielkonto), optional Kategorie,
   Empfänger/Absender, Notiz, Betrag; Reihenfolge per ▲/▼ (D104)
 - Wiederkehrende Buchung: Intervall (monatlich/vierteljährlich/jährlich),
@@ -77,7 +76,7 @@ Oberfläche auf Deutsch, Währung Euro, deutsches Datums- und Zahlenformat.
      gekennzeichnet (z. B. kursiv oder schraffiert).
 2. Alle Buchungen: über alle Konten filtern, sortieren, analysieren, Monats-/Jahresrückblick (D156); nur gebuchte
    Buchungen bis heute (D120/D121); Filter "ohne Beleg" vorerst entfallen (D123)
-3. Projekte (Umschalter Projekte · Verträge · Relevante Ausgaben · Sparziele, D153): Einmalausgaben (echte und geplante Buchungen) einem Projekt
+3. Projekte (Umschalter Projekte · Verträge · Relevante Ausgaben, D153): Einmalausgaben (echte und geplante Buchungen) einem Projekt
    zuordnen, z. B. Umbau oder Urlaub; Gesamtkosten mit optionalem Rahmen.
    Projektausgaben zählen nicht gegen das Monatsbudget. (Ersetzt die
    früher geplanten Szenarien „Was wäre wenn“, siehe DECISIONS.md D51.)

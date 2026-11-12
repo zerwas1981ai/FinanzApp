@@ -2192,3 +2192,19 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
   reicht – der voraussichtliche Fehlbetrag und wie viel dafür zusätzlich je Monat zurückzulegen wäre
   (auf volle Euro aufgerundet). Abgeschlossene Ziele eingeklappt.
 - Die Suche (D146) findet auch Sparziele.
+
+## D158 – Sparziele wieder ausgebaut; 36 abgestimmte Kategorie-Farben, Einnahmen ohne Farbe
+*Wunsch des Nutzers (ändert D153, D155 und D157)*
+
+- **Sparziele entfallen** („so wie gedacht bringt es mir doch nichts“). Datenversion 20 entfernt die Sammlung
+  „sparziele“ wieder; die lokale Schublade gilt als alte Schublade und wird beim nächsten Speichern geleert.
+  Der Tab Projekte hat wieder drei Umschalter (Projekte · Verträge · Relevante Ausgaben). D157 ist damit hinfällig.
+- **36 Farben:** 12 Farbtöne im Farbkreis (Rot, Orange, Bernstein, Gelb, Limette, Grün, Türkis, Petrol, Blau,
+  Indigo, Violett, Magenta) in je drei Stufen hell / mittel / dunkel mit gleicher Sättigung und Helligkeit je
+  Stufe – dadurch wirken sie aufeinander abgestimmt. Die Auswahl im Dialog ist ein Raster: Spalten = Farbton,
+  Zeilen = hell / mittel / dunkel; darüber „A“ = automatisch (mit Angabe, welche Farbe das gerade ist).
+- **Automatische Vergabe:** zuerst die mittleren Töne, im Farbkreis verteilt (Blau, Grün, Orange, Violett, Türkis,
+  Rot, Indigo, Limette, Magenta, Petrol, Bernstein, Gelb), dann die dunklen, dann die hellen. Schon gewählte
+  Farben der ersten Palette (D155) werden auf den passenden neuen Ton abgebildet.
+- **Einnahme-Kategorien haben keine Farbe** (und keinen Punkt); Einnahmen sind am grünen Betrag erkennbar.
+- Hauptkategorien in den Stammdaten mit etwas kleinerer Schrift (0,92 rem).

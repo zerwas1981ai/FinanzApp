@@ -12,14 +12,13 @@ import { oeffneBuchungsdialog } from './buchung-dialog.js';
 import { geplantDialog } from './annahmen.js';
 import { relevantBereich } from './relevant.js';
 import { vertraegeBereich } from './vertraege.js';
-import { sparzieleBereich } from './sparziele.js';
 
 const nachName = (a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base' });
 export const ANSICHT_SCHLUESSEL = 'ansicht-projekte';
-const ANSICHTEN = [['projekte', 'Projekte'], ['vertraege', 'Verträge'], ['relevant', 'Relevante Ausgaben'], ['sparziele', 'Sparziele']];
+const ANSICHTEN = [['projekte', 'Projekte'], ['vertraege', 'Verträge'], ['relevant', 'Relevante Ausgaben']];
 
 export async function zeigeProjekte(container) {
-  const namen = ['konten', 'kategorien', 'buchungen', 'geplant', 'projekte', 'archive', 'relevant', 'vertraege', 'wiederkehrend', 'budgets', 'sparziele'];
+  const namen = ['konten', 'kategorien', 'buchungen', 'geplant', 'projekte', 'archive', 'relevant', 'vertraege', 'wiederkehrend', 'budgets'];
   const werte = await Promise.all(namen.map((n) => db.alle(n)));
   const daten = Object.fromEntries(namen.map((n, i) => [n, werte[i]]));
   const heute = heuteIso();
@@ -43,7 +42,7 @@ export async function zeigeProjekte(container) {
     container.replaceChildren(
       h('div', { class: 'seitenkopf' }, h('h1', { class: 'seitentitel' }, 'Projekte')),
       umschalter,
-      ansicht === 'vertraege' ? vertraegeBereich(daten) : ansicht === 'sparziele' ? sparzieleBereich(daten) : await relevantBereich(daten),
+      ansicht === 'vertraege' ? vertraegeBereich(daten) : await relevantBereich(daten),
     );
     return;
   }

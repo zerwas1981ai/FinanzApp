@@ -16,7 +16,7 @@ import { heuteIso } from './format.js';
 import { plusMonate, monatsende } from './prognose.js';
 import { plusMonate as plusMonateIso } from './vertraege.js';
 
-const SAMMLUNGEN_MIT_TESTDATEN = ['konten', 'kategorien', 'buchungen', 'budgets', 'wiederkehrend', 'geplant', 'projekte', 'relevant', 'vertraege', 'sparziele'];
+const SAMMLUNGEN_MIT_TESTDATEN = ['konten', 'kategorien', 'buchungen', 'budgets', 'wiederkehrend', 'geplant', 'projekte', 'relevant', 'vertraege'];
 
 function konto(name, anfangssaldoCent, stichtag, mindestsaldoCent, archiviert = false) {
   const jetzt = new Date().toISOString();
@@ -118,11 +118,6 @@ export async function ladeTestdaten() {
       verlaengerungMonate: 12, fristAnzahl: 1, fristEinheit: 'monate' }),
   };
   await db.speichere('vertraege', Object.values(vertraege));
-  // Sparziele (D157, erfunden): Notgroschen auf dem Tagesgeld bis Ende nächsten Jahres
-  await db.speichere('sparziele', [{
-    id: crypto.randomUUID(), name: 'Notgroschen (Test)', kontoId: tagesgeld.id, zielCent: 1000000, zielDatum: `${jahr + 1}-12-31`,
-    notiz: '', abgeschlossen: false, erstelltAm: jetzt, geaendertAm: jetzt, testdaten: true,
-  }]);
   if (wk.internet) wk.internet.vertragId = vertraege.internet.id;
   if (wk.strom) wk.strom.vertragId = vertraege.strom.id;
   if (wk.streaming) wk.streaming.vertragId = vertraege.streaming.id;
@@ -279,7 +274,7 @@ export async function ladeTestdaten() {
 }
 
 export async function loescheTestdaten() {
-  const [konten, kategorien, buchungen, budgets, wiederkehrend, geplant, projekte, relevant, vertraege, sparziele, hinweise] = await Promise.all(
+  const [konten, kategorien, buchungen, budgets, wiederkehrend, geplant, projekte, relevant, vertraege, hinweise] = await Promise.all(
     [...SAMMLUNGEN_MIT_TESTDATEN, 'hinweise'].map((s) => db.alle(s)),
   );
   const kontoIds = new Set(konten.filter((k) => k.testdaten).map((k) => k.id));
@@ -311,7 +306,6 @@ export async function loescheTestdaten() {
   // Verträge (D148): Test-Verträge weg; eigene Buchungen/wiederkehrende, die dazu gehörten, behalten – ohne Vertrag
   const vertragWeg = new Set(vertraege.filter((v) => v.testdaten).map((v) => v.id));
   await db.loesche('vertraege', [...vertragWeg]);
-  await db.loesche('sparziele', sparziele.filter((z) => z.testdaten || kontoIds.has(z.kontoId)).map((z) => z.id)); // D157
   for (const [name, liste, ids] of [['buchungen', buchungen, buchungIds], ['wiederkehrend', wiederkehrend, new Set(wkWeg.map((w) => w.id))]]) {
     const betroffen = liste.filter((x) => !ids.has(x.id) && vertragWeg.has(x.vertragId));
     if (betroffen.length) await db.speichere(name, betroffen.map((x) => ({ ...x, vertragId: null })));

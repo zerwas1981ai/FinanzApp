@@ -9,7 +9,6 @@ export const BEREICHE = [
   { schluessel: 'relevant', titel: 'Relevante Ausgaben (eigene Einträge)' },
   { schluessel: 'projekt', titel: 'Projekte' },
   { schluessel: 'vertrag', titel: 'Verträge' },
-  { schluessel: 'sparziel', titel: 'Sparziele' },
   { schluessel: 'wiederkehrend', titel: 'Wiederkehrende Buchungen' },
   { schluessel: 'geplant', titel: 'Geplante Einmalbuchungen' },
 ];
@@ -86,13 +85,6 @@ export function suche(begriff, daten) {
     ergebnis.vertrag.push({
       bereich: 'vertrag', id: v.id, datum: null, art: null, betragCent: null, ref: v,
       titel: v.name, details: [v.anbieter, v.vertragsnummer && `Nr. ${v.vertragsnummer}`, v.gekuendigtZum && `gekündigt zum ${formatDatum(v.gekuendigtZum)}`].filter(Boolean).join(' · '),
-    });
-  }
-  for (const z of daten.sparziele ?? []) { // D157
-    if (!passt([z.name, z.notiz, konto.get(z.kontoId), betragTexte(z.zielCent)])) continue;
-    ergebnis.sparziel.push({
-      bereich: 'sparziel', id: z.id, datum: z.zielDatum, art: null, betragCent: null, ref: z,
-      titel: z.name, details: [konto.get(z.kontoId), `Ziel ${formatEuro(z.zielCent)}`, z.zielDatum && `bis ${formatDatum(z.zielDatum)}`].filter(Boolean).join(' · '),
     });
   }
   for (const w of daten.wiederkehrend ?? []) {

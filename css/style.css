@@ -349,7 +349,7 @@ main {
 .kat[open] > summary::before { transform: rotate(45deg); }
 .kat > summary:hover { background: var(--flaeche-2); border-radius: var(--radius-klein); }
 
-.kat-name { font-weight: 600; }
+.kat-name { font-weight: 600; font-size: .92rem; } /* D158: etwas kleiner */
 .kat-anzahl { margin-left: auto; color: var(--text-2); font-size: .85rem; white-space: nowrap; }
 
 .kat-inhalt { padding: 0 14px 14px 34px; }
@@ -1652,13 +1652,15 @@ body:not(.umbuchungen-sichtbar) .ub-ausblendbar { display: none; }
 }
 .btab-kategorie .kat-punkt { margin-right: 5px; }
 .kat > summary .kat-punkt { margin-right: 2px; }
-.farb-reihe { display: flex; flex-wrap: wrap; gap: 8px; }
+/* D158: 36 Farben als Raster – 12 Farbtöne nebeneinander, Zeilen hell / mittel / dunkel */
+.farb-auto-zeile { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.farb-raster { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 6px; max-width: 420px; }
 .farb-wahl {
-  width: 30px; height: 30px; border-radius: 50%; border: 2px solid transparent; background: var(--kat-farbe);
+  width: 100%; aspect-ratio: 1; border-radius: 50%; border: 2px solid transparent; background: var(--kat-farbe);
   cursor: pointer; color: #fff; font: 600 .75rem/1 system-ui, sans-serif; padding: 0;
-  box-shadow: 0 0 0 1px var(--rand);
 }
-.farb-wahl[aria-pressed="true"] { border-color: var(--bg); box-shadow: 0 0 0 2px var(--text); }
+.farb-wahl.farb-auto { width: 28px; flex: none; }
+.farb-wahl[aria-pressed="true"] { border-color: var(--flaeche); box-shadow: 0 0 0 2px var(--text); }
 
 /* D156: Rückblick */
 .rb-dialog { width: min(760px, calc(100vw - 24px)); max-width: none; }
@@ -1683,10 +1685,3 @@ body:not(.umbuchungen-sichtbar) .ub-ausblendbar { display: none; }
   .rb-groesste li { grid-template-columns: 72px minmax(0, 1fr) auto; }
 }
 
-/* D157: Sparziele */
-.sparziel { margin-top: 10px; }
-.sparziel .bereich-kopf { margin-bottom: 6px; }
-.sparziel-name { margin: 0; font-size: 1rem; }
-.sparziel-zahlen { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; margin-top: 6px; }
-.sparziel-prognose { margin: 6px 0 0; }
-.meter.erreicht > span { background: var(--einnahme); }
