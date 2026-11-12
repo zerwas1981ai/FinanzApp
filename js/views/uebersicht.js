@@ -252,16 +252,19 @@ function kontoKopf(konto, buchungen, abstimmungen, prognoseCent, niedrigsterCent
     .filter((a) => a.kontoId === konto.id)
     .sort((a, b) => b.erstelltAm.localeCompare(a.erstelltAm))[0];
 
-  let abstimmText = 'Noch nicht abgestimmt.';
+  // D149: Zeile grau wie „Niedrigster erwarteter Stand“; farbig nur der Differenzbetrag
+  // und die Erinnerung „vor N Tagen“ bzw. „Noch nicht abgestimmt“ (D145)
+  const faellig = abstimmungFaellig(letzte?.datum, heute);
+  let abstimmText = [h('span', { class: 'warn-text' }, 'Noch nicht abgestimmt.')];
   if (letzte) {
     // Differenz immer neu berechnen – so sieht man, ob nachgetragene Buchungen sie beheben
     const differenz = letzte.bankstandCent - kontostand(konto, buchungen, letzte.datum);
-    abstimmText = `Zuletzt abgestimmt für ${formatDatum(letzte.datum)}: ` +
-      (differenz === 0 ? 'stimmt ✓' : `Differenz ${formatEuro(differenz)}`);
+    abstimmText = [
+      `Zuletzt abgestimmt für ${formatDatum(letzte.datum)}: `,
+      differenz === 0 ? 'stimmt ✓' : ['Differenz ', h('span', { class: 'warn-text' }, formatEuro(differenz))],
+      faellig && h('span', { class: 'warn-text' }, ` · vor ${tageZwischen(letzte.datum, heute)} Tagen`),
+    ];
   }
-  // D145: länger als 10 Tage nicht abgestimmt → farbig mit Tagesangabe
-  const faellig = abstimmungFaellig(letzte?.datum, heute);
-  if (faellig && letzte) abstimmText += ` · vor ${tageZwischen(letzte.datum, heute)} Tagen`;
 
   // D113: Raster – oben links die Stände, oben rechts „Abstimmen“; die letzte Zeile geht über die volle Breite
   // (links niedrigster erwarteter Stand, ganz rechts der Stand der Kontoabstimmung)
@@ -290,7 +293,7 @@ function kontoKopf(konto, buchungen, abstimmungen, prognoseCent, niedrigsterCent
       konto.mindestsaldoCent != null && niedrigsterCent < konto.mindestsaldoCent && h('span', { class: 'warn-text' }, ' – unter Mindestsaldo'))
         : h('span'),
       h('div', {
-        class: 'klein abstimm-info' + ((letzte && letzte.bankstandCent !== kontostand(konto, buchungen, letzte.datum)) || faellig ? ' warn-text' : ''),
+        class: 'klein abstimm-info',
         title: faellig ? `Länger als ${ABSTIMM_ERINNERUNG_TAGE} Tage nicht abgestimmt – mit „Abstimmen“ den Bankstand eintragen.` : null,
       }, abstimmText)),
   );

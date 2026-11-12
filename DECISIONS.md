@@ -2116,3 +2116,10 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
 - **Kündigung:** Wird „Gekündigt zum“ neu eingetragen, fragt die App, ob die zugeordneten wiederkehrenden
   Buchungen zu diesem Tag enden sollen. Nur bei „Ja“ wird das Ende gesetzt – die App ändert nie still etwas.
 - Die Suche (D146) findet auch Verträge (Name, Anbieter, Vertragsnummer, Notiz, Unterlagen).
+
+## D149 – „Zuletzt abgestimmt“ in Grau, nur der Betrag farbig
+*Wunsch des Nutzers (ändert die Darstellung aus D145)*
+
+- Die Zeile „Zuletzt abgestimmt für …“ ist grau wie „Niedrigster erwarteter Stand“.
+- Farbig (Warnfarbe) bleiben nur der Differenzbetrag sowie die Erinnerung „· vor N Tagen“ bzw.
+  „Noch nicht abgestimmt.“ (D145).
