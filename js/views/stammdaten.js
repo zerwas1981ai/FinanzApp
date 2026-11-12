@@ -84,13 +84,13 @@ export async function zeigeStammdaten(container) {
     ['drive', 'Google Drive', () => driveBereich(neu)],
     ['login', 'App-Login', () => sperreBereich(neu)],
     ['export', 'Export', () => exportBereich()],
-    ['archiv', 'Archiv', () => archivBereich(neu)],
     ['notfall', 'Notfall-Mappe', () => notfallBereich()], // D168
     // Testdaten nur beim Entwickeln am PC (localhost), nicht in der veröffentlichten App (D66)
     IST_ENTWICKLUNG && ['testdaten', 'Testdaten', () => testdatenBereich(konten, kategorien, neu)],
     // D140: auf Wunsch ausgeblendet – zum Wiedereinblenden auf true setzen (die Funktion bleibt im Code)
     ZEIGE_NEU_BEGINNEN && ['neu', 'Neu beginnen', () => neuBeginnenBereich()],
-    // D172: Papierkorb direkt vor „Info“
+    // D172/D173: Archiv, dann Papierkorb, direkt vor „Info“
+    ['archiv', 'Archiv', () => archivBereich(neu)],
     ['papierkorb', 'Papierkorb', () => papierkorbBereich(konten, kategorien, neu), papierkorbAnzahl],
     ['info', 'Info', () => infoBereich()],
   ].filter(Boolean);

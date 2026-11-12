@@ -2349,3 +2349,9 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
   Datenversion 23 entfernt die Sammlung „vorlagen“; die lokale Schublade gilt als alte Schublade und wird
   beim nächsten Speichern geleert.
 - Stammdaten: der Umschalter „Papierkorb“ steht jetzt direkt vor „Info“.
+
+## D173 – Stammdaten: Archiv vor dem Papierkorb
+*Wunsch des Nutzers*
+
+- Reihenfolge der Umschalter: Konten · Kategorien · Budgethinweise · Google Drive · App-Login · Export ·
+  Notfall-Mappe · Archiv · Papierkorb · Info.
