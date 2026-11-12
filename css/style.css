@@ -1702,14 +1702,6 @@ body:not(.umbuchungen-sichtbar) .ub-ausblendbar { display: none; }
   .bereich-kopf .knopf { padding: 6px 10px; }
 }
 
-/* D163: Frei verfügbar + Kann ich mir das leisten? */
-.kz-frei .leisten-knopf { font-size: inherit; padding: 0; }
-.leisten-ergebnis { border-radius: var(--radius-klein); padding: 10px 12px; background: var(--flaeche-2); margin-top: 4px; }
-.leisten-ergebnis p { margin: 4px 0; }
-.leisten-urteil { font-weight: 700; font-size: 1.05rem; }
-.leisten-ja .leisten-urteil { color: var(--einnahme); }
-.leisten-knapp .leisten-urteil { color: var(--warnung); }
-.leisten-nein .leisten-urteil { color: var(--gefahr); }
 
 /* D164: Übersicht – Überschrift im Kennzahlen-Kasten; statt „Konten“ nur der gleiche Abstand */
 .kz-kasten .kz-titel { font-size: 1.15rem; margin: 0 0 10px; }
@@ -1724,16 +1716,17 @@ body:not(.umbuchungen-sichtbar) .ub-ausblendbar { display: none; }
 .notiz-liste li + li { margin-top: 2px; }
 .rb-notiz:empty { display: none; }
 
-/* D167: Steuer */
-.modus-knoepfe { margin-top: 0; flex-wrap: nowrap; gap: 6px; }
-.steuer-liste li { display: block; padding: 0; }
-.steuer-zeile {
-  display: grid; grid-template-columns: 84px minmax(0, 1fr) auto auto; gap: 8px; align-items: center; width: 100%;
-  padding: 6px 2px; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer;
-}
-.steuer-zeile:hover { background: var(--flaeche-2); }
-@media (max-width: 767px) { .steuer-zeile { grid-template-columns: 72px minmax(0, 1fr) auto auto; } }
 
 /* D168: Notfall-Mappe */
 .notfall-text { width: 100%; font: inherit; padding: 8px 10px; border-radius: var(--radius-klein); border: 1px solid var(--rand); background: var(--flaeche); color: var(--text); resize: vertical; }
 @media print { .druck-notfall .notfall-hinweise p { margin: 0 0 2pt; } }
+
+/* D170: Budgetbalken – verbraucht (voll) + noch ausstehende wiederkehrende Ausgaben (schraffiert, als Annahme) */
+.meter:has(.meter-ist) { display: flex; }
+.meter > .meter-ist { border-radius: 0; flex: none; }
+.meter > .meter-eingeplant {
+  display: block; height: 100%; flex: none; border-radius: 0;
+  background: repeating-linear-gradient(135deg, var(--akzent) 0 3px, transparent 3px 6px);
+  opacity: .75;
+}
+.meter > .meter-eingeplant.ueber { background: repeating-linear-gradient(135deg, var(--warnung) 0 3px, transparent 3px 6px); }

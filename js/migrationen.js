@@ -23,7 +23,7 @@
 import { neueKategorie, INVESTITIONEN_UNTER, BARGELD_UNTER } from './startdaten.js';
 import { startReihenfolge } from './konten.js';
 
-export const DATENMODELL_VERSION = 21;
+export const DATENMODELL_VERSION = 22;
 
 /** Standard-Schwellen für Budgethinweise (in den Stammdaten änderbar) */
 export const STANDARD_EINSTELLUNGEN = Object.freeze({ id: 'hinweise', monate: 3, prozent: 10 });
@@ -252,9 +252,19 @@ export const MIGRATIONEN = [
   },
   {
     nach: 21,
-    beschreibung: 'Monatsnotizen: neue Sammlung "monatsnotizen" (D165). Steuerthema an Kategorie/Buchung ist optional (D167).',
+    beschreibung: 'Monatsnotizen: neue Sammlung "monatsnotizen" (D165).',
     migriere(daten) {
       daten.monatsnotizen ??= [];
+      return daten;
+    },
+  },
+  {
+    nach: 22,
+    beschreibung: '„Frei verfügbar“ und Steuer-Paket wieder ausgebaut: Felder freiVerfuegbar (Konto) und steuerthema (Kategorie, Buchung) entfallen (D169).',
+    migriere(daten) {
+      for (const k of daten.konten ?? []) delete k.freiVerfuegbar;
+      for (const k of daten.kategorien ?? []) delete k.steuerthema;
+      for (const b of daten.buchungen ?? []) delete b.steuerthema;
       return daten;
     },
   },

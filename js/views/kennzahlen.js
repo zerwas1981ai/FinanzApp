@@ -6,12 +6,8 @@
 import { h } from '../dom.js';
 import * as db from '../db.js';
 import { formatEuro, formatDatum, formatMonat, formatProzent, formatTag, heuteIso, istGueltigesDatum } from '../format.js';
-import { dialog, eingabe, toast, datenGeaendert, auswahl, klappBereich, geraet } from '../ui.js';
-import { parseEuro } from '../format.js';
+import { dialog, eingabe, toast, datenGeaendert, auswahl, klappBereich } from '../ui.js';
 import { plusMonate, plusTage, annahmeTitel } from '../prognose.js';
-import { freiVerfuegbar, leistbarkeit } from '../frei.js';
-import { sortiereKonten } from '../konten.js';
-import { geplantDialog } from './annahmen.js';
 import { budgetMitVorschlag, merkeHinweis } from '../annahmen.js';
 import { oeffneBuchungsdialog } from './buchung-dialog.js';
 import { speichereAusnahme, aendereGeplant } from './annahmen.js';
@@ -23,10 +19,8 @@ const mitVorzeichen = (cent) => (cent > 0 ? '+' : '') + formatEuro(cent);
 
 /* =========================== Kennzahlen oben =========================== */
 
-export function kennzahlenBereich(p, daten, heute, warnungen = p.warnungen, jahresendeCent = null, zl = null) {
+export function kennzahlenBereich(p, daten, heute, warnungen = p.warnungen, jahresendeCent = null) {
   const monat = monatText(p.monat);
-  // D163: frei verfügbar bis Monatsende (nur Konten mit „Zählt zu Frei verfügbar“)
-  const frei = freiVerfuegbar(p.jeKonto, heute).gesamt;
   return h('section', { class: 'kennzahlen', 'aria-label': 'Kennzahlen' },
     warnungen.length > 0 && h('div', { class: 'warnkarte', role: 'status' },
       h('strong', {}, '⚠ Mindestsaldo'),
@@ -54,70 +48,10 @@ export function kennzahlenBereich(p, daten, heute, warnungen = p.warnungen, jahr
         h('div', { class: 'klein' }, `Prognose Jahresende ${heute.slice(0, 4)}`),
         h('div', { class: 'kz-wert annahme' + (jahresendeCent < 0 ? ' negativ' : '') }, formatEuro(jahresendeCent))),
       // Die drei wählbaren Kategorien sind entfallen (D75 Handy, D78 auch am PC),
-      // die Kacheln „Einnahmen/Ausgaben des Monats“ ebenso (D115)
-      // D163: frei verfügbar + Schnellprüfung „Kann ich mir das leisten?“
-      frei.anzahl > 0 && h('div', { class: 'kz kz-frei' },
-        h('div', { class: 'klein', title: 'Prognose Monatsende minus Mindestsaldo – alles Erwartete (auch offene Budgets) ist schon abgezogen.' },
-          'Frei verfügbar bis Monatsende'),
-        h('div', { class: 'kz-wert annahme' + (frei.frei < 0 ? ' negativ' : '') }, formatEuro(frei.frei)),
-        h('div', { class: 'klein' }, frei.frei > 0 ? `≈ ${formatEuro(frei.proTag)} pro Tag` : 'nichts mehr frei',
-          ' · ', h('button', { type: 'button', class: 'link-knopf leisten-knopf', onclick: () => leistbarDialog(p, zl, daten, heute) }, 'Kann ich mir das leisten?'))),
+      // die Kacheln „Einnahmen/Ausgaben des Monats“ ebenso (D115); „Frei verfügbar“ wieder ausgebaut (D169)
       ),
     ),
   );
-}
-
-/* ================= D163: Kann ich mir das leisten? ================= */
-
-/** Betrag, Datum und Konto eingeben – die App rechnet die Ausgabe probeweise ein und speichert nichts */
-function leistbarDialog(p, zl, daten, heute) {
-  const konten = sortiereKonten([...p.jeKonto.values()].map((x) => x.konto).filter((k) => !k.archiviert));
-  if (!konten.length) return;
-  const gemerkt = geraet.lies('letztes-konto');
-  const betrag = eingabe({ label: 'Betrag in €', inputmode: 'decimal', placeholder: 'z. B. 700,00', autofocus: true });
-  const datum = eingabe({ label: 'Wann?', type: 'date', value: heute });
-  const konto = auswahl({
-    label: 'Von Konto', optionen: konten.map((k) => ({ wert: k.id, text: k.name })),
-    wert: konten.some((k) => k.id === gemerkt && k.freiVerfuegbar !== false) ? gemerkt : (konten.find((k) => k.freiVerfuegbar !== false) ?? konten[0]).id,
-  });
-  const ergebnis = h('div', { class: 'leisten-ergebnis', 'aria-live': 'polite' });
-  let letzte = null;
-
-  const rechne = () => {
-    let cent = null;
-    try { cent = parseEuro(betrag.input.value, 'Betrag'); } catch { cent = null; }
-    if (!cent || cent <= 0) { ergebnis.replaceChildren(h('p', { class: 'klein gedaempft' }, 'Betrag eingeben – das Ergebnis erscheint sofort.')); letzte = null; return; }
-    const kd = p.jeKonto.get(konto.select.value);
-    const r = leistbarkeit({ kd, zeilen: zl?.jeKonto.get(konto.select.value) ?? [], heute, betragCent: cent, datum: datum.input.value || heute });
-    letzte = { cent };
-    const grenzeText = kd.konto.mindestsaldoCent != null ? `Mindestsaldo ${formatEuro(r.grenze)}` : '0 €';
-    const kopf = { ja: '✓ Ja, das passt.', knapp: '⚠ Knapp, aber es geht.', nein: '✕ Lieber nicht.' }[r.urteil];
-    ergebnis.className = `leisten-ergebnis leisten-${r.urteil}`;
-    ergebnis.replaceChildren(
-      h('p', { class: 'leisten-urteil' }, kopf),
-      r.freiNachher != null && h('p', {}, `Danach bis Monatsende frei: ${formatEuro(r.freiNachher)} (vorher ${formatEuro(r.freiVorher)}).`),
-      r.ersterUnter
-        ? h('p', {}, `Das Konto fiele im ${monatText(r.ersterUnter.monat)} auf ${formatEuro(r.ersterUnter.stand)} – unter ${grenzeText}.`)
-        : h('p', {}, `Bis ${monatText(r.bis)} drückt der Kauf keinen Monat unter ${grenzeText}; am knappsten bleiben ${formatEuro(r.luft)} Luft.`),
-      r.schonVorherUnter && h('p', { class: 'klein warn-text' },
-        `Hinweis: Auch ohne diese Ausgabe fällt das Konto im ${monatText(r.schonVorherUnter.monat)} unter ${grenzeText} (${formatEuro(r.schonVorherUnter.stand)}) – der Kauf verschärft das.`),
-      h('p', { class: 'klein gedaempft' }, 'Gerechnet mit der Prognose (wiederkehrende Buchungen, Budgets, geplante Buchungen). Gespeichert wird nichts.'));
-  };
-  for (const f of [betrag.input, datum.input, konto.select]) f.addEventListener('input', rechne);
-  konto.select.addEventListener('change', rechne);
-  rechne();
-
-  dialog({
-    titel: 'Kann ich mir das leisten?',
-    inhalt: [betrag.feld, h('div', { class: 'feld-paar' }, datum.feld, konto.feld), ergebnis],
-    speichernText: 'Als geplante Buchung anlegen',
-    abbrechenText: 'Schließen',
-    onSpeichern: () => {
-      if (!letzte) throw new Error('Bitte zuerst einen Betrag eingeben.');
-      const vorgaben = { betragCent: letzte.cent, kontoId: konto.select.value, datum: datum.input.value > heute ? datum.input.value : heute };
-      setTimeout(() => geplantDialog(null, daten, vorgaben), 0);
-    },
-  });
 }
 
 /* ================= Umbuchungen ein-/ausblenden (D76 Handy, D78 auch am PC) ================= */
@@ -187,6 +121,9 @@ export function erwartetBereich(kd, daten) {
   const budgetZeilen = kd.budgets.map((b) => {
     const ueber = b.ist > b.budget;
     const anteil = b.budget > 0 ? Math.min(1, b.ist / b.budget) : 0;
+    // D170: noch ausstehende wiederkehrende Ausgaben schraffiert direkt hinter dem Verbrauchten
+    const anteilOffen = b.budget > 0 ? Math.max(0, Math.min(1 - anteil, b.offen / b.budget)) : 0;
+    const offenUeber = !ueber && b.ist + b.offen > b.budget; // mit den eingeplanten Terminen über Budget
     const inhalt = [
       h('div', { class: 'budget-kopf' },
         h('span', { class: 'buchung-titel' }, `Budget ${b.name}`),
@@ -197,8 +134,15 @@ export function erwartetBereich(kd, daten) {
         'aria-valuemin': '0',
         'aria-valuemax': String(b.budget),
         'aria-valuenow': String(Math.min(b.ist, b.budget)),
-        'aria-label': `${b.name}: ${formatProzent(b.ist / b.budget)} des Budgets verbraucht`,
-      }, h('span', { style: `width:${anteil * 100}%` })),
+        'aria-label': `${b.name}: ${formatProzent(b.ist / b.budget)} des Budgets verbraucht` +
+          (b.offen > 0 ? `, weitere ${formatProzent(b.offen / b.budget)} wiederkehrend eingeplant` : ''),
+      },
+      h('span', { class: 'meter-ist', style: `width:${anteil * 100}%` }),
+      anteilOffen > 0 && h('span', {
+        class: 'meter-eingeplant' + (offenUeber ? ' ueber' : ''),
+        style: `width:${anteilOffen * 100}%`,
+        title: `${formatEuro(b.offen)} wiederkehrend eingeplant`,
+      })),
       h('div', { class: 'buchung-unter' + (ueber ? ' warn-text' : '') },
         ueber
           ? `${formatEuro(b.ist)} von ${formatEuro(b.budget)} – überschritten um ${formatEuro(b.ist - b.budget)}`

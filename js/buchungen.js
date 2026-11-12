@@ -79,9 +79,6 @@ export function baueBuchungen(eingabe, { konten, bestehende = [], jetzt = new Da
       : normGruppe(eingabe.relevantGruppe === undefined ? bestehende[0]?.relevantGruppe : eingabe.relevantGruppe),
     // Vertrag (Datenversion 18, D148): undefined = unverändert, '' oder null = keiner
     vertragId: eingabe.vertragId === undefined ? bestehende[0]?.vertragId ?? null : eingabe.vertragId || null,
-    // Steuerthema (D167): undefined = unverändert, '' / null = wie die Kategorie, 'kein' = nicht steuerlich
-    steuerthema: art !== 'ausgabe' ? null
-      : (eingabe.steuerthema === undefined ? bestehende[0]?.steuerthema ?? null : eingabe.steuerthema || null),
     geaendertAm: jetzt,
   };
   // D142: relevante Ausgabe → Notiz ist Pflicht (sie benennt auch den Beleg)

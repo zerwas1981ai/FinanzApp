@@ -44,7 +44,6 @@ export async function ladeTestdaten() {
 
   const giro = konto('Girokonto (Test)', 245000, stichtag, 50000);
   const tagesgeld = konto('Tagesgeld (Test)', 800000, stichtag, null);
-  tagesgeld.freiVerfuegbar = false; // D163: Erspartes zählt nicht als frei verfügbar
   const kredit = konto('Kreditkarte (Test)', -32050, stichtag, -150000);
   const neueKonten = [giro, tagesgeld, kredit, konto('Altes Sparbuch (Test)', 15000, '2020-01-01', null, true)];
   await db.speichere('konten', neueKonten);

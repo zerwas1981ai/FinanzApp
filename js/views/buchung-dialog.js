@@ -14,7 +14,6 @@ import { relevanteZeilen, gruppenListe, MAX_GRUPPE, benenneBelege } from '../rel
 import { vorlageZuWerten } from '../vorlagen.js';
 import { vorlagenLeiste, vorlageSpeichernDialog } from './vorlagen.js';
 import { istAktiv } from '../vertraege.js';
-import { STEUERTHEMEN, steuerthemaName } from '../steuer.js';
 
 const nachName = (a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base' });
 
@@ -115,29 +114,14 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
     h('label', { class: 'schalter feld-schalter' }, relevantHaken, 'Relevante Ausgabe (erscheint unter Projekte → Relevante Ausgaben, Belege zusätzlich im Drive-Ordner)'),
     relevantGruppe.feld);
 
-  // D167: Steuerthema der Buchung – Standard „wie Kategorie“; abweichend ein Thema oder „nicht steuerlich“
-  const steuerFeld = auswahl({ label: 'Steuer', optionen: [], wert: '' });
-  const fuelleSteuer = () => {
-    const vonKat = kategorien.find((k) => k.id === kategorie.select.value)?.steuerthema;
-    const wert = steuerFeld.select.value || (ref?.steuerthema ?? '');
-    steuerFeld.select.replaceChildren(...[
-      { wert: '', text: vonKat ? `Wie Kategorie (${steuerthemaName(vonKat)})` : 'Wie Kategorie (nicht steuerlich)' },
-      { wert: 'kein', text: 'Nicht steuerlich relevant' },
-      ...STEUERTHEMEN.map((t) => ({ wert: t.schluessel, text: t.name })),
-    ].map((o) => h('option', { value: o.wert }, o.text)));
-    steuerFeld.select.value = wert;
-  };
-  kategorie.select.addEventListener('change', fuelleSteuer);
-
   // D152: seltene Felder unter „Weitere Angaben“ – offen, sobald eines davon ausgefüllt ist
   const weitereText = h('span', { class: 'weitere-angaben-text' });
   const weitere = h('details', {
     class: 'weitere-angaben',
-    open: Boolean((projekt && projekt.select.value) || (vertrag && vertrag.select.value) || relevantHaken.checked || ref?.steuerthema),
-  }, h('summary', {}, 'Weitere Angaben', weitereText), projekt?.feld, vertrag?.feld, relevantFeld, steuerFeld.feld);
+    open: Boolean((projekt && projekt.select.value) || (vertrag && vertrag.select.value) || relevantHaken.checked),
+  }, h('summary', {}, 'Weitere Angaben', weitereText), projekt?.feld, vertrag?.feld, relevantFeld);
   const zeigeWeitere = () => {
-    steuerFeld.feld.hidden = art !== 'ausgabe';
-    const sichtbar = [projekt && !projekt.feld.hidden && 'Projekt', vertrag && 'Vertrag', !relevantFeld.hidden && 'Relevante Ausgabe', !steuerFeld.feld.hidden && 'Steuer'].filter(Boolean);
+    const sichtbar = [projekt && !projekt.feld.hidden && 'Projekt', vertrag && 'Vertrag', !relevantFeld.hidden && 'Relevante Ausgabe'].filter(Boolean);
     weitere.hidden = sichtbar.length === 0;
     weitereText.textContent = ` (${sichtbar.join(', ')})`;
   };
@@ -161,7 +145,6 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
     budgetFeld.feld.hidden = !istUmbuchung;
     konto.feld.querySelector('label').textContent = istUmbuchung ? 'Von Konto' : 'Konto';
     if (!istUmbuchung) fuelleKategorien(kategorie.select, kategorien, art, startKategorie);
-    fuelleSteuer(); // D167
   }
   aktualisiere();
 
@@ -281,7 +264,6 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
         geplantId: buchung ? undefined : vorgaben.geplantId,
         projektId: projekt ? projekt.select.value : undefined,
         vertragId: vertrag ? vertrag.select.value : undefined,
-        steuerthema: art === 'ausgabe' ? steuerFeld.select.value : undefined, // D167
         relevant: art === 'ausgabe' && relevantHaken.checked,
         relevantGruppe: relevantGruppe.input.value,
       };

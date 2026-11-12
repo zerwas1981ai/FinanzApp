@@ -43,7 +43,7 @@ Oberfläche auf Deutsch, Währung Euro, deutsches Datums- und Zahlenformat.
   abgebenden Konto (auch wiederkehrend/geplant, D98).
 - Budget: pro Hauptkategorie und Konto, monatlich, jährlich (in Tranchen, D90) oder einmalig (D85);
   je Kategorie und Konto entweder Monats- oder Jahresbudget
-- Monatsnotiz (D165): ein Satz je Monat; Steuerthema je Unterkategorie/Buchung (D167)
+- Monatsnotiz (D165): ein Satz je Monat
 - Vertrag (D148): Name, Empfänger (Pflicht, D150), Vertragsnummer, Beginn, Mindestlaufzeit, Verlängerung,
   Kündigungsfrist, Erinnerung, gekündigt zum, Unterlagen; Klammer um Buchungen und wiederkehrende
   Buchungen (Feld „Vertrag“, rückwirkend über die wiederkehrende Buchung)
@@ -61,7 +61,7 @@ Oberfläche auf Deutsch, Währung Euro, deutsches Datums- und Zahlenformat.
 ## Oberfläche (5 Tabs)
 1. Übersicht
    - Oben: Kasten „Übersicht“ (D164) mit Gesamtkontostand heute und prognostiziert zum Monats- und Jahresende (alle
-     Konten, D116), „Frei verfügbar“ mit „Kann ich mir das leisten?“ (D163; Einnahmen/Ausgaben des Monats entfallen, D115), Warnung bei Unterschreiten des
+     Konten, D116) ( Einnahmen/Ausgaben des Monats entfallen, D115), Warnung bei Unterschreiten des
      Mindestsaldos (mit erstem betroffenen Monat; im laufenden Monat nach dem
      niedrigsten erwarteten Stand ohne offene echte Einnahmen, D110/D111), max. 2 Budget-Hinweise
      (eingeklappt in einer Zeile, D117).

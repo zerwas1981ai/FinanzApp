@@ -13,7 +13,6 @@ import { dialog, eingabe, hinweis, toast, geraet, datenGeaendert, klappBereich, 
 import { farbenZuordnung, farbeVon } from '../farben.js';
 import { oeffneBuchungsdialog } from './buchung-dialog.js';
 import { kuendigungsBereich } from './vertraege.js';
-import { resttage } from '../frei.js';
 import { notizKnopf, notizZeile } from './monatsnotiz.js';
 import { kuendigungsHinweise } from '../vertraege.js';
 import { vorgemerkteVonKonto, alsGebuchtMarkieren } from '../buchungen.js';
@@ -70,7 +69,7 @@ export async function zeigeUebersicht(container) {
   }
   const oben = [
     h('h1', { class: 'seitentitel unsichtbar' }, 'Übersicht'), // D164: sichtbar steht „Übersicht“ im Kasten
-    kennzahlenBereich(prognose, alleDaten, heute, warnungen, prognoseJahresende(zl, heute), zl),
+    kennzahlenBereich(prognose, alleDaten, heute, warnungen, prognoseJahresende(zl, heute)),
     hinweisBereich(hinweise, daten),
     kuendigungsBereich(kuendigungsHinweise(alleDaten.vertraege, heute), alleDaten), // D148
     // D164: Überschrift „Konten“ entfällt, der Abstand bleibt gleich
@@ -285,14 +284,6 @@ function kontoKopf(konto, buchungen, abstimmungen, prognoseCent, niedrigsterCent
       prognoseCent !== undefined && h('div', { class: 'klein' }, 'Prognose Monatsende: ',
         h('span', { class: 'annahme' + (prognoseCent < 0 ? ' negativ' : '') }, formatEuro(prognoseCent)),
         konto.mindestsaldoCent != null && prognoseCent < konto.mindestsaldoCent && h('span', { class: 'warn-text' }, ' – unter Mindestsaldo')),
-      // D163: frei verfügbar je Konto (Prognose Monatsende − Mindestsaldo)
-      prognoseCent !== undefined && (() => {
-        const frei = prognoseCent - (konto.mindestsaldoCent ?? 0);
-        const tage = resttage(heute);
-        return h('div', { class: 'klein' }, 'Frei verfügbar: ',
-          h('span', { class: 'annahme' + (frei < 0 ? ' negativ' : '') }, formatEuro(frei)),
-          frei > 0 && ` (≈ ${formatEuro(Math.floor(frei / tage))} pro Tag)`);
-      })(),
     ),
     h('button', { type: 'button', class: 'knopf kopf-abstimmen', onclick: () => abstimmungsDialog(konto, buchungen) }, 'Abstimmen'),
     // D110: ungünstigster Fall bis Monatsende – heute minus alle erwarteten Belastungen, ohne offene Eingänge

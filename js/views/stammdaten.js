@@ -5,7 +5,6 @@ import * as db from '../db.js';
 import { formatEuro, formatDatum, parseEuro, centZuEingabe, heuteIso, istGueltigesDatum } from '../format.js';
 import { dialog, frage, toast, eingabe, auswahl, optionsGruppe, knopf, schalter, katPunkt, bereichsWahl } from '../ui.js';
 import { PALETTE, farbenZuordnung, paletteEintrag } from '../farben.js';
-import { STEUERTHEMEN, steuerthemaName } from '../steuer.js';
 import { notfallBereich } from './notfall.js';
 import { hatTestdaten, ladeTestdaten, loescheTestdaten } from '../testdaten.js';
 import { neueKategorie } from '../startdaten.js';
@@ -199,13 +198,10 @@ function kontoDialog(konto, konten, neu) {
     hilfe: 'Später warnt die App, wenn der Stand darunter fällt. Leer lassen = keine Warnung.',
   });
 
-  // D163: zählt dieses Konto zum gesamten „Frei verfügbar“ oben in der Übersicht? (z. B. Tagesgeld aus)
-  const freiHaken = h('input', { type: 'checkbox', checked: konto?.freiVerfuegbar !== false });
-  const freiFeld = h('label', { class: 'schalter feld-schalter' }, freiHaken, 'Zählt zu „Frei verfügbar“ (oben in der Übersicht) – z. B. bei Spar- und Tagesgeldkonten ausschalten');
 
   dialog({
     titel: konto ? 'Konto bearbeiten' : 'Neues Konto',
-    inhalt: [name.feld, saldo.feld, stichtag.feld, mindest.feld, freiFeld],
+    inhalt: [name.feld, saldo.feld, stichtag.feld, mindest.feld],
     onSpeichern: async () => {
       const n = name.input.value.trim();
       if (!n) throw new Error('Bitte einen Namen eingeben.');
@@ -233,7 +229,6 @@ function kontoDialog(konto, konten, neu) {
         anfangssaldoCent,
         stichtag: stichtag.input.value,
         mindestsaldoCent,
-        freiVerfuegbar: freiHaken.checked,
         geaendertAm: zeit,
       });
       toast(konto ? 'Konto gespeichert' : `Konto „${n}“ angelegt`);
@@ -318,8 +313,7 @@ function hauptKarte(k, kategorien, neu) {
 
 function unterZeile(u, haupt, kategorien, neu) {
   return h('li', { class: 'zeile' + (u.archiviert ? ' archiviert' : '') },
-    h('div', { class: 'zeile-titel' }, u.name, u.archiviert && h('span', { class: 'marke' }, 'archiviert'),
-      u.steuerthema && h('span', { class: 'marke', title: 'Steuerthema (D167)' }, `§ ${steuerthemaName(u.steuerthema)}`)),
+    h('div', { class: 'zeile-titel' }, u.name, u.archiviert && h('span', { class: 'marke' }, 'archiviert')),
     h('div', { class: 'zeile-aktionen' },
       knopf('Bearbeiten', () => unterDialog(u, haupt, kategorien, neu)),
       !u.archiviert && moeglicheZiele(u, kategorien).length > 0 && knopf('Verschieben', () => verschiebenDialog(u, haupt, kategorien, neu)),
@@ -441,20 +435,10 @@ function unterDialog(unterKat, haupt, kategorien, neu) {
     optionen: hauptListe.map((k) => ({ wert: k.id, text: `${k.name} (${ART_TEXT[k.art]})` })),
     wert: haupt.id,
   });
-  // D167: Steuerthema – alle Ausgaben auf dieser Unterkategorie zählen im Steuer-Paket
-  const steuer = auswahl({
-    label: 'Steuerthema (optional)',
-    optionen: [{ wert: '', text: 'Nicht steuerlich relevant' }, ...STEUERTHEMEN.map((t) => ({ wert: t.schluessel, text: t.name }))],
-    wert: unterKat?.steuerthema ?? '',
-    hilfe: 'Ausgaben auf dieser Unterkategorie erscheinen unter „Alle Buchungen → Steuer“. Einzelne Buchungen können abweichen.',
-  });
-  const zeigeSteuer = () => { steuer.feld.hidden = hauptListe.find((k) => k.id === eltern.select.value)?.art === 'einnahme'; };
-  eltern.select.addEventListener('change', zeigeSteuer);
-  zeigeSteuer();
 
   dialog({
     titel: unterKat ? 'Unterkategorie bearbeiten' : `Neue Unterkategorie in „${haupt.name}“`,
-    inhalt: [name.feld, eltern.feld, steuer.feld],
+    inhalt: [name.feld, eltern.feld],
     onSpeichern: async () => {
       const n = name.input.value.trim();
       const elternId = eltern.select.value;
@@ -462,15 +446,14 @@ function unterDialog(unterKat, haupt, kategorien, neu) {
       if (kategorien.some((k) => k.elternId === elternId && k.id !== unterKat?.id && gleicherName(k.name, n))) {
         throw new Error(`In dieser Hauptkategorie gibt es „${n}“ schon (eventuell archiviert).`);
       }
-      const steuerthema = steuer.feld.hidden ? null : steuer.select.value || null;
       if (unterKat) {
         const verschoben = elternId !== unterKat.elternId
-          ? verschiebeUnterkategorie({ ...unterKat, name: n, steuerthema }, elternId, kategorien, jetzt())
-          : { ...unterKat, name: n, steuerthema, geaendertAm: jetzt() };
+          ? verschiebeUnterkategorie({ ...unterKat, name: n }, elternId, kategorien, jetzt())
+          : { ...unterKat, name: n, geaendertAm: jetzt() };
         await db.speichere('kategorien', verschoben);
         toast('Unterkategorie gespeichert');
       } else {
-        await db.speichere('kategorien', { ...neueKategorie({ name: n, elternId }), ...(steuerthema ? { steuerthema } : {}) });
+        await db.speichere('kategorien', neueKategorie({ name: n, elternId }));
         toast(`„${n}“ angelegt`);
       }
       ansicht.offen.add(elternId);

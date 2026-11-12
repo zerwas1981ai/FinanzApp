@@ -2316,3 +2316,19 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
   „Drucken / PDF“ mit: Hinweisen, Konten (Stand heute, zuletzt abgestimmt), laufenden Verträgen (Empfänger,
   Vertragsnummer, Kosten/Monat, Kündigungsfrist, Laufzeit), laufenden Zahlungen (wiederkehrende Buchungen) und
   wo die Daten liegen (Google-Drive-Ordner). Bewusst ohne Zugangsdaten, Passwörter oder PINs.
+
+## D169 – „Frei verfügbar“ und Steuer-Paket wieder ausgebaut
+*Wunsch des Nutzers (macht D163 und D167 rückgängig)*
+
+- **Entfällt:** „Frei verfügbar“ (Kasten oben und Kontokopf), „Kann ich mir das leisten?“ und das Konto-Häkchen
+  „Zählt zu Frei verfügbar“; außerdem das komplette Steuer-Paket (Steuerthema an Unterkategorie und Buchung,
+  Knopf „Steuer“ mit Liste, CSV und Belege-ZIP).
+- Datenversion 22 entfernt die Felder `freiVerfuegbar` (Konto) und `steuerthema` (Kategorie, Buchung).
+- Bleibt: Übersicht-Kasten (D164), Monatsnotiz (D165), Preisentwicklung (D166), Notfall-Mappe (D168).
+
+## D170 – Budgetbalken zeigt die noch ausstehenden wiederkehrenden Ausgaben
+*Wunsch des Nutzers*
+
+- Unter „Noch erwartet“ hat der Balken eines Budgets zwei Abschnitte: verbraucht (voll) und direkt dahinter
+  schraffiert die noch ausstehenden wiederkehrenden Ausgaben dieses Monats (Annahme). Übersteigen beide zusammen
+  das Budget, ist der schraffierte Teil in der Warnfarbe.

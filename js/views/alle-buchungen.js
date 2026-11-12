@@ -6,7 +6,6 @@ import { formatEuro, formatEuroRund, formatProzent, formatDatum, formatMonat, he
 import { herunterladen, toast, katPunkt } from '../ui.js';
 import { farbenZuordnung, farbeVon } from '../farben.js';
 import { oeffneRueckblick } from './rueckblick.js';
-import { oeffneSteuer } from './steuer.js';
 import { notizListe } from './monatsnotiz.js';
 import { archivInhalt } from '../sync/abgleich.js';
 import { buchungenAlsCsv, exportName } from '../export.js';
@@ -450,9 +449,7 @@ function zeigeErgebnis(ziel, daten) {
     summenKarte(s, von, bis && bis < heute ? bis : heute), // D121: angezeigt wird höchstens bis heute
     // D156/D160: „Rückblick“ rechts neben Liste/Analyse (die Seitenüberschrift entfällt)
     h('div', { class: 'modus-zeile' }, modusWahl,
-      h('div', { class: 'knopfreihe modus-knoepfe' },
-        h('button', { type: 'button', class: 'knopf knopf-klein', onclick: () => oeffneSteuer(daten) }, 'Steuer'), // D167
-        h('button', { type: 'button', class: 'knopf knopf-klein', onclick: () => oeffneRueckblick(daten) }, 'Rückblick'))),
+      h('button', { type: 'button', class: 'knopf knopf-klein', onclick: () => oeffneRueckblick(daten) }, 'Rückblick')),
     zustand.modus === 'liste'
       ? liste(eintraege, daten, () => zeigeErgebnis(ziel, daten))
       : analyse(eintraege, daten, heute, () => zeigeErgebnis(ziel, daten)),
