@@ -5,17 +5,21 @@
 import { h } from '../dom.js';
 import * as db from '../db.js';
 import { formatEuro, formatDatum, centZuEingabe, parseEuro, heuteIso } from '../format.js';
-import { dialog, frage, toast, eingabe, datenGeaendert } from '../ui.js';
+import { dialog, frage, toast, eingabe, datenGeaendert, geraet } from '../ui.js';
+import { kuendigungsHinweise } from '../vertraege.js';
 import { baueProjekt, projektZahlen } from '../annahmen.js';
 import { oeffneBuchungsdialog } from './buchung-dialog.js';
 import { geplantDialog } from './annahmen.js';
 import { relevantBereich } from './relevant.js';
 import { vertraegeBereich } from './vertraege.js';
+import { sparzieleBereich } from './sparziele.js';
 
 const nachName = (a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base' });
+export const ANSICHT_SCHLUESSEL = 'ansicht-projekte';
+const ANSICHTEN = [['projekte', 'Projekte'], ['vertraege', 'Verträge'], ['relevant', 'Relevante Ausgaben'], ['sparziele', 'Sparziele']];
 
 export async function zeigeProjekte(container) {
-  const namen = ['konten', 'kategorien', 'buchungen', 'geplant', 'projekte', 'archive', 'relevant', 'vertraege', 'wiederkehrend', 'budgets'];
+  const namen = ['konten', 'kategorien', 'buchungen', 'geplant', 'projekte', 'archive', 'relevant', 'vertraege', 'wiederkehrend', 'budgets', 'sparziele'];
   const werte = await Promise.all(namen.map((n) => db.alle(n)));
   const daten = Object.fromEntries(namen.map((n, i) => [n, werte[i]]));
   const heute = heuteIso();
@@ -23,10 +27,32 @@ export async function zeigeProjekte(container) {
   const laufend = daten.projekte.filter((p) => !p.abgeschlossen).sort(nachName);
   const abgeschlossen = daten.projekte.filter((p) => p.abgeschlossen).sort(nachName);
 
+  // D153: Umschalter Projekte · Verträge · Relevante Ausgaben – die Wahl merkt sich das Gerät
+  const ansicht = ANSICHTEN.some(([k]) => k === geraet.lies(ANSICHT_SCHLUESSEL)) ? geraet.lies(ANSICHT_SCHLUESSEL) : 'projekte';
+  const fristen = kuendigungsHinweise(daten.vertraege, heute).length;
+  const umschalter = h('div', { class: 'chips', role: 'group', 'aria-label': 'Bereich wählen' },
+    ANSICHTEN.map(([k, text]) => h('button', {
+      type: 'button',
+      class: 'chip',
+      'aria-pressed': String(k === ansicht),
+      title: k === 'vertraege' && fristen ? `${fristen} Kündigungsfrist${fristen === 1 ? '' : 'en'} demnächst` : null,
+      onclick: () => { geraet.schreib(ANSICHT_SCHLUESSEL, k); zeigeProjekte(container); },
+    }, text, k === 'vertraege' && fristen > 0 && h('span', { class: 'chip-zahl', 'aria-hidden': 'true' }, String(fristen)))));
+
+  if (ansicht !== 'projekte') {
+    container.replaceChildren(
+      h('div', { class: 'seitenkopf' }, h('h1', { class: 'seitentitel' }, 'Projekte')),
+      umschalter,
+      ansicht === 'vertraege' ? vertraegeBereich(daten) : ansicht === 'sparziele' ? sparzieleBereich(daten) : await relevantBereich(daten),
+    );
+    return;
+  }
+
   container.replaceChildren(...[
     h('div', { class: 'seitenkopf' },
       h('h1', { class: 'seitentitel' }, 'Projekte'),
       h('button', { type: 'button', class: 'knopf knopf-primaer', onclick: () => projektDialog(null, daten) }, '+ Projekt')),
+    umschalter,
     h('p', { class: 'hinweis erklaerung' },
       'Fasse Einmalausgaben zu einem Projekt zusammen, z. B. „Umbau Bad“ oder „Urlaub 2027“. Zugeordnet werden echte ' +
       'Buchungen und geplante Einmalbuchungen (Feld „Projekt“ im Buchungsdialog bzw. unter Annahmen). Projektausgaben ' +
@@ -36,10 +62,6 @@ export async function zeigeProjekte(container) {
     abgeschlossen.length > 0 && h('details', { class: 'erledigt-liste' },
       h('summary', {}, `Abgeschlossene Projekte (${abgeschlossen.length})`),
       ...abgeschlossen.map((p) => projektKarte(p, daten, heute))),
-    // D148: Verträge zwischen den Projekten und den relevanten Ausgaben
-    vertraegeBereich(daten),
-    // Unten: Sammelliste "Relevante Ausgaben" (D74)
-    await relevantBereich(daten),
   ].filter(Boolean));
 }
 

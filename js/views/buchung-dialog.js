@@ -114,6 +114,18 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
     h('label', { class: 'schalter feld-schalter' }, relevantHaken, 'Relevante Ausgabe (erscheint unter Projekte → Relevante Ausgaben, Belege zusätzlich im Drive-Ordner)'),
     relevantGruppe.feld);
 
+  // D152: seltene Felder unter „Weitere Angaben“ – offen, sobald eines davon ausgefüllt ist
+  const weitereText = h('span', { class: 'weitere-angaben-text' });
+  const weitere = h('details', {
+    class: 'weitere-angaben',
+    open: Boolean((projekt && projekt.select.value) || (vertrag && vertrag.select.value) || relevantHaken.checked),
+  }, h('summary', {}, 'Weitere Angaben', weitereText), projekt?.feld, vertrag?.feld, relevantFeld);
+  const zeigeWeitere = () => {
+    const sichtbar = [projekt && !projekt.feld.hidden && 'Projekt', vertrag && 'Vertrag', !relevantFeld.hidden && 'Relevante Ausgabe'].filter(Boolean);
+    weitere.hidden = sichtbar.length === 0;
+    weitereText.textContent = ` (${sichtbar.join(', ')})`;
+  };
+
   // Belege: Dateiname aus Datum und Empfänger/Absender bzw. Kategorie; bei relevanter Ausgabe Datum und Notiz (D142).
   // D143: Beim Speichern wird der Name nach dem dann gültigen Stand neu gesetzt (nur noch nicht hochgeladene Belege).
   const belegNamensteil = () => (relevantHaken.checked && art === 'ausgabe' && notiz.input.value.trim())
@@ -126,6 +138,7 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
     if (projekt) projekt.feld.hidden = istUmbuchung;
     belege.feld.hidden = istUmbuchung;
     relevantFeld.hidden = art !== 'ausgabe';
+    zeigeWeitere(); // D152
     zeigeGruppe(); // D142: Notiz-Beschriftung (Pflicht/optional) passend zur Art
     partner.setzeArt(art);
     gegenkonto.feld.hidden = !istUmbuchung;
@@ -219,8 +232,8 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
   const dlg = dialog({
     titel: buchung ? (ref.art === 'umbuchung' ? 'Umbuchung bearbeiten' : 'Buchung bearbeiten') : (vorgaben.titel ?? 'Neue Buchung'),
     inhalt: (vorgaben.belegZuerst || vorgaben.dateien?.length
-      ? [leiste, artKnoepfe, belege.feld, betrag.feld, partner.feld, kategorie.feld, konto.feld, gegenkonto.feld, budgetFeld.feld, datum.feld, status.feld, notiz.feld, projekt?.feld, vertrag?.feld, relevantFeld, alsVorlage]
-      : [extras, leiste, artKnoepfe, betrag.feld, partner.feld, kategorie.feld, konto.feld, gegenkonto.feld, budgetFeld.feld, datum.feld, status.feld, notiz.feld, projekt?.feld, vertrag?.feld, relevantFeld, belege.feld, alsVorlage]
+      ? [leiste, artKnoepfe, belege.feld, betrag.feld, partner.feld, kategorie.feld, konto.feld, gegenkonto.feld, budgetFeld.feld, datum.feld, status.feld, notiz.feld, weitere, alsVorlage]
+      : [extras, leiste, artKnoepfe, betrag.feld, partner.feld, kategorie.feld, konto.feld, gegenkonto.feld, budgetFeld.feld, datum.feld, status.feld, notiz.feld, weitere, belege.feld, alsVorlage]
     ).filter(Boolean),
     speichernText: buchung ? 'Speichern' : 'Erfassen',
     zusatz: buchung && {

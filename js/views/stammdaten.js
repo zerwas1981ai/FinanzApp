@@ -3,7 +3,8 @@
 import { h } from '../dom.js';
 import * as db from '../db.js';
 import { formatEuro, formatDatum, parseEuro, centZuEingabe, heuteIso, istGueltigesDatum } from '../format.js';
-import { dialog, frage, toast, eingabe, auswahl, optionsGruppe, knopf, schalter } from '../ui.js';
+import { dialog, frage, toast, eingabe, auswahl, optionsGruppe, knopf, schalter, geraet, katPunkt } from '../ui.js';
+import { PALETTE, farbenZuordnung } from '../farben.js';
 import { hatTestdaten, ladeTestdaten, loescheTestdaten } from '../testdaten.js';
 import { neueKategorie } from '../startdaten.js';
 import { DATENMODELL_VERSION } from '../migrationen.js';
@@ -76,6 +77,7 @@ export async function zeigeStammdaten(container) {
   // filter(Boolean): ausgeblendete Bereiche (false) weglassen – sonst stünde "false" als Text da
   container.replaceChildren(...[
     h('h1', { class: 'seitentitel' }, 'Stammdaten'),
+    ...[
     kontenBereich(konten, neu),
     kategorienBereich(kategorien, neu),
     vorlagenBereich(vorlagen, konten, kategorien, neu),
@@ -90,7 +92,28 @@ export async function zeigeStammdaten(container) {
     // D140: auf Wunsch ausgeblendet – zum Wiedereinblenden auf true setzen (die Funktion bleibt im Code)
     ZEIGE_NEU_BEGINNEN && neuBeginnenBereich(),
     infoBereich(),
+    ].filter(Boolean).map(einklappbar), // D154
   ].filter(Boolean));
+}
+
+/**
+ * D154: Jeden Bereich der Stammdaten einklappbar machen. Die Überschrift wird zur Klappzeile.
+ * Standard: Konten und Kategorien offen, alles andere zu. Das Gerät merkt sich, was offen ist.
+ */
+const STANDARD_OFFEN = new Set(['titel-konten', 'titel-kategorien', 'titel-testdaten']);
+function einklappbar(sektion) {
+  const titel = sektion.querySelector('h2[id]');
+  if (!titel) return sektion;
+  const schluessel = `stamm-offen-${titel.id}`;
+  const gemerkt = geraet.lies(schluessel);
+  const offen = gemerkt == null ? STANDARD_OFFEN.has(titel.id) : gemerkt === '1';
+  const kopf = titel.parentElement !== sektion ? titel.parentElement : null; // z. B. Überschrift + „+ Konto“
+  const d = h('details', { class: `${sektion.className} stamm-klapp`, 'aria-labelledby': titel.id, open: offen },
+    h('summary', { class: 'stamm-klapp-kopf' }, titel));
+  d.append(...[...sektion.childNodes]);
+  if (kopf && kopf.children.length === 0) kopf.remove(); // leer gewordene Kopfzeile weg
+  d.addEventListener('toggle', () => geraet.schreib(schluessel, d.open ? '1' : '0'));
+  return d;
 }
 
 async function setzeArchiv(sammlung, datensatz, archiviert, neu) {
@@ -277,6 +300,7 @@ function hauptKarte(k, kategorien, neu) {
 
   const karte = h('details', { class: 'kat' + (k.archiviert ? ' archiviert' : ''), open: ansicht.offen.has(k.id) },
     h('summary', {},
+      katPunkt(farbenZuordnung(kategorien).get(k.id)?.hex), // D155
       h('span', { class: 'kat-name' }, k.name),
       k.archiviert && h('span', { class: 'marke' }, 'archiviert'),
       h('span', { class: 'kat-anzahl' }, aktiv === 1 ? '1 Unterkategorie' : `${aktiv} Unterkategorien`),
@@ -319,10 +343,27 @@ function hauptDialog(kat, kategorien, neu) {
     optionen: [{ wert: 'ausgabe', text: 'Ausgabe' }, { wert: 'einnahme', text: 'Einnahme' }],
     wert: kat?.art ?? 'ausgabe',
   });
+  // D155: Farbe – „Automatisch“ oder eine Farbe der Palette
+  const autoFarbe = kat ? farbenZuordnung(kategorien.map((x) => (x.id === kat.id ? { ...x, farbe: null } : x))).get(kat.id) : null;
+  let farbe = kat?.farbe ?? '';
+  const farbKnopf = (wert, hex, text) => h('button', {
+    type: 'button', class: 'farb-wahl', style: `--kat-farbe:${hex}`, title: text, 'aria-label': text,
+    'aria-pressed': String(farbe === wert),
+    onclick: (e) => {
+      farbe = wert;
+      e.currentTarget.parentElement.querySelectorAll('.farb-wahl').forEach((b) => b.setAttribute('aria-pressed', String(b === e.currentTarget)));
+    },
+  }, wert === '' ? 'A' : '');
+  const farbFeld = h('div', { class: 'feld' },
+    h('span', { class: 'feld-label' }, 'Farbe'),
+    h('div', { class: 'farb-reihe', role: 'group', 'aria-label': 'Farbe' },
+      farbKnopf('', autoFarbe?.hex ?? '#8a94a3', `Automatisch${autoFarbe ? ` (${autoFarbe.name})` : ''}`),
+      PALETTE.map((p) => farbKnopf(p.schluessel, p.hex, p.name))),
+    h('small', { class: 'feld-hilfe' }, 'Erscheint als kleiner Punkt bei den Buchungen. Unterkategorien haben dieselbe Farbe. „A“ = automatisch.'));
 
   dialog({
     titel: kat ? 'Hauptkategorie bearbeiten' : 'Neue Hauptkategorie',
-    inhalt: [name.feld, art.feld, h('p', { class: 'hinweis' }, 'Unterkategorien übernehmen automatisch die Art der Hauptkategorie.')],
+    inhalt: [name.feld, art.feld, farbFeld, h('p', { class: 'hinweis' }, 'Unterkategorien übernehmen automatisch die Art der Hauptkategorie.')],
     onSpeichern: async () => {
       const n = name.input.value.trim();
       if (!n) throw new Error('Bitte einen Namen eingeben.');
@@ -330,10 +371,10 @@ function hauptDialog(kat, kategorien, neu) {
         throw new Error(`Eine Hauptkategorie „${n}“ gibt es schon (eventuell archiviert).`);
       }
       if (kat) {
-        await db.speichere('kategorien', { ...kat, name: n, art: art.wert(), geaendertAm: jetzt() });
+        await db.speichere('kategorien', { ...kat, name: n, art: art.wert(), farbe: farbe || null, geaendertAm: jetzt() });
         toast('Kategorie gespeichert');
       } else {
-        const neueKat = neueKategorie({ name: n, art: art.wert() });
+        const neueKat = { ...neueKategorie({ name: n, art: art.wert() }), ...(farbe ? { farbe } : {}) };
         await db.speichere('kategorien', neueKat);
         ansicht.offen.add(neueKat.id); // gleich aufgeklappt zeigen
         toast(`„${n}“ angelegt – jetzt Unterkategorien hinzufügen`);

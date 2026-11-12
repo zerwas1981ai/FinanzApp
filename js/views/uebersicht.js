@@ -9,7 +9,8 @@ import {
   isoMonatsanfang, naechsterMonat, vorigerMonat, istGueltigesDatum,
 } from '../format.js';
 import { monatsuebersicht, kontostand, vorgemerktBis, wirkungCent } from '../rechnen.js';
-import { dialog, eingabe, hinweis, toast, geraet, datenGeaendert, klappBereich } from '../ui.js';
+import { dialog, eingabe, hinweis, toast, geraet, datenGeaendert, klappBereich, katPunkt } from '../ui.js';
+import { farbenZuordnung, farbeVon } from '../farben.js';
 import { oeffneBuchungsdialog } from './buchung-dialog.js';
 import { kuendigungsBereich } from './vertraege.js';
 import { kuendigungsHinweise } from '../vertraege.js';
@@ -462,6 +463,7 @@ function buchungsliste(m, konto, konten, kategorien) {
 
 /** Tabelle der Buchungen eines Kontos am PC (D78–D80): neueste oben, Tageszeilen mit Tagesstand (in der Spalte Betrag) */
 function kontoTabelle(auswahl, tagesKopf, katName, kontoName) {
+  const farben = farbenZuordnung([...katName.values()]); // D155
   // D141: schmale Spalte „v“ (vorgemerkt) zwischen Datum und Empfänger
   const spalten = [['datum', 'Datum'], ['status', ''], ['partner', 'Empfänger/Absender'], ['kategorie', 'Kategorie'], ['notiz', 'Notiz'], ['betrag', 'Betrag']];
   const zeile = ({ buchung: b }) => {
@@ -484,7 +486,7 @@ function kontoTabelle(auswahl, tagesKopf, katName, kontoName) {
           partner ? h('span', { class: 'btab-partner-name' }, partner) : h('span', { class: 'gedaempft' }, '–')),
         h('span', { class: 'btab-unter' },
           h('span', { class: 'btab-zelle btab-datum' }, formatDatum(b.datum)),
-          h('span', { class: 'btab-zelle btab-kategorie', title: katText }, katText),
+          h('span', { class: 'btab-zelle btab-kategorie', title: katText }, b.art !== 'umbuchung' && katPunkt(farbeVon(b.kategorieId, katName, farben)), katText),
           h('span', { class: 'btab-zelle btab-notiz', title: b.notiz || null }, b.notiz ?? '')),
         h('span', { class: 'btab-zelle btab-betrag betrag ' + (b.art === 'umbuchung' ? 'gedaempft' : wirkung > 0 ? 'plus' : '') },
           (wirkung > 0 ? '+' : '') + formatEuro(wirkung))));
@@ -498,7 +500,7 @@ function kontoTabelle(auswahl, tagesKopf, katName, kontoName) {
     ])));
 }
 
-function buchungsZeile(b, katName, kontoName) {
+function buchungsZeile(b, katName, kontoName, farben = farbenZuordnung([...katName.values()])) {
   let titel;
   let unterzeile;
   // Am Handy eine Zeile ohne Kategorie (D75/D76): Empfänger/Absender, sonst Notiz, sonst die Art
@@ -521,6 +523,7 @@ function buchungsZeile(b, katName, kontoName) {
     h('button', { type: 'button', class: 'buchung einzeilig', onclick: () => oeffneBuchungsdialog(b) },
       h('span', { class: 'buchung-text' },
         h('span', { class: 'buchung-titel' },
+          b.art !== 'umbuchung' && katPunkt(farbeVon(b.kategorieId, katName, farben), katName.get(katName.get(b.kategorieId)?.elternId)?.name), // D155
           h('span', { class: 'nur-breit' }, titel), h('span', { class: 'nur-schmal', title: titelHandy }, titelHandy),
           b.status === 'vorgemerkt' && h('span', { class: 'marke marke-vorgemerkt' }, 'vorgemerkt')),
         unterzeile && h('span', { class: 'buchung-unter nur-breit' }, unterzeile)),

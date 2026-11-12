@@ -5,7 +5,7 @@
 import { h } from '../dom.js';
 import * as db from '../db.js';
 import { formatEuro, formatDatum, heuteIso } from '../format.js';
-import { dialog, frage, toast, eingabe, auswahl, datenGeaendert, klappBereich } from '../ui.js';
+import { dialog, frage, toast, eingabe, auswahl, datenGeaendert, klappBereich, geraet } from '../ui.js';
 import {
   baueVertrag, vertragsStand, vertragsKosten, vertragsUebersicht, vertragsBuchungen, endeVorschlag,
   zuordnungsKandidaten, fristText, FRIST_EINHEITEN, STANDARD_ERINNERUNG_TAGE, vertragVon, aktuellerBetrag, plusMonate, plusTage,
@@ -344,6 +344,9 @@ export function kuendigungsBereich(hinweise, daten) {
             datenGeaendert();
           },
         }, 'Behalten'),
-        h('a', { class: 'knopf', href: '#projekte' }, 'Zum Vertrag')));
+        h('a', {
+          class: 'knopf', href: '#projekte',
+          onclick: () => geraet.schreib('ansicht-projekte', 'vertraege'), // D153: gleich die Verträge zeigen
+        }, 'Zum Vertrag')));
   })));
 }

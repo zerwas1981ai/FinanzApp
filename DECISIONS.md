@@ -2137,3 +2137,58 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
 
 - „↻ Als wiederkehrend anlegen“ im Buchungsdialog zeigt jetzt ebenfalls das Feld „Vertrag (optional)“,
   vorbelegt mit dem Vertrag der Buchung. „⧉ Kopieren“ übernimmt den Vertrag ebenso.
+
+## D152 – Buchungsdialog: seltene Felder unter „Weitere Angaben“
+*Wunsch des Nutzers (Verbesserungen 12.11.2026, Runde 3, Punkt 7)*
+
+- Projekt, Vertrag und „Relevante Ausgabe“ stehen eingeklappt unter **„Weitere Angaben ▸“**; die Klappzeile
+  nennt, was darin steckt. Ist eines davon ausgefüllt, ist der Bereich beim Öffnen aufgeklappt.
+- Status (gebucht/vorgemerkt) bleibt sichtbar.
+
+## D153 – Tab Projekte mit Umschaltern
+*Punkt 8*
+
+- Oben vier Umschalter **Projekte · Verträge · Relevante Ausgaben · Sparziele** (wie die Konto-Wahl in der
+  Übersicht); das Gerät merkt sich die Wahl. Bei nahenden Kündigungsfristen trägt „Verträge“ eine Zahl.
+- „Zum Vertrag“ im Kündigungs-Hinweis (D148) öffnet direkt die Verträge.
+
+## D154 – Stammdaten einklappbar
+*Punkt 9*
+
+- Jeder Bereich der Stammdaten ist einklappbar (Überschrift = Klappzeile). Standard: Konten und Kategorien
+  offen (beim Entwickeln auch Testdaten), alles andere zu. Das Gerät merkt sich den Zustand je Bereich.
+- Ein „ⓘ“ in einem eingeklappten Bereich klappt ihn beim Antippen auf, damit die Erklärung zu sehen ist.
+
+## D155 – Kategorie-Farben
+*Punkt 6*
+
+- Jede Hauptkategorie hat eine Farbe aus einer ruhigen Palette (12 Farben). **Automatisch**: der Reihe nach
+  (älteste Kategorie zuerst, damit sich nichts verschiebt, wenn neue dazukommen) die am wenigsten benutzte
+  Farbe. **Änderbar** im Dialog der Hauptkategorie („A“ = automatisch). Unterkategorien erben die Farbe.
+- Neues optionales Feld `farbe` an der Hauptkategorie (fehlt/null = automatisch, keine Datenumstellung).
+- Ein kleiner Farbpunkt erscheint in der Übersicht (PC-Tabelle in der Spalte Kategorie, Liste vor dem
+  Titel), in „Alle Buchungen“ (Spalte Kategorie), in den Stammdaten und im Rückblick.
+
+## D156 – Monats- und Jahresrückblick
+*Punkt 2*
+
+- Knopf **„Rückblick“** oben in „Alle Buchungen“. Umschalter Monat/Jahr und Auswahl des Zeitraums
+  (Standard: Vormonat bzw. Vorjahr).
+- **Monat:** Einnahmen, Ausgaben, Saldo und Sparquote für den Monat und die **beiden Vormonate**, mit
+  Veränderung zum Vormonat; Ausgaben je Hauptkategorie (drei Monate + Δ); die 5 größten Ausgaben.
+- **Jahr:** dasselbe gegen das **Vorjahr** (im laufenden Jahr nur bis zum gleichen Tag), dazu alle Monate
+  des Jahres einzeln und die 10 größten Ausgaben.
+- Gezählt werden echte Buchungen (gebucht und vorgemerkt) bis heute, ohne Papierkorb und ohne Umbuchungen.
+  Archivierte Jahre zählen mit, soweit sie auf dem Gerät geladen sind.
+- „Drucken / PDF“ nutzt die Druckansicht wie D144.
+
+## D157 – Sparziele
+*Punkt 3*
+
+- Neue Sammlung „sparziele“ (Datenversion 19, DB-Struktur 11): Name, Konto, Zielbetrag, „Erreichen bis“
+  (optional), Notiz, abgeschlossen. Gemessen wird der **Kontostand** des gewählten Kontos.
+- Anzeige im Tab Projekte unter „Sparziele“: Fortschrittsbalken (Stand heute von Ziel, Prozent) und Prognose
+  aus der Zeitleiste: „Voraussichtlich erreicht: Monat Jahr“, „rechtzeitig ✓“ oder – wenn das Zieldatum nicht
+  reicht – der voraussichtliche Fehlbetrag und wie viel dafür zusätzlich je Monat zurückzulegen wäre
+  (auf volle Euro aufgerundet). Abgeschlossene Ziele eingeklappt.
+- Die Suche (D146) findet auch Sparziele.

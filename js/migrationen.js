@@ -23,7 +23,7 @@
 import { neueKategorie, INVESTITIONEN_UNTER, BARGELD_UNTER } from './startdaten.js';
 import { startReihenfolge } from './konten.js';
 
-export const DATENMODELL_VERSION = 18;
+export const DATENMODELL_VERSION = 19;
 
 /** Standard-Schwellen für Budgethinweise (in den Stammdaten änderbar) */
 export const STANDARD_EINSTELLUNGEN = Object.freeze({ id: 'hinweise', monate: 3, prozent: 10 });
@@ -231,6 +231,14 @@ export const MIGRATIONEN = [
       daten.vertraege ??= [];
       for (const b of daten.buchungen ?? []) b.vertragId ??= null;
       for (const w of daten.wiederkehrend ?? []) w.vertragId ??= null;
+      return daten;
+    },
+  },
+  {
+    nach: 19,
+    beschreibung: 'Sparziele: neue Sammlung "sparziele" (D157).',
+    migriere(daten) {
+      daten.sparziele ??= [];
       return daten;
     },
   },

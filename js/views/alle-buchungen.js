@@ -3,7 +3,9 @@
 import { h } from '../dom.js';
 import * as db from '../db.js';
 import { formatEuro, formatEuroRund, formatProzent, formatDatum, formatMonat, heuteIso, parseEuro } from '../format.js';
-import { herunterladen, toast } from '../ui.js';
+import { herunterladen, toast, katPunkt } from '../ui.js';
+import { farbenZuordnung, farbeVon } from '../farben.js';
+import { oeffneRueckblick } from './rueckblick.js';
 import { archivInhalt } from '../sync/abgleich.js';
 import { buchungenAlsCsv, exportName } from '../export.js';
 import {
@@ -114,7 +116,10 @@ export async function zeigeBuchungen(container, { archivAnmelden = false } = {})
       `Enthält auch die archivierten Jahre ${geladen.map((a) => a.eintrag.jahr).join(', ')} (nur lesen, Kennzeichnung „Archiv“).`);
 
   container.replaceChildren(...[
-    h('h1', { class: 'seitentitel' }, 'Alle Buchungen'),
+    h('div', { class: 'seitenkopf' },
+      h('h1', { class: 'seitentitel' }, 'Alle Buchungen'),
+      // D156: Monats- und Jahresrückblick
+      h('button', { type: 'button', class: 'knopf', onclick: () => oeffneRueckblick(daten) }, 'Rückblick')),
     archivInfo,
     filterBereich(daten, aktualisiere, neuZeichnen),
     ergebnis,
@@ -548,6 +553,7 @@ function liste(eintraege, daten, neu) {
     onclick: () => { zustand.sortierung = STANDARD_SORTIERUNG; neu(); },
   }, 'Sortierung zurücksetzen');
 
+  const farben = farbenZuordnung([...kat.values()]); // D155
   const zeile = ({ buchung: b, wirkung }) => {
     let partnerText;
     let katText;
@@ -585,7 +591,7 @@ function liste(eintraege, daten, neu) {
         b.archivJahr && h('span', { class: 'marke' }, 'Archiv')),
       h('span', { class: 'btab-unter' },
         h('span', { class: 'btab-zelle btab-datum' }, formatDatum(b.datum)),
-        h('span', { class: 'btab-zelle btab-kategorie', title: katText }, katText),
+        h('span', { class: 'btab-zelle btab-kategorie', title: katText }, b.art !== 'umbuchung' && katPunkt(farbeVon(b.kategorieId, kat, farben)), katText),
         h('span', { class: 'btab-zelle btab-konto' }, b.art === 'umbuchung' ? '' : kontoName.get(b.kontoId) ?? ''),
         h('span', { class: 'btab-zelle btab-notiz', title: b.notiz || null }, b.notiz ?? '')),
       h('span', { class: `btab-zelle btab-betrag betrag ${klasse}` }, betragText)));

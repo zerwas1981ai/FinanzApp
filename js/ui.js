@@ -191,6 +191,9 @@ function bereiteErklaerungVor(p, wurzel) {
       e.stopPropagation();
       const auf = knopf.getAttribute('aria-expanded') !== 'true';
       knopf.setAttribute('aria-expanded', String(auf));
+      // D154: steht das ⓘ in einer eingeklappten Klappzeile, den Bereich dabei aufklappen
+      const klapp = knopf.closest('summary')?.parentElement;
+      if (auf && klapp?.tagName === 'DETAILS' && !klapp.open) klapp.open = true;
       for (const { absatz, key } of knopf.erklaerungen) {
         absatz.hidden = !auf;
         if (auf) offeneErklaerungen.add(key); else offeneErklaerungen.delete(key);
@@ -222,6 +225,11 @@ export function klappBereich({ klasse = '', titel, zusatz = null, rechts = null,
     h('div', { class: 'klapp-inhalt' }, ...inhalt));
   if (beiWechsel) d.addEventListener('toggle', () => beiWechsel(d.open));
   return d;
+}
+
+/** D155: kleiner Farbpunkt einer Kategorie (hex oder null = kein Punkt) */
+export function katPunkt(hex, titel = null) {
+  return hex ? h('span', { class: 'kat-punkt', style: `--kat-farbe:${hex}`, title: titel, 'aria-hidden': 'true' }) : null;
 }
 
 /** Ein-/Aus-Schalter (Checkbox mit Text) */

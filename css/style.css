@@ -1541,10 +1541,19 @@ body:not(.umbuchungen-sichtbar) .ub-ausblendbar { display: none; }
   #druckbereich p { margin: 0 0 6pt; }
   #druckbereich table { width: 100%; border-collapse: collapse; table-layout: fixed; }
   /* gleiche Spaltenbreiten in allen Jahren */
-  #druckbereich th:nth-child(1) { width: 11%; } #druckbereich th:nth-child(2) { width: 17%; }
-  #druckbereich th:nth-child(3) { width: 20%; } #druckbereich th:nth-child(4) { width: 17%; }
-  #druckbereich th:nth-child(5) { width: 12%; } #druckbereich th:nth-child(6) { width: 12%; }
-  #druckbereich th:nth-child(7) { width: 11%; text-align: right; }
+  .druck-relevant th:nth-child(1) { width: 11%; } .druck-relevant th:nth-child(2) { width: 17%; }
+  .druck-relevant th:nth-child(3) { width: 20%; } .druck-relevant th:nth-child(4) { width: 17%; }
+  .druck-relevant th:nth-child(5) { width: 12%; } .druck-relevant th:nth-child(6) { width: 12%; }
+  .druck-relevant th:nth-child(7) { width: 11%; text-align: right; }
+  /* D156: Rückblick im Druck */
+  .druck-rueckblick table { table-layout: auto; margin-bottom: 6pt; }
+  .druck-rueckblick th.zahl { text-align: right; }
+  .druck-rueckblick h3 { font-size: 11pt; margin: 12pt 0 4pt; }
+  .druck-rueckblick .kat-punkt { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .druck-rueckblick .rb-groesste { list-style: none; padding: 0; margin: 0; }
+  .druck-rueckblick .rb-groesste li { display: flex; gap: 8pt; border-bottom: .5pt solid #bbb; padding: 2pt 0; }
+  .druck-rueckblick .rb-text { flex: 1; }
+  .druck-rueckblick .plus, .druck-rueckblick .warn-text, .druck-rueckblick .negativ, .druck-rueckblick .gedaempft { color: #000 !important; }
   #druckbereich td { overflow-wrap: anywhere; }
   #druckbereich th, #druckbereich td { text-align: left; padding: 3pt 4pt; border-bottom: .5pt solid #bbb; vertical-align: top; }
   #druckbereich th { border-bottom: 1pt solid #000; }
@@ -1617,3 +1626,67 @@ body:not(.umbuchungen-sichtbar) .ub-ausblendbar { display: none; }
   .vertrag-angabe { display: block; margin-bottom: 6px; }
   .vertrag-angabe > span:first-child { display: block; }
 }
+
+/* D152: Buchungsdialog – seltene Felder unter „Weitere Angaben“ */
+.weitere-angaben { border-top: 1px solid var(--rand); padding-top: 8px; }
+.weitere-angaben > summary { cursor: pointer; font-size: .9rem; font-weight: 600; color: var(--text-2); list-style: none; padding: 4px 0; }
+.weitere-angaben > summary::-webkit-details-marker { display: none; }
+.weitere-angaben > summary::before { content: '▸ '; }
+.weitere-angaben[open] > summary::before { content: '▾ '; }
+.weitere-angaben-text { font-weight: 400; font-size: .8rem; }
+.weitere-angaben[open] > :not(summary) { margin-top: 10px; }
+
+/* D154: Stammdaten-Bereiche einklappbar */
+.stamm-klapp > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+.stamm-klapp > summary::-webkit-details-marker { display: none; }
+.stamm-klapp > summary::before { content: '▸'; color: var(--text-2); font-size: .85rem; width: 12px; }
+.stamm-klapp[open] > summary::before { content: '▾'; }
+.stamm-klapp > summary h2 { margin: 0; }
+.stamm-klapp[open] > summary { margin-bottom: 10px; }
+.stamm-klapp .bereich-kopf { justify-content: flex-end; }
+
+/* D155: Kategorie-Farben */
+.kat-punkt {
+  display: inline-block; flex: none; width: 8px; height: 8px; border-radius: 50%;
+  background: var(--kat-farbe); margin-right: 6px; vertical-align: middle; position: relative; top: -1px;
+}
+.btab-kategorie .kat-punkt { margin-right: 5px; }
+.kat > summary .kat-punkt { margin-right: 2px; }
+.farb-reihe { display: flex; flex-wrap: wrap; gap: 8px; }
+.farb-wahl {
+  width: 30px; height: 30px; border-radius: 50%; border: 2px solid transparent; background: var(--kat-farbe);
+  cursor: pointer; color: #fff; font: 600 .75rem/1 system-ui, sans-serif; padding: 0;
+  box-shadow: 0 0 0 1px var(--rand);
+}
+.farb-wahl[aria-pressed="true"] { border-color: var(--bg); box-shadow: 0 0 0 2px var(--text); }
+
+/* D156: Rückblick */
+.rb-dialog { width: min(760px, calc(100vw - 24px)); max-width: none; }
+.rb-wahl { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.rb-wahl .segmente { margin: 0; }
+.rb-wahl select { min-width: 160px; }
+.rb-titel { font-size: .95rem; margin: 16px 0 6px; }
+.rb-tabelle-rahmen { overflow-x: auto; }
+.rb-tabelle { width: 100%; border-collapse: collapse; font-size: .9rem; }
+.rb-tabelle th { font-size: .75rem; font-weight: 600; color: var(--text-2); text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--rand); }
+.rb-tabelle td { padding: 6px; border-bottom: 1px solid var(--rand); white-space: nowrap; }
+.rb-tabelle td:first-child { white-space: normal; }
+.rb-tabelle .zahl { text-align: right; font-variant-numeric: tabular-nums; }
+.rb-tabelle .rb-summe td { font-weight: 600; }
+.rb-groesste { list-style: none; margin: 0; padding: 0; }
+.rb-groesste li { display: grid; grid-template-columns: 84px minmax(0, 1fr) auto; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--rand); font-size: .9rem; }
+.rb-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rb-datum { color: var(--text-2); }
+@media (max-width: 767px) {
+  .rb-tabelle { font-size: .82rem; }
+  .rb-tabelle td, .rb-tabelle th { padding: 5px 4px; }
+  .rb-groesste li { grid-template-columns: 72px minmax(0, 1fr) auto; }
+}
+
+/* D157: Sparziele */
+.sparziel { margin-top: 10px; }
+.sparziel .bereich-kopf { margin-bottom: 6px; }
+.sparziel-name { margin: 0; font-size: 1rem; }
+.sparziel-zahlen { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; margin-top: 6px; }
+.sparziel-prognose { margin: 6px 0 0; }
+.meter.erreicht > span { background: var(--einnahme); }

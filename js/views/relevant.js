@@ -144,7 +144,7 @@ function drucke(zeilen, jahr, daten) {
       h('tfoot', {}, h('tr', {}, h('td', { colspan: 6 }, `Summe ${j.jahr}`), h('td', { class: 'zahl' }, formatEuro(j.summeCent))))));
   const jahresListe = nachJahren(zeilen).reverse(); // ältestes Jahr zuerst
   const gesamt = zeilen.reduce((s, z) => s + z.betragCent, 0);
-  const bereich = h('div', { id: 'druckbereich' },
+  const bereich = h('div', { id: 'druckbereich', class: 'druck-relevant' },
     h('h1', {}, `Relevante Ausgaben ${jahr || 'gesamt'}`),
     h('p', {}, `Stand ${formatDatum(heuteIso())} · ${zeilen.length === 1 ? '1 Ausgabe' : `${zeilen.length} Ausgaben`}${gruppenText}`),
     ...jahresListe.map(jahresBlock),

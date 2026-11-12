@@ -14,14 +14,14 @@ const DB_NAME = 'finanzapp';
 // 5 = Projekte statt Szenarien; 6 = Etappe 6: belegDateien (lokaler Zwischenspeicher für Belege);
 // 7 = Archiv: archive (abgeglichen), archivDateien (lokaler Zwischenspeicher)
 // 8 = Relevante Ausgaben: relevant (D74); 9 = Vorlagen für häufige Buchungen: vorlagen (D104)
-// 10 = Verträge: vertraege (D148)
-const DB_STRUKTUR_VERSION = 10;
+// 10 = Verträge: vertraege (D148); 11 = Sparziele: sparziele (D157)
+const DB_STRUKTUR_VERSION = 11;
 
 /** Schubladen mit Nutzdaten. "meta" kommt zusätzlich dazu (Versionsnummer usw.). */
 export const SAMMLUNGEN = [
   'konten', 'kategorien', 'buchungen', 'abstimmungen',
   'budgets', 'wiederkehrend', 'hinweise', 'einstellungen',
-  'geplant', 'projekte', 'archive', 'relevant', 'vorlagen', 'vertraege',
+  'geplant', 'projekte', 'archive', 'relevant', 'vorlagen', 'vertraege', 'sparziele',
 ];
 
 /**
