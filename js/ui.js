@@ -227,6 +227,36 @@ export function klappBereich({ klasse = '', titel, zusatz = null, rechts = null,
   return d;
 }
 
+/**
+ * D160: Umschalter-Leiste für die Bereiche eines Tabs (wie die Konto-Wahl in der Übersicht).
+ * ansichten: [[schluessel, text, zahl?]]; die Wahl merkt sich das Gerät unter `speicher`.
+ * rechts: optionaler Knopf am rechten Rand; info: true = Platz für ein „ⓘ“ zur Seiten-Erklärung.
+ * Liefert { aktuell, leiste(beiWahl) }.
+ */
+/** Langer Name am PC, Kurzform am Handy (für Umschalter) */
+export const kurzLang = (lang, kurz) => [h('span', { class: 'nur-breit' }, lang), h('span', { class: 'nur-schmal' }, kurz)];
+
+export function bereichsWahl(speicher, ansichten, standard = ansichten[0][0]) {
+  const gemerkt = geraet.lies(speicher);
+  const aktuell = ansichten.some(([k]) => k === gemerkt) ? gemerkt : standard;
+  return {
+    aktuell,
+    leiste(beiWahl, { rechts = null, info = false } = {}) {
+      return h('div', { class: 'umschalter-zeile' },
+        h('div', { class: 'chips', role: 'group', 'aria-label': 'Bereich wählen' },
+          ansichten.map(([k, text, zahl]) => h('button', {
+            type: 'button',
+            class: 'chip',
+            'aria-pressed': String(k === aktuell),
+            onclick: () => { geraet.schreib(speicher, k); beiWahl(k); },
+          }, text, zahl > 0 && h('span', { class: 'chip-zahl', 'aria-hidden': 'true' }, String(zahl))))),
+        // leere Überschrift: daran hängt richteErklaerungenEin das „ⓘ“ der Seiten-Erklärung (D109)
+        info && h('h3', { class: 'umschalter-info', 'aria-label': 'Erklärung' }),
+        rechts);
+    },
+  };
+}
+
 /** D155: kleiner Farbpunkt einer Kategorie (hex oder null = kein Punkt) */
 export function katPunkt(hex, titel = null) {
   return hex ? h('span', { class: 'kat-punkt', style: `--kat-farbe:${hex}`, title: titel, 'aria-hidden': 'true' }) : null;

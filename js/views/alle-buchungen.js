@@ -116,10 +116,7 @@ export async function zeigeBuchungen(container, { archivAnmelden = false } = {})
       `Enthält auch die archivierten Jahre ${geladen.map((a) => a.eintrag.jahr).join(', ')} (nur lesen, Kennzeichnung „Archiv“).`);
 
   container.replaceChildren(...[
-    h('div', { class: 'seitenkopf' },
-      h('h1', { class: 'seitentitel' }, 'Alle Buchungen'),
-      // D156: Monats- und Jahresrückblick
-      h('button', { type: 'button', class: 'knopf', onclick: () => oeffneRueckblick(daten) }, 'Rückblick')),
+    h('h1', { class: 'seitentitel unsichtbar' }, 'Alle Buchungen'), // D160: nur für Bildschirmleser
     archivInfo,
     filterBereich(daten, aktualisiere, neuZeichnen),
     ergebnis,
@@ -448,7 +445,9 @@ function zeigeErgebnis(ziel, daten) {
 
   ziel.replaceChildren(
     summenKarte(s, von, bis && bis < heute ? bis : heute), // D121: angezeigt wird höchstens bis heute
-    modusWahl,
+    // D156/D160: „Rückblick“ rechts neben Liste/Analyse (die Seitenüberschrift entfällt)
+    h('div', { class: 'modus-zeile' }, modusWahl,
+      h('button', { type: 'button', class: 'knopf knopf-klein', onclick: () => oeffneRueckblick(daten) }, 'Rückblick')),
     zustand.modus === 'liste'
       ? liste(eintraege, daten, () => zeigeErgebnis(ziel, daten))
       : analyse(eintraege, daten, heute, () => zeigeErgebnis(ziel, daten)),

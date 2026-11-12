@@ -3,7 +3,7 @@
 import { h } from '../dom.js';
 import * as db from '../db.js';
 import { formatEuro, formatDatum, parseEuro, centZuEingabe, heuteIso, istGueltigesDatum } from '../format.js';
-import { dialog, frage, toast, eingabe, auswahl, optionsGruppe, knopf, schalter, geraet, katPunkt } from '../ui.js';
+import { dialog, frage, toast, eingabe, auswahl, optionsGruppe, knopf, schalter, katPunkt, bereichsWahl } from '../ui.js';
 import { PALETTE, farbenZuordnung, paletteEintrag } from '../farben.js';
 import { hatTestdaten, ladeTestdaten, loescheTestdaten } from '../testdaten.js';
 import { neueKategorie } from '../startdaten.js';
@@ -75,45 +75,31 @@ export async function zeigeStammdaten(container) {
   testAnnahmen = [budgets, wiederkehrend, geplant, projekte];
   const neu = () => zeigeStammdaten(container);
   // filter(Boolean): ausgeblendete Bereiche (false) weglassen – sonst stünde "false" als Text da
-  container.replaceChildren(...[
-    h('h1', { class: 'seitentitel' }, 'Stammdaten'),
-    ...[
-    kontenBereich(konten, neu),
-    kategorienBereich(kategorien, neu),
-    vorlagenBereich(vorlagen, konten, kategorien, neu),
-    schwellenBereich(await leseEinstellungen()),
-    driveBereich(neu),
-    await sperreBereich(neu),
-    exportBereich(),
-    papierkorbBereich(konten, kategorien, neu),
-    await archivBereich(neu),
+  // D160: Umschalter statt alles untereinander (ersetzt die Klappbereiche aus D154); Wahl merkt sich das Gerät
+  const papierkorbAnzahl = alleBuchungen.filter((b) => b.geloeschtAm).length + relevant.filter((r) => r.geloeschtAm).length;
+  const bereiche = [
+    ['konten', 'Konten', () => kontenBereich(konten, neu)],
+    ['kategorien', 'Kategorien', () => kategorienBereich(kategorien, neu)],
+    ['vorlagen', 'Vorlagen', () => vorlagenBereich(vorlagen, konten, kategorien, neu)],
+    ['schwellen', 'Budgethinweise', async () => schwellenBereich(await leseEinstellungen())],
+    ['drive', 'Google Drive', () => driveBereich(neu)],
+    ['login', 'App-Login', () => sperreBereich(neu)],
+    ['export', 'Export', () => exportBereich()],
+    ['papierkorb', 'Papierkorb', () => papierkorbBereich(konten, kategorien, neu), papierkorbAnzahl],
+    ['archiv', 'Archiv', () => archivBereich(neu)],
     // Testdaten nur beim Entwickeln am PC (localhost), nicht in der veröffentlichten App (D66)
-    IST_ENTWICKLUNG && testdatenBereich(konten, kategorien, neu),
+    IST_ENTWICKLUNG && ['testdaten', 'Testdaten', () => testdatenBereich(konten, kategorien, neu)],
     // D140: auf Wunsch ausgeblendet – zum Wiedereinblenden auf true setzen (die Funktion bleibt im Code)
-    ZEIGE_NEU_BEGINNEN && neuBeginnenBereich(),
-    infoBereich(),
-    ].filter(Boolean).map(einklappbar), // D154
-  ].filter(Boolean));
-}
-
-/**
- * D154: Jeden Bereich der Stammdaten einklappbar machen. Die Überschrift wird zur Klappzeile.
- * Standard: Konten und Kategorien offen, alles andere zu. Das Gerät merkt sich, was offen ist.
- */
-const STANDARD_OFFEN = new Set(['titel-konten', 'titel-kategorien', 'titel-testdaten']);
-function einklappbar(sektion) {
-  const titel = sektion.querySelector('h2[id]');
-  if (!titel) return sektion;
-  const schluessel = `stamm-offen-${titel.id}`;
-  const gemerkt = geraet.lies(schluessel);
-  const offen = gemerkt == null ? STANDARD_OFFEN.has(titel.id) : gemerkt === '1';
-  const kopf = titel.parentElement !== sektion ? titel.parentElement : null; // z. B. Überschrift + „+ Konto“
-  const d = h('details', { class: `${sektion.className} stamm-klapp`, 'aria-labelledby': titel.id, open: offen },
-    h('summary', { class: 'stamm-klapp-kopf' }, titel));
-  d.append(...[...sektion.childNodes]);
-  if (kopf && kopf.children.length === 0) kopf.remove(); // leer gewordene Kopfzeile weg
-  d.addEventListener('toggle', () => geraet.schreib(schluessel, d.open ? '1' : '0'));
-  return d;
+    ZEIGE_NEU_BEGINNEN && ['neu', 'Neu beginnen', () => neuBeginnenBereich()],
+    ['info', 'Info', () => infoBereich()],
+  ].filter(Boolean);
+  const wahl = bereichsWahl('ansicht-stammdaten', bereiche.map(([k, text, , zahl]) => [k, text, zahl]));
+  const bereich = await bereiche.find(([k]) => k === wahl.aktuell)[2]();
+  container.replaceChildren(
+    h('h1', { class: 'seitentitel unsichtbar' }, 'Stammdaten'),
+    wahl.leiste(neu),
+    bereich,
+  );
 }
 
 async function setzeArchiv(sammlung, datensatz, archiviert, neu) {

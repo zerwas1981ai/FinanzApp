@@ -80,11 +80,11 @@ Oberfläche auf Deutsch, Währung Euro, deutsches Datums- und Zahlenformat.
    zuordnen, z. B. Umbau oder Urlaub; Gesamtkosten mit optionalem Rahmen.
    Projektausgaben zählen nicht gegen das Monatsbudget. (Ersetzt die
    früher geplanten Szenarien „Was wäre wenn“, siehe DECISIONS.md D51.)
-4. Annahmen: wiederkehrende Buchungen, Budgets für die Zukunft, geplante
+4. Annahmen (Umschalter Budgets · Wiederkehrende · Geplante, D160): wiederkehrende Buchungen, Budgets für die Zukunft, geplante
    Einmalbuchungen. Nur absolute Werte, KEINE Prozentsteigerungen oder
    Inflation. Ein/Aus-Schalter je Posten, um ihn für die Prognose
    auszuschalten, ohne etwas zu löschen.
-5. Stammdaten: Konten, Kategorien, Schwellen für Hinweise
+5. Stammdaten (Umschalter je Bereich, D160): Konten, Kategorien, Schwellen für Hinweise
 
 ## Rechenlogik
 - Zukunftsmonate werden bei jedem Öffnen berechnet, nicht gespeichert.

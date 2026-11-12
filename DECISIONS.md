@@ -2226,3 +2226,19 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
   Farbton in einer Nachbarstufe. Ohne passendes Stichwort: freie mittlere Farbe, im Farbkreis verteilt.
 - Selbst gewählte Farben haben immer Vorrang; Schlüssel der früheren Paletten (D155, D158) werden auf die
   passende neue Farbe abgebildet.
+
+## D160 – Umschalter auch bei Annahmen und Stammdaten, Seitenüberschriften nur noch in der Übersicht
+*Wunsch des Nutzers (ändert D153 und ersetzt die Klappbereiche aus D154 sowie D159 zur Überschriftgröße)*
+
+- **Annahmen:** Umschalter Budgets · Wiederkehrende Buchungen · Geplante Einmalbuchungen (am Handy kurz:
+  Wiederkehrend, Geplant). **Stammdaten:** Umschalter Konten · Kategorien · Vorlagen · Budgethinweise ·
+  Google Drive · App-Login · Export · Papierkorb (mit Anzahl) · Archiv · Info (beim Entwickeln auch Testdaten).
+  Es ist immer nur der gewählte Bereich zu sehen; das Gerät merkt sich die Wahl je Tab.
+- **Keine sichtbare Seitenüberschrift** mehr in Projekte, Alle Buchungen, Annahmen und Stammdaten (für
+  Bildschirmleser bleibt sie unsichtbar erhalten); nur die Übersicht behält „Übersicht“.
+  - Projekte: „+ Projekt“ steht rechts in der Umschalter-Zeile, die Seiten-Erklärung hängt am „ⓘ“ daneben.
+  - Annahmen: die Seiten-Erklärung hängt am „ⓘ“ rechts in der Umschalter-Zeile.
+  - Alle Buchungen: „Rückblick“ steht rechts neben Liste/Analyse.
+- **Überschriften der Blöcke** überall wie bei Annahmen (1,15 rem, fett); die verkleinerten Klapp-Überschriften
+  der Stammdaten (D159) entfallen mit den Klappbereichen.
+- Gemeinsamer Baustein `bereichsWahl` in ui.js (auch für Projekte).

@@ -6,7 +6,7 @@ import { h } from '../dom.js';
 import { sortiereKonten } from '../konten.js';
 import * as db from '../db.js';
 import { formatEuro, formatDatum, formatMonat, centZuEingabe, parseEuro, heuteIso } from '../format.js';
-import { dialog, frage, toast, eingabe, auswahl, datenGeaendert } from '../ui.js';
+import { dialog, frage, toast, eingabe, auswahl, datenGeaendert, bereichsWahl, kurzLang } from '../ui.js';
 import { baueBudget, baueWiederkehrend, baueGeplant, geplantErledigt, haeufigstesKonto, mitAusnahme } from '../annahmen.js';
 import { betragAm, terminBetrag, naechsterTermin, plusMonate, monatsende, annahmeTitel } from '../prognose.js';
 import { artWahl, fuelleKategorien, projektFeld, oeffneBuchungsdialog, partnerFeld, budgetZuordnungFeld, vertragFeld } from './buchung-dialog.js';
@@ -27,15 +27,20 @@ export async function zeigeAnnahmen(container) {
   const werte = await Promise.all(namen.map((n) => db.alle(n)));
   const daten = Object.fromEntries(namen.map((n, i) => [n, werte[i]]));
 
+  // D160: Umschalter Budgets · Wiederkehrende · Geplante statt alles untereinander; Wahl merkt sich das Gerät
+  const wahl = bereichsWahl('ansicht-annahmen', [
+    ['budgets', 'Budgets'], ['wiederkehrend', kurzLang('Wiederkehrende Buchungen', 'Wiederkehrend')],
+    ['geplant', kurzLang('Geplante Einmalbuchungen', 'Geplant')],
+  ]);
+  const bereich = { budgets: budgetBereich, wiederkehrend: wiederkehrendBereich, geplant: geplantBereich }[wahl.aktuell](daten);
   container.replaceChildren(
-    h('h1', { class: 'seitentitel' }, 'Annahmen'),
+    h('h1', { class: 'seitentitel unsichtbar' }, 'Annahmen'),
+    wahl.leiste(() => zeigeAnnahmen(container), { info: true }),
     h('p', { class: 'hinweis erklaerung' },
       'Hier legst du fest, womit die App für die Zukunft rechnet. Alles sind feste Beträge – ' +
       'keine Prozent-Steigerungen. Nichts davon wird automatisch gebucht. Mit dem Häkchen links ' +
       'schaltest du einen Posten für die Prognose ein oder aus, ohne ihn zu löschen.'),
-    budgetBereich(daten),
-    wiederkehrendBereich(daten),
-    geplantBereich(daten),
+    bereich,
   );
 }
 
