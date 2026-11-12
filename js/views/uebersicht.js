@@ -11,7 +11,8 @@ import {
 import { monatsuebersicht, kontostand, vorgemerktBis, wirkungCent } from '../rechnen.js';
 import { dialog, eingabe, hinweis, toast, geraet, datenGeaendert, klappBereich } from '../ui.js';
 import { oeffneBuchungsdialog } from './buchung-dialog.js';
-import { sortiereKonten } from '../konten.js';
+import { vorgemerkteVonKonto, alsGebuchtMarkieren } from '../buchungen.js';
+import { sortiereKonten, abstimmungFaellig, tageZwischen, ABSTIMM_ERINNERUNG_TAGE } from '../konten.js';
 import { faelligListe, budgetHinweise, zeitleiste, nurWirksam, mindestsaldoWarnungen, LETZTER_MONAT, prognoseJahresende } from '../prognose.js';
 import { umbuchungKnopf, kennzahlenBereich, erwartetBereich, hinweisBereich } from './kennzahlen.js';
 import { zeitleisteBereich, postenListe } from './zeitleiste.js';
@@ -255,6 +256,9 @@ function kontoKopf(konto, buchungen, abstimmungen, prognoseCent, niedrigsterCent
     abstimmText = `Zuletzt abgestimmt für ${formatDatum(letzte.datum)}: ` +
       (differenz === 0 ? 'stimmt ✓' : `Differenz ${formatEuro(differenz)}`);
   }
+  // D145: länger als 10 Tage nicht abgestimmt → farbig mit Tagesangabe
+  const faellig = abstimmungFaellig(letzte?.datum, heute);
+  if (faellig && letzte) abstimmText += ` · vor ${tageZwischen(letzte.datum, heute)} Tagen`;
 
   // D113: Raster – oben links die Stände, oben rechts „Abstimmen“; die letzte Zeile geht über die volle Breite
   // (links niedrigster erwarteter Stand, ganz rechts der Stand der Kontoabstimmung)
@@ -263,6 +267,10 @@ function kontoKopf(konto, buchungen, abstimmungen, prognoseCent, niedrigsterCent
       h('div', { class: 'klein' }, `Kontostand heute (${formatDatum(heute)})`),
       h('div', { class: 'gross' + (stand < 0 ? ' negativ' : '') }, formatEuro(stand)),
       vorgemerkt !== 0 && h('div', { class: 'klein' }, `davon vorgemerkt: ${formatEuro(vorgemerkt)}`),
+      // D147: mehrere vorgemerkte Buchungen auf einmal auf „gebucht“ setzen
+      vorgemerkteVonKonto(konto.id, buchungen).length > 0 && h('button', {
+        type: 'button', class: 'link-knopf klein vorgemerkt-buchen', onclick: () => vorgemerktDialog(konto, buchungen),
+      }, `Vorgemerkte buchen (${vorgemerkteVonKonto(konto.id, buchungen).length}) …`),
       prognoseCent !== undefined && h('div', { class: 'klein' }, 'Prognose Monatsende: ',
         h('span', { class: 'annahme' + (prognoseCent < 0 ? ' negativ' : '') }, formatEuro(prognoseCent)),
         konto.mindestsaldoCent != null && prognoseCent < konto.mindestsaldoCent && h('span', { class: 'warn-text' }, ' – unter Mindestsaldo')),
@@ -278,8 +286,52 @@ function kontoKopf(konto, buchungen, abstimmungen, prognoseCent, niedrigsterCent
       h('span', { class: 'annahme' + (niedrigsterCent < 0 ? ' negativ' : '') }, formatEuro(niedrigsterCent)),
       konto.mindestsaldoCent != null && niedrigsterCent < konto.mindestsaldoCent && h('span', { class: 'warn-text' }, ' – unter Mindestsaldo'))
         : h('span'),
-      h('div', { class: 'klein abstimm-info' + (letzte && letzte.bankstandCent !== kontostand(konto, buchungen, letzte.datum) ? ' warn-text' : '') }, abstimmText)),
+      h('div', {
+        class: 'klein abstimm-info' + ((letzte && letzte.bankstandCent !== kontostand(konto, buchungen, letzte.datum)) || faellig ? ' warn-text' : ''),
+        title: faellig ? `Länger als ${ABSTIMM_ERINNERUNG_TAGE} Tage nicht abgestimmt – mit „Abstimmen“ den Bankstand eintragen.` : null,
+      }, abstimmText)),
   );
+}
+
+/** D147: Liste der vorgemerkten Buchungen eines Kontos mit Häkchen → „Als gebucht markieren“ */
+function vorgemerktDialog(konto, buchungen) {
+  const liste = vorgemerkteVonKonto(konto.id, buchungen);
+  const haken = new Map();
+  const knopfText = () => `${[...haken.values()].filter((x) => x.checked).length} von ${liste.length} ausgewählt`;
+  const zaehler = h('p', { class: 'klein gedaempft' });
+  const alle = h('input', { type: 'checkbox', checked: true });
+  const zeile = (b) => {
+    const cb = h('input', { type: 'checkbox', checked: true });
+    haken.set(b.id, cb);
+    cb.addEventListener('change', () => { alle.checked = [...haken.values()].every((x) => x.checked); zaehler.textContent = knopfText(); });
+    const titel = b.partner || (b.art === 'umbuchung' ? 'Umbuchung' : b.notiz) || 'Buchung';
+    return h('li', {},
+      h('label', { class: 'vormerk-zeile' }, cb,
+        h('span', { class: 'vormerk-datum' }, formatDatum(b.datum)),
+        h('span', { class: 'vormerk-titel', title: titel }, titel),
+        h('span', { class: 'betrag' + (wirkungCent(b) > 0 ? ' plus' : '') }, formatEuro(wirkungCent(b)))));
+  };
+  const ul = h('ul', { class: 'vormerk-liste' }, liste.map(zeile));
+  alle.addEventListener('change', () => { haken.forEach((x) => { x.checked = alle.checked; }); zaehler.textContent = knopfText(); });
+  zaehler.textContent = knopfText();
+  dialog({
+    titel: `Vorgemerkte Buchungen – ${konto.name}`,
+    inhalt: [
+      h('p', { class: 'hinweis' }, 'Angehakte Buchungen werden auf „gebucht“ gesetzt, z. B. wenn sie auf dem Kontoauszug erscheinen.'),
+      h('label', { class: 'schalter' }, alle, 'Alle auswählen'),
+      ul,
+      zaehler,
+    ],
+    speichernText: 'Als gebucht markieren',
+    onSpeichern: async () => {
+      const ids = [...haken.entries()].filter(([, x]) => x.checked).map(([id]) => id);
+      if (ids.length === 0) throw new Error('Bitte mindestens eine Buchung anhaken.');
+      const geaendert = alsGebuchtMarkieren(ids, buchungen);
+      await db.speichere('buchungen', geaendert);
+      toast(ids.length === 1 ? '1 Buchung gebucht' : `${ids.length} Buchungen gebucht`);
+      datenGeaendert();
+    },
+  });
 }
 
 /* ---------- Monatsnavigation ---------- */

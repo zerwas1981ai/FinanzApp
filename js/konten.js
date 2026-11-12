@@ -42,3 +42,16 @@ export function startReihenfolge(konten) {
   const sortiert = [...konten].sort((a, b) => Number(Boolean(a.archiviert)) - Number(Boolean(b.archiviert)) || nachName(a, b));
   return new Map(sortiert.map((k, n) => [k.id, n]));
 }
+
+/** D145: Nach so vielen Tagen ohne Abstimmung wird „zuletzt abgestimmt“ hervorgehoben */
+export const ABSTIMM_ERINNERUNG_TAGE = 10;
+
+/** D145: Ganze Tage zwischen zwei ISO-Daten (JJJJ-MM-TT), z. B. 2026-11-01 → 2026-11-11 = 10 */
+export function tageZwischen(von, bis) {
+  const utc = (iso) => Date.UTC(Number(iso.slice(0, 4)), Number(iso.slice(5, 7)) - 1, Number(iso.slice(8, 10)));
+  return Math.round((utc(bis) - utc(von)) / 86400000);
+}
+
+/** D145: Abstimmung fällig? Ja, wenn noch nie abgestimmt oder der abgestimmte Stand älter als 10 Tage ist */
+export const abstimmungFaellig = (letzteDatum, heute, tage = ABSTIMM_ERINNERUNG_TAGE) =>
+  !letzteDatum || tageZwischen(letzteDatum, heute) > tage;

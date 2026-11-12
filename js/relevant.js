@@ -18,7 +18,8 @@ export const MAX_GRUPPE = 40;
 export const istRelevanteBuchung = (b) => Boolean(b.relevant) && b.art === 'ausgabe' && !b.geloeschtAm;
 
 /**
- * D142: Belegname für relevante Ausgaben: „JJJJ-MM-TT Notiz“, mehrere Belege mit „ (2)“, „ (3)“ …
+ * D142: Belegname „JJJJ-MM-TT Notiz“ (relevante Ausgaben) bzw. „JJJJ-MM-TT Empfänger“ (D143),
+ * mehrere Belege mit „ (2)“, „ (3)“ …
  * Unzulässige Zeichen für Dateinamen werden durch „-“ ersetzt. Nur noch nicht hochgeladene Belege
  * (ohne driveId) werden umbenannt – Dateien in Google Drive behalten ihren Namen.
  */

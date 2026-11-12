@@ -135,6 +135,29 @@ export function anzahlFuerKategorien(kategorieIds, alle) {
   return alle.filter((b) => ids.has(b.kategorieId) || ids.has(b.budgetKategorieId)).length; // inkl. Budget-Zuordnung (D98)
 }
 
+/** D147: Vorgemerkte Buchungen eines Kontos (ohne Papierkorb), älteste zuerst */
+export function vorgemerkteVonKonto(kontoId, alle) {
+  return alle
+    .filter((b) => !b.geloeschtAm && b.kontoId === kontoId && b.status === 'vorgemerkt')
+    .sort((a, b) => a.datum.localeCompare(b.datum) || (a.erstelltAm ?? '').localeCompare(b.erstelltAm ?? ''));
+}
+
+/**
+ * D147: Mehrere vorgemerkte Buchungen auf einmal auf „gebucht“ setzen.
+ * Bei Umbuchungen werden beide Hälften geändert. Liefert die geänderten Datensätze.
+ */
+export function alsGebuchtMarkieren(ids, alle, jetzt = new Date().toISOString()) {
+  const gewaehlt = new Set(ids);
+  const geaendert = new Map();
+  for (const b of alle) {
+    if (!gewaehlt.has(b.id)) continue;
+    for (const teil of gruppeVon(b, alle)) {
+      if (teil.status === 'vorgemerkt' && !teil.geloeschtAm) geaendert.set(teil.id, { ...teil, status: 'gebucht', geaendertAm: jetzt });
+    }
+  }
+  return [...geaendert.values()];
+}
+
 /* ---------- Datenbank-Operationen ---------- */
 
 export const alleBuchungen = () => db.alle('buchungen');

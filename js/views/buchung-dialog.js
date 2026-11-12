@@ -110,12 +110,11 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
     h('label', { class: 'schalter feld-schalter' }, relevantHaken, 'Relevante Ausgabe (erscheint unter Projekte → Relevante Ausgaben, Belege zusätzlich im Drive-Ordner)'),
     relevantGruppe.feld);
 
-  // Belege: Dateiname aus Datum und Empfänger/Absender bzw. Kategorie; bei relevanter Ausgabe Datum und Notiz (D142)
-  const belege = belegeFeld(ref?.belege ?? [], () => [
-    datum.input.value,
-    (relevantHaken.checked && art === 'ausgabe' && notiz.input.value.trim())
-      || partner.input.value.trim() || (kategorie.select.value && kategorie.select.selectedOptions[0]?.textContent) || 'Beleg',
-  ].filter(Boolean).join(' '));
+  // Belege: Dateiname aus Datum und Empfänger/Absender bzw. Kategorie; bei relevanter Ausgabe Datum und Notiz (D142).
+  // D143: Beim Speichern wird der Name nach dem dann gültigen Stand neu gesetzt (nur noch nicht hochgeladene Belege).
+  const belegNamensteil = () => (relevantHaken.checked && art === 'ausgabe' && notiz.input.value.trim())
+    || partner.input.value.trim() || (kategorie.select.value && kategorie.select.selectedOptions[0]?.textContent) || 'Beleg';
+  const belege = belegeFeld(ref?.belege ?? [], () => [datum.input.value, belegNamensteil()].filter(Boolean).join(' '));
 
   function aktualisiere() {
     const istUmbuchung = art === 'umbuchung';
@@ -248,8 +247,8 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
         relevant: art === 'ausgabe' && relevantHaken.checked,
         relevantGruppe: relevantGruppe.input.value,
       };
-      // D142: relevante Ausgabe → neue Belege heißen „JJJJ-MM-TT Notiz“
-      if (werte.relevant && werte.notiz.trim()) belege.umbenennen((l) => benenneBelege(l, werte.datum, werte.notiz));
+      // D142/D143: Belegnamen nach dem gespeicherten Stand („JJJJ-MM-TT Notiz“ bzw. „JJJJ-MM-TT Empfänger“)
+      if (art !== 'umbuchung') belege.umbenennen((l) => benenneBelege(l, werte.datum, belegNamensteil()));
       werte.belege = art === 'umbuchung' ? undefined : belege.liste();
       await speichereBuchung(werte, gruppe);
       if (art !== 'umbuchung') await belege.uebernehme(); // neue Dateien ablegen, entfernte vormerken

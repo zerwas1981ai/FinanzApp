@@ -2040,3 +2040,50 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
   Namen.
 - Auch eine bestehende relevante Buchung ohne Notiz lässt sich erst wieder speichern, wenn eine Notiz
   eingetragen ist.
+
+## D143 – Belegnamen bei allen Buchungen erst beim Speichern
+*Wunsch des Nutzers (Verbesserungen 12.11.2026, Punkt 1)*
+
+- Auch bei normalen Buchungen wird der Belegname beim **Speichern** nach dem dann gültigen Stand gesetzt:
+  „JJJJ-MM-TT Empfänger“, ohne Empfänger „JJJJ-MM-TT Unterkategorie“, sonst „JJJJ-MM-TT Beleg“
+  (relevante Ausgaben: „JJJJ-MM-TT Notiz“, D142). Ändert man Empfänger oder Datum nachträglich, passt der
+  Name also immer.
+- Nur noch nicht hochgeladene Belege werden umbenannt; Belege in Google Drive behalten ihren Namen.
+
+## D144 – Liste der relevanten Ausgaben (Jahr oder gesamt)
+*Wunsch des Nutzers (Punkt 3)*
+
+- Neuer Knopf **„Liste“** im Block „Relevante Ausgaben“ (Tab Projekte). Wahl: ein Jahr oder
+  „Alle Jahre (Gesamtliste)“, Format **Druckansicht / PDF** oder **CSV (Excel)**. Ein oben gewählter
+  Gruppenfilter gilt mit.
+- **Druckansicht:** je Jahr eine Tabelle (Datum, Empfänger, Kategorie, Notiz, Herkunft, Belegnamen, Betrag)
+  mit Jahressumme, bei der Gesamtliste zusätzlich die Gesamtsumme; älteste Jahre zuerst. Als PDF über
+  das Druckfenster („Als PDF speichern“). Die Druckansicht ist ein eigener Bereich, der nur beim Drucken
+  sichtbar ist; der Rest der App wird dabei ausgeblendet.
+- **CSV:** wie der bisherige Export (Semikolon, Dezimalkomma, UTF-8 mit BOM), am Ende eine Summenzeile.
+
+## D145 – Erinnerung an die Kontoabstimmung nach 10 Tagen
+*Wunsch des Nutzers (Punkt 4)*
+
+- Ist ein Konto länger als **10 Tage** nicht abgestimmt (maßgeblich ist das Datum des abgestimmten
+  Bankstands) oder noch nie, erscheint „Zuletzt abgestimmt …“ bzw. „Noch nicht abgestimmt.“ farbig
+  (Warnfarbe) mit „· vor N Tagen“. Gilt für alle Konten, nur beim Konto selbst, kein Hinweis oben.
+
+## D146 – Suche über alles (Lupe oben)
+*Wunsch des Nutzers (Punkt 6)*
+
+- Lupe in der Kopfzeile (am PC auch Strg+K oder „/“). Durchsucht Buchungen, eigene relevante
+  Ausgaben, Projekte, wiederkehrende und geplante Buchungen – in Empfänger, Notiz, Bezeichnung,
+  Kategorie, Konto, Projekt, Gruppe, Belegnamen, Datum (TT.MM.JJJJ) und Betrag („85“, „85,00“, „1.200“).
+- Mehrere Wörter: alle müssen vorkommen; Groß/klein egal. Treffer nach Bereichen, je Bereich höchstens
+  30 (Buchungen neueste zuerst). Papierkorb und archivierte Jahre werden nicht durchsucht.
+- Antippen öffnet den passenden Dialog zum Ansehen/Bearbeiten.
+
+## D147 – Vorgemerkte Buchungen gesammelt buchen
+*Wunsch des Nutzers (Punkt 8 der Runde vom 09.11.)*
+
+- Im Kontokopf der Übersicht steht unter „davon vorgemerkt“ der Link **„Vorgemerkte buchen (n) …“**,
+  sobald es auf dem Konto vorgemerkte Buchungen gibt.
+- Er öffnet eine Liste aller vorgemerkten Buchungen des Kontos (älteste zuerst) mit Häkchen, anfangs
+  alle angehakt. „Als gebucht markieren“ setzt die angehakten auf „gebucht“. Bei Umbuchungen werden
+  beide Hälften geändert.

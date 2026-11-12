@@ -63,5 +63,32 @@ export function buchungenAlsCsv(buchungen, { konten, kategorien, projekte = [] }
   return alsCsv(kopf, zeilen);
 }
 
+/**
+ * D144: Relevante Ausgaben als CSV (Zeilen aus relevanteZeilen). Älteste zuerst, Betrag positiv,
+ * Belegnamen durch Komma getrennt, am Ende eine Summenzeile.
+ */
+export function relevantAlsCsv(zeilen, { konten, kategorien }) {
+  const konto = new Map(konten.map((k) => [k.id, k.name]));
+  const kat = new Map(kategorien.map((k) => [k.id, k]));
+  const kopf = ['Datum', 'Empfänger', 'Hauptkategorie', 'Unterkategorie', 'Betrag (€)', 'Notiz', 'Gruppe', 'Herkunft', 'Belege'];
+  const sortiert = [...zeilen].sort((a, b) => a.datum.localeCompare(b.datum) || a.betragCent - b.betragCent);
+  const daten = sortiert.map((z) => {
+    const unter = kat.get(z.kategorieId);
+    return [
+      csvDatum(z.datum),
+      z.partner ?? '',
+      kat.get(unter?.elternId)?.name ?? '',
+      unter?.name ?? '',
+      csvBetrag(z.betragCent),
+      z.notiz ?? '',
+      z.gruppe ?? '',
+      z.quelle === 'buchung' ? (konto.get(z.kontoId) ?? 'Buchung') + (z.archivJahr ? ` (Archiv ${z.archivJahr})` : '') : 'Eigener Eintrag',
+      (z.belege ?? []).map((b) => b.name).join(', '),
+    ];
+  });
+  const summe = sortiert.reduce((s, z) => s + z.betragCent, 0);
+  return alsCsv(kopf, [...daten, ['Summe', '', '', '', csvBetrag(summe), '', '', '', '']]);
+}
+
 /** Dateiname mit Datum, z. B. "finanzen-buchungen-2026-11-06.csv" */
 export const exportName = (teil, heute) => `finanzen-${teil}-${heute}.csv`;

@@ -131,7 +131,7 @@ function kachel(titel, wert, klasse = '', zusatz = null) {
 
 /* =========================== Dialog =========================== */
 
-function projektDialog(p, daten) {
+export function projektDialog(p, daten) {
   const name = eingabe({ label: 'Name', value: p?.name ?? '', maxlength: 60, placeholder: 'z. B. Umbau Bad', autofocus: true });
   const rahmen = eingabe({
     label: 'Rahmen in € (optional)',

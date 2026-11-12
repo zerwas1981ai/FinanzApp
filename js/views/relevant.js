@@ -5,7 +5,8 @@
 import { h } from '../dom.js';
 import * as db from '../db.js';
 import { formatEuro, formatDatum, parseEuro, centZuEingabe, heuteIso } from '../format.js';
-import { dialog, toast, eingabe, auswahl, datenGeaendert } from '../ui.js';
+import { dialog, toast, eingabe, auswahl, optionsGruppe, datenGeaendert, herunterladen } from '../ui.js';
+import { relevantAlsCsv } from '../export.js';
 import {
   baueRelevant, relevanteZeilen, gruppenListe, filtereGruppe, nachJahren, OHNE_GRUPPE, benenneBelege,
 } from '../relevant.js';
@@ -61,7 +62,9 @@ export async function relevantBereich(daten) {
   bereich.append(...[
     h('div', { class: 'bereich-kopf' },
       h('h2', { id: 'titel-relevant' }, 'Relevante Ausgaben'),
-      h('button', { type: 'button', class: 'knopf knopf-klein', onclick: () => relevantDialog(null, daten) }, '+ Ausgabe')),
+      h('div', { class: 'knopfreihe' },
+        zeilen.length > 0 && h('button', { type: 'button', class: 'knopf knopf-klein', onclick: () => listenDialog(zeilen, jahre, daten) }, 'Liste'),
+        h('button', { type: 'button', class: 'knopf knopf-klein', onclick: () => relevantDialog(null, daten) }, '+ Ausgabe'))),
     h('p', { class: 'hinweis erklaerung' },
       'Sammle hier Ausgaben, die dir wichtig sind – auch aus früheren Jahren. Eigene Einträge zählen in keinem Konto, ' +
       'Budget und nicht in der Prognose. Echte Buchungen erscheinen hier, wenn du im Buchungsdialog „Relevante Ausgabe“ ' +
@@ -78,6 +81,79 @@ export async function relevantBereich(daten) {
     ...jahre.map(jahrBlock),
   ].filter(Boolean));
   return bereich;
+}
+
+/**
+ * D144: Liste der relevanten Ausgaben – ein Jahr oder alle Jahre (Gesamtliste), als Druckansicht
+ * (über „Drucken → Als PDF speichern“) oder als CSV für Excel. Der Gruppenfilter gilt mit.
+ */
+function listenDialog(zeilen, jahre, daten) {
+  const zeitraum = auswahl({
+    label: 'Zeitraum',
+    optionen: [{ wert: '', text: 'Alle Jahre (Gesamtliste)' }, ...jahre.map((j) => ({ wert: String(j.jahr), text: String(j.jahr) }))],
+    wert: '',
+  });
+  const format = optionsGruppe({
+    label: 'Format',
+    optionen: [{ wert: 'druck', text: 'Druckansicht / PDF' }, { wert: 'csv', text: 'CSV (Excel)' }],
+    wert: 'druck',
+  });
+  dialog({
+    titel: 'Liste der relevanten Ausgaben',
+    inhalt: [
+      zeitraum.feld,
+      format.feld,
+      ansicht.gruppe && h('p', { class: 'hinweis' }, `Nur Gruppe „${ansicht.gruppe === OHNE_GRUPPE ? 'Ohne Gruppe' : ansicht.gruppe}“ (wie oben gewählt).`),
+      h('p', { class: 'hinweis' }, 'Druckansicht: im Druckfenster „Als PDF speichern“ wählen.'),
+    ].filter(Boolean),
+    speichernText: 'Erstellen',
+    onSpeichern: () => {
+      const jahr = zeitraum.select.value;
+      const auswahlZeilen = jahr ? zeilen.filter((z) => z.datum.startsWith(jahr)) : zeilen;
+      const teil = jahr || 'gesamt';
+      if (format.wert() === 'csv') {
+        herunterladen(relevantAlsCsv(auswahlZeilen, daten), `finanzen-relevante-ausgaben-${teil}-${heuteIso()}.csv`, 'text/csv;charset=utf-8');
+      } else {
+        // erst nach dem Schließen des Dialogs drucken, sonst erscheint er mit im Druck
+        setTimeout(() => drucke(auswahlZeilen, jahr, daten), 50);
+      }
+    },
+  });
+}
+
+/** Druckansicht: eigener Bereich, der nur beim Drucken sichtbar ist (CSS @media print) */
+function drucke(zeilen, jahr, daten) {
+  const kat = new Map(daten.kategorien.map((k) => [k.id, k]));
+  const kontoName = new Map(daten.konten.map((k) => [k.id, k.name]));
+  const gruppenText = ansicht.gruppe ? ` · Gruppe ${ansicht.gruppe === OHNE_GRUPPE ? '„Ohne Gruppe“' : `„${ansicht.gruppe}“`}` : '';
+  const jahresBlock = (j) => h('section', { class: 'druck-jahr' },
+    h('h2', {}, String(j.jahr)),
+    h('table', {},
+      h('thead', {}, h('tr', {}, ['Datum', 'Empfänger', 'Kategorie', 'Notiz', 'Herkunft', 'Belege', 'Betrag'].map((t) => h('th', {}, t)))),
+      h('tbody', {}, [...j.zeilen].reverse().map((z) => {
+        const unter = kat.get(z.kategorieId);
+        return h('tr', {},
+          h('td', {}, formatDatum(z.datum)),
+          h('td', {}, z.partner || '–'),
+          h('td', {}, unter ? [kat.get(unter.elternId)?.name, unter.name].filter(Boolean).join(' › ') : ''),
+          h('td', {}, z.notiz),
+          h('td', {}, z.quelle === 'buchung' ? kontoName.get(z.kontoId) ?? 'Buchung' : 'Eigener Eintrag'),
+          h('td', {}, (z.belege ?? []).map((b) => b.name).join(', ')),
+          h('td', { class: 'zahl' }, formatEuro(z.betragCent)));
+      })),
+      h('tfoot', {}, h('tr', {}, h('td', { colspan: 6 }, `Summe ${j.jahr}`), h('td', { class: 'zahl' }, formatEuro(j.summeCent))))));
+  const jahresListe = nachJahren(zeilen).reverse(); // ältestes Jahr zuerst
+  const gesamt = zeilen.reduce((s, z) => s + z.betragCent, 0);
+  const bereich = h('div', { id: 'druckbereich' },
+    h('h1', {}, `Relevante Ausgaben ${jahr || 'gesamt'}`),
+    h('p', {}, `Stand ${formatDatum(heuteIso())} · ${zeilen.length === 1 ? '1 Ausgabe' : `${zeilen.length} Ausgaben`}${gruppenText}`),
+    ...jahresListe.map(jahresBlock),
+    !jahr && jahresListe.length > 1 && h('p', { class: 'druck-gesamt' }, `Gesamtsumme ${formatEuro(gesamt)}`));
+  document.getElementById('druckbereich')?.remove();
+  document.body.append(bereich);
+  const weg = () => { bereich.remove(); window.removeEventListener('afterprint', weg); };
+  window.addEventListener('afterprint', weg);
+  window.print();
 }
 
 /** Tabelle eines Jahres – aufgebaut wie "Alle Buchungen" (am Handy zweizeilig).

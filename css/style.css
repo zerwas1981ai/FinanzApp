@@ -1529,3 +1529,57 @@ body:not(.umbuchungen-sichtbar) .ub-ausblendbar { display: none; }
 .reihenfolge-knoepfe .knopf { min-width: 34px; justify-content: center; }
 .reihenfolge-knoepfe .knopf:disabled { opacity: .35; cursor: default; }
 
+
+/* D144: Druckansicht der relevanten Ausgaben – am Bildschirm unsichtbar, beim Drucken nur sie */
+#druckbereich { display: none; }
+@media print {
+  body > *:not(#druckbereich) { display: none !important; }
+  body { background: #fff !important; color: #000 !important; }
+  #druckbereich { display: block; font: 10pt/1.35 system-ui, sans-serif; color: #000; }
+  #druckbereich h1 { font-size: 15pt; margin: 0 0 2pt; }
+  #druckbereich h2 { font-size: 12pt; margin: 14pt 0 4pt; }
+  #druckbereich p { margin: 0 0 6pt; }
+  #druckbereich table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  /* gleiche Spaltenbreiten in allen Jahren */
+  #druckbereich th:nth-child(1) { width: 11%; } #druckbereich th:nth-child(2) { width: 17%; }
+  #druckbereich th:nth-child(3) { width: 20%; } #druckbereich th:nth-child(4) { width: 17%; }
+  #druckbereich th:nth-child(5) { width: 12%; } #druckbereich th:nth-child(6) { width: 12%; }
+  #druckbereich th:nth-child(7) { width: 11%; text-align: right; }
+  #druckbereich td { overflow-wrap: anywhere; }
+  #druckbereich th, #druckbereich td { text-align: left; padding: 3pt 4pt; border-bottom: .5pt solid #bbb; vertical-align: top; }
+  #druckbereich th { border-bottom: 1pt solid #000; }
+  #druckbereich tfoot td { font-weight: 600; border-top: 1pt solid #000; border-bottom: none; }
+  #druckbereich .zahl { text-align: right; white-space: nowrap; }
+  #druckbereich tr { break-inside: avoid; }
+  #druckbereich .druck-gesamt { margin-top: 14pt; font-weight: 700; font-size: 11pt; }
+}
+
+/* D144: Knöpfe im Bereichskopf ohne Abstand nach oben */
+.bereich-kopf .knopfreihe { margin-top: 0; }
+
+/* D146: Suche über alles */
+.such-dialog .dialog-inhalt { gap: 10px; }
+.such-eingabe { width: 100%; font-size: 1rem; }
+.such-ergebnis { min-height: 120px; }
+.such-bereich { margin-top: 10px; }
+.such-bereich h3 { font-size: .8rem; font-weight: 600; color: var(--text-2); text-transform: none; margin: 0 0 4px; }
+.such-liste { list-style: none; margin: 0; padding: 0; }
+.such-liste li + li { border-top: 1px solid var(--rand); }
+.such-treffer {
+  display: flex; align-items: center; gap: 12px; width: 100%; padding: 8px 4px; border: 0; background: none;
+  color: inherit; font: inherit; text-align: left; cursor: pointer; border-radius: 6px;
+}
+.such-treffer:hover, .such-treffer:focus-visible { background: var(--flaeche-2); }
+.such-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.such-titel, .such-details { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.such-details { color: var(--text-2); }
+.such-treffer .betrag { flex: none; white-space: nowrap; }
+
+/* D147: vorgemerkte Buchungen gesammelt buchen */
+.vorgemerkt-buchen { display: block; margin-top: 2px; padding: 2px 0; text-align: left; font-size: .85rem; }
+.vormerk-liste { list-style: none; margin: 4px 0 0; padding: 0; max-height: 50vh; overflow-y: auto; }
+.vormerk-liste li + li { border-top: 1px solid var(--rand); }
+.vormerk-zeile { display: grid; grid-template-columns: 22px 84px minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 8px 2px; cursor: pointer; }
+.vormerk-zeile input { width: 18px; height: 18px; accent-color: var(--akzent); }
+.vormerk-titel { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vormerk-zeile .betrag { white-space: nowrap; }

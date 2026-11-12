@@ -11,6 +11,7 @@ import { zeigeStammdaten } from './views/stammdaten.js';
 import { oeffneBuchungsdialog } from './views/buchung-dialog.js';
 import { richteSyncEin } from './views/sync-dialoge.js';
 import { richteSperreEin } from './views/sperre-ui.js';
+import { oeffneSuche } from './views/suche.js';
 
 const TABS = {
   uebersicht: { titel: 'Übersicht', zeige: zeigeUebersicht },
@@ -92,6 +93,17 @@ async function start() {
   window.addEventListener('daten-geaendert', () => zeigeTab({ nachOben: false }));
   document.getElementById('neue-buchung').addEventListener('click', () => {
     oeffneBuchungsdialog().catch(zeigeFehler);
+  });
+  // D146: Suche über alles (Lupe oben); Strg+K bzw. „/“ öffnet sie am PC ebenfalls
+  const sucheKnopf = document.getElementById('suche-knopf');
+  sucheKnopf.addEventListener('click', () => oeffneSuche().catch(zeigeFehler));
+  document.addEventListener('keydown', (e) => {
+    const imFeld = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName ?? '') || document.querySelector('dialog[open]');
+    if (((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') || (e.key === '/' && !imFeld)) {
+      if (document.querySelector('dialog[open]')) return;
+      e.preventDefault();
+      oeffneSuche().catch(zeigeFehler);
+    }
   });
   await zeigeTab();
   // Etappe 6: Abgleich mit Google Drive (Statusanzeige oben rechts)
