@@ -1452,9 +1452,6 @@ body.gesperrt .kopf, body.gesperrt main, body.gesperrt .fab, body.gesperrt #neue
 .btab-fest { cursor: default; }
 .btab-fest:hover { color: var(--text-2); }
 .beleg-zahl { margin-left: 6px; font-size: .85rem; color: var(--text-2); }
-/* Vorlagen-Leiste oben im Dialog "Neue Buchung" (D104) */
-.vorlagen-leiste { margin-bottom: 12px; }
-.vorlagen-leiste .chips { margin: 4px 0 0; flex-wrap: wrap; overflow: visible; }
 /* Spalte "Beleg" ganz rechts, direkt anklickbar (D101) */
 .relevant .btab { --relevant-spalten: 92px minmax(0, 1.3fr) minmax(0, 1.5fr) minmax(0, 1.3fr) 112px; --btab-spalten: var(--relevant-spalten) 56px; }
 @media (min-width: 768px) { .relevant .btab-zeile { grid-template-columns: var(--relevant-spalten); } }

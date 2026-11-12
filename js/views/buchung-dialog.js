@@ -11,8 +11,6 @@ import { sortiereKonten } from '../konten.js';
 import { wiederkehrendDialog } from './annahmen.js';
 import { monatsende, tageImMonat } from '../prognose.js';
 import { relevanteZeilen, gruppenListe, MAX_GRUPPE, benenneBelege } from '../relevant.js';
-import { vorlageZuWerten } from '../vorlagen.js';
-import { vorlagenLeiste, vorlageSpeichernDialog } from './vorlagen.js';
 import { istAktiv } from '../vertraege.js';
 
 const nachName = (a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base' });
@@ -25,8 +23,8 @@ const nachName = (a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'ba
  *   belegZuerst: Belegfeld direkt unter dem Betrag (Kurzbefehl "Belegfoto", D105)
  */
 export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
-  const [konten, kategorien, alle, projekte, relevantListe, vorlagen, vertraege, wiederkehrendListe] = await Promise.all(
-    ['konten', 'kategorien', 'buchungen', 'projekte', 'relevant', 'vorlagen', 'vertraege', 'wiederkehrend'].map((s) => db.alle(s)),
+  const [konten, kategorien, alle, projekte, relevantListe, vertraege, wiederkehrendListe] = await Promise.all(
+    ['konten', 'kategorien', 'buchungen', 'projekte', 'relevant', 'vertraege', 'wiederkehrend'].map((s) => db.alle(s)),
   );
   // Immer die aktuelle Fassung aus der Datenbank nehmen – der Abgleich kann sie im Hintergrund
   // geändert haben (z. B. Drive-Kennung eines hochgeladenen Belegs)
@@ -203,37 +201,12 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
   }, '↻ Als wiederkehrend anlegen');
   const extras = buchung && h('div', { class: 'knopfreihe dialog-extras' }, kopieren, alsWiederkehrend);
 
-  // ---------- Vorlagen (D104) ----------
-  // Leiste nur bei wirklich neuen Buchungen – nicht beim Buchen eines fälligen Termins
-  const wendeVorlageAn = (v) => {
-    const w = vorlageZuWerten(v, { konten, kategorien });
-    artKnoepfe.querySelector(`[data-wert="${w.art}"]`)?.click(); // setzt art und baut die Felder um
-    if (w.betragCent != null) betrag.input.value = centZuEingabe(w.betragCent);
-    partner.input.value = w.partner;
-    notiz.input.value = w.notiz;
-    if (w.kontoId) konto.select.value = w.kontoId;
-    if (w.gegenkontoId) gegenkonto.select.value = w.gegenkontoId;
-    budgetFeld.select.value = w.budgetKategorieId ?? '';
-    if (w.art !== 'umbuchung') kategorie.select.value = [...kategorie.select.options].some((o) => o.value === w.kategorieId) ? w.kategorieId : '';
-    betrag.input.focus();
-    betrag.input.select();
-  };
-  const leiste = !buchung && !vorgaben.wiederkehrendId && !vorgaben.geplantId && vorlagenLeiste(vorlagen, wendeVorlageAn);
-  const alsVorlage = h('div', { class: 'knopfreihe' }, h('button', {
-    type: 'button',
-    class: 'knopf knopf-klein',
-    onclick: () => {
-      const w = aktuelleWerte();
-      vorlageSpeichernDialog({ ...w, kategorieId: w.kategorieId ?? null, gegenkontoId: w.gegenkontoId ?? null });
-    },
-  }, '☆ Als Vorlage speichern'));
-
   // ---------- Dialog ----------
   const dlg = dialog({
     titel: buchung ? (ref.art === 'umbuchung' ? 'Umbuchung bearbeiten' : 'Buchung bearbeiten') : (vorgaben.titel ?? 'Neue Buchung'),
     inhalt: (vorgaben.belegZuerst || vorgaben.dateien?.length
-      ? [leiste, artKnoepfe, belege.feld, betrag.feld, partner.feld, kategorie.feld, konto.feld, gegenkonto.feld, budgetFeld.feld, datum.feld, status.feld, notiz.feld, weitere, alsVorlage]
-      : [extras, leiste, artKnoepfe, betrag.feld, partner.feld, kategorie.feld, konto.feld, gegenkonto.feld, budgetFeld.feld, datum.feld, status.feld, notiz.feld, weitere, belege.feld, alsVorlage]
+      ? [artKnoepfe, belege.feld, betrag.feld, partner.feld, kategorie.feld, konto.feld, gegenkonto.feld, budgetFeld.feld, datum.feld, status.feld, notiz.feld, weitere]
+      : [extras, artKnoepfe, betrag.feld, partner.feld, kategorie.feld, konto.feld, gegenkonto.feld, budgetFeld.feld, datum.feld, status.feld, notiz.feld, weitere, belege.feld]
     ).filter(Boolean),
     speichernText: buchung ? 'Speichern' : 'Erfassen',
     zusatz: buchung && {

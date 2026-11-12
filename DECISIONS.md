@@ -2340,3 +2340,12 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
   Übersicht, Zeitraum in „Alle Buchungen“, Gruppen bei den relevanten Ausgaben) nach dem Antippen eines Eintrags
   nicht mehr nach ganz links, sondern bleiben dort, wo sie hingeschoben wurden (solange die App offen ist).
   Beim ersten Öffnen wird ein weiter rechts gemerkter Eintrag sichtbar gemacht.
+
+## D172 – Vorlagen ausgebaut, Papierkorb vor „Info“
+*Wunsch des Nutzers (macht D104 rückgängig)*
+
+- **Vorlagen entfallen komplett:** keine Vorlagen-Leiste und kein „☆ Als Vorlage speichern“ mehr im
+  Buchungsdialog, kein Bereich „Vorlagen“ in den Stammdaten, kein Eintrag im Backup-Vergleich.
+  Datenversion 23 entfernt die Sammlung „vorlagen“; die lokale Schublade gilt als alte Schublade und wird
+  beim nächsten Speichern geleert.
+- Stammdaten: der Umschalter „Papierkorb“ steht jetzt direkt vor „Info“.

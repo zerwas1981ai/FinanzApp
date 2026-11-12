@@ -17,7 +17,7 @@ test('Kennzahlen eines Stands: Umbuchung einmal, Papierkorb getrennt, Stand bis 
       b('4', '2026-10-07', 'ausgabe', 999, { geloeschtAm: '2026-10-08T00:00:00Z' }),
       b('5', '2026-12-24', 'ausgabe', 5000),
     ],
-    budgets: [{}], vorlagen: [{}, {}],
+    budgets: [{}],
   };
   const s = standUebersicht(daten, '2026-11-09');
   assert.equal(s.buchungen, 4, '1, 2, Umbuchung einmal, 5');
@@ -25,7 +25,6 @@ test('Kennzahlen eines Stands: Umbuchung einmal, Papierkorb getrennt, Stand bis 
   assert.equal(s.letzteBuchung, '2026-12-24');
   assert.deepEqual(s.konten, [{ id: 'giro', name: 'Giro (Test)', standCent: 100000 + 50000 - 20000 - 1000 }], 'nur aktive Konten, Stand bis heute');
   assert.equal(s.budgets, 1);
-  assert.equal(s.vorlagen, 2);
   assert.equal(s.wiederkehrend, 0, 'fehlende Sammlung = 0');
 });
 

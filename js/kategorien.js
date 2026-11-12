@@ -15,7 +15,7 @@ export function moeglicheZiele(unter, kategorien) {
 
 /**
  * Verschiebt eine Unterkategorie in eine andere Hauptkategorie. Gibt den geänderten Datensatz zurück.
- * Buchungen, Vorlagen und Annahmen verweisen auf die Unterkategorie (kategorieId) und gehören damit
+ * Buchungen und Annahmen verweisen auf die Unterkategorie (kategorieId) und gehören damit
  * automatisch zur neuen Hauptkategorie – auch rückwirkend in Auswertungen und Budgets.
  */
 export function verschiebeUnterkategorie(unter, zielId, kategorien, jetzt = new Date().toISOString()) {

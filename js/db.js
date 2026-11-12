@@ -22,14 +22,14 @@ const DB_STRUKTUR_VERSION = 12;
 export const SAMMLUNGEN = [
   'konten', 'kategorien', 'buchungen', 'abstimmungen',
   'budgets', 'wiederkehrend', 'hinweise', 'einstellungen',
-  'geplant', 'projekte', 'archive', 'relevant', 'vorlagen', 'vertraege', 'monatsnotizen',
+  'geplant', 'projekte', 'archive', 'relevant', 'vertraege', 'monatsnotizen',
 ];
 
 /**
  * Schubladen, die es früher gab. Sie werden nur noch für die Migration gelesen
  * und danach geleert (die leere Schublade selbst stört nicht).
  */
-const ALTE_SAMMLUNGEN = ['szenarien', 'sparziele'];
+const ALTE_SAMMLUNGEN = ['szenarien', 'sparziele', 'vorlagen']; // vorlagen: D104, mit D172 ausgebaut
 
 /**
  * Nur auf diesem Gerät (wird NICHT mit Drive abgeglichen):

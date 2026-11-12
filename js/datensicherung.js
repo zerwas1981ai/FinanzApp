@@ -25,7 +25,6 @@ export function standUebersicht(daten, heute) {
     wiederkehrend: (daten.wiederkehrend ?? []).length,
     geplant: (daten.geplant ?? []).length,
     projekte: (daten.projekte ?? []).length,
-    vorlagen: (daten.vorlagen ?? []).length,
   };
 }
 
@@ -43,7 +42,6 @@ export function vergleiche(jetzt, backup, { euro = String, datum = String } = {}
     zeile('Budgets', jetzt.budgets, backup.budgets),
     zeile('Geplante Einmalbuchungen', jetzt.geplant, backup.geplant),
     zeile('Projekte', jetzt.projekte, backup.projekte),
-    zeile('Vorlagen', jetzt.vorlagen, backup.vorlagen),
   ];
   const ids = [...new Set([...jetzt.konten.map((k) => k.id), ...backup.konten.map((k) => k.id)])];
   for (const id of ids) {

@@ -9,9 +9,15 @@ import { migriereDaten } from '../js/migrationen.js';
 
 test('D169: Migration auf 22 entfernt Frei-verfügbar- und Steuer-Felder', () => {
   const { daten } = migriereDaten({ version: 21, konten: [{ id: 'k', freiVerfuegbar: false }], kategorien: [{ id: 'u', steuerthema: 'spenden' }],
-    buchungen: [{ id: 'b', steuerthema: 'kein' }] });
+    buchungen: [{ id: 'b', steuerthema: 'kein' }] }, undefined, 22);
   assert.deepEqual([daten.konten[0], daten.kategorien[0], daten.buchungen[0]], [{ id: 'k' }, { id: 'u' }, { id: 'b' }]);
   assert.equal(daten.version, 22);
+});
+
+test('D172: Migration auf 23 entfernt die Vorlagen', () => {
+  const { daten } = migriereDaten({ version: 22, vorlagen: [{ id: 'v' }] });
+  assert.equal(daten.vorlagen, undefined);
+  assert.equal(daten.version, 23);
 });
 
 test('D165: Monatsnotiz bauen', () => {

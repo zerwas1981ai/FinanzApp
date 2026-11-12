@@ -17,7 +17,6 @@ import { driveBereich, exportBereich, neuBeginnenBereich, archivBereich } from '
 import { sperreBereich } from './sperre-ui.js';
 import { sortiereKonten, verschiebeKonto, naechsteReihenfolge } from '../konten.js';
 import { moeglicheZiele, verschiebeUnterkategorie } from '../kategorien.js';
-import { vorlagenBereich } from './vorlagen.js';
 
 // Alle Buchungen (auch im Papierkorb) – für die Löschsperre. Wird bei jedem Zeichnen neu geladen.
 let buchungen = [];
@@ -68,8 +67,8 @@ const ZEIGE_NEU_BEGINNEN = false;
 const IST_ENTWICKLUNG = ['localhost', '127.0.0.1'].includes(location.hostname);
 
 export async function zeigeStammdaten(container) {
-  const [konten, kategorien, alleBuchungen, budgets, wiederkehrend, geplant, projekte, relevant, vorlagen] = await Promise.all(
-    ['konten', 'kategorien', 'buchungen', 'budgets', 'wiederkehrend', 'geplant', 'projekte', 'relevant', 'vorlagen'].map((s) => db.alle(s)),
+  const [konten, kategorien, alleBuchungen, budgets, wiederkehrend, geplant, projekte, relevant] = await Promise.all(
+    ['konten', 'kategorien', 'buchungen', 'budgets', 'wiederkehrend', 'geplant', 'projekte', 'relevant'].map((s) => db.alle(s)),
   );
   buchungen = alleBuchungen;
   relevantListe = relevant;
@@ -81,18 +80,18 @@ export async function zeigeStammdaten(container) {
   const bereiche = [
     ['konten', 'Konten', () => kontenBereich(konten, neu)],
     ['kategorien', 'Kategorien', () => kategorienBereich(kategorien, neu)],
-    ['vorlagen', 'Vorlagen', () => vorlagenBereich(vorlagen, konten, kategorien, neu)],
     ['schwellen', 'Budgethinweise', async () => schwellenBereich(await leseEinstellungen())],
     ['drive', 'Google Drive', () => driveBereich(neu)],
     ['login', 'App-Login', () => sperreBereich(neu)],
     ['export', 'Export', () => exportBereich()],
-    ['papierkorb', 'Papierkorb', () => papierkorbBereich(konten, kategorien, neu), papierkorbAnzahl],
     ['archiv', 'Archiv', () => archivBereich(neu)],
     ['notfall', 'Notfall-Mappe', () => notfallBereich()], // D168
     // Testdaten nur beim Entwickeln am PC (localhost), nicht in der veröffentlichten App (D66)
     IST_ENTWICKLUNG && ['testdaten', 'Testdaten', () => testdatenBereich(konten, kategorien, neu)],
     // D140: auf Wunsch ausgeblendet – zum Wiedereinblenden auf true setzen (die Funktion bleibt im Code)
     ZEIGE_NEU_BEGINNEN && ['neu', 'Neu beginnen', () => neuBeginnenBereich()],
+    // D172: Papierkorb direkt vor „Info“
+    ['papierkorb', 'Papierkorb', () => papierkorbBereich(konten, kategorien, neu), papierkorbAnzahl],
     ['info', 'Info', () => infoBereich()],
   ].filter(Boolean);
   const wahl = bereichsWahl('ansicht-stammdaten', bereiche.map(([k, text, , zahl]) => [k, text, zahl]));

@@ -47,8 +47,6 @@ Oberfläche auf Deutsch, Währung Euro, deutsches Datums- und Zahlenformat.
 - Vertrag (D148): Name, Empfänger (Pflicht, D150), Vertragsnummer, Beginn, Mindestlaufzeit, Verlängerung,
   Kündigungsfrist, Erinnerung, gekündigt zum, Unterlagen; Klammer um Buchungen und wiederkehrende
   Buchungen (Feld „Vertrag“, rückwirkend über die wiederkehrende Buchung)
-- Vorlage: Name, Art, Konto (bei Umbuchung auch Zielkonto), optional Kategorie,
-  Empfänger/Absender, Notiz, Betrag; Reihenfolge per ▲/▼ (D104)
 - Wiederkehrende Buchung: Intervall (monatlich/vierteljährlich/jährlich),
   Start, optional Ende, Wertänderungen ab Datum, feste Abweichung je
   Kalendermonat (jedes Jahr, D94), einzelne Monate überspringen oder verschieben;
@@ -112,7 +110,7 @@ Oberfläche auf Deutsch, Währung Euro, deutsches Datums- und Zahlenformat.
 
 ## Komfort und Sicherheit
 - Schnellerfassung: Betrag, Kategorie, fertig. Datum Standard heute, Konto
-  zuletzt benutzt. Vorlagen für häufige Buchungen (D104), Kurzbefehle am
+  zuletzt benutzt. Kurzbefehle am
   App-Symbol (D105), Belege per „Teilen“ an die App schicken (Android, D106).
 - Kamera-Button für Belegfoto, Bilder beim Hochladen verkleinern
 - Automatisches Backup bei jedem Speichern (letzte 30 Stände), Export als
