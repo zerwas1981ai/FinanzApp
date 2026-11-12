@@ -360,13 +360,17 @@ function hauptDialog(kat, kategorien, neu) {
     alleKnoepfe.push(k);
     return k;
   };
-  // Raster: Spalten = Farbton (Rot … Magenta), Zeilen = hell / mittel / dunkel
+  // D159: oben die Grauleiste (Weiß … Schwarz), darunter das Raster: Spalten = Farbton (Rot … Magenta),
+  // Zeilen = Helligkeit 1 (sehr hell) … 6 (sehr dunkel)
   const farbFeld = h('div', { class: 'feld' },
     h('span', { class: 'feld-label' }, 'Farbe'),
     h('div', { class: 'farb-auto-zeile' },
       farbKnopf('', autoFarbe?.hex ?? '#8a94a3', `Automatisch${autoFarbe ? ` (${autoFarbe.name})` : ''}`),
       h('span', { class: 'klein gedaempft' }, `Automatisch${autoFarbe ? ` (jetzt ${autoFarbe.name})` : ''}`)),
-    h('div', { class: 'farb-raster', role: 'group', 'aria-label': 'Farbe' }, PALETTE.map((p) => farbKnopf(p.schluessel, p.hex, p.name))),
+    h('div', { class: 'farb-raster farb-grau', role: 'group', 'aria-label': 'Weiß, Grau, Schwarz' },
+      PALETTE.filter((p) => p.grau).map((p) => farbKnopf(p.schluessel, p.hex, p.name))),
+    h('div', { class: 'farb-raster', role: 'group', 'aria-label': 'Farbe' },
+      PALETTE.filter((p) => !p.grau).map((p) => farbKnopf(p.schluessel, p.hex, p.name))),
     h('small', { class: 'feld-hilfe' }, 'Erscheint als kleiner Punkt bei den Buchungen. Unterkategorien haben dieselbe Farbe.'));
   // D158: Einnahme-Kategorien haben keine Farbe
   const zeigeFarbe = () => { farbFeld.hidden = art.wert() === 'einnahme'; };

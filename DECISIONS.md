@@ -2208,3 +2208,21 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
   Farben der ersten Palette (D155) werden auf den passenden neuen Ton abgebildet.
 - **Einnahme-Kategorien haben keine Farbe** (und keinen Punkt); Einnahmen sind am grünen Betrag erkennbar.
 - Hauptkategorien in den Stammdaten mit etwas kleinerer Schrift (0,92 rem).
+
+## D159 – 80 Farben mit Weiß/Grau/Schwarz, automatische Farbe passend zum Namen, kleinere Stammdaten-Überschriften
+*Wunsch des Nutzers (ändert D154, D155 und D158)*
+
+- **Stammdaten:** die Überschriften der Klappbereiche (Konten, Kategorien, Vorlagen …) deutlich kleiner (0,95 rem).
+- **80 Farben:** eine Grauleiste (Weiß, 6 Grautöne, Schwarz) und 12 Farbtöne (Rot, Orange, Bernstein, Gelb,
+  Limette, Grün, Türkis, Petrol, Blau, Indigo, Violett, Magenta) in je 6 Helligkeitsstufen (1 sehr hell …
+  6 sehr dunkel), je Stufe gleiche Sättigung/Helligkeit. Auswahl: Grauleiste oben, darunter das Raster
+  (Spalten = Farbton, Zeilen = Stufe). Farbpunkte haben einen feinen Rand, damit Weiß und Schwarz auf jedem
+  Hintergrund sichtbar bleiben.
+- **Automatisch passend zum Namen:** Stichworte im Namen der Hauptkategorie bestimmen die Wunschfarbe, z. B.
+  Wohnen → Bernstein, Lebensmittel → Grün, Mobilität → Blau, Versicherungen → Indigo, Freizeit/Urlaub → Orange,
+  Gesundheit → Türkis, Kleidung → Magenta, Kinder/Bildung → Gelb, Haustier → Limette, Investitionen/Sparen →
+  Petrol dunkel, Kredit → Rot dunkel, Geschenke/Spenden → Rot, Steuern/Gebühren → Violett, Abos/Telefon →
+  Violett hell, Bargeld → Grau, Sonstiges → Grau. Ist die Wunschfarbe schon vergeben, nimmt die App denselben
+  Farbton in einer Nachbarstufe. Ohne passendes Stichwort: freie mittlere Farbe, im Farbkreis verteilt.
+- Selbst gewählte Farben haben immer Vorrang; Schlüssel der früheren Paletten (D155, D158) werden auf die
+  passende neue Farbe abgebildet.

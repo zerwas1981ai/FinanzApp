@@ -1641,7 +1641,7 @@ body:not(.umbuchungen-sichtbar) .ub-ausblendbar { display: none; }
 .stamm-klapp > summary::-webkit-details-marker { display: none; }
 .stamm-klapp > summary::before { content: '▸'; color: var(--text-2); font-size: .85rem; width: 12px; }
 .stamm-klapp[open] > summary::before { content: '▾'; }
-.stamm-klapp > summary h2 { margin: 0; }
+.stamm-klapp > summary h2 { margin: 0; font-size: .95rem; font-weight: 600; } /* D159: deutlich kleiner */
 .stamm-klapp[open] > summary { margin-bottom: 10px; }
 .stamm-klapp .bereich-kopf { justify-content: flex-end; }
 
@@ -1649,12 +1649,16 @@ body:not(.umbuchungen-sichtbar) .ub-ausblendbar { display: none; }
 .kat-punkt {
   display: inline-block; flex: none; width: 8px; height: 8px; border-radius: 50%;
   background: var(--kat-farbe); margin-right: 6px; vertical-align: middle; position: relative; top: -1px;
+  box-shadow: inset 0 0 0 1px rgba(127, 127, 127, .45); /* D159: Weiß/Schwarz auf jedem Hintergrund sichtbar */
 }
 .btab-kategorie .kat-punkt { margin-right: 5px; }
 .kat > summary .kat-punkt { margin-right: 2px; }
 /* D158: 36 Farben als Raster – 12 Farbtöne nebeneinander, Zeilen hell / mittel / dunkel */
 .farb-auto-zeile { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
-.farb-raster { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 6px; max-width: 420px; }
+.farb-raster { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 5px; max-width: 420px; }
+/* D159: Grauleiste mit 8 Feldern – gleich große Kreise wie im Raster darunter */
+.farb-raster.farb-grau { grid-template-columns: repeat(12, minmax(0, 1fr)); margin-bottom: 10px; }
+.farb-wahl { box-shadow: inset 0 0 0 1px rgba(127, 127, 127, .45); }
 .farb-wahl {
   width: 100%; aspect-ratio: 1; border-radius: 50%; border: 2px solid transparent; background: var(--kat-farbe);
   cursor: pointer; color: #fff; font: 600 .75rem/1 system-ui, sans-serif; padding: 0;
