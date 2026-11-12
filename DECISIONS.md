@@ -2123,3 +2123,11 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
 - Die Zeile „Zuletzt abgestimmt für …“ ist grau wie „Niedrigster erwarteter Stand“.
 - Farbig (Warnfarbe) bleiben nur der Differenzbetrag sowie die Erinnerung „· vor N Tagen“ bzw.
   „Noch nicht abgestimmt.“ (D145).
+
+## D150 – Vertrag: „An (Empfänger)“ statt „Anbieter“, Pflichtfeld
+*Wunsch des Nutzers (ändert D148)*
+
+- Anbieter und Empfänger sind dasselbe. Im Vertragsdialog heißt das Feld deshalb wie in der Buchungsmaske
+  **„An (Empfänger)“**, mit denselben Vorschlägen aus den bisherigen Buchungen, und ist **Pflicht**.
+- Intern heißt das Feld weiter `anbieter` (keine Datenumstellung nötig). Ältere Verträge ohne Empfänger
+  lassen sich erst wieder speichern, wenn einer eingetragen ist.

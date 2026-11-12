@@ -43,7 +43,7 @@ Oberfläche auf Deutsch, Währung Euro, deutsches Datums- und Zahlenformat.
   abgebenden Konto (auch wiederkehrend/geplant, D98).
 - Budget: pro Hauptkategorie und Konto, monatlich, jährlich (in Tranchen, D90) oder einmalig (D85);
   je Kategorie und Konto entweder Monats- oder Jahresbudget
-- Vertrag (D148): Name, Anbieter, Vertragsnummer, Beginn, Mindestlaufzeit, Verlängerung,
+- Vertrag (D148): Name, Empfänger (Pflicht, D150), Vertragsnummer, Beginn, Mindestlaufzeit, Verlängerung,
   Kündigungsfrist, Erinnerung, gekündigt zum, Unterlagen; Klammer um Buchungen und wiederkehrende
   Buchungen (Feld „Vertrag“, rückwirkend über die wiederkehrende Buchung)
 - Vorlage: Name, Art, Konto (bei Umbuchung auch Zielkonto), optional Kategorie,

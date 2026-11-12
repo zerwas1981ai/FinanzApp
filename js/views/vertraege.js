@@ -14,7 +14,7 @@ import { benenneBelege } from '../relevant.js';
 import { gruppeVon } from '../buchungen.js';
 import { wirkungCent } from '../rechnen.js';
 import { belegeFeld, zeigeBeleg, belegeEntfernen } from './belege.js';
-import { oeffneBuchungsdialog } from './buchung-dialog.js';
+import { oeffneBuchungsdialog, partnerFeld } from './buchung-dialog.js';
 import { wiederkehrendDialog } from './annahmen.js';
 
 const INTERVALL = { monatlich: 'monatlich', vierteljaehrlich: 'vierteljährlich', jaehrlich: 'jährlich' };
@@ -136,7 +136,10 @@ function vertragZeile({ v, stand }, daten, heute) {
 export function vertragDialog(v, daten, vorgaben = {}) {
   const w = { ...(v ?? {}), ...vorgaben };
   const name = eingabe({ label: 'Name', value: w.name ?? '', maxlength: 60, placeholder: 'z. B. Handy, Strom, Kfz-Versicherung', autofocus: !v });
-  const anbieter = eingabe({ label: 'Anbieter (optional)', value: w.anbieter ?? '', maxlength: 80, placeholder: 'z. B. Telefon AG' });
+  // D150: Empfänger wie in der Buchungsmaske (mit Vorschlägen aus den Buchungen), hier Pflicht
+  const anbieter = partnerFeld(daten.buchungen ?? [], w.anbieter ?? '', 'ausgabe');
+  anbieter.feld.querySelector('label').textContent = 'An (Empfänger)';
+  anbieter.input.placeholder = 'z. B. Telefon AG';
   const nummer = eingabe({
     label: 'Vertragsnummer (optional)', value: w.vertragsnummer ?? '', maxlength: 60,
     hilfe: 'Nur zur eigenen Zuordnung – bitte keine Passwörter oder Zugangsdaten eintragen.',
@@ -241,7 +244,7 @@ export function vertragDialog(v, daten, vorgaben = {}) {
 
 /* =========================== Buchungen zuordnen =========================== */
 
-/** Vorhandene Buchungen nachträglich zuordnen: Liste nach Suchbegriff (Anbieter), per Häkchen auswählen */
+/** Vorhandene Buchungen nachträglich zuordnen: Liste nach Suchbegriff (Empfänger), per Häkchen auswählen */
 export function zuordnenDialog(v, daten) {
   const MAX = 100;
   const kontoName = new Map(daten.konten.map((k) => [k.id, k.name]));

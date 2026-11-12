@@ -2,7 +2,7 @@
 // Reine Funktionen – mit `npm test` geprüft.
 //
 // Datensatz Vertrag (Datenversion 18), Sammlung "vertraege":
-// { id, name, anbieter, vertragsnummer, beginn "JJJJ-MM-TT"|null,
+// { id, name, anbieter (= Empfänger wie bei Buchungen, Pflicht ab D150), vertragsnummer, beginn "JJJJ-MM-TT"|null,
 //   mindestlaufzeitMonate (Zahl|null; null/0 = keine Mindestlaufzeit, jederzeit kündbar),
 //   verlaengerungMonate (Zahl|null; 0/null = verlängert sich nicht, endet nach der Mindestlaufzeit),
 //   fristAnzahl (Zahl|null), fristEinheit: 'tage'|'wochen'|'monate',
@@ -40,7 +40,7 @@ export function plusMonate(iso, n) {
 /** Letzter Vertragstag nach `monate` Monaten ab Beginn (Beginn 01.03.2025, 24 Monate → 28.02.2027) */
 export const laufzeitEnde = (beginn, monate) => plusTage(plusMonate(beginn, monate), -1);
 
-/** Letzter Tag, an dem die Kündigung beim Anbieter sein muss */
+/** Letzter Tag, an dem die Kündigung beim Empfänger (Vertragspartner) sein muss */
 export function kuendigungsTag(ende, anzahl, einheit) {
   if (!anzahl) return ende;
   if (einheit === 'monate') return plusMonate(ende, -anzahl);
@@ -73,6 +73,9 @@ export function baueVertrag(eingabe, { vertraege = [], alt = null, jetzt = new D
   if (name.length > 60) throw new Error('Der Name ist zu lang (höchstens 60 Zeichen).');
   const gleich = vertraege.find((v) => v.id !== alt?.id && v.name.toLocaleLowerCase('de') === name.toLocaleLowerCase('de'));
   if (gleich) throw new Error(`Einen Vertrag „${gleich.name}“ gibt es schon.`);
+  // D150: Empfänger (an wen gezahlt wird) ist Pflicht – gleicher Begriff wie bei Buchungen
+  const anbieter = String(eingabe.anbieter ?? '').trim().replace(/\s+/g, ' ').slice(0, 80);
+  if (!anbieter) throw new Error('Bitte den Empfänger eingeben, z. B. „Telefon AG“.');
 
   const beginn = datumOderNull(eingabe.beginn, 'Beginn');
   const mindestlaufzeitMonate = ganzeZahl(eingabe.mindestlaufzeitMonate, 'Mindestlaufzeit');
@@ -87,7 +90,7 @@ export function baueVertrag(eingabe, { vertraege = [], alt = null, jetzt = new D
   return {
     id: alt?.id ?? crypto.randomUUID(),
     name,
-    anbieter: String(eingabe.anbieter ?? '').trim().slice(0, 80),
+    anbieter,
     vertragsnummer: String(eingabe.vertragsnummer ?? '').trim().slice(0, 60),
     beginn,
     mindestlaufzeitMonate,

@@ -25,17 +25,19 @@ test('Datumsrechnung: Monate, Laufzeitende, Kündigungstag', () => {
 });
 
 test('Vertrag bauen: Pflichtfelder und Prüfungen', () => {
-  const v = baueVertrag({ name: '  Handy ', mindestlaufzeitMonate: '24', beginn: '2025-01-01', verlaengerungMonate: '1', fristAnzahl: '1', fristEinheit: 'monate', erinnerungTage: '' }, { jetzt: 'T' });
+  const v = baueVertrag({ name: '  Handy ', anbieter: ' Telefon AG (Test) ', mindestlaufzeitMonate: '24', beginn: '2025-01-01', verlaengerungMonate: '1', fristAnzahl: '1', fristEinheit: 'monate', erinnerungTage: '' }, { jetzt: 'T' });
   assert.equal(v.name, 'Handy');
   assert.equal(v.mindestlaufzeitMonate, 24);
   assert.equal(v.erinnerungTage, 28, 'Standard 4 Wochen');
+  assert.equal(v.anbieter, 'Telefon AG (Test)');
   assert.throws(() => baueVertrag({ name: '' }), /Namen/);
-  assert.throws(() => baueVertrag({ name: 'handy' }, { vertraege: [v] }), /gibt es schon/);
-  assert.throws(() => baueVertrag({ name: 'X', mindestlaufzeitMonate: '12' }), /Vertragsbeginn/);
-  assert.throws(() => baueVertrag({ name: 'X', fristAnzahl: '1,5' }), /ganze Zahl/);
-  assert.throws(() => baueVertrag({ name: 'X', beginn: '2025-05-01', gekuendigtZum: '2025-04-01' }), /vor dem Vertragsbeginn/);
+  assert.throws(() => baueVertrag({ name: 'handy', anbieter: 'A' }, { vertraege: [v] }), /gibt es schon/);
+  assert.throws(() => baueVertrag({ name: 'X', anbieter: '   ' }), /Empfänger/, 'D150: Empfänger ist Pflicht');
+  assert.throws(() => baueVertrag({ name: 'X', anbieter: 'A', mindestlaufzeitMonate: '12' }), /Vertragsbeginn/);
+  assert.throws(() => baueVertrag({ name: 'X', anbieter: 'A', fristAnzahl: '1,5' }), /ganze Zahl/);
+  assert.throws(() => baueVertrag({ name: 'X', anbieter: 'A', beginn: '2025-05-01', gekuendigtZum: '2025-04-01' }), /vor dem Vertragsbeginn/);
   // Bearbeiten: ID und Unterlagen bleiben, „Behalten“ bleibt
-  const neu = baueVertrag({ name: 'Handy', erinnerungAusBis: undefined }, { alt: { ...v, belege: [{ id: 'b' }], erinnerungAusBis: '2026-11-30' }, vertraege: [v] });
+  const neu = baueVertrag({ name: 'Handy', anbieter: 'Telefon AG (Test)', erinnerungAusBis: undefined }, { alt: { ...v, belege: [{ id: 'b' }], erinnerungAusBis: '2026-11-30' }, vertraege: [v] });
   assert.equal(neu.id, v.id);
   assert.deepEqual(neu.belege, [{ id: 'b' }]);
   assert.equal(neu.erinnerungAusBis, '2026-11-30');
