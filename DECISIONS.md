@@ -2253,3 +2253,10 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
   Abgeschlossene Projekte eingeklappt darunter.
 - Die Knöpfe zum Anlegen („+ Projekt“, „+ Vertrag“, „+ Ausgabe“) sehen in allen Tabs gleich aus wie bei Annahmen
   und Stammdaten (blauer Hintergrund, gleiche Größe); „Liste“ bei den relevanten Ausgaben hat dieselbe Höhe.
+
+## D162 – Kopfzeile der Blöcke am Handy: Knöpfe nebeneinander
+*Wunsch des Nutzers*
+
+- In der Kopfzeile eines Blocks (Überschrift + Knöpfe) bleiben die Knöpfe immer nebeneinander, z. B. „Liste“ und
+  „+ Ausgabe“ bei den relevanten Ausgaben. Am Handy sind sie dafür etwas schmaler; eine lange Überschrift bricht
+  notfalls selbst um, statt die Knöpfe untereinander zu schieben.

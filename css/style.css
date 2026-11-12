@@ -1694,3 +1694,10 @@ body:not(.umbuchungen-sichtbar) .ub-ausblendbar { display: none; }
 .umschalter-info:empty { display: none; }
 .modus-zeile { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
 .modus-zeile .segmente { margin-bottom: 0; }
+
+/* D162: Kopfzeile eines Blocks – Knöpfe bleiben nebeneinander (am Handy etwas schmaler), die Überschrift gibt nach */
+.bereich-kopf h2 { min-width: 0; }
+.bereich-kopf .knopfreihe { flex-wrap: nowrap; flex: none; gap: 6px; }
+@media (max-width: 767px) {
+  .bereich-kopf .knopf { padding: 6px 10px; }
+}
