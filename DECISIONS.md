@@ -2332,3 +2332,11 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
 - Unter „Noch erwartet“ hat der Balken eines Budgets zwei Abschnitte: verbraucht (voll) und direkt dahinter
   schraffiert die noch ausstehenden wiederkehrenden Ausgaben dieses Monats (Annahme). Übersteigen beide zusammen
   das Budget, ist der schraffierte Teil in der Warnfarbe.
+
+## D171 – Scrollbare Leisten behalten ihre Position
+*Wunsch des Nutzers*
+
+- Am Handy springen seitlich scrollbare Leisten (Umschalter in Projekte/Annahmen/Stammdaten, Konto-Wahl in der
+  Übersicht, Zeitraum in „Alle Buchungen“, Gruppen bei den relevanten Ausgaben) nach dem Antippen eines Eintrags
+  nicht mehr nach ganz links, sondern bleiben dort, wo sie hingeschoben wurden (solange die App offen ist).
+  Beim ersten Öffnen wird ein weiter rechts gemerkter Eintrag sichtbar gemacht.

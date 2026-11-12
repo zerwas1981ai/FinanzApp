@@ -5,7 +5,7 @@
 import { h } from '../dom.js';
 import * as db from '../db.js';
 import { formatEuro, formatDatum, parseEuro, centZuEingabe, heuteIso } from '../format.js';
-import { dialog, toast, eingabe, auswahl, optionsGruppe, datenGeaendert, herunterladen } from '../ui.js';
+import { dialog, toast, eingabe, auswahl, optionsGruppe, datenGeaendert, herunterladen, merkeScroll } from '../ui.js';
 import { relevantAlsCsv } from '../export.js';
 import {
   baueRelevant, relevanteZeilen, gruppenListe, filtereGruppe, nachJahren, OHNE_GRUPPE, benenneBelege,
@@ -40,8 +40,8 @@ export async function relevantBereich(daten) {
     'aria-pressed': String(ansicht.gruppe === wert),
     onclick: () => { ansicht.gruppe = wert; neu(); },
   }, text);
-  const gruppenWahl = gruppen.length > 0 && h('div', { class: 'chips', role: 'group', 'aria-label': 'Gruppe' },
-    chip('', 'Alle'), gruppen.map((g) => chip(g, g)), alleZeilen.some((z) => !z.gruppe) && chip(OHNE_GRUPPE, 'Ohne Gruppe'));
+  const gruppenWahl = gruppen.length > 0 && merkeScroll(h('div', { class: 'chips', role: 'group', 'aria-label': 'Gruppe' },
+    chip('', 'Alle'), gruppen.map((g) => chip(g, g)), alleZeilen.some((z) => !z.gruppe) && chip(OHNE_GRUPPE, 'Ohne Gruppe')), 'relevant-gruppen'); // D171
 
   const offen = ansicht.offen ?? new Set(jahre.slice(0, 1).map((j) => j.jahr));
   const jahrBlock = (j) => {

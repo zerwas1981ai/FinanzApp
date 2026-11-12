@@ -3,7 +3,7 @@
 import { h } from '../dom.js';
 import * as db from '../db.js';
 import { formatEuro, formatEuroRund, formatProzent, formatDatum, formatMonat, heuteIso, parseEuro } from '../format.js';
-import { herunterladen, toast, katPunkt } from '../ui.js';
+import { herunterladen, toast, katPunkt, merkeScroll } from '../ui.js';
 import { farbenZuordnung, farbeVon } from '../farben.js';
 import { oeffneRueckblick } from './rueckblick.js';
 import { notizListe } from './monatsnotiz.js';
@@ -267,13 +267,13 @@ function filterBereich({ konten, kategorien, buchungen }, aktualisiere, neuZeich
   };
 
   // Zeitraum-Schnellwahl
-  const zeitraum = h('div', { class: 'chips', role: 'group', 'aria-label': 'Zeitraum' },
+  const zeitraum = merkeScroll(h('div', { class: 'chips', role: 'group', 'aria-label': 'Zeitraum' },
     ZEITRAEUME.map(([wert, text]) => h('button', {
       type: 'button',
       class: 'chip',
       'aria-pressed': String(f.zeitraum === wert),
       onclick: () => setze('zeitraum', wert, true),
-    }, text)));
+    }, text))), 'zeitraum'); // D171
 
   const eigenerZeitraum = f.zeitraum === 'eigen' && h('div', { class: 'filter-reihe' },
     feld('Von', h('input', { type: 'date', value: f.von, onchange: (e) => setze('von', e.target.value) })),

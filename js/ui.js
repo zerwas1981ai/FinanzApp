@@ -233,6 +233,27 @@ export function klappBereich({ klasse = '', titel, zusatz = null, rechts = null,
  * rechts: optionaler Knopf am rechten Rand; info: true = Platz für ein „ⓘ“ zur Seiten-Erklärung.
  * Liefert { aktuell, leiste(beiWahl) }.
  */
+/**
+ * D171: Seitlich scrollbare Leisten (Umschalter, Konten, Zeitraum …) behalten ihre Scrollposition, wenn der
+ * Bereich nach einem Antippen neu gezeichnet wird – sie springen nicht mehr nach ganz links. Ohne gemerkte
+ * Position (erstes Öffnen) wird der gewählte Eintrag sichtbar gemacht. Gilt, solange die App offen ist.
+ */
+const scrollPositionen = new Map();
+export function merkeScroll(leiste, schluessel) {
+  if (!leiste) return leiste;
+  requestAnimationFrame(() => {
+    if (scrollPositionen.has(schluessel)) leiste.scrollLeft = scrollPositionen.get(schluessel);
+    else {
+      const gewaehlt = leiste.querySelector('[aria-pressed="true"]');
+      if (gewaehlt && gewaehlt.offsetLeft + gewaehlt.offsetWidth > leiste.clientWidth) {
+        leiste.scrollLeft = gewaehlt.offsetLeft - leiste.offsetLeft - 16;
+      }
+    }
+  });
+  leiste.addEventListener('scroll', () => scrollPositionen.set(schluessel, leiste.scrollLeft), { passive: true });
+  return leiste;
+}
+
 /** Langer Name am PC, Kurzform am Handy (für Umschalter) */
 export const kurzLang = (lang, kurz) => [h('span', { class: 'nur-breit' }, lang), h('span', { class: 'nur-schmal' }, kurz)];
 
@@ -243,13 +264,13 @@ export function bereichsWahl(speicher, ansichten, standard = ansichten[0][0]) {
     aktuell,
     leiste(beiWahl, { rechts = null, info = false } = {}) {
       return h('div', { class: 'umschalter-zeile' },
-        h('div', { class: 'chips', role: 'group', 'aria-label': 'Bereich wählen' },
+        merkeScroll(h('div', { class: 'chips', role: 'group', 'aria-label': 'Bereich wählen' },
           ansichten.map(([k, text, zahl]) => h('button', {
             type: 'button',
             class: 'chip',
             'aria-pressed': String(k === aktuell),
             onclick: () => { geraet.schreib(speicher, k); beiWahl(k); },
-          }, text, zahl > 0 && h('span', { class: 'chip-zahl', 'aria-hidden': 'true' }, String(zahl))))),
+          }, text, zahl > 0 && h('span', { class: 'chip-zahl', 'aria-hidden': 'true' }, String(zahl))))), speicher), // D171
         // leere Überschrift: daran hängt richteErklaerungenEin das „ⓘ“ der Seiten-Erklärung (D109)
         info && h('h3', { class: 'umschalter-info', 'aria-label': 'Erklärung' }),
         rechts);

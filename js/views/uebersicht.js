@@ -9,7 +9,7 @@ import {
   isoMonatsanfang, naechsterMonat, vorigerMonat, istGueltigesDatum,
 } from '../format.js';
 import { monatsuebersicht, kontostand, vorgemerktBis, wirkungCent } from '../rechnen.js';
-import { dialog, eingabe, hinweis, toast, geraet, datenGeaendert, klappBereich, katPunkt } from '../ui.js';
+import { dialog, eingabe, hinweis, toast, geraet, datenGeaendert, klappBereich, katPunkt, merkeScroll } from '../ui.js';
 import { farbenZuordnung, farbeVon } from '../farben.js';
 import { oeffneBuchungsdialog } from './buchung-dialog.js';
 import { kuendigungsBereich } from './vertraege.js';
@@ -226,7 +226,7 @@ function kontenAufstellung(konten, zl, heute, waehle) {
 /* ---------- Kontoauswahl ---------- */
 
 function kontoAuswahl(konten, aktiv, faelligJeKonto, beiWahl) {
-  return h('div', { class: 'chips', role: 'group', 'aria-label': 'Konto wählen' },
+  return merkeScroll(h('div', { class: 'chips', role: 'group', 'aria-label': 'Konto wählen' },
     h('button', {
       type: 'button',
       class: 'chip',
@@ -243,7 +243,7 @@ function kontoAuswahl(konten, aktiv, faelligJeKonto, beiWahl) {
         title: anzahl ? `${anzahl} fällige wiederkehrende Buchung${anzahl === 1 ? '' : 'en'}` : null,
         onclick: () => beiWahl(k.id),
       }, k.name, anzahl > 0 && h('span', { class: 'chip-zahl', 'aria-hidden': 'true' }, String(anzahl)));
-    }));
+    })), 'konto-wahl'); // D171: Scrollposition bleiben lassen
 }
 
 /* ---------- Kopf: Stand heute, Abstimmung ---------- */
