@@ -46,7 +46,7 @@ export function vertraegeBereich(daten) {
   return h('section', { class: 'bereich vertraege', 'aria-labelledby': 'titel-vertraege' }, ...[
     h('div', { class: 'bereich-kopf' },
       h('h2', { id: 'titel-vertraege' }, 'Verträge'),
-      h('button', { type: 'button', class: 'knopf knopf-klein', onclick: () => vertragDialog(null, daten) }, '+ Vertrag')),
+      h('button', { type: 'button', class: 'knopf knopf-primaer', onclick: () => vertragDialog(null, daten) }, '+ Vertrag')), // D161
     h('p', { class: 'hinweis erklaerung' },
       'Ein Vertrag fasst Zahlungen zusammen, z. B. Handy, Internet, Strom oder Versicherungen. Zuordnen kannst du ' +
       'wiederkehrende und normale Buchungen über das Feld „Vertrag“ – Buchungen aus einer zugeordneten wiederkehrenden ' +

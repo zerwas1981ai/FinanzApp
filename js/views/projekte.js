@@ -33,32 +33,40 @@ export async function zeigeProjekte(container) {
   const titel = h('h1', { class: 'seitentitel unsichtbar' }, 'Projekte');
   const neu = () => zeigeProjekte(container);
 
-  if (ansicht !== 'projekte') {
-    container.replaceChildren(
-      titel,
-      wahl.leiste(neu),
-      ansicht === 'vertraege' ? vertraegeBereich(daten) : await relevantBereich(daten),
-    );
-    return;
-  }
-
-  container.replaceChildren(...[
+  // D161: alle drei Bereiche gleich aufgebaut – ein Block mit Überschrift, „+“-Knopf und aufklappbaren Zeilen
+  container.replaceChildren(
     titel,
-    wahl.leiste(neu, {
-      info: true,
-      rechts: h('button', { type: 'button', class: 'knopf knopf-primaer knopf-klein', onclick: () => projektDialog(null, daten) }, '+ Projekt'),
-    }),
+    wahl.leiste(neu),
+    ansicht === 'vertraege' ? vertraegeBereich(daten)
+      : ansicht === 'relevant' ? await relevantBereich(daten)
+        : projekteBereich(daten, laufend, abgeschlossen, heute),
+  );
+}
+
+/** D161: Block „Projekte“ wie „Verträge“: Summe oben, je Projekt eine aufklappbare Zeile */
+function projekteBereich(daten, laufend, abgeschlossen, heute) {
+  const gesamt = laufend.reduce((s, p) => s + projektZahlen(p, daten, heute).gesamtCent, 0);
+  return h('section', { class: 'bereich projekte', 'aria-labelledby': 'titel-projekte' }, ...[
+    h('div', { class: 'bereich-kopf' },
+      h('h2', { id: 'titel-projekte' }, 'Projekte'),
+      h('button', { type: 'button', class: 'knopf knopf-primaer', onclick: () => projektDialog(null, daten) }, '+ Projekt')),
     h('p', { class: 'hinweis erklaerung' },
       'Fasse Einmalausgaben zu einem Projekt zusammen, z. B. „Umbau Bad“ oder „Urlaub 2027“. Zugeordnet werden echte ' +
       'Buchungen und geplante Einmalbuchungen (Feld „Projekt“ im Buchungsdialog bzw. unter Annahmen). Projektausgaben ' +
       'zählen im Kontostand und in der Prognose, aber nicht gegen das Monatsbudget ihrer Kategorie.'),
-    daten.projekte.length === 0 && h('section', { class: 'bereich' }, h('p', { class: 'leer' }, 'Noch keine Projekte.')),
-    ...laufend.map((p) => projektKarte(p, daten, heute)),
+    daten.projekte.length === 0
+      ? h('p', { class: 'leer' }, 'Noch keine Projekte.')
+      : h('div', { class: 'vertrag-summe' },
+        h('span', { class: 'klein' }, laufend.length === 1 ? '1 laufendes Projekt' : `${laufend.length} laufende Projekte`),
+        h('span', { class: 'betrag stark' }, `Gesamt ${formatEuro(-gesamt)}`)),
+    laufend.length > 0 && h('ul', { class: 'vertrag-liste' }, laufend.map((p) => h('li', {}, projektKarte(p, daten, heute)))),
     abgeschlossen.length > 0 && h('details', { class: 'erledigt-liste' },
       h('summary', {}, `Abgeschlossene Projekte (${abgeschlossen.length})`),
-      ...abgeschlossen.map((p) => projektKarte(p, daten, heute))),
+      h('ul', { class: 'vertrag-liste' }, abgeschlossen.map((p) => h('li', {}, projektKarte(p, daten, heute))))),
   ].filter(Boolean));
 }
+
+const offeneProjekte = new Set(); // aufgeklappte Projekte, solange die App offen ist
 
 /* =========================== Projektkarte =========================== */
 
@@ -99,10 +107,16 @@ function projektKarte(p, daten, heute) {
   const ueber = z.restCent != null && z.restCent < 0;
   const anteil = p.rahmenCent ? Math.min(1, Math.max(0, z.gesamtCent / p.rahmenCent)) : 0;
 
-  return h('section', { class: 'bereich projekt', 'aria-label': `Projekt ${p.name}` },
-    h('div', { class: 'bereich-kopf' },
-      h('h2', {}, p.name, p.abgeschlossen && h('span', { class: 'marke' }, 'abgeschlossen')),
-      h('button', { type: 'button', class: 'knopf knopf-klein', onclick: () => projektDialog(p, daten) }, 'Bearbeiten')),
+  // D161: aufklappbare Zeile wie bei den Verträgen – Name, Stand (Rahmen), Gesamtkosten
+  const stand = p.rahmenCent != null
+    ? (ueber ? `${formatEuro(-z.restCent)} über Rahmen` : `Rest ${formatEuro(z.restCent)} von ${formatEuro(p.rahmenCent)}`)
+    : (p.abgeschlossen ? 'abgeschlossen' : `${z.ist.length} gebucht · ${z.offen.length} geplant`);
+  const d = h('details', { class: 'vertrag projekt', open: offeneProjekte.has(p.id) },
+    h('summary', { class: 'vertrag-kopf' },
+      h('span', { class: 'vertrag-name' }, h('strong', {}, p.name), p.abgeschlossen && h('span', { class: 'marke' }, 'abgeschlossen')),
+      h('span', { class: 'vertrag-stand klein' + (ueber ? ' warn-text' : ' gedaempft') }, stand),
+      h('span', { class: 'betrag vertrag-kosten' }, formatEuro(-z.gesamtCent))),
+    h('div', { class: 'vertrag-inhalt' }, ...[
     p.notiz && h('p', { class: 'hinweis' }, p.notiz),
 
     h('div', { class: 'projekt-zahlen' },
@@ -136,10 +150,13 @@ function projektKarte(p, daten, heute) {
       ? h('ul', { class: 'liste' }, z.ist.map(istZeile))
       : h('p', { class: 'leer' }, 'Noch keine Buchungen.'),
 
-    !p.abgeschlossen && h('div', { class: 'knopfreihe' },
-      h('button', { type: 'button', class: 'knopf knopf-klein', onclick: () => oeffneBuchungsdialog(null, { projektId: p.id, titel: `Buchung für ${p.name}` }) }, '+ Buchung'),
-      h('button', { type: 'button', class: 'knopf knopf-klein', onclick: () => geplantDialog(null, daten, { projektId: p.id }) }, '+ Geplant')),
-  );
+    h('div', { class: 'knopfreihe' },
+      h('button', { type: 'button', class: 'knopf knopf-klein', onclick: () => projektDialog(p, daten) }, 'Bearbeiten'),
+      !p.abgeschlossen && h('button', { type: 'button', class: 'knopf knopf-klein', onclick: () => oeffneBuchungsdialog(null, { projektId: p.id, titel: `Buchung für ${p.name}` }) }, '+ Buchung'),
+      !p.abgeschlossen && h('button', { type: 'button', class: 'knopf knopf-klein', onclick: () => geplantDialog(null, daten, { projektId: p.id }) }, '+ Geplant')),
+    ].filter(Boolean)));
+  d.addEventListener('toggle', () => { if (d.open) offeneProjekte.add(p.id); else offeneProjekte.delete(p.id); });
+  return d;
 }
 
 function kachel(titel, wert, klasse = '', zusatz = null) {

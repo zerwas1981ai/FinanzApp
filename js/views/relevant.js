@@ -63,8 +63,8 @@ export async function relevantBereich(daten) {
     h('div', { class: 'bereich-kopf' },
       h('h2', { id: 'titel-relevant' }, 'Relevante Ausgaben'),
       h('div', { class: 'knopfreihe' },
-        zeilen.length > 0 && h('button', { type: 'button', class: 'knopf knopf-klein', onclick: () => listenDialog(zeilen, jahre, daten) }, 'Liste'),
-        h('button', { type: 'button', class: 'knopf knopf-klein', onclick: () => relevantDialog(null, daten) }, '+ Ausgabe'))),
+        zeilen.length > 0 && h('button', { type: 'button', class: 'knopf', onclick: () => listenDialog(zeilen, jahre, daten) }, 'Liste'),
+        h('button', { type: 'button', class: 'knopf knopf-primaer', onclick: () => relevantDialog(null, daten) }, '+ Ausgabe'))), // D161
     h('p', { class: 'hinweis erklaerung' },
       'Sammle hier Ausgaben, die dir wichtig sind – auch aus früheren Jahren. Eigene Einträge zählen in keinem Konto, ' +
       'Budget und nicht in der Prognose. Echte Buchungen erscheinen hier, wenn du im Buchungsdialog „Relevante Ausgabe“ ' +

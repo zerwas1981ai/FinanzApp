@@ -2242,3 +2242,14 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
 - **Überschriften der Blöcke** überall wie bei Annahmen (1,15 rem, fett); die verkleinerten Klapp-Überschriften
   der Stammdaten (D159) entfallen mit den Klappbereichen.
 - Gemeinsamer Baustein `bereichsWahl` in ui.js (auch für Projekte).
+
+## D161 – Projekte wie Verträge aufgebaut, einheitliche „+“-Knöpfe
+*Wunsch des Nutzers*
+
+- Unter Projekte → Projekte steht jetzt ein Block wie bei Verträgen und relevanten Ausgaben: Überschrift
+  „Projekte“ mit ⓘ und Knopf „+ Projekt“, darunter Anzahl und Gesamtsumme der laufenden Projekte und je Projekt
+  eine aufklappbare Zeile (Name, Rahmen-Rest bzw. Anzahl gebucht/geplant, Gesamtkosten). Aufgeklappt wie bisher:
+  Kacheln, Rahmenbalken, geplante und gebuchte Buchungen, Knöpfe Bearbeiten, + Buchung, + Geplant.
+  Abgeschlossene Projekte eingeklappt darunter.
+- Die Knöpfe zum Anlegen („+ Projekt“, „+ Vertrag“, „+ Ausgabe“) sehen in allen Tabs gleich aus wie bei Annahmen
+  und Stammdaten (blauer Hintergrund, gleiche Größe); „Liste“ bei den relevanten Ausgaben hat dieselbe Höhe.
