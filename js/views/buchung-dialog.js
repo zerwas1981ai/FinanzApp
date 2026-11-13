@@ -77,7 +77,8 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
   const pruefeHoehe = () => {
     let cent = null;
     try { cent = liesBetrag(); } catch { /* egal */ }
-    const schnitt = art === 'ausgabe' && cent ? ungewoehnlichHoch(cent, vorherigeBetraege(alle, partner.input.value, { ohneId: ref?.id })) : null;
+    // D186: bestätigter Betrag → kein Hinweis
+    const schnitt = art === 'ausgabe' && cent && ref?.hochOkCent !== cent ? ungewoehnlichHoch(cent, vorherigeBetraege(alle, partner.input.value, { ohneId: ref?.id })) : null;
     ungewoehnlichHinweis.hidden = schnitt == null;
     ungewoehnlichHinweis.textContent = schnitt == null ? '' : `Ungewöhnlich hoch für ${partner.input.value.trim()} – sonst Ø ${formatEuro(schnitt)}. Betrag prüfen?`;
   };

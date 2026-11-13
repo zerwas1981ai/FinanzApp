@@ -27,7 +27,7 @@ Kurzer Wegweiser, weil viele spätere Einträge frühere aufheben. Maßgeblich b
 - Stammdaten: Umschalter Konten · Kategorien · Daten & Sicherheit · Notfall-Mappe · Papierkorb · Einstellungen (D180)
 - Scrollbare Leisten behalten ihre Position (D171); „+“-Knöpfe überall im blauen Stil (D161)
 
-**Schlaue Hinweise ohne KI:** erkannte wiederkehrende Zahlungen, „↑ hoch“-Marke, Kategorie aus Notiz, Archiv-Erinnerung (D182–D185). KI bleibt außen vor.
+**Schlaue Hinweise ohne KI:** erkannte wiederkehrende Zahlungen, „↑ hoch“-Marke, Kategorie aus Notiz, Archiv-Erinnerung (D182–D185); „↑ hoch“ per Antippen bestätigen (D186). KI bleibt außen vor.
 
 **Datenstand:** Datenmodell-Version 23, DB-Struktur 12. Alte Schubladen (werden geleert): szenarien, sparziele, vorlagen.
 Sammlungen: konten, kategorien, buchungen, abstimmungen, budgets, wiederkehrend, hinweise, einstellungen, geplant,
@@ -2477,3 +2477,10 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
 - Gibt es ein abgeschlossenes Jahr, das archiviert werden kann (wie unter Stammdaten → Archiv), steht oben in der
   Übersicht „Archiv · JJJJ ist abgeschlossen“ mit „Zum Archiv“ und „In 30 Tagen erinnern“ (je Gerät gemerkt).
   Ein Hindernis (z. B. Buchungen dieses Jahres im Papierkorb) steht als Hinweis dabei.
+
+## D186 – „↑ hoch“ per Antippen bestätigen
+- Die Marke „↑ hoch“ (D183) lässt sich antippen: Rückfrage „Betrag bestätigen“ mit „Betrag stimmt“. Danach
+  verschwindet die Marke in allen Listen, und der Hinweis im Buchungsdialog entfällt.
+- Gemerkt wird der bestätigte Betrag an der Buchung (Feld `hochOkCent`, über Drive abgeglichen). Wird der Betrag
+  später geändert, erscheint die Marke wieder. Antippen der Marke öffnet nicht den Buchungsdialog.
+- Kein neues Datenmodell nötig: Das Feld ist optional und bleibt beim Bearbeiten erhalten.

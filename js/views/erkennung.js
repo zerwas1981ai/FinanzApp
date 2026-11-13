@@ -4,7 +4,7 @@
 import { h } from '../dom.js';
 import * as db from '../db.js';
 import { formatEuro, formatDatum, heuteIso } from '../format.js';
-import { klappBereich, toast, datenGeaendert, geraet } from '../ui.js';
+import { klappBereich, toast, datenGeaendert, geraet, frage } from '../ui.js';
 import { wiederkehrendDialog } from './annahmen.js';
 import { plusTage } from '../vertraege.js';
 
@@ -56,6 +56,36 @@ export function erkanntBereich(vorschlaege, daten) {
         }, 'Anlegen …'),
         h('button', { type: 'button', class: 'knopf', onclick: ablehnen }, 'Nicht wiederkehrend')));
   })));
+}
+
+/**
+ * D183/D186: Marke „↑ hoch“ an einer ungewöhnlich hohen Ausgabe. Antippen fragt „Betrag stimmt?“ und merkt sich
+ * den bestätigten Betrag an der Buchung (hochOkCent) – ändert sich der Betrag später, erscheint die Marke wieder.
+ */
+export function hochMarke(b, schnitt) {
+  if (schnitt == null) return null;
+  const bestaetigen = async (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (b.archivJahr) { toast(`Archiv ${b.archivJahr}: nur lesen.`); return; }
+    const ok = await frage({
+      titel: 'Betrag bestätigen',
+      text: [`${formatEuro(b.betragCent)} am ${formatDatum(b.datum)}${b.partner ? ` an ${b.partner.trim()}` : ''} ist höher als sonst (Ø ${formatEuro(schnitt)}).`,
+        'Stimmt der Betrag? Dann verschwindet die Markierung „↑ hoch“.'],
+      jaText: 'Betrag stimmt',
+    });
+    if (!ok) return;
+    const aktuell = (await db.hole('buchungen', b.id)) ?? b;
+    await db.speichere('buchungen', { ...aktuell, hochOkCent: aktuell.betragCent, geaendertAm: new Date().toISOString() });
+    toast('Betrag bestätigt');
+    datenGeaendert();
+  };
+  return h('span', {
+    class: 'marke marke-warn marke-ungewoehnlich', role: 'button', tabindex: '0',
+    title: `Ungewöhnlich hoch – sonst Ø ${formatEuro(schnitt)}. Antippen zum Bestätigen.`,
+    onclick: bestaetigen,
+    onkeydown: (e) => { if (e.key === 'Enter' || e.key === ' ') bestaetigen(e); },
+  }, '↑ hoch');
 }
 
 /** D185: „Jahr X ist abgeschlossen – archivieren?“ mit „Zum Archiv“ und „In 30 Tagen erinnern“ */

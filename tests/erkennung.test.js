@@ -57,6 +57,11 @@ test('D183: ungewöhnlich hohe Ausgabe', () => {
   ];
   const m = ungewoehnlicheBuchungen(liste);
   assert.deepEqual([...m.entries()], [['d', 8500]]);
+  // D186: bestätigter Betrag → keine Marke; geänderter Betrag → wieder Marke
+  const bestaetigt = liste.map((x) => (x.id === 'd' ? { ...x, hochOkCent: 14000 } : x));
+  assert.equal(ungewoehnlicheBuchungen(bestaetigt).size, 0);
+  const geaendert = liste.map((x) => (x.id === 'd' ? { ...x, hochOkCent: 14000, betragCent: 16000 } : x));
+  assert.deepEqual([...ungewoehnlicheBuchungen(geaendert).entries()], [['d', 8500]]);
   assert.deepEqual(vorherigeBetraege(liste, 'STADTWERKE', { ohneId: 'd' }), [8500, 8500, 8500, 8500]);
   assert.deepEqual(vorherigeBetraege(liste, ''), []);
 });

@@ -7,6 +7,7 @@ import { herunterladen, toast, katPunkt, merkeScroll } from '../ui.js';
 import { farbenZuordnung, farbeVon } from '../farben.js';
 import { oeffneRueckblick } from './rueckblick.js';
 import { ungewoehnlicheBuchungen } from '../erkennung.js';
+import { hochMarke } from './erkennung.js';
 import { notizListe } from './monatsnotiz.js';
 import { archivInhalt } from '../sync/abgleich.js';
 import { buchungenAlsCsv, exportName } from '../export.js';
@@ -592,7 +593,7 @@ function liste(eintraege, daten, neu) {
           : [h('span', { class: 'nur-breit gedaempft' }, '–'), h('span', { class: 'nur-schmal btab-partner-name' }, unterName)],
         // D141: keine v-Spalte hier – „Alle Buchungen“ zeigt nur gebuchte Buchungen (D120)
         b.status === 'vorgemerkt' && h('span', { class: 'marke marke-vorgemerkt' }, 'vorgemerkt'),
-        ungewoehnlich.has(b.id) && h('span', { class: 'marke marke-warn marke-ungewoehnlich', title: `Ungewöhnlich hoch – sonst Ø ${formatEuro(ungewoehnlich.get(b.id))}` }, '↑ hoch'),
+        hochMarke(b, ungewoehnlich.get(b.id)), // D186: antippen = bestätigen
         b.archivJahr && h('span', { class: 'marke' }, 'Archiv')),
       h('span', { class: 'btab-unter' },
         h('span', { class: 'btab-zelle btab-datum' }, formatDatum(b.datum)),

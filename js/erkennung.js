@@ -100,7 +100,8 @@ export function ungewoehnlicheBuchungen(buchungen) {
     const bisher = [];
     for (const b of sortiert) {
       const schnitt = ungewoehnlichHoch(b.betragCent, bisher);
-      if (schnitt != null) ergebnis.set(b.id, schnitt);
+      // D186: vom Nutzer als richtig bestätigt (für genau diesen Betrag) → keine Marke mehr
+      if (schnitt != null && b.hochOkCent !== b.betragCent) ergebnis.set(b.id, schnitt);
       bisher.push(b.betragCent);
     }
   }

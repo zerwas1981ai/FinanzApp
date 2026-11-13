@@ -21,7 +21,7 @@ import { faelligListe, budgetHinweise, zeitleiste, nurWirksam, mindestsaldoWarnu
 import { umbuchungKnopf, kennzahlenBereich, erwartetBereich, hinweisBereich } from './kennzahlen.js';
 import { zeitleisteBereich, postenListe } from './zeitleiste.js';
 import { oeffnePostenDialog } from './posten-dialog.js';
-import { erkanntBereich, archivHinweis, abgelehnteVorschlaege } from './erkennung.js';
+import { erkanntBereich, archivHinweis, abgelehnteVorschlaege, hochMarke } from './erkennung.js';
 import { wiederkehrendVorschlaege, archivErinnerung, ungewoehnlicheBuchungen } from '../erkennung.js';
 import { naechstesArchivJahr } from '../archiv.js';
 
@@ -356,8 +356,7 @@ function vorgemerktDialog(konto, buchungen) {
 
 /** D183: kleine Marke an ungewöhnlich hohen Ausgaben (mit dem üblichen Betrag als Tooltip) */
 function ungewoehnlichMarke(b) {
-  const schnitt = ungewoehnlich.get(b.id);
-  return schnitt != null && h('span', { class: 'marke marke-warn marke-ungewoehnlich', title: `Ungewöhnlich hoch – sonst Ø ${formatEuro(schnitt)}` }, '↑ hoch');
+  return hochMarke(b, ungewoehnlich.get(b.id)); // D186: antippen = bestätigen
 }
 
 /* ---------- Monatsnavigation ---------- */

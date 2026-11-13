@@ -1698,3 +1698,5 @@ html[data-schrift="gross"] { font-size: 103.125%; }
 
 /* D183: Marke „↑ hoch“ an ungewöhnlich hohen Ausgaben */
 .marke-ungewoehnlich { margin-left: 6px; white-space: nowrap; }
+.marke-ungewoehnlich[role="button"] { cursor: pointer; }
+.marke-ungewoehnlich[role="button"]:hover { text-decoration: underline; }
