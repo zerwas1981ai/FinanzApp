@@ -2355,3 +2355,12 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
 
 - Reihenfolge der Umschalter: Konten · Kategorien · Budgethinweise · Google Drive · App-Login · Export ·
   Notfall-Mappe · Archiv · Papierkorb · Info.
+
+## D174 – Zeitraum „Vormonat“ in „Alle Buchungen“
+*Wunsch des Nutzers*
+
+- Neue Zeitraum-Schnellwahl **„Vormonat“** hinter „Dieser Monat“: der ganze letzte Monat (heute im November →
+  01.10.–31.10.).
+- Vergleich in der Analyse: **der Monat davor** (ganzer Monat, z. B. September), mit denselben Filtern.
+- Erklärtext der Analyse sprachlich korrigiert: „Vergleichszeitraum „…“: von – bis, mit denselben Filtern.“
+  (vorher z. B. „Vergleich mit die 3 Monate davor“).

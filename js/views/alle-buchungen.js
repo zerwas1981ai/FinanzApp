@@ -49,6 +49,7 @@ const ZEITRAEUME = [
   ['alles', 'Alles'],
   ['jahr', 'Dieses Jahr'],
   ['monat', 'Dieser Monat'],
+  ['vormonat', 'Vormonat'], // D174
   ['letzte3', 'Letzte 3 Monate'],
   ['eigen', 'Eigener Zeitraum'],
 ];
@@ -1022,7 +1023,7 @@ function kategorieBereich(eintraege, daten, monate, heute, neu, erster) {
       + (mitSchnitt ? `Ø = Durchschnitt pro Monat über ${anzahlMonate === 1 ? '1 abgeschlossenen Monat' : `${anzahlMonate} abgeschlossene Monate`} `
         + `(${formatMonat(...schnittMonate[0])}${anzahlMonate > 1 ? ` bis ${formatMonat(...schnittMonate.at(-1))}` : ''}); der laufende Monat zählt nicht mit. ` : '')
       + (art === 'ausgabe' && mitSchnitt ? 'Budget Ø = Monatsbudgets im selben Zeitraum, Jahresbudgets mit einem Zwölftel je Monat. ' : '')
-      + (vp ? `Vergleich mit ${vp.text} (${formatDatum(vp.von)} – ${formatDatum(vp.bis)}).` : '')),
+      + (vp ? `Vergleichszeitraum „${vp.text}“: ${formatDatum(vp.von)} – ${formatDatum(vp.bis)}, mit denselben Filtern.` : '')),
   );
 }
 

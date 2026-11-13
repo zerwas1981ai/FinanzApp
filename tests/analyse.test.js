@@ -10,6 +10,9 @@ test('Vorperiode je Zeitraum, gleich lang wie der gezeigte Zeitraum (bis heute)'
   assert.equal(vorperiode({ zeitraum: 'alles' }, heute), null);
   assert.deepEqual(vorperiode({ zeitraum: 'jahr' }, heute), { von: '2025-01-01', bis: '2025-11-09', text: 'Vorjahr bis 09.11.' });
   assert.deepEqual(vorperiode({ zeitraum: 'monat' }, '2026-03-31'), { von: '2026-02-01', bis: '2026-02-28', text: 'Vormonat bis zum gleichen Tag' });
+  // D174: Vormonat → der ganze Monat davor
+  assert.deepEqual(vorperiode({ zeitraum: 'vormonat' }, '2026-11-13'), { von: '2026-09-01', bis: '2026-09-30', text: 'der Monat davor' });
+  assert.deepEqual(vorperiode({ zeitraum: 'vormonat' }, '2026-03-31'), { von: '2026-01-01', bis: '2026-01-31', text: 'der Monat davor' });
   assert.deepEqual(vorperiode({ zeitraum: 'letzte3' }, heute), { von: '2026-05-01', bis: '2026-07-31', text: 'die 3 Monate davor' });
   assert.deepEqual(vorperiode({ zeitraum: 'eigen', von: '2026-10-01', bis: '2026-10-10' }, heute), { von: '2026-09-21', bis: '2026-09-30', text: 'die 10 Tage davor' });
   assert.equal(vorperiode({ zeitraum: 'eigen', von: '', bis: '' }, heute), null);

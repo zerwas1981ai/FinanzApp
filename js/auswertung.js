@@ -13,7 +13,7 @@ import { budgetFuerMonat, wirksam, monatsende } from './prognose.js';
 import { istJaehrlich, giltImJahr, tranchen } from './jahresbudget.js';
 
 export const STANDARD_FILTER = Object.freeze({
-  zeitraum: 'alles', // alles | jahr | monat | letzte3 | eigen (vormonat/vorjahr nur noch intern) – Standard „Alles“ (D122)
+  zeitraum: 'alles', // alles | jahr | monat | vormonat (D174) | letzte3 | eigen (vorjahr nur noch intern) – Standard „Alles“ (D122)
   von: '',
   bis: '',
   // Mehrfachauswahl (D72): leere Liste = alle
@@ -395,6 +395,11 @@ export function vorperiode(filter, heute) {
     case 'monat': {
       const [vj, vm] = vorigerMonat(j, m);
       return { von: isoTag(vj, vm, 1), bis: isoTag(vj, vm, Math.min(t, tageIm(vj, vm))), text: 'Vormonat bis zum gleichen Tag' };
+    }
+    case 'vormonat': {
+      // D174: der ganze Monat vor dem Vormonat (beide Monate sind abgeschlossen)
+      const [vj, vm] = vorigerMonat(...vorigerMonat(j, m));
+      return { von: isoTag(vj, vm, 1), bis: isoTag(vj, vm, tageIm(vj, vm)), text: 'der Monat davor' };
     }
     case 'letzte3': {
       const { von } = zeitraumFuer(filter, heute);
