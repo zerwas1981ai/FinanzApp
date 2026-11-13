@@ -1712,5 +1712,9 @@ html[data-schrift="gross"] { font-size: 103.125%; }
 .vertrag-kosten .vertrag-jahr { display: block; font-size: .8em; opacity: .8; }
 
 /* D194: Verträge nach Kategorie gruppiert */
-.vertrag-gruppe + .vertrag-gruppe { margin-top: 10px; }
+/* D195: Trennstrich zwischen den Kategorien statt zwischen den einzelnen Verträgen */
+.vertrag-gruppe + .vertrag-gruppe { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--rand); }
+.vertraege .vertrag-gruppe .vertrag-liste > li + li { border-top: 0; }
+/* D195: Anzahl laufender Verträge größer und fett */
+.vertraege .vertrag-summe .klein { font-size: 1rem; font-weight: 700; color: var(--text); }
 .vertrag-gruppe-kopf { flex-wrap: wrap; gap: 2px 12px; }

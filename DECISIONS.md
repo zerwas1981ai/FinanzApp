@@ -2549,3 +2549,7 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
   Buchung; ohne eigene Wahl gilt diese auch weiterhin automatisch. Kein neues Datenmodell (optionales Feld).
 - Die laufenden Verträge stehen nach Hauptkategorie gruppiert, je Gruppe eine Zwischenüberschrift mit Farbbalken,
   Anzahl und Summe je Monat und Jahr; alphabetisch, „Ohne Kategorie“ zuletzt. Beendete Verträge bleiben ungruppiert.
+
+## D195 – Verträge: Anzahl hervorgehoben, Trennstrich nur zwischen Kategorien
+- „x laufende Verträge“ oben im Verträge-Block steht größer und fett.
+- Der Trennstrich steht jetzt zwischen den Kategorie-Gruppen, nicht mehr zwischen den einzelnen Verträgen einer Gruppe.
