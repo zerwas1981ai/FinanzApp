@@ -45,7 +45,7 @@ Oberfläche auf Deutsch, Währung Euro, deutsches Datums- und Zahlenformat.
   je Kategorie und Konto entweder Monats- oder Jahresbudget
 - Monatsnotiz (D165): ein Satz je Monat
 - Vertrag (D148): Name, Empfänger (Pflicht, D150), Vertragsnummer, Beginn, Mindestlaufzeit, Verlängerung,
-  Kündigungsfrist, Erinnerung, gekündigt zum, Unterlagen; Klammer um Buchungen und wiederkehrende
+  Kündigungsfrist (zum Laufzeit-, Monats- oder Quartalsende, D192), Erinnerung, gekündigt zum, Unterlagen; Klammer um Buchungen und wiederkehrende
   Buchungen (Feld „Vertrag“, rückwirkend über die wiederkehrende Buchung)
 - Wiederkehrende Buchung: Intervall (monatlich/vierteljährlich/jährlich),
   Start, optional Ende, Wertänderungen ab Datum, feste Abweichung je

@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
   plusMonate, laufzeitEnde, kuendigungsTag, baueVertrag, vertragsStand, kuendigungsHinweise, vertragVon,
   vertragsBuchungen, vertragsKosten, vertragsUebersicht, endeVorschlag, zuordnungsKandidaten, fristText,
+  aufStichtag, endeNachVerlaengerung,
 } from '../js/vertraege.js';
 import { migriereDaten } from '../js/migrationen.js';
 import { baueBuchungen } from '../js/buchungen.js';
@@ -121,4 +122,47 @@ test('Migration auf 18 und Feld vertragId an Buchungen', () => {
   assert.equal(b.vertragId, 'v1');
   assert.equal(baueBuchungen({ ...eingabe }, { konten, bestehende: [b] })[0].vertragId, 'v1', 'undefined = unverändert');
   assert.equal(baueBuchungen({ ...eingabe, vertragId: '' }, { konten, bestehende: [b] })[0].vertragId, null);
+});
+
+test('D192: Kündigung zum Monats- oder Quartalsende', () => {
+  assert.equal(aufStichtag('2027-03-14', 'monat'), '2027-03-31');
+  assert.equal(aufStichtag('2027-02-10', 'monat'), '2027-02-28');
+  assert.equal(aufStichtag('2027-02-10', 'quartal'), '2027-03-31');
+  assert.equal(aufStichtag('2027-11-01', 'quartal'), '2027-12-31');
+  assert.equal(aufStichtag('2027-03-14', 'laufzeit'), '2027-03-14');
+  // Monatsfrist vom Monatsletzten aus: bis zum Monatsletzten davor
+  assert.equal(kuendigungsTag('2026-11-30', 1, 'monate'), '2026-10-31');
+  assert.equal(kuendigungsTag('2027-02-28', 3, 'monate'), '2026-11-30');
+  assert.equal(kuendigungsTag('2027-03-14', 1, 'monate'), '2027-02-14', 'mitten im Monat unverändert');
+  assert.equal(fristText({ fristAnzahl: 4, fristEinheit: 'wochen', kuendigungZum: 'monat' }), '4 Wochen zum Monatsende');
+  assert.equal(fristText({ fristAnzahl: null, kuendigungZum: 'quartal' }), 'zum Quartalsende');
+  assert.equal(fristText({ fristAnzahl: null }), 'ohne Frist');
+
+  // Mindestlaufzeit endet mitten im Monat → zum Monatsende geschoben
+  const mitte = { id: 'm', beginn: '2025-03-15', mindestlaufzeitMonate: 24, verlaengerungMonate: 1, fristAnzahl: 14, fristEinheit: 'tage', kuendigungZum: 'monat', erinnerungTage: 28 };
+  const s1 = vertragsStand(mitte, '2027-03-01');
+  assert.equal(s1.ende, '2027-03-31');
+  assert.equal(s1.kuendigenBis, '2027-03-17');
+  // Frist verpasst → nächstes Monatsende
+  const s2 = vertragsStand(mitte, '2027-03-20');
+  assert.equal(s2.ende, '2027-04-30');
+  assert.equal(s2.kuendigenBis, '2027-04-16');
+  assert.equal(endeNachVerlaengerung(mitte, '2027-03-31'), '2027-04-30');
+  // Ohne Feld: wie bisher zum Laufzeitende
+  assert.equal(vertragsStand({ ...mitte, kuendigungZum: undefined }, '2027-02-01').ende, '2027-03-14');
+
+  // Ohne Mindestlaufzeit, 4 Wochen zum Monatsende
+  const fit = { id: 'f', fristAnzahl: 4, fristEinheit: 'wochen', kuendigungZum: 'monat' };
+  assert.deepEqual([vertragsStand(fit, '2026-11-02').ende, vertragsStand(fit, '2026-11-02').kuendigenBis], ['2026-11-30', '2026-11-02']);
+  assert.equal(vertragsStand(fit, '2026-11-03').ende, '2026-12-31');
+  // 6 Wochen zum Quartalsende
+  const q = { id: 'q', fristAnzahl: 6, fristEinheit: 'wochen', kuendigungZum: 'quartal' };
+  assert.equal(vertragsStand(q, '2026-11-19').ende, '2026-12-31', 'kündigen bis 19.11.');
+  assert.equal(vertragsStand(q, '2026-11-20').ende, '2027-03-31');
+
+  // Bauen: Standard „laufzeit“, gültige Werte bleiben
+  const bau = (zum, alt) => baueVertrag({ name: 'X', anbieter: 'Y', kuendigungZum: zum }, { jetzt: 'T', alt }).kuendigungZum;
+  assert.equal(bau(undefined), 'laufzeit');
+  assert.equal(bau('quartal'), 'quartal');
+  assert.equal(bau('quatsch', { id: 'a', kuendigungZum: 'monat' }), 'monat');
 });

@@ -2517,3 +2517,18 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
   Belege (Buchungen inkl. geladener Archivjahre, relevante Ausgaben, Verträge) mit eigener Suche; die Filter oben
   gelten dort nicht (steht in der Erklärung). Archivierte Buchungen lassen sich nur ansehen.
 - Der Tab **Projekte** hat damit noch Projekte · Relevante Ausgaben.
+
+## D192 – Vertrag: Kosten je Jahr in der Zeile, Kündigung zum Monats- oder Quartalsende
+*Wunsch des Nutzers (13.11.2026)*
+- In jeder Vertragszeile steht unter „… / Monat“ jetzt klein „… / Jahr“.
+- Neues Feld **„Kündbar zum“** (`kuendigungZum`): *Ende der Laufzeit* (bisheriges Verhalten; fehlt das Feld, gilt das),
+  *Monatsende* oder *Quartalsende*. Neue Verträge sind auf Monatsende vorbelegt; bestehende bleiben unverändert,
+  bis man es im Vertrag umstellt. Kein neues Datenmodell nötig (optionales Feld).
+- Monats-/Quartalsende: Jedes mögliche Vertragsende (Ende der Mindestlaufzeit, jede Verlängerung) wird auf das
+  nächste Monats- bzw. Quartalsende geschoben; ohne Mindestlaufzeit ist es das erste Monats-/Quartalsende, für das
+  die Frist heute noch reicht („bei Kündigung heute: … (kündigen bis …)“).
+- Fristrechnung in Monaten vom Monatsletzten aus endet am Monatsletzten davor (31.12. − 1 Monat = 30.11.,
+  30.11. − 1 Monat = 31.10.). Gilt für alle Verträge (vorher 30.10. – einen Tag zu früh).
+- Übliche Beispiele stehen als Hilfe im Dialog: Fitnessstudio 4 Wochen zum Monatsende, Miete 3 Monate zum
+  Monatsende, Versicherung zum Ende des Versicherungsjahres (= Ende der Laufzeit), 6 Wochen zum Quartalsende.
+  Handy/Internet nach der Mindestlaufzeit: 1 Monat Frist, jederzeit (Ende der Laufzeit, Verlängerung 1).

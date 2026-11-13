@@ -1700,3 +1700,6 @@ html[data-schrift="gross"] { font-size: 103.125%; }
 .marke-ungewoehnlich { margin-left: 6px; white-space: nowrap; }
 .marke-ungewoehnlich[role="button"] { cursor: pointer; }
 .marke-ungewoehnlich[role="button"]:hover { text-decoration: underline; }
+
+/* D192: Vertragskosten je Jahr klein unter dem Monatsbetrag */
+.vertrag-kosten .vertrag-jahr { display: block; font-size: .8em; opacity: .8; }

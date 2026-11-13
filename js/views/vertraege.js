@@ -8,7 +8,7 @@ import { formatEuro, formatDatum, formatProzent, heuteIso } from '../format.js';
 import { dialog, frage, toast, eingabe, auswahl, datenGeaendert, klappBereich, geraet } from '../ui.js';
 import {
   baueVertrag, vertragsStand, vertragsKosten, vertragsUebersicht, vertragsBuchungen, endeVorschlag,
-  zuordnungsKandidaten, fristText, FRIST_EINHEITEN, STANDARD_ERINNERUNG_TAGE, vertragVon, aktuellerBetrag, plusMonate, plusTage, preisVerlauf,
+  zuordnungsKandidaten, fristText, FRIST_EINHEITEN, KUENDIGUNG_ZUM, endeNachVerlaengerung, STANDARD_ERINNERUNG_TAGE, vertragVon, aktuellerBetrag, preisVerlauf,
 } from '../vertraege.js';
 import { benenneBelege } from '../relevant.js';
 import { gruppeVon } from '../buchungen.js';
@@ -78,7 +78,9 @@ function vertragZeile({ v, stand }, daten, heute) {
     : 'keine Mindestlaufzeit';
   const naechstes = stand.status === 'laufend'
     ? `${formatDatum(stand.ende)} – kündigen bis ${formatDatum(stand.kuendigenBis)} (${stand.tageBisFrist === 0 ? 'heute' : stand.tageBisFrist === 1 ? 'noch 1 Tag' : `noch ${stand.tageBisFrist} Tage`})`
-    : stand.status === 'unbefristet' ? `bei Kündigung heute: ${formatDatum(stand.ende)}` : null;
+    : stand.status === 'unbefristet'
+      ? `bei Kündigung heute: ${formatDatum(stand.ende)}` + (stand.kuendigenBis ? ` (kündigen bis ${formatDatum(stand.kuendigenBis)})` : '')
+      : null;
 
   const wkZeile = (w) => h('li', {},
     h('button', { type: 'button', class: 'buchung zeile-1', onclick: () => wiederkehrendDialog(w, daten) },
@@ -97,7 +99,10 @@ function vertragZeile({ v, stand }, daten, heute) {
     h('summary', { class: 'vertrag-kopf' },
       h('span', { class: 'vertrag-name' }, h('strong', {}, v.name), v.anbieter && h('span', { class: 'klein gedaempft' }, ` · ${v.anbieter}`)),
       h('span', { class: 'vertrag-stand klein' + (st.warn ? ' warn-text' : ' gedaempft') }, st.text),
-      h('span', { class: 'betrag annahme vertrag-kosten' }, kosten.posten.length ? `${formatEuro(-kosten.monatCent)} / Monat` : '')),
+      // D192: Kosten je Monat und darunter je Jahr
+      h('span', { class: 'betrag annahme vertrag-kosten' }, ...(kosten.posten.length
+        ? [`${formatEuro(-kosten.monatCent)} / Monat`, h('span', { class: 'vertrag-jahr' }, `${formatEuro(-kosten.jahrCent)} / Jahr`)]
+        : ['']))),
     h('div', { class: 'vertrag-inhalt' }, ...[
       h('div', { class: 'vertrag-angaben' }, ...[
         angabe('Vertragsnummer', v.vertragsnummer),
@@ -161,6 +166,12 @@ export function vertragDialog(v, daten, vorgaben = {}) {
   const fristEinheit = auswahl({
     label: 'Einheit', optionen: Object.entries(FRIST_EINHEITEN).map(([wert, text]) => ({ wert, text })), wert: w.fristEinheit ?? 'monate',
   });
+  // D192: Kündigung wirkt zum Laufzeitende, zum Monatsende oder zum Quartalsende (neue Verträge: Monatsende)
+  const zumWahl = auswahl({
+    label: 'Kündbar zum',
+    optionen: Object.entries(KUENDIGUNG_ZUM).map(([wert, text]) => ({ wert, text })),
+    wert: w.kuendigungZum ?? (v ? 'laufzeit' : 'monat'),
+  });
   const erinnerung = eingabe({
     label: 'Erinnerung (Tage vorher)', inputmode: 'numeric', value: w.erinnerungTage ?? STANDARD_ERINNERUNG_TAGE,
     hilfe: 'So viele Tage vor dem letzten Kündigungstag erscheint der Hinweis oben in der Übersicht.',
@@ -182,6 +193,10 @@ export function vertragDialog(v, daten, vorgaben = {}) {
         'Verlängerung 0 = endet von selbst. Ohne Mindestlaufzeit ist der Vertrag jederzeit mit der Frist kündbar.'),
       h('div', { class: 'feld-paar' }, verl.feld, erinnerung.feld),
       h('div', { class: 'feld-paar' }, fristAnzahl.feld, fristEinheit.feld),
+      zumWahl.feld,
+      h('p', { class: 'feld-hilfe' }, 'Üblich: Fitnessstudio „4 Wochen zum Monatsende“, Miete „3 Monate zum Monatsende“, ' +
+        'Versicherung „1 bzw. 3 Monate zum Ende des Versicherungsjahres“ (= Ende der Laufzeit), manche Verträge „6 Wochen zum Quartalsende“. ' +
+        'Steht im Vertrag nur „1 Monat Frist“ ohne Zusatz, wähle „Ende der Laufzeit“.'),
       gekuendigt.feld, notiz.feld, unterlagen.feld,
     ],
     zusatz: v && {
@@ -219,6 +234,7 @@ export function vertragDialog(v, daten, vorgaben = {}) {
         verlaengerungMonate: verl.input.value,
         fristAnzahl: fristAnzahl.input.value,
         fristEinheit: fristEinheit.select.value,
+        kuendigungZum: zumWahl.select.value,
         erinnerungTage: erinnerung.input.value,
         gekuendigtZum: gekuendigt.input.value,
         notiz: notiz.input.value,
@@ -329,8 +345,8 @@ export function kuendigungsBereich(hinweise, daten) {
   }, h('div', { class: 'hinweiskarten' }, hinweise.map(({ vertrag: v, stand }) => {
     const kosten = vertragsKosten(v.id, daten.wiederkehrend, heute);
     const rest = stand.tageBisFrist === 0 ? 'heute' : stand.tageBisFrist === 1 ? 'noch 1 Tag' : `noch ${stand.tageBisFrist} Tage`;
-    // Ende nach der nächsten Verlängerung: ein Tag nach dem jetzigen Ende plus Verlängerung, minus ein Tag
-    const verlaengert = plusTage(plusMonate(plusTage(stand.ende, 1), v.verlaengerungMonate), -1);
+    // Ende nach der nächsten Verlängerung (D192: ggf. auf Monats-/Quartalsende geschoben)
+    const verlaengert = endeNachVerlaengerung(v, stand.ende);
     return h('section', { class: 'bereich hinweiskarte', 'aria-label': `Kündigungsfrist ${v.name}` },
       h('h2', {}, h('span', { class: 'klein' }, 'Kündigungsfrist · '), v.name, v.anbieter && h('span', { class: 'klein gedaempft' }, ` · ${v.anbieter}`)),
       h('p', {},
