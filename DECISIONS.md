@@ -2553,3 +2553,8 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
 ## D195 – Verträge: Anzahl hervorgehoben, Trennstrich nur zwischen Kategorien
 - „x laufende Verträge“ oben im Verträge-Block steht größer und fett.
 - Der Trennstrich steht jetzt zwischen den Kategorie-Gruppen, nicht mehr zwischen den einzelnen Verträgen einer Gruppe.
+
+## D196 – Verträge eingeklappt einzeilig
+- PC: eine Zeile mit Name · Empfänger, Stand („kündbar bis …“) und „… / Monat · … / Jahr“.
+- Handy: eine Zeile mit Name, Monatsbetrag und – nur wenn die Kündigungsfrist bald endet – orange „bis TT.MM.“.
+  Empfänger, Stand und Jahresbetrag stehen dort erst im aufgeklappten Vertrag (Angaben „Kosten“, „Nächstes Vertragsende“).

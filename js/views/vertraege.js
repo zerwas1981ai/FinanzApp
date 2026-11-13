@@ -115,10 +115,13 @@ function vertragZeile({ v, stand }, daten, heute) {
   const d = h('details', { class: 'vertrag', open: offen.has(v.id) },
     h('summary', { class: 'vertrag-kopf' },
       h('span', { class: 'vertrag-name' }, h('strong', {}, v.name), v.anbieter && h('span', { class: 'klein gedaempft' }, ` · ${v.anbieter}`)),
-      h('span', { class: 'vertrag-stand klein' + (st.warn ? ' warn-text' : ' gedaempft') }, st.text),
+      // D196: am Handy nur sichtbar, wenn die Kündigungsfrist bald endet (dann kurz „bis TT.MM.“)
+      h('span', { class: 'vertrag-stand klein' + (st.warn ? ' warn-text' : ' gedaempft') },
+        h('span', { class: 'nur-breit' }, st.text),
+        st.warn && h('span', { class: 'nur-schmal' }, `bis ${formatDatum(stand.kuendigenBis).slice(0, 6)}`)),
       // D192: Kosten je Monat und darunter je Jahr
       h('span', { class: 'betrag annahme vertrag-kosten' }, ...(kosten.posten.length
-        ? [`${formatEuro(-kosten.monatCent)} / Monat`, h('span', { class: 'vertrag-jahr' }, `${formatEuro(-kosten.jahrCent)} / Jahr`)]
+        ? [`${formatEuro(-kosten.monatCent)} / Monat`, h('span', { class: 'vertrag-jahr' }, ` · ${formatEuro(-kosten.jahrCent)} / Jahr`)]
         : ['']))),
     h('div', { class: 'vertrag-inhalt' }, ...[
       h('div', { class: 'vertrag-angaben' }, ...[
