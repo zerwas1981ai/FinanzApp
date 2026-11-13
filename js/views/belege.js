@@ -164,7 +164,7 @@ export async function belegeEntfernen(buchungen) {
   }
 }
 
-/* =========================== D179: Belege-Übersicht (Tab Projekte) =========================== */
+/* =========================== D179: Belege-Übersicht (D191: in Alle Buchungen) =========================== */
 
 const QUELLE_TEXT = { buchung: 'Buchung', relevant: 'Relevante Ausgabe', vertrag: 'Vertrag' };
 let belegSuche = ''; // solange die App offen ist
@@ -173,7 +173,7 @@ let belegSuche = ''; // solange die App offen ist
  * Alle Belege an einem Ort, mit Suche. Antippen öffnet den Beleg; „Zur Buchung“ öffnet den Eintrag.
  * daten: braucht buchungen, relevant, vertraege, kategorien. oeffne(eintrag): öffnet den zugehörigen Dialog.
  */
-export function belegeBereich(daten, oeffne) {
+export function belegeBereich(daten, oeffne, { hinweis = null } = {}) {
   const MAX = 100;
   const alle = belegListe(daten);
   const such = h('input', { type: 'search', class: 'such-eingabe', placeholder: 'Suchen nach Name, Empfänger, Datum …', 'aria-label': 'Belege durchsuchen', value: belegSuche });
@@ -204,7 +204,8 @@ export function belegeBereich(daten, oeffne) {
     h('div', { class: 'bereich-kopf' }, h('h2', { id: 'titel-belege' }, 'Belege')),
     h('p', { class: 'hinweis erklaerung' },
       'Alle Belege aus Buchungen, relevanten Ausgaben und Verträgen, neueste zuerst. Einen Beleg antippen öffnet ihn; ' +
-      'der Knopf rechts öffnet den zugehörigen Eintrag. Neue Belege hängst du wie gewohnt an der Buchung an.'),
+      'der Knopf rechts öffnet den zugehörigen Eintrag. Neue Belege hängst du wie gewohnt an der Buchung an.' +
+      (hinweis ? ` ${hinweis}` : '')),
     alle.length > 0 && such,
     info,
     liste);

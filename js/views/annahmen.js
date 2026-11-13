@@ -11,6 +11,8 @@ import { baueBudget, baueWiederkehrend, baueGeplant, geplantErledigt, haeufigste
 import { betragAm, terminBetrag, naechsterTermin, plusMonate, monatsende, annahmeTitel } from '../prognose.js';
 import { artWahl, fuelleKategorien, projektFeld, oeffneBuchungsdialog, partnerFeld, budgetZuordnungFeld, vertragFeld } from './buchung-dialog.js';
 import { VERTEILUNGEN, istJaehrlich } from '../jahresbudget.js';
+import { kuendigungsHinweise } from '../vertraege.js';
+import { vertraegeBereich } from './vertraege.js';
 
 const nachName = (a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base' });
 const INTERVALL_TEXT = { monatlich: 'monatlich', vierteljaehrlich: 'vierteljährlich', jaehrlich: 'jährlich' };
@@ -28,15 +30,17 @@ export async function zeigeAnnahmen(container) {
   const daten = Object.fromEntries(namen.map((n, i) => [n, werte[i]]));
 
   // D160: Umschalter Budgets · Wiederkehrende · Geplante statt alles untereinander; Wahl merkt sich das Gerät
+  // D191: Verträge als letzter Umschalter (vorher im Tab Projekte); Zahl = anstehende Kündigungsfristen
+  const fristen = kuendigungsHinweise(daten.vertraege, heuteIso()).length;
   const wahl = bereichsWahl('ansicht-annahmen', [
     ['budgets', 'Budgets'], ['wiederkehrend', kurzLang('Wiederkehrende Buchungen', 'Wiederkehrend')],
-    ['geplant', kurzLang('Geplante Einmalbuchungen', 'Geplant')],
+    ['geplant', kurzLang('Geplante Einmalbuchungen', 'Geplant')], ['vertraege', 'Verträge', fristen],
   ]);
-  const bereich = { budgets: budgetBereich, wiederkehrend: wiederkehrendBereich, geplant: geplantBereich }[wahl.aktuell](daten);
+  const bereich = { budgets: budgetBereich, wiederkehrend: wiederkehrendBereich, geplant: geplantBereich, vertraege: vertraegeBereich }[wahl.aktuell](daten);
   container.replaceChildren(
     h('h1', { class: 'seitentitel unsichtbar' }, 'Annahmen'),
     wahl.leiste(() => zeigeAnnahmen(container), { info: true }),
-    h('p', { class: 'hinweis erklaerung' },
+    wahl.aktuell === 'vertraege' ? '' : h('p', { class: 'hinweis erklaerung' }, // D191: bei Verträgen eigene Erklärung
       'Hier legst du fest, womit die App für die Zukunft rechnet. Alles sind feste Beträge – ' +
       'keine Prozent-Steigerungen. Nichts davon wird automatisch gebucht. Mit dem Häkchen links ' +
       'schaltest du einen Posten für die Prognose ein oder aus, ohne ihn zu löschen.'),

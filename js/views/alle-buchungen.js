@@ -8,6 +8,9 @@ import { farbenZuordnung, farbeVon } from '../farben.js';
 import { oeffneRueckblick } from './rueckblick.js';
 import { ungewoehnlicheBuchungen } from '../erkennung.js';
 import { hochMarke } from './erkennung.js';
+import { belegeBereich } from './belege.js';
+import { relevantDialog } from './relevant.js';
+import { vertragDialog } from './vertraege.js';
 import { notizListe } from './monatsnotiz.js';
 import { archivInhalt } from '../sync/abgleich.js';
 import { buchungenAlsCsv, exportName } from '../export.js';
@@ -79,8 +82,8 @@ export async function ladeArchive(archive, anmelden) {
 }
 
 export async function zeigeBuchungen(container, { archivAnmelden = false } = {}) {
-  const [konten, kategorien, buchungen, projekte, archive, budgets, wiederkehrende, geplant, monatsnotizen] = await Promise.all(
-    ['konten', 'kategorien', 'buchungen', 'projekte', 'archive', 'budgets', 'wiederkehrend', 'geplant', 'monatsnotizen'].map((s) => db.alle(s)),
+  const [konten, kategorien, buchungen, projekte, archive, budgets, wiederkehrende, geplant, monatsnotizen, relevant, vertraege] = await Promise.all(
+    ['konten', 'kategorien', 'buchungen', 'projekte', 'archive', 'budgets', 'wiederkehrend', 'geplant', 'monatsnotizen', 'relevant', 'vertraege'].map((s) => db.alle(s)),
   );
   const gewuenscht = sessionStorage.getItem('finanzapp-bestand');
   if (gewuenscht) {
@@ -100,6 +103,7 @@ export async function zeigeBuchungen(container, { archivAnmelden = false } = {})
     // D126: für die erwarteten Ausgaben (Zeitleiste) – ohne Archiv-Buchungen, die stecken schon im Anfangssaldo
     wiederkehrende, geplant, hauptBuchungen: buchungen,
     monatsnotizen, // D165
+    relevant, vertraege, // D191: für die Belege-Ansicht
   };
 
   const ergebnis = h('div', { class: 'ergebnis' });
@@ -441,13 +445,28 @@ function zeigeErgebnis(ziel, daten) {
   const { von, bis } = zeitraumFuer(zustand.filter, heute);
 
   const modusWahl = h('div', { class: 'segmente', role: 'group', 'aria-label': 'Ansicht' },
-    [['liste', 'Liste'], ['analyse', 'Analyse']].map(([wert, text]) => h('button', {
+    [['liste', 'Liste'], ['analyse', 'Analyse'], ['belege', 'Belege']].map(([wert, text]) => h('button', { // D191: Belege
       type: 'button',
       class: 'segment',
       'aria-pressed': String(zustand.modus === wert),
       onclick: () => { zustand.modus = wert; zeigeErgebnis(ziel, daten); },
     }, text)));
 
+  // D191: Belege – alle Belege mit eigener Suche (die Filter oben gelten hier nicht)
+  if (zustand.modus === 'belege') {
+    const belegDaten = { ...daten, wiederkehrend: daten.wiederkehrende };
+    ziel.replaceChildren(
+      h('div', { class: 'modus-zeile' }, modusWahl,
+        h('button', { type: 'button', class: 'knopf knopf-klein', onclick: () => oeffneRueckblick(daten) }, 'Rückblick')),
+      belegeBereich(belegDaten, (x) => {
+        if (x.quelle === 'buchung') {
+          if (x.ref.archivJahr) toast(`Archiv ${x.ref.archivJahr}: nur lesen.`);
+          else oeffneBuchungsdialog(x.ref);
+        } else if (x.quelle === 'relevant') relevantDialog(x.ref, belegDaten);
+        else vertragDialog(x.ref, belegDaten);
+      }, { hinweis: 'Die Filter oben gelten für Liste und Analyse, nicht für die Belege.' }));
+    return;
+  }
   ziel.replaceChildren(
     summenKarte(s, von, bis && bis < heute ? bis : heute), // D121: angezeigt wird höchstens bis heute
     // D156/D160: „Rückblick“ rechts neben Liste/Analyse (die Seitenüberschrift entfällt)

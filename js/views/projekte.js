@@ -6,17 +6,15 @@ import { h } from '../dom.js';
 import * as db from '../db.js';
 import { formatEuro, formatDatum, centZuEingabe, parseEuro, heuteIso } from '../format.js';
 import { dialog, frage, toast, eingabe, datenGeaendert, bereichsWahl, kurzLang } from '../ui.js';
-import { kuendigungsHinweise } from '../vertraege.js';
 import { baueProjekt, projektZahlen } from '../annahmen.js';
 import { oeffneBuchungsdialog } from './buchung-dialog.js';
 import { geplantDialog } from './annahmen.js';
-import { relevantBereich, relevantDialog } from './relevant.js';
-import { vertraegeBereich, vertragDialog } from './vertraege.js';
-import { belegeBereich } from './belege.js';
+import { relevantBereich } from './relevant.js';
 
 const nachName = (a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base' });
 export const ANSICHT_SCHLUESSEL = 'ansicht-projekte';
-const ANSICHTEN = [['projekte', 'Projekte'], ['vertraege', 'Verträge'], ['relevant', 'Relevante Ausgaben'], ['belege', 'Belege']]; // Belege: D179
+// D191: Verträge stehen jetzt unter Annahmen, Belege unter Alle Buchungen
+const ANSICHTEN = [['projekte', 'Projekte'], ['relevant', 'Relevante Ausgaben']];
 
 export async function zeigeProjekte(container) {
   const namen = ['konten', 'kategorien', 'buchungen', 'geplant', 'projekte', 'archive', 'relevant', 'vertraege', 'wiederkehrend', 'budgets'];
@@ -27,9 +25,8 @@ export async function zeigeProjekte(container) {
   const laufend = daten.projekte.filter((p) => !p.abgeschlossen).sort(nachName);
   const abgeschlossen = daten.projekte.filter((p) => p.abgeschlossen).sort(nachName);
 
-  // D153/D160: Umschalter Projekte · Verträge · Relevante Ausgaben (ohne sichtbare Seitenüberschrift)
-  const fristen = kuendigungsHinweise(daten.vertraege, heute).length;
-  const wahl = bereichsWahl(ANSICHT_SCHLUESSEL, ANSICHTEN.map(([k, text]) => [k, k === 'relevant' ? kurzLang(text, 'Relevante') : text, k === 'vertraege' ? fristen : 0]), 'projekte');
+  // D153/D160/D191: Umschalter Projekte · Relevante Ausgaben (ohne sichtbare Seitenüberschrift)
+  const wahl = bereichsWahl(ANSICHT_SCHLUESSEL, ANSICHTEN.map(([k, text]) => [k, k === 'relevant' ? kurzLang(text, 'Relevante') : text]), 'projekte');
   const ansicht = wahl.aktuell;
   const titel = h('h1', { class: 'seitentitel unsichtbar' }, 'Projekte');
   const neu = () => zeigeProjekte(container);
@@ -38,14 +35,7 @@ export async function zeigeProjekte(container) {
   container.replaceChildren(
     titel,
     wahl.leiste(neu),
-    ansicht === 'vertraege' ? vertraegeBereich(daten)
-      : ansicht === 'belege' ? belegeBereich(daten, (x) => {
-        if (x.quelle === 'buchung') oeffneBuchungsdialog(x.ref);
-        else if (x.quelle === 'relevant') relevantDialog(x.ref, daten);
-        else vertragDialog(x.ref, daten);
-      })
-      : ansicht === 'relevant' ? await relevantBereich(daten)
-        : projekteBereich(daten, laufend, abgeschlossen, heute),
+    ansicht === 'relevant' ? await relevantBereich(daten) : projekteBereich(daten, laufend, abgeschlossen, heute),
   );
 }
 

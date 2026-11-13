@@ -353,8 +353,8 @@ export function kuendigungsBereich(hinweise, daten) {
           },
         }, 'Behalten'),
         h('a', {
-          class: 'knopf', href: '#projekte',
-          onclick: () => geraet.schreib('ansicht-projekte', 'vertraege'), // D153: gleich die Verträge zeigen
+          class: 'knopf', href: '#annahmen',
+          onclick: () => geraet.schreib('ansicht-annahmen', 'vertraege'), // D153/D191: gleich die Verträge zeigen
         }, 'Zum Vertrag')));
   })));
 }

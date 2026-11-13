@@ -73,13 +73,13 @@ Oberfläche auf Deutsch, Währung Euro, deutsches Datums- und Zahlenformat.
      immer sichtbar (komprimiert, aufklappbar), Folgejahre bis 2050 einzeln
      ein- und ausblendbar. Zukunftswerte optisch klar als Annahme
      gekennzeichnet (z. B. kursiv oder schraffiert).
-2. Alle Buchungen: über alle Konten filtern, sortieren, analysieren, Monats-/Jahresrückblick (D156); nur gebuchte
+2. Alle Buchungen (Umschalter Liste · Analyse · Belege, D191): über alle Konten filtern, sortieren, analysieren, Monats-/Jahresrückblick (D156); nur gebuchte
    Buchungen bis heute (D120/D121); Filter "ohne Beleg" vorerst entfallen (D123)
-3. Projekte (Umschalter Projekte · Verträge · Relevante Ausgaben · Belege, D153/D179): Einmalausgaben (echte und geplante Buchungen) einem Projekt
+3. Projekte (Umschalter Projekte · Relevante Ausgaben, D153/D191): Einmalausgaben (echte und geplante Buchungen) einem Projekt
    zuordnen, z. B. Umbau oder Urlaub; Gesamtkosten mit optionalem Rahmen.
    Projektausgaben zählen nicht gegen das Monatsbudget. (Ersetzt die
    früher geplanten Szenarien „Was wäre wenn“, siehe DECISIONS.md D51.)
-4. Annahmen (Umschalter Budgets · Wiederkehrende · Geplante, D160): wiederkehrende Buchungen, Budgets für die Zukunft, geplante
+4. Annahmen (Umschalter Budgets · Wiederkehrende · Geplante · Verträge, D160/D191): wiederkehrende Buchungen, Budgets für die Zukunft, geplante
    Einmalbuchungen. Nur absolute Werte, KEINE Prozentsteigerungen oder
    Inflation. Ein/Aus-Schalter je Posten, um ihn für die Prognose
    auszuschalten, ohne etwas zu löschen.

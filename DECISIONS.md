@@ -22,8 +22,9 @@ Kurzer Wegweiser, weil viele spätere Einträge frühere aufheben. Maßgeblich b
 
 **Aufbau der Oberfläche:**
 - Seitenüberschriften gibt es nicht mehr sichtbar; in der Übersicht steht „Übersicht“ im Kennzahlen-Kasten (D160, D164)
-- Projekte: Umschalter Projekte · Verträge · Relevante Ausgaben · Belege (D153, D161, D179)
-- Annahmen: Umschalter Budgets · Wiederkehrende · Geplante (D160)
+- Alle Buchungen: Liste · Analyse · Belege (D179, D191)
+- Projekte: Umschalter Projekte · Relevante Ausgaben (D153, D161, D191)
+- Annahmen: Umschalter Budgets · Wiederkehrende · Geplante · Verträge (D160, D191)
 - Stammdaten: Umschalter Konten · Kategorien · Daten & Sicherheit · Notfall-Mappe · Papierkorb · Einstellungen (D180)
 - Scrollbare Leisten behalten ihre Position (D171); „+“-Knöpfe überall im blauen Stil (D161)
 
@@ -2506,3 +2507,13 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
   prüfte nur auf null/undefined und stürzte ab. Betroffen: „Buchen“ bei wiederkehrenden Terminen und geplanten
   Einmalbuchungen sowie per „Teilen“ geschickte Belege.
 - Behoben an beiden Stellen: `dialog()` akzeptiert jeden falschen Wert, der Buchungsdialog übergibt null.
+
+## D191 – Verträge nach Annahmen, Belege nach Alle Buchungen
+*Wunsch des Nutzers (13.11.2026)*
+- **Verträge** sind der letzte Umschalter unter **Annahmen** (Budgets · Wiederkehrende · Geplante · Verträge), mit der
+  Zahl anstehender Kündigungsfristen am Umschalter. Die allgemeine Annahmen-Erklärung entfällt dort (Verträge haben
+  eine eigene). „Zum Vertrag“ im Kündigungshinweis der Übersicht springt jetzt dorthin.
+- **Belege** sind die dritte Schaltfläche neben **Liste · Analyse** in **Alle Buchungen**. Sie zeigt wie bisher alle
+  Belege (Buchungen inkl. geladener Archivjahre, relevante Ausgaben, Verträge) mit eigener Suche; die Filter oben
+  gelten dort nicht (steht in der Erklärung). Archivierte Buchungen lassen sich nur ansehen.
+- Der Tab **Projekte** hat damit noch Projekte · Relevante Ausgaben.
