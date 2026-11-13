@@ -57,7 +57,7 @@ export function dialog({ titel, inhalt, speichernText = 'Speichern', gefahr = fa
   const speichern = h('button', { type: 'submit', class: 'knopf ' + (gefahr ? 'knopf-gefahr-voll' : 'knopf-primaer') }, speichernText);
   const abbrechen = abbrechenText && h('button', { type: 'button', class: 'knopf' }, abbrechenText);
   // Optionaler Zusatzknopf links (z. B. "In den Papierkorb"). zusatz.onclick erhält den Dialog.
-  const zusatzKnopf = zusatz && h('button', { type: 'button', class: `knopf ${zusatz.variante ?? ''} dialog-zusatz` }, zusatz.text);
+  const zusatzKnopf = zusatz ? h('button', { type: 'button', class: `knopf ${zusatz.variante ?? ''} dialog-zusatz` }, zusatz.text) : null; // D190: auch bei zusatz = false
   const form = h('form', { class: 'dialog-form', novalidate: true },
     h('h2', { class: 'dialog-titel' }, titel),
     h('div', { class: 'dialog-inhalt' }, inhalt),

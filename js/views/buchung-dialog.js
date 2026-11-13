@@ -261,7 +261,7 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
         });
         datenGeaendert();
       },
-    } : serie && {
+    } : serie ? {
       // D175: Serienerfassung – speichern und gleich die nächste Buchung, Art/Konto/Datum bleiben stehen
       text: 'Erfassen & weitere',
       onclick: async (d) => {
@@ -269,7 +269,7 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
         d.close();
         setTimeout(() => oeffneBuchungsdialog(null, { art: werte.art, kontoId: werte.kontoId, datum: werte.datum, titel: 'Weitere Buchung' }), 0);
       },
-    },
+    } : null, // D190: ohne Serienerfassung kein Zusatzknopf (false brachte den Dialog zum Absturz)
     onSpeichern: () => speichere(),
   });
   if (vorgaben.dateien?.length) await belege.fuegeHinzu(vorgaben.dateien);

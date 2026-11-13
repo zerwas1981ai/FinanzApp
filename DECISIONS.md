@@ -2500,3 +2500,9 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
   abgehende Umbuchungen aus wiederkehrenden Buchungen und geplanten Einmalbuchungen. Einnahmen zählen nicht.
 - Vorlauf 3 statt 7 Tage (`FAELLIG_TAGE`); überfällige zählen weiter mit.
 - „Noch erwartet bis Monatsende“ zeigt unverändert alle offenen Termine des Monats.
+
+## D190 – Fehler behoben: „Buchen“ bei fälligen Terminen öffnete keinen Dialog
+- Seit D175 („Erfassen & weitere“) bekam der Buchungsdialog ohne Serienerfassung `zusatz: false`. `dialog()`
+  prüfte nur auf null/undefined und stürzte ab. Betroffen: „Buchen“ bei wiederkehrenden Terminen und geplanten
+  Einmalbuchungen sowie per „Teilen“ geschickte Belege.
+- Behoben an beiden Stellen: `dialog()` akzeptiert jeden falschen Wert, der Buchungsdialog übergibt null.
