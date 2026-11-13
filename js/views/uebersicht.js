@@ -21,6 +21,9 @@ import { faelligListe, budgetHinweise, zeitleiste, nurWirksam, mindestsaldoWarnu
 import { umbuchungKnopf, kennzahlenBereich, erwartetBereich, hinweisBereich } from './kennzahlen.js';
 import { zeitleisteBereich, postenListe } from './zeitleiste.js';
 import { oeffnePostenDialog } from './posten-dialog.js';
+import { erkanntBereich, archivHinweis, abgelehnteVorschlaege } from './erkennung.js';
+import { wiederkehrendVorschlaege, archivErinnerung, ungewoehnlicheBuchungen } from '../erkennung.js';
+import { naechstesArchivJahr } from '../archiv.js';
 
 const ALLE = '__alle'; // gemerkte Auswahl "Alle Konten"
 
@@ -32,12 +35,16 @@ const MAX_BUCHUNGEN = 10; // so viele Buchungen zeigt die Monatsansicht standard
 
 const monatVon = (iso) => [Number(iso.slice(0, 4)), Number(iso.slice(5, 7))];
 
+// D183: ungewöhnlich hohe Ausgaben (Map Buchung → Durchschnitt), bei jedem Zeichnen neu berechnet
+let ungewoehnlich = new Map();
+
 export async function zeigeUebersicht(container) {
   const namen = ['konten', 'kategorien', 'buchungen', 'abstimmungen', 'budgets', 'wiederkehrend', 'hinweise', 'einstellungen', 'geplant', 'projekte', 'vertraege', 'monatsnotizen'];
   const werte = await Promise.all(namen.map((s) => db.alle(s)));
   const alleDaten = Object.fromEntries(namen.map((n, i) => [n, werte[i]]));
   // Nur eingeschaltete Annahmen (Ein/Aus-Häkchen) zählen in Prognose und Zeitleiste
   const daten = nurWirksam(alleDaten);
+  ungewoehnlich = ungewoehnlicheBuchungen(alleDaten.buchungen); // D183
   const { konten, kategorien, buchungen, abstimmungen } = daten;
   const neu = () => zeigeUebersicht(container);
   const aktive = sortiereKonten(konten.filter((k) => !k.archiviert)); // eigene Reihenfolge (D84)
@@ -72,6 +79,9 @@ export async function zeigeUebersicht(container) {
     kennzahlenBereich(prognose, alleDaten, heute, warnungen, prognoseJahresende(zl, heute)),
     hinweisBereich(hinweise, daten),
     kuendigungsBereich(kuendigungsHinweise(alleDaten.vertraege, heute), alleDaten), // D148
+    // D182: erkannte wiederkehrende Zahlungen; D185: Archiv-Erinnerung
+    erkanntBereich(wiederkehrendVorschlaege(alleDaten.buchungen, alleDaten.wiederkehrend, abgelehnteVorschlaege(alleDaten.einstellungen), heute), alleDaten),
+    archivHinweis(archivErinnerung(naechstesArchivJahr({ buchungen: alleDaten.buchungen }, heute), heute, geraet.lies('archiv-spaeter'))),
     // D164: Überschrift „Konten“ entfällt, der Abstand bleibt gleich
     h('div', { class: 'konten-abstand', 'aria-hidden': 'true' }),
   ];
@@ -344,6 +354,12 @@ function vorgemerktDialog(konto, buchungen) {
   });
 }
 
+/** D183: kleine Marke an ungewöhnlich hohen Ausgaben (mit dem üblichen Betrag als Tooltip) */
+function ungewoehnlichMarke(b) {
+  const schnitt = ungewoehnlich.get(b.id);
+  return schnitt != null && h('span', { class: 'marke marke-warn marke-ungewoehnlich', title: `Ungewöhnlich hoch – sonst Ø ${formatEuro(schnitt)}` }, '↑ hoch');
+}
+
 /* ---------- Monatsnavigation ---------- */
 
 function monatsNavigation({ zurueck, vor, istAktuellerMonat, wechsel, notizen = [] }) {
@@ -491,7 +507,8 @@ function kontoTabelle(auswahl, tagesKopf, katName, kontoName) {
       h('button', { type: 'button', class: 'btab-zeile' + (b.art === 'umbuchung' ? ' umbuchung' : ''), onclick: () => oeffneBuchungsdialog(b) },
         h('span', { class: 'btab-zelle btab-status', title: b.status === 'vorgemerkt' ? 'vorgemerkt' : null }, b.status === 'vorgemerkt' ? 'v' : ''),
         h('span', { class: 'btab-zelle btab-partner', title: partner || null },
-          partner ? h('span', { class: 'btab-partner-name' }, partner) : h('span', { class: 'gedaempft' }, '–')),
+          partner ? h('span', { class: 'btab-partner-name' }, partner) : h('span', { class: 'gedaempft' }, '–'),
+          ungewoehnlichMarke(b)),
         h('span', { class: 'btab-unter' },
           h('span', { class: 'btab-zelle btab-datum' }, formatDatum(b.datum)),
           h('span', { class: 'btab-zelle btab-kategorie', title: katText }, b.art !== 'umbuchung' && katPunkt(farbeVon(b.kategorieId, katName, farben)), katText),
@@ -533,7 +550,8 @@ function buchungsZeile(b, katName, kontoName, farben = farbenZuordnung([...katNa
         h('span', { class: 'buchung-titel' },
           b.art !== 'umbuchung' && katPunkt(farbeVon(b.kategorieId, katName, farben), katName.get(katName.get(b.kategorieId)?.elternId)?.name), // D155
           h('span', { class: 'nur-breit' }, titel), h('span', { class: 'nur-schmal', title: titelHandy }, titelHandy),
-          b.status === 'vorgemerkt' && h('span', { class: 'marke marke-vorgemerkt' }, 'vorgemerkt')),
+          b.status === 'vorgemerkt' && h('span', { class: 'marke marke-vorgemerkt' }, 'vorgemerkt'),
+          ungewoehnlichMarke(b)),
         unterzeile && h('span', { class: 'buchung-unter nur-breit' }, unterzeile)),
       h('span', { class: 'betrag ' + (b.art === 'umbuchung' ? 'gedaempft' : wirkung > 0 ? 'plus' : '') },
         (wirkung > 0 ? '+' : '') + formatEuro(wirkung)),

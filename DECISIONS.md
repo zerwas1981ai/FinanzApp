@@ -27,6 +27,8 @@ Kurzer Wegweiser, weil viele spätere Einträge frühere aufheben. Maßgeblich b
 - Stammdaten: Umschalter Konten · Kategorien · Daten & Sicherheit · Notfall-Mappe · Papierkorb · Einstellungen (D180)
 - Scrollbare Leisten behalten ihre Position (D171); „+“-Knöpfe überall im blauen Stil (D161)
 
+**Schlaue Hinweise ohne KI:** erkannte wiederkehrende Zahlungen, „↑ hoch“-Marke, Kategorie aus Notiz, Archiv-Erinnerung (D182–D185). KI bleibt außen vor.
+
 **Datenstand:** Datenmodell-Version 23, DB-Struktur 12. Alte Schubladen (werden geleert): szenarien, sparziele, vorlagen.
 Sammlungen: konten, kategorien, buchungen, abstimmungen, budgets, wiederkehrend, hinweise, einstellungen, geplant,
 projekte, archive, relevant, vertraege, monatsnotizen.
@@ -2447,3 +2449,31 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
   Seitenkopf, Zwischentitel) und vier nicht mehr benutzte Funktionen samt Test
   (kennzahlKategorien, summenJeHauptkategorie, FARBTOENE, istAenderbar).
 - Oben in dieser Datei steht jetzt „Was gilt aktuell“ als Wegweiser.
+
+## D182 – Wiederkehrende Zahlungen erkennen
+*Wunsch des Nutzers (ohne KI, nur Regeln aus den eigenen Buchungen)*
+
+- Gleicher Empfänger/Absender und gleiche Art in mindestens 3 aufeinanderfolgenden Monaten bis zum Vormonat oder
+  laufenden Monat, je Monat genau eine Buchung, jeweils um denselben Tag (höchstens 3 Tage Abstand; 29.–31. zählen
+  als Monatsende), Beträge höchstens 10 % vom Median entfernt. Buchungen, die schon zu einer wiederkehrenden
+  Buchung gehören, und Empfänger mit einer eingeschalteten wiederkehrenden Buchung zählen nicht.
+- Oben in der Übersicht als einklappbarer Hinweis (wie die Budgethinweise): „Anlegen …“ öffnet den vorausgefüllten
+  Dialog (erster Termin: Folgemonat am gleichen Tag); „Nicht wiederkehrend“ blendet den Empfänger dauerhaft aus
+  (einstellungen, id „erkennung“, über Drive abgeglichen). Die App legt nie selbst etwas an.
+
+## D183 – Ungewöhnlich hohe Ausgaben markieren
+- Eine Ausgabe gilt als ungewöhnlich hoch, wenn es an denselben Empfänger mindestens 3 frühere Ausgaben gibt und
+  der Betrag mehr als das 1,5-Fache des Durchschnitts der letzten (bis zu 12) und mindestens 20 € darüber liegt.
+- Marke „↑ hoch“ (mit „sonst Ø …“ als Tooltip) in der Übersicht (PC-Tabelle und Handy-Liste) und in „Alle
+  Buchungen“; im Buchungsdialog ein Hinweis unter dem Betrag („Betrag prüfen?“), z. B. gegen Tippfehler.
+
+## D184 – Kategorie-Vorschlag aus der Notiz
+- Bei neuen Buchungen mit noch leerer Kategorie: Wörter der Notiz (ab 3 Buchstaben, ohne Füllwörter) werden mit
+  früheren Buchungen derselben Art verglichen; jedes gemeinsame Wort ist eine Stimme für deren Kategorie.
+  Vorschlag ab 2 Stimmen und mit klarem Vorsprung (1,5-fach vor der nächsten). Ergänzt den Vorschlag über den
+  Empfänger.
+
+## D185 – Archiv-Erinnerung
+- Gibt es ein abgeschlossenes Jahr, das archiviert werden kann (wie unter Stammdaten → Archiv), steht oben in der
+  Übersicht „Archiv · JJJJ ist abgeschlossen“ mit „Zum Archiv“ und „In 30 Tagen erinnern“ (je Gerät gemerkt).
+  Ein Hindernis (z. B. Buchungen dieses Jahres im Papierkorb) steht als Hinweis dabei.

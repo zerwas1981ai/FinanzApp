@@ -2,7 +2,7 @@
 
 import { h } from '../dom.js';
 import * as db from '../db.js';
-import { parseEuro, centZuEingabe, heuteIso, rechneBetrag } from '../format.js';
+import { parseEuro, centZuEingabe, heuteIso, rechneBetrag, formatEuro } from '../format.js';
 import { dialog, toast, eingabe, auswahl, optionsGruppe, datenGeaendert, geraet } from '../ui.js';
 import { speichereBuchung, gruppeVon, inPapierkorb, wiederherstellen } from '../buchungen.js';
 import { partnerListe, partnerSchluessel, haeufigeKategorien } from '../auswertung.js';
@@ -12,6 +12,7 @@ import { wiederkehrendDialog } from './annahmen.js';
 import { monatsende, tageImMonat } from '../prognose.js';
 import { relevanteZeilen, gruppenListe, MAX_GRUPPE, benenneBelege } from '../relevant.js';
 import { istAktiv } from '../vertraege.js';
+import { ungewoehnlichHoch, vorherigeBetraege, kategorieAusNotiz } from '../erkennung.js';
 
 const nachName = (a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base' });
 
@@ -70,6 +71,17 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
   });
   betrag.input.title = 'Rechnen möglich, z. B. 12,50+3,20 oder 3*2,49';
 
+  // D183: Hinweis unter dem Betrag, wenn er für diesen Empfänger ungewöhnlich hoch ist (z. B. Tippfehler)
+  const ungewoehnlichHinweis = h('small', { class: 'feld-hilfe warn-text', hidden: true, 'aria-live': 'polite' });
+  betrag.feld.append(ungewoehnlichHinweis);
+  const pruefeHoehe = () => {
+    let cent = null;
+    try { cent = liesBetrag(); } catch { /* egal */ }
+    const schnitt = art === 'ausgabe' && cent ? ungewoehnlichHoch(cent, vorherigeBetraege(alle, partner.input.value, { ohneId: ref?.id })) : null;
+    ungewoehnlichHinweis.hidden = schnitt == null;
+    ungewoehnlichHinweis.textContent = schnitt == null ? '' : `Ungewöhnlich hoch für ${partner.input.value.trim()} – sonst Ø ${formatEuro(schnitt)}. Betrag prüfen?`;
+  };
+
   const kategorie = auswahl({ label: 'Kategorie', optionen: [] });
   // Bekannter Empfänger/Absender bei neuer Buchung: Kategorie der letzten Buchung vorschlagen
   const partner = partnerFeld(alle, ref?.partner ?? vorgaben.partner ?? '', art, (name) => {
@@ -100,6 +112,15 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
     wert: ref?.status ?? 'gebucht',
   });
   const notiz = eingabe({ label: 'Notiz (optional)', maxlength: 200, value: ref?.notiz ?? vorgaben.notiz ?? '', placeholder: 'z. B. Wocheneinkauf' });
+  // D184: Kategorie aus der Notiz vorschlagen – nur bei neuen Buchungen und noch leerer Kategorie
+  notiz.input.addEventListener('change', () => {
+    if (buchung || art === 'umbuchung' || kategorie.select.value) return;
+    const vorschlag = kategorieAusNotiz(notiz.input.value, alle, art);
+    if (vorschlag && [...kategorie.select.options].some((o) => o.value === vorschlag)) {
+      kategorie.select.value = vorschlag;
+      toast(`Kategorie vorgeschlagen: ${kategorie.select.selectedOptions[0]?.textContent ?? ''}`);
+    }
+  });
   const projekt = projektFeld(projekte, ref?.projektId ?? vorgaben.projektId ?? null);
   // D148: Vertrag – vorbelegt mit dem eigenen oder dem der wiederkehrenden Buchung (rückwirkend)
   const ausWiederkehrend = wiederkehrendListe.find((w) => w.id === (ref?.wiederkehrendId ?? vorgaben.wiederkehrendId))?.vertragId ?? null;
@@ -155,6 +176,11 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
     if (!istUmbuchung) fuelleKategorien(kategorie.select, kategorien, art, startKategorie, haeufigeKategorien(alle, art));
   }
   aktualisiere();
+  // D183: Höhe prüfen, sobald sich Betrag, Empfänger oder Art ändern
+  betrag.input.addEventListener('change', pruefeHoehe);
+  partner.input.addEventListener('change', pruefeHoehe);
+  artKnoepfe.addEventListener('click', () => setTimeout(pruefeHoehe, 0));
+  pruefeHoehe();
 
   // ---------- Kopieren / als wiederkehrend übernehmen (D71) ----------
   // Beide nehmen die Werte, die gerade im Dialog stehen. Die Buchung selbst bleibt unverändert,

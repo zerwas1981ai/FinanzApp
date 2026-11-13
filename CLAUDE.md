@@ -112,6 +112,8 @@ Oberfläche auf Deutsch, Währung Euro, deutsches Datums- und Zahlenformat.
 - Schnellerfassung: Betrag, Kategorie, fertig. Datum Standard heute, Konto
   zuletzt benutzt. „Erfassen & weitere“, Rechnen im Betragsfeld, häufige Kategorien oben (D175). Kurzbefehle am
   App-Symbol (D105), Belege per „Teilen“ an die App schicken (Android, D106).
+- Hinweise aus eigenen Buchungen, ohne KI: wiederkehrende Zahlungen erkennen (D182), ungewöhnlich hohe
+  Ausgaben markieren (D183), Kategorie aus der Notiz vorschlagen (D184), Archiv-Erinnerung (D185)
 - Kamera-Button für Belegfoto, Bilder beim Hochladen verkleinern
 - Automatisches Backup bei jedem Speichern (letzte 30 Stände), Export als
   CSV/Excel, kompletter Datenstand als Datei sichern und wiederherstellen (D178)
