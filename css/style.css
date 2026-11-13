@@ -1574,10 +1574,10 @@ body:not(.umbuchungen-sichtbar) .ub-ausblendbar { display: none; }
 .weitere-angaben-text { font-weight: 400; font-size: .8rem; }
 .weitere-angaben[open] > :not(summary) { margin-top: 10px; }
 
-/* D155: Kategorie-Farben */
+/* D155: Kategorie-Farben – D187: als schmaler senkrechter Balken statt Punkt */
 .kat-punkt {
-  display: inline-block; flex: none; width: 8px; height: 8px; border-radius: 50%;
-  background: var(--kat-farbe); margin-right: 6px; vertical-align: middle; position: relative; top: -1px;
+  display: inline-block; flex: none; width: 4px; height: 1.05em; border-radius: 2px;
+  background: var(--kat-farbe); margin-right: 7px; vertical-align: middle; position: relative; top: -1px;
   box-shadow: inset 0 0 0 1px rgba(127, 127, 127, .45); /* D159: Weiß/Schwarz auf jedem Hintergrund sichtbar */
 }
 .btab-kategorie .kat-punkt { margin-right: 5px; }

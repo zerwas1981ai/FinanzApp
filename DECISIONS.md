@@ -27,7 +27,7 @@ Kurzer Wegweiser, weil viele spätere Einträge frühere aufheben. Maßgeblich b
 - Stammdaten: Umschalter Konten · Kategorien · Daten & Sicherheit · Notfall-Mappe · Papierkorb · Einstellungen (D180)
 - Scrollbare Leisten behalten ihre Position (D171); „+“-Knöpfe überall im blauen Stil (D161)
 
-**Schlaue Hinweise ohne KI:** erkannte wiederkehrende Zahlungen, „↑ hoch“-Marke, Kategorie aus Notiz, Archiv-Erinnerung (D182–D185); „↑ hoch“ per Antippen bestätigen (D186). KI bleibt außen vor.
+**Schlaue Hinweise ohne KI:** erkannte wiederkehrende Zahlungen, „↑ hoch“-Marke, Kategorie aus Notiz, Archiv-Erinnerung (D182–D185); „↑ hoch“ per Antippen bestätigen (D186); Kategoriefarbe als schmaler Balken (D187). KI bleibt außen vor.
 
 **Datenstand:** Datenmodell-Version 23, DB-Struktur 12. Alte Schubladen (werden geleert): szenarien, sparziele, vorlagen.
 Sammlungen: konten, kategorien, buchungen, abstimmungen, budgets, wiederkehrend, hinweise, einstellungen, geplant,
@@ -2484,3 +2484,8 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
 - Gemerkt wird der bestätigte Betrag an der Buchung (Feld `hochOkCent`, über Drive abgeglichen). Wird der Betrag
   später geändert, erscheint die Marke wieder. Antippen der Marke öffnet nicht den Buchungsdialog.
 - Kein neues Datenmodell nötig: Das Feld ist optional und bleibt beim Bearbeiten erhalten.
+
+## D187 – Kategoriefarbe als schmaler Balken
+- Die Kategoriefarbe (D155) steht nicht mehr als runder Punkt, sondern als schmaler senkrechter Balken
+  (4 px breit, eine Zeile hoch) vor dem Namen – überall, wo bisher der Punkt war (Buchungslisten, Budgetbalken,
+  Rückblick, Stammdaten → Kategorien). Die Farbwahl im Kategorie-Dialog bleibt bei runden Feldern.
