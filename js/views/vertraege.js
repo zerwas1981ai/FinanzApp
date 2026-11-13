@@ -5,10 +5,11 @@
 import { h } from '../dom.js';
 import * as db from '../db.js';
 import { formatEuro, formatDatum, formatProzent, heuteIso } from '../format.js';
-import { dialog, frage, toast, eingabe, auswahl, datenGeaendert, klappBereich, geraet } from '../ui.js';
+import { dialog, frage, toast, eingabe, auswahl, datenGeaendert, klappBereich, geraet, katPunkt } from '../ui.js';
+import { farbenZuordnung } from '../farben.js';
 import {
   baueVertrag, vertragsStand, vertragsKosten, vertragsUebersicht, vertragsBuchungen, endeVorschlag,
-  zuordnungsKandidaten, fristText, FRIST_EINHEITEN, KUENDIGUNG_ZUM, endeNachVerlaengerung, STANDARD_ERINNERUNG_TAGE, vertragVon, aktuellerBetrag, preisVerlauf,
+  zuordnungsKandidaten, fristText, FRIST_EINHEITEN, KUENDIGUNG_ZUM, vertragsKategorie, nachKategorie, endeNachVerlaengerung, STANDARD_ERINNERUNG_TAGE, vertragVon, aktuellerBetrag, preisVerlauf,
 } from '../vertraege.js';
 import { benenneBelege } from '../relevant.js';
 import { gruppeVon } from '../buchungen.js';
@@ -57,11 +58,27 @@ export function vertraegeBereich(daten) {
         h('span', { class: 'klein' }, summe.anzahl === 1 ? '1 laufender Vertrag' : `${summe.anzahl} laufende Verträge`),
         h('span', { class: 'betrag' }, `${formatEuro(-summe.monatCent)} / Monat`),
         h('span', { class: 'betrag stark' }, `${formatEuro(-summe.jahrCent)} / Jahr`)),
-    laufend.length > 0 && h('ul', { class: 'vertrag-liste' }, laufend.map((x) => h('li', {}, vertragZeile(x, daten, heute)))),
+    // D194: laufende Verträge nach Hauptkategorie gruppiert, je Gruppe eine Zwischenüberschrift mit Summe
+    ...vertragsGruppen(laufend, daten, heute),
     beendet.length > 0 && h('details', { class: 'erledigt-liste' },
       h('summary', {}, `Beendete Verträge (${beendet.length})`),
       h('ul', { class: 'vertrag-liste' }, beendet.map((x) => h('li', {}, vertragZeile(x, daten, heute))))),
   ].filter(Boolean));
+}
+
+/** D194: Zwischenüberschrift je Hauptkategorie (Farbbalken, Name, Summe je Monat und Jahr), darunter die Verträge */
+function vertragsGruppen(eintraege, daten, heute) {
+  if (!eintraege.length) return [];
+  const farben = farbenZuordnung(daten.kategorien);
+  return nachKategorie(eintraege, daten.wiederkehrend, daten.kategorien).map(({ kategorie, eintraege: liste }) => {
+    const jahr = liste.reduce((s, x) => s + vertragsKosten(x.v.id, daten.wiederkehrend, heute).jahrCent, 0);
+    return h('div', { class: 'vertrag-gruppe' },
+      h('div', { class: 'tag-kopf vertrag-gruppe-kopf' },
+        h('span', {}, kategorie && katPunkt(farben.get(kategorie.id)?.hex), kategorie?.name ?? 'Ohne Kategorie',
+          h('span', { class: 'gedaempft' }, ` · ${liste.length}`)),
+        jahr !== 0 && h('span', { class: 'tag-stand' }, `${formatEuro(-Math.round(jahr / 12))} / Monat · ${formatEuro(-jahr)} / Jahr`)),
+      h('ul', { class: 'vertrag-liste' }, liste.map((x) => h('li', {}, vertragZeile(x, daten, heute)))));
+  });
 }
 
 /** Eine Zeile je Vertrag – aufklappbar mit allen Angaben, Zahlungen und Unterlagen */
@@ -153,6 +170,17 @@ export function vertragDialog(v, daten, vorgaben = {}) {
   const anbieter = partnerFeld(daten.buchungen ?? [], w.anbieter ?? '', 'ausgabe');
   anbieter.feld.querySelector('label').textContent = 'An (Empfänger)';
   anbieter.input.placeholder = 'z. B. Telefon AG';
+  // D194: Hauptkategorie für die Gruppierung – vorbelegt aus der zugeordneten wiederkehrenden Buchung
+  const vorbelegt = w.kategorieId ?? (v ? vertragsKategorie({ ...v, kategorieId: null }, daten.wiederkehrend ?? [], daten.kategorien ?? [])?.id : null) ?? '';
+  const hauptKategorien = (daten.kategorien ?? []).filter((k) => !k.elternId && (!k.archiviert || k.id === vorbelegt))
+    .sort((a, b) => (a.art === 'einnahme') - (b.art === 'einnahme') || a.name.localeCompare(b.name, 'de', { sensitivity: 'base' }));
+  const kategorie = auswahl({
+    label: 'Kategorie (optional)',
+    optionen: [{ wert: '', text: 'Ohne Kategorie' },
+      ...hauptKategorien.map((k) => ({ wert: k.id, text: k.art === 'einnahme' ? `${k.name} (Einnahme)` : k.name }))],
+    wert: vorbelegt,
+    hilfe: 'Danach werden die Verträge gruppiert.',
+  });
   const nummer = eingabe({
     label: 'Vertragsnummer (optional)', value: w.vertragsnummer ?? '', maxlength: 60,
     hilfe: 'Nur zur eigenen Zuordnung – bitte keine Passwörter oder Zugangsdaten eintragen.',
@@ -187,7 +215,7 @@ export function vertragDialog(v, daten, vorgaben = {}) {
   dialog({
     titel: v ? 'Vertrag bearbeiten' : 'Neuer Vertrag',
     inhalt: [
-      name.feld, anbieter.feld, nummer.feld,
+      name.feld, anbieter.feld, kategorie.feld, nummer.feld,
       h('div', { class: 'feld-paar' }, beginn.feld, mindest.feld),
       h('p', { class: 'feld-hilfe' }, 'Handy und Internet laufen nach der Mindestlaufzeit meist monatlich weiter (Verlängerung 1, Frist 1 Monat). ' +
         'Verlängerung 0 = endet von selbst. Ohne Mindestlaufzeit ist der Vertrag jederzeit mit der Frist kündbar.'),
@@ -229,6 +257,7 @@ export function vertragDialog(v, daten, vorgaben = {}) {
         name: name.input.value,
         anbieter: anbieter.input.value,
         vertragsnummer: nummer.input.value,
+        kategorieId: kategorie.select.value,
         beginn: beginn.input.value,
         mindestlaufzeitMonate: mindest.input.value,
         verlaengerungMonate: verl.input.value,

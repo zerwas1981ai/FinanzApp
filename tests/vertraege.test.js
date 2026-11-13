@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {
   plusMonate, laufzeitEnde, kuendigungsTag, baueVertrag, vertragsStand, kuendigungsHinweise, vertragVon,
   vertragsBuchungen, vertragsKosten, vertragsUebersicht, endeVorschlag, zuordnungsKandidaten, fristText,
-  aufStichtag, endeNachVerlaengerung,
+  aufStichtag, endeNachVerlaengerung, vertragsKategorie, nachKategorie,
 } from '../js/vertraege.js';
 import { migriereDaten } from '../js/migrationen.js';
 import { baueBuchungen } from '../js/buchungen.js';
@@ -165,4 +165,33 @@ test('D192: Kündigung zum Monats- oder Quartalsende', () => {
   assert.equal(bau(undefined), 'laufzeit');
   assert.equal(bau('quartal'), 'quartal');
   assert.equal(bau('quatsch', { id: 'a', kuendigungZum: 'monat' }), 'monat');
+});
+
+test('D194: Vertragskategorie und Gruppierung', () => {
+  const kategorien = [
+    { id: 'vers', name: 'Versicherungen', art: 'ausgabe', elternId: null },
+    { id: 'kfz', name: 'Kfz-Versicherung', elternId: 'vers' },
+    { id: 'wohnen', name: 'Wohnen', art: 'ausgabe', elternId: null },
+    { id: 'strom', name: 'Strom', elternId: 'wohnen' },
+  ];
+  const wk = [
+    { id: 'w1', vertragId: 'a', art: 'ausgabe', kategorieId: 'kfz' },
+    { id: 'w2', vertragId: 'b', art: 'umbuchung', kategorieId: null },
+    { id: 'w3', vertragId: 'c', art: 'ausgabe', kategorieId: 'strom' },
+  ];
+  // aus der wiederkehrenden Buchung abgeleitet (Unterkategorie → Hauptkategorie)
+  assert.equal(vertragsKategorie({ id: 'a' }, wk, kategorien)?.id, 'vers');
+  // eigene Wahl hat Vorrang
+  assert.equal(vertragsKategorie({ id: 'a', kategorieId: 'wohnen' }, wk, kategorien)?.id, 'wohnen');
+  // gelöschte Kategorie → abgeleitet; Umbuchung zählt nicht
+  assert.equal(vertragsKategorie({ id: 'a', kategorieId: 'weg' }, wk, kategorien)?.id, 'vers');
+  assert.equal(vertragsKategorie({ id: 'b' }, wk, kategorien), null);
+
+  const gruppen = nachKategorie([{ v: { id: 'b' } }, { v: { id: 'c' } }, { v: { id: 'a' } }, { v: { id: 'd', kategorieId: 'vers' } }], wk, kategorien);
+  assert.deepEqual(gruppen.map((g) => [g.kategorie?.name ?? 'ohne', g.eintraege.map((x) => x.v.id)]),
+    [['Versicherungen', ['a', 'd']], ['Wohnen', ['c']], ['ohne', ['b']]]);
+
+  // Bauen: Feld bleibt beim Bearbeiten erhalten, '' entfernt es
+  assert.equal(baueVertrag({ name: 'X', anbieter: 'Y' }, { jetzt: 'T', alt: { id: 'x', kategorieId: 'vers' } }).kategorieId, 'vers');
+  assert.equal(baueVertrag({ name: 'X', anbieter: 'Y', kategorieId: '' }, { jetzt: 'T', alt: { id: 'x', kategorieId: 'vers' } }).kategorieId, null);
 });

@@ -24,7 +24,8 @@ Kurzer Wegweiser, weil viele spätere Einträge frühere aufheben. Maßgeblich b
 - Seitenüberschriften gibt es nicht mehr sichtbar; in der Übersicht steht „Übersicht“ im Kennzahlen-Kasten (D160, D164)
 - Alle Buchungen: Liste · Analyse · Belege (D179, D191)
 - Projekte: Umschalter Projekte · Relevante Ausgaben (D153, D161, D191)
-- Annahmen: Umschalter Budgets · Wiederkehrende · Geplante · Verträge (D160, D191)
+- Annahmen: Umschalter Budgets · Wiederkehrende · Verträge · Geplante (D160, D191, D193)
+- Die Untertabs (Projekte, Annahmen, Stammdaten) bleiben beim Scrollen oben fixiert (D193)
 - Stammdaten: Umschalter Konten · Kategorien · Daten & Sicherheit · Notfall-Mappe · Papierkorb · Einstellungen (D180)
 - Scrollbare Leisten behalten ihre Position (D171); „+“-Knöpfe überall im blauen Stil (D161)
 
@@ -2532,3 +2533,19 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
 - Übliche Beispiele stehen als Hilfe im Dialog: Fitnessstudio 4 Wochen zum Monatsende, Miete 3 Monate zum
   Monatsende, Versicherung zum Ende des Versicherungsjahres (= Ende der Laufzeit), 6 Wochen zum Quartalsende.
   Handy/Internet nach der Mindestlaufzeit: 1 Monat Frist, jederzeit (Ende der Laufzeit, Verlängerung 1).
+
+## D193 – Untertabs oben fixiert, Verträge vor Geplant
+*Wunsch des Nutzers (13.11.2026)*
+- Die Umschalter-Leiste (Untertabs) in Projekte, Annahmen und Stammdaten bleibt beim Scrollen direkt unter der
+  Kopfzeile stehen (`position: sticky`), mit Seitenhintergrund über die ganze Breite.
+- Die Kopfzeilen-Höhe wird beim Start gemessen (`--kopf-hoehe`, passt sich z. B. der Schriftgröße an); davon
+  profitiert auch der Tabellenkopf der Buchungstabelle am PC.
+- Annahmen: Reihenfolge jetzt Budgets · Wiederkehrende · Verträge · Geplante.
+
+## D194 – Verträge mit Kategorie, nach Kategorie gruppiert
+*Wunsch des Nutzers (13.11.2026): Hauptkategorie wählen, Zwischenüberschriften*
+- Neues Feld **„Kategorie (optional)“** im Vertrag (`kategorieId`): Auswahl der vorhandenen Hauptkategorien
+  (Ausgaben zuerst, Einnahmen mit Zusatz). Vorbelegt mit der Hauptkategorie der zugeordneten wiederkehrenden
+  Buchung; ohne eigene Wahl gilt diese auch weiterhin automatisch. Kein neues Datenmodell (optionales Feld).
+- Die laufenden Verträge stehen nach Hauptkategorie gruppiert, je Gruppe eine Zwischenüberschrift mit Farbbalken,
+  Anzahl und Summe je Monat und Jahr; alphabetisch, „Ohne Kategorie“ zuletzt. Beendete Verträge bleiben ungruppiert.

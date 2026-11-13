@@ -78,7 +78,17 @@ beschrifteThemeKnopf();
 
 /* ---------- Start ---------- */
 
+/** D193: Höhe der Kopfzeile als CSS-Variable – darunter bleiben Untertabs und Tabellenköpfe fixiert */
+function merkeKopfHoehe() {
+  const kopf = document.querySelector('.kopf');
+  if (!kopf) return;
+  const setze = () => document.documentElement.style.setProperty('--kopf-hoehe', `${Math.round(kopf.getBoundingClientRect().height)}px`);
+  setze();
+  if ('ResizeObserver' in window) new ResizeObserver(setze).observe(kopf);
+}
+
 async function start() {
+  merkeKopfHoehe();
   try {
     await initialisiere();
   } catch (err) {

@@ -44,7 +44,7 @@ Oberfläche auf Deutsch, Währung Euro, deutsches Datums- und Zahlenformat.
 - Budget: pro Hauptkategorie und Konto, monatlich, jährlich (in Tranchen, D90) oder einmalig (D85);
   je Kategorie und Konto entweder Monats- oder Jahresbudget
 - Monatsnotiz (D165): ein Satz je Monat
-- Vertrag (D148): Name, Empfänger (Pflicht, D150), Vertragsnummer, Beginn, Mindestlaufzeit, Verlängerung,
+- Vertrag (D148): Name, Empfänger (Pflicht, D150), Kategorie (Hauptkategorie, gruppiert, D194), Vertragsnummer, Beginn, Mindestlaufzeit, Verlängerung,
   Kündigungsfrist (zum Laufzeit-, Monats- oder Quartalsende, D192), Erinnerung, gekündigt zum, Unterlagen; Klammer um Buchungen und wiederkehrende
   Buchungen (Feld „Vertrag“, rückwirkend über die wiederkehrende Buchung)
 - Wiederkehrende Buchung: Intervall (monatlich/vierteljährlich/jährlich),
@@ -79,7 +79,7 @@ Oberfläche auf Deutsch, Währung Euro, deutsches Datums- und Zahlenformat.
    zuordnen, z. B. Umbau oder Urlaub; Gesamtkosten mit optionalem Rahmen.
    Projektausgaben zählen nicht gegen das Monatsbudget. (Ersetzt die
    früher geplanten Szenarien „Was wäre wenn“, siehe DECISIONS.md D51.)
-4. Annahmen (Umschalter Budgets · Wiederkehrende · Geplante · Verträge, D160/D191): wiederkehrende Buchungen, Budgets für die Zukunft, geplante
+4. Annahmen (Umschalter Budgets · Wiederkehrende · Verträge · Geplante, D160/D191/D193): wiederkehrende Buchungen, Budgets für die Zukunft, geplante
    Einmalbuchungen. Nur absolute Werte, KEINE Prozentsteigerungen oder
    Inflation. Ein/Aus-Schalter je Posten, um ihn für die Prognose
    auszuschalten, ohne etwas zu löschen.

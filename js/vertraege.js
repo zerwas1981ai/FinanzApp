@@ -6,6 +6,7 @@
 //   mindestlaufzeitMonate (Zahl|null; null/0 = keine Mindestlaufzeit, jederzeit kündbar),
 //   verlaengerungMonate (Zahl|null; 0/null = verlängert sich nicht, endet nach der Mindestlaufzeit),
 //   fristAnzahl (Zahl|null), fristEinheit: 'tage'|'wochen'|'monate',
+//   kategorieId (D194): Hauptkategorie für die Gruppierung | null (dann aus der zugeordneten wiederkehrenden Buchung),
 //   kuendigungZum (D192): 'laufzeit' (Ende der Laufzeit, fehlt = so) | 'monat' (Monatsende) | 'quartal' (Quartalsende),
 //   erinnerungTage (Vorlauf der Erinnerung, Standard 28),
 //   gekuendigtZum "JJJJ-MM-TT"|null, erinnerungAusBis "JJJJ-MM-TT"|null („Behalten“ bis zu diesem Kündigungstag),
@@ -118,6 +119,8 @@ export function baueVertrag(eingabe, { vertraege = [], alt = null, jetzt = new D
     name,
     anbieter,
     vertragsnummer: String(eingabe.vertragsnummer ?? '').trim().slice(0, 60),
+    // D194: Hauptkategorie (undefined = unverändert, '' = keine)
+    kategorieId: eingabe.kategorieId === undefined ? alt?.kategorieId ?? null : eingabe.kategorieId || null,
     beginn,
     mindestlaufzeitMonate,
     verlaengerungMonate,
@@ -191,6 +194,41 @@ export function kuendigungsHinweise(vertraege, heute) {
     .map((v) => ({ vertrag: v, stand: vertragsStand(v, heute) }))
     .filter((x) => x.stand.erinnern)
     .sort((a, b) => a.stand.kuendigenBis.localeCompare(b.stand.kuendigenBis));
+}
+
+/* ---------- D194: Kategorie und Gruppierung ---------- */
+
+/**
+ * Hauptkategorie eines Vertrags: die im Vertrag gewählte, sonst die der ersten zugeordneten wiederkehrenden
+ * Buchung (Unterkategorie → ihre Hauptkategorie). Gelöschte Kategorien zählen nicht. Ergebnis: Kategorie | null.
+ */
+export function vertragsKategorie(v, wiederkehrend = [], kategorien = []) {
+  const kat = new Map(kategorien.map((k) => [k.id, k]));
+  const haupt = (id) => {
+    const k = id && kat.get(id);
+    if (!k) return null;
+    return k.elternId ? kat.get(k.elternId) ?? null : k;
+  };
+  if (v.kategorieId && haupt(v.kategorieId)) return haupt(v.kategorieId);
+  for (const w of wiederkehrend) {
+    if (w.vertragId !== v.id || w.art === 'umbuchung') continue;
+    const k = haupt(w.kategorieId);
+    if (k) return k;
+  }
+  return null;
+}
+
+/** Einträge ({ v, … }) nach Hauptkategorie gruppieren: [{ kategorie | null, eintraege }], nach Name, „ohne“ zuletzt */
+export function nachKategorie(eintraege, wiederkehrend, kategorien) {
+  const gruppen = new Map();
+  for (const x of eintraege) {
+    const k = vertragsKategorie(x.v, wiederkehrend, kategorien);
+    const schluessel = k?.id ?? '';
+    if (!gruppen.has(schluessel)) gruppen.set(schluessel, { kategorie: k, eintraege: [] });
+    gruppen.get(schluessel).eintraege.push(x);
+  }
+  return [...gruppen.values()].sort((a, b) => (!a.kategorie) - (!b.kategorie)
+    || (a.kategorie?.name ?? '').localeCompare(b.kategorie?.name ?? '', 'de', { sensitivity: 'base' }));
 }
 
 /* ---------- Zuordnung und Kosten ---------- */

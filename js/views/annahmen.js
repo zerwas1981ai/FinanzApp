@@ -34,7 +34,7 @@ export async function zeigeAnnahmen(container) {
   const fristen = kuendigungsHinweise(daten.vertraege, heuteIso()).length;
   const wahl = bereichsWahl('ansicht-annahmen', [
     ['budgets', 'Budgets'], ['wiederkehrend', kurzLang('Wiederkehrende Buchungen', 'Wiederkehrend')],
-    ['geplant', kurzLang('Geplante Einmalbuchungen', 'Geplant')], ['vertraege', 'Verträge', fristen],
+    ['vertraege', 'Verträge', fristen], ['geplant', kurzLang('Geplante Einmalbuchungen', 'Geplant')], // D193: Verträge vor Geplant
   ]);
   const bereich = { budgets: budgetBereich, wiederkehrend: wiederkehrendBereich, geplant: geplantBereich, vertraege: vertraegeBereich }[wahl.aktuell](daten);
   container.replaceChildren(

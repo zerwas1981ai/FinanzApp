@@ -1624,6 +1624,13 @@ body:not(.umbuchungen-sichtbar) .ub-ausblendbar { display: none; }
   clip: rect(0 0 0 0); white-space: nowrap; border: 0;
 }
 .umschalter-zeile { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+/* D193: Untertabs (Projekte, Annahmen, Stammdaten) bleiben beim Scrollen unter der Kopfzeile stehen.
+   Der Hintergrund reicht über die ganze Breite (Schatten-Trick), damit darunter nichts durchscheint. */
+.umschalter-zeile {
+  position: sticky; top: var(--kopf-hoehe, 56px); z-index: 5;
+  padding: 8px 0; margin-top: -8px;
+  background: var(--bg); box-shadow: 0 0 0 100vmax var(--bg); clip-path: inset(0 -100vmax);
+}
 .umschalter-zeile .chips { flex: 1; min-width: 0; margin-bottom: 0; }
 .umschalter-zeile > .knopf { flex: none; }
 .umschalter-info { margin: 0; font-size: 1rem; flex: none; }
@@ -1703,3 +1710,7 @@ html[data-schrift="gross"] { font-size: 103.125%; }
 
 /* D192: Vertragskosten je Jahr klein unter dem Monatsbetrag */
 .vertrag-kosten .vertrag-jahr { display: block; font-size: .8em; opacity: .8; }
+
+/* D194: Verträge nach Kategorie gruppiert */
+.vertrag-gruppe + .vertrag-gruppe { margin-top: 10px; }
+.vertrag-gruppe-kopf { flex-wrap: wrap; gap: 2px 12px; }
