@@ -241,20 +241,6 @@ main {
   vertical-align: middle;
 }
 
-.marke-etappe {
-  display: inline-block;
-  padding: 4px 12px;
-  border-radius: 999px;
-  background: var(--akzent-leicht);
-  color: var(--akzent);
-  font-size: .85rem;
-  font-weight: 600;
-  margin: 4px 0 0;
-}
-
-.platzhalter p { margin: 0 0 10px; }
-.platzhalter ul { margin: 0 0 12px; padding-left: 20px; color: var(--text-2); }
-
 /* ---------- Listen ---------- */
 
 .liste { list-style: none; margin: 0; padding: 0; }
@@ -497,7 +483,6 @@ fieldset.feld { border: none; padding: 0; margin: 0 0 14px; }
 .dialog-zusatz { margin-right: auto; }
 .icon-knopf:disabled { opacity: .35; cursor: not-allowed; }
 
-.zentriert { text-align: center; }
 .klein { color: var(--text-2); font-size: .85rem; }
 .gross { font-size: 1.45rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.2; margin: 2px 0; }
 .warn-text { color: var(--warnung); }
@@ -704,10 +689,7 @@ button.ka-zeile:hover { background: var(--akzent-leicht); }
   color: var(--text);
   font: inherit;
 }
-.weitere-filter { margin-top: 2px; }
-.weitere-filter > summary { cursor: pointer; color: var(--akzent); font-weight: 500; font-size: .9rem; padding: 4px 0 10px; }
-.weitere-filter .schalter { margin-top: 0; }
-.weitere-filter .hinweis { margin: 6px 0 0; font-size: .8rem; }
+
 .filter-fuss { display: flex; justify-content: flex-end; }
 .filter-fuss:has(> [hidden]:only-child) { display: none; }
 
@@ -939,17 +921,7 @@ p.erklaerung { margin-top: 0; }
 .annahme { font-style: italic; }
 .annahme-marke { font-style: italic; margin-left: 4px; }
 
-.zwischentitel { font-size: 1.1rem; margin: 16px 0 8px; }
-.abstand-oben { margin-top: 10px; }
 .mittel { font-size: 1.25rem; font-weight: 600; font-variant-numeric: tabular-nums; }
-
-.kacheln-gross {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 0 16px;
-}
-.kachel-gross .summe { margin-top: 6px; }
-.kachel-gross .gross { margin-bottom: 10px; }
 
 .warnkarte {
   background: var(--warnung-leicht);
@@ -960,8 +932,6 @@ p.erklaerung { margin-top: 0; }
 }
 .warnkarte p { margin: 4px 0 0; color: var(--text); }
 
-.budget-zeile { margin-top: 12px; }
-.budget-text { display: flex; justify-content: space-between; gap: 8px; font-weight: 500; }
 .meter {
   height: 8px;
   border-radius: 999px;
@@ -1024,8 +994,7 @@ p.erklaerung { margin-top: 0; }
 /* Budgets nach Konten gruppiert (D86) */
 .budget-gruppe + .budget-gruppe { margin-top: 10px; }
 .budget-gruppe .tag-kopf { margin-top: 6px; }
-.summe.zwischensumme { padding: 6px 0 2px; border-top: 1px dashed var(--rand); font-size: .9rem; font-weight: 600; color: var(--text-2); }
-.summe.zwischensumme .betrag { color: var(--text); }
+
 /* Zukunftsmonat: Blöcke Wiederkehrende/geplante Buchungen und Budgets (D95) */
 .erwartet-block + .erwartet-block { margin-top: 10px; }
 /* Innerhalb eines Kontos nach Art gruppiert (D91) */
@@ -1097,8 +1066,7 @@ details[open] > .zl-zeile > .zl-name::before { transform: rotate(90deg); }
 .erledigt-liste > summary { cursor: pointer; color: var(--akzent); font-size: .9rem; padding: 6px 0; }
 
 /* Tab Projekte */
-.seitenkopf { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.seitenkopf .seitentitel { margin-bottom: 0; }
+
 .projekt h2 .marke { margin-left: 8px; vertical-align: middle; }
 .projekt-zahlen { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; margin: 4px 0 8px; }
 .projekt-zahlen .kz { padding: 6px 10px; border-radius: var(--radius-klein); background: var(--flaeche-2); }
@@ -1132,33 +1100,7 @@ details[open] > .zl-zeile > .zl-name::before { transform: rotate(90deg); }
   gap: 10px 16px;
 }
 .kz-wert { font-size: 1.2rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.25; }
-.kz-fuss {
-  grid-column: 1 / -1;
-  border-top: 1px solid var(--rand);
-  padding-top: 8px;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px 16px;
-}
-.kz-kategorie select {
-  width: 100%;
-  max-width: 100%;
-  min-height: 30px;
-  padding: 2px 6px;
-  margin-bottom: 2px;
-  border: 1px solid var(--rand);
-  border-radius: var(--radius-klein);
-  background: var(--bg);
-  color: var(--text-2);
-  font: inherit;
-  font-size: .8rem;
-}
-.kz-kategorie .kz-wert { font-size: 1.05rem; }
-@media (max-width: 480px) {
-  .kz-fuss { grid-template-columns: 1fr; }
-  .kz-kategorie { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 0 8px; }
-  .kz-kategorie > .klein { grid-column: 1 / -1; }
-}
+
 @media (max-width: 480px) {
   /* Handy: „Alle Konten heute“ groß über die ganze Breite, darunter die beiden Prognosen */
   .kz-leiste { grid-template-columns: 1fr 1fr; }
@@ -1451,7 +1393,7 @@ body.gesperrt .kopf, body.gesperrt main, body.gesperrt .fab, body.gesperrt #neue
 .relevant .btab-kopf { position: static; }
 .btab-fest { cursor: default; }
 .btab-fest:hover { color: var(--text-2); }
-.beleg-zahl { margin-left: 6px; font-size: .85rem; color: var(--text-2); }
+
 /* Spalte "Beleg" ganz rechts, direkt anklickbar (D101) */
 .relevant .btab { --relevant-spalten: 92px minmax(0, 1.3fr) minmax(0, 1.5fr) minmax(0, 1.3fr) 112px; --btab-spalten: var(--relevant-spalten) 56px; }
 @media (min-width: 768px) { .relevant .btab-zeile { grid-template-columns: var(--relevant-spalten); } }
@@ -1525,7 +1467,6 @@ body:not(.umbuchungen-sichtbar) .ub-ausblendbar { display: none; }
 .reihenfolge-knoepfe { display: inline-flex; gap: 4px; }
 .reihenfolge-knoepfe .knopf { min-width: 34px; justify-content: center; }
 .reihenfolge-knoepfe .knopf:disabled { opacity: .35; cursor: default; }
-
 
 /* D144: Druckansicht der relevanten Ausgaben – am Bildschirm unsichtbar, beim Drucken nur sie */
 #druckbereich { display: none; }
@@ -1633,7 +1574,6 @@ body:not(.umbuchungen-sichtbar) .ub-ausblendbar { display: none; }
 .weitere-angaben-text { font-weight: 400; font-size: .8rem; }
 .weitere-angaben[open] > :not(summary) { margin-top: 10px; }
 
-
 /* D155: Kategorie-Farben */
 .kat-punkt {
   display: inline-block; flex: none; width: 8px; height: 8px; border-radius: 50%;
@@ -1678,7 +1618,6 @@ body:not(.umbuchungen-sichtbar) .ub-ausblendbar { display: none; }
   .rb-groesste li { grid-template-columns: 72px minmax(0, 1fr) auto; }
 }
 
-
 /* D160: Seitentitel nur noch für Bildschirmleser (außer Übersicht); Umschalter-Zeile mit Knopf rechts */
 .seitentitel.unsichtbar {
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden;
@@ -1699,7 +1638,6 @@ body:not(.umbuchungen-sichtbar) .ub-ausblendbar { display: none; }
   .bereich-kopf .knopf { padding: 6px 10px; }
 }
 
-
 /* D164: Übersicht – Überschrift im Kennzahlen-Kasten; statt „Konten“ nur der gleiche Abstand */
 .kz-kasten .kz-titel { font-size: 1.15rem; margin: 0 0 10px; }
 .konten-abstand { height: calc(1.1rem * 1.45); margin: 16px 0 8px; }
@@ -1712,7 +1650,6 @@ body:not(.umbuchungen-sichtbar) .ub-ausblendbar { display: none; }
 .notiz-liste ul { list-style: none; margin: 4px 0 0; padding: 0; font-size: .9rem; }
 .notiz-liste li + li { margin-top: 2px; }
 .rb-notiz:empty { display: none; }
-
 
 /* D168: Notfall-Mappe */
 .notfall-text { width: 100%; font: inherit; padding: 8px 10px; border-radius: var(--radius-klein); border: 1px solid var(--rand); background: var(--flaeche); color: var(--text); resize: vertical; }
@@ -1727,3 +1664,34 @@ body:not(.umbuchungen-sichtbar) .ub-ausblendbar { display: none; }
   opacity: .75;
 }
 .meter > .meter-eingeplant.ueber { background: repeating-linear-gradient(135deg, var(--warnung) 0 3px, transparent 3px 6px); }
+
+/* D176: Meldung mit Knopf (z. B. „Rückgängig“) */
+.toast.mit-aktion { pointer-events: auto; display: flex; align-items: center; gap: 12px; padding-right: 8px; }
+.toast-aktion {
+  border: 0; border-radius: 999px; padding: 6px 12px; cursor: pointer; font: inherit; font-weight: 700;
+  background: var(--bg); color: var(--text);
+}
+
+/* D177: Budgetbalken in der Kategorie-Farbe (über Budget weiter in der Warnfarbe) */
+.meter[style*="--balken"]:not(.ueber) > .meter-ist { background: var(--balken); }
+.meter[style*="--balken"] > .meter-eingeplant:not(.ueber) { background: repeating-linear-gradient(135deg, var(--balken) 0 3px, transparent 3px 6px); }
+
+/* D177: Schriftgröße je Gerät – alles in rem skaliert mit */
+html[data-schrift="klein"] { font-size: 87.5%; }
+html[data-schrift="gross"] { font-size: 103.125%; }
+
+/* D179: Belege-Übersicht */
+.beleg-uebersicht { list-style: none; margin: 6px 0 0; padding: 0; }
+.beleg-uebersicht > li { display: flex; align-items: center; gap: 8px; }
+.beleg-uebersicht > li + li { border-top: 1px solid var(--rand); }
+.beleg-zeile {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; padding: 8px 4px; border: 0; background: none;
+  color: inherit; font: inherit; text-align: left; cursor: pointer; border-radius: 6px;
+}
+.beleg-zeile:hover { background: var(--flaeche-2); }
+.beleg-text { display: flex; flex-direction: column; min-width: 0; }
+.beleg-titel, .beleg-text .klein { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.belege-bereich .such-eingabe { margin-bottom: 6px; }
+
+/* D180: zusammengefasste Stammdaten-Bereiche untereinander */
+.stamm-gruppe > .bereich + .bereich { margin-top: 12px; }

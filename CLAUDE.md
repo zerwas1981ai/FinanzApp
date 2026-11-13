@@ -75,7 +75,7 @@ Oberfläche auf Deutsch, Währung Euro, deutsches Datums- und Zahlenformat.
      gekennzeichnet (z. B. kursiv oder schraffiert).
 2. Alle Buchungen: über alle Konten filtern, sortieren, analysieren, Monats-/Jahresrückblick (D156); nur gebuchte
    Buchungen bis heute (D120/D121); Filter "ohne Beleg" vorerst entfallen (D123)
-3. Projekte (Umschalter Projekte · Verträge · Relevante Ausgaben, D153): Einmalausgaben (echte und geplante Buchungen) einem Projekt
+3. Projekte (Umschalter Projekte · Verträge · Relevante Ausgaben · Belege, D153/D179): Einmalausgaben (echte und geplante Buchungen) einem Projekt
    zuordnen, z. B. Umbau oder Urlaub; Gesamtkosten mit optionalem Rahmen.
    Projektausgaben zählen nicht gegen das Monatsbudget. (Ersetzt die
    früher geplanten Szenarien „Was wäre wenn“, siehe DECISIONS.md D51.)
@@ -83,7 +83,7 @@ Oberfläche auf Deutsch, Währung Euro, deutsches Datums- und Zahlenformat.
    Einmalbuchungen. Nur absolute Werte, KEINE Prozentsteigerungen oder
    Inflation. Ein/Aus-Schalter je Posten, um ihn für die Prognose
    auszuschalten, ohne etwas zu löschen.
-5. Stammdaten (Umschalter je Bereich, D160): Konten, Kategorien, Schwellen für Hinweise
+5. Stammdaten (Umschalter Konten · Kategorien · Daten & Sicherheit · Notfall-Mappe · Papierkorb · Einstellungen, D180)
 
 ## Rechenlogik
 - Zukunftsmonate werden bei jedem Öffnen berechnet, nicht gespeichert.
@@ -110,14 +110,14 @@ Oberfläche auf Deutsch, Währung Euro, deutsches Datums- und Zahlenformat.
 
 ## Komfort und Sicherheit
 - Schnellerfassung: Betrag, Kategorie, fertig. Datum Standard heute, Konto
-  zuletzt benutzt. Kurzbefehle am
+  zuletzt benutzt. „Erfassen & weitere“, Rechnen im Betragsfeld, häufige Kategorien oben (D175). Kurzbefehle am
   App-Symbol (D105), Belege per „Teilen“ an die App schicken (Android, D106).
 - Kamera-Button für Belegfoto, Bilder beim Hochladen verkleinern
 - Automatisches Backup bei jedem Speichern (letzte 30 Stände), Export als
-  CSV/Excel
+  CSV/Excel, kompletter Datenstand als Datei sichern und wiederherstellen (D178)
 - App-Login: Pflicht-Passwort für alle Geräte (über Drive abgeglichen), je Gerät
   ersetzbar durch Passkey (siehe DECISIONS.md D83)
-- Dark- und Hell-Modus umschaltbar; schlichtes, modernes Design
+- Dark- und Hell-Modus umschaltbar, Schriftgröße je Gerät (D177); schlichtes, modernes Design
 
 ## Nicht im Umfang (nicht von selbst einbauen)
 Mehrbenutzer, andere Währungen, Bankimport, KI-Funktionen,

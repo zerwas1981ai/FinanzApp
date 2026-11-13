@@ -15,9 +15,6 @@ import { geplantDialog } from './annahmen.js';
 
 const monatText = (m) => formatMonat(Number(m.slice(0, 4)), Number(m.slice(5, 7)));
 
-/** Hat der Posten eine Quelle, die man ändern kann? */
-export const istAenderbar = (p) => Boolean(p.ref?.wiederkehrend || p.ref?.geplant || p.ref?.budget);
-
 /** posten: aus zeitleiste(); daten: braucht konten, kategorien, buchungen, projekte, budgets */
 export async function oeffnePostenDialog(posten, daten) {
   const { ref } = posten;

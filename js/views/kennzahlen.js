@@ -6,8 +6,9 @@
 import { h } from '../dom.js';
 import * as db from '../db.js';
 import { formatEuro, formatDatum, formatMonat, formatProzent, formatTag, heuteIso, istGueltigesDatum } from '../format.js';
-import { dialog, eingabe, toast, datenGeaendert, auswahl, klappBereich } from '../ui.js';
+import { dialog, eingabe, toast, datenGeaendert, auswahl, klappBereich, katPunkt } from '../ui.js';
 import { plusMonate, plusTage, annahmeTitel } from '../prognose.js';
+import { farbenZuordnung } from '../farben.js';
 import { budgetMitVorschlag, merkeHinweis } from '../annahmen.js';
 import { oeffneBuchungsdialog } from './buchung-dialog.js';
 import { speichereAusnahme, aendereGeplant } from './annahmen.js';
@@ -92,6 +93,7 @@ export function erwartetBereich(kd, daten) {
   const heute = heuteIso();
   const kat = new Map(daten.kategorien.map((k) => [k.id, k]));
   const kontoName = new Map(daten.konten.map((k) => [k.id, k.name]));
+  const farben = farbenZuordnung(daten.kategorien); // D177: Budgetbalken in der Farbe der Kategorie
 
   const terminZeilen = kd.termine.map((t) => {
     const w = t.wiederkehrend;
@@ -126,10 +128,11 @@ export function erwartetBereich(kd, daten) {
     const offenUeber = !ueber && b.ist + b.offen > b.budget; // mit den eingeplanten Terminen über Budget
     const inhalt = [
       h('div', { class: 'budget-kopf' },
-        h('span', { class: 'buchung-titel' }, `Budget ${b.name}`),
+        h('span', { class: 'buchung-titel' }, katPunkt(farben.get(b.id)?.hex), `Budget ${b.name}`),
         h('span', { class: 'betrag annahme' }, b.rest > 0 ? formatEuro(-b.rest) : formatEuro(0))),
       h('div', {
         class: 'meter' + (ueber ? ' ueber' : ''),
+        style: farben.get(b.id) ? `--balken:${farben.get(b.id).hex}` : null,
         role: 'meter',
         'aria-valuemin': '0',
         'aria-valuemax': String(b.budget),

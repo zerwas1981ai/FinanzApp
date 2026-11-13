@@ -122,3 +122,27 @@ export function istGueltigesDatum(iso) {
   const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
   return d.getFullYear() === Number(m[1]) && d.getMonth() === Number(m[2]) - 1 && d.getDate() === Number(m[3]);
 }
+
+/**
+ * D175: Rechnen im Betragsfeld – „12,50+3,20“, „89,90-10“, „3*2,49“. Punkt vor Strich, keine Klammern.
+ * Liefert das Ergebnis in Cent oder null, wenn der Text keine Rechnung ist (dann gilt parseEuro wie bisher).
+ * Wirft bei einer unverständlichen Rechnung denselben Fehler wie parseEuro.
+ */
+export function rechneBetrag(eingabe, feldname = 'Betrag') {
+  const text = String(eingabe ?? '').replace(/[\s\u00a0\u202f€]/g, '').replace(/−/g, '-').replace(/[x×]/gi, '*');
+  if (!/[+\-*]/.test(text.slice(1))) return null; // kein Rechenzeichen (ein Vorzeichen ganz vorn zählt nicht)
+  // Summanden an + und − trennen (Vorzeichen bleibt am Summanden)
+  const summanden = text.match(/[+-]?[^+-]+/g);
+  if (!summanden || summanden.join('') !== text) throw new Error(`${feldname}: Die Rechnung „${eingabe}“ ist nicht zu verstehen.`);
+  let summe = 0;
+  for (const teil of summanden) {
+    const negativ = teil.startsWith('-');
+    const faktoren = teil.replace(/^[+-]/, '').split('*');
+    if (faktoren.some((f) => f === '')) throw new Error(`${feldname}: Die Rechnung „${eingabe}“ ist nicht zu verstehen.`);
+    // erster Faktor in Cent, weitere Faktoren als Zahl (z. B. 3 × 2,49)
+    let cent = parseEuro(faktoren[0], feldname);
+    for (const f of faktoren.slice(1)) cent = Math.round(cent * (parseEuro(f, feldname) / 100));
+    summe += negativ ? -cent : cent;
+  }
+  return summe;
+}

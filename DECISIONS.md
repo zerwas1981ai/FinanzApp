@@ -7,6 +7,32 @@ Wird eine Entscheidung geändert, den alten Eintrag nicht löschen, sondern als
 
 ---
 
+## Was gilt aktuell (Stand 13.11.2026, D181)
+
+Kurzer Wegweiser, weil viele spätere Einträge frühere aufheben. Maßgeblich bleibt der jeweils letzte Eintrag.
+
+**Wieder ausgebaut – nicht mehr im Code:**
+- Szenarien „Was wäre wenn“ → ersetzt durch Projekte (D51)
+- Kategorie-Kacheln und Kacheln „Einnahmen/Ausgaben des Monats“ in der Übersicht (D75, D78, D115)
+- Sparziele (D157 → D158)
+- „Frei verfügbar“ und „Kann ich mir das leisten?“ (D163 → D169)
+- Steuer-Paket mit Steuerthema, Liste und Belege-ZIP (D167 → D169)
+- Vorlagen für häufige Buchungen (D104 → D172)
+- Klappbereiche in den Stammdaten (D154 → D160), „Alles löschen und neu beginnen“ ist ausgeblendet (D140)
+
+**Aufbau der Oberfläche:**
+- Seitenüberschriften gibt es nicht mehr sichtbar; in der Übersicht steht „Übersicht“ im Kennzahlen-Kasten (D160, D164)
+- Projekte: Umschalter Projekte · Verträge · Relevante Ausgaben · Belege (D153, D161, D179)
+- Annahmen: Umschalter Budgets · Wiederkehrende · Geplante (D160)
+- Stammdaten: Umschalter Konten · Kategorien · Daten & Sicherheit · Notfall-Mappe · Papierkorb · Einstellungen (D180)
+- Scrollbare Leisten behalten ihre Position (D171); „+“-Knöpfe überall im blauen Stil (D161)
+
+**Datenstand:** Datenmodell-Version 23, DB-Struktur 12. Alte Schubladen (werden geleert): szenarien, sparziele, vorlagen.
+Sammlungen: konten, kategorien, buchungen, abstimmungen, budgets, wiederkehrend, hinweise, einstellungen, geplant,
+projekte, archive, relevant, vertraege, monatsnotizen.
+
+---
+
 ## D01 – Reines HTML/CSS/JavaScript, kein Framework, kein Build-Schritt
 *Etappe 1*
 
@@ -2364,3 +2390,60 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
 - Vergleich in der Analyse: **der Monat davor** (ganzer Monat, z. B. September), mit denselben Filtern.
 - Erklärtext der Analyse sprachlich korrigiert: „Vergleichszeitraum „…“: von – bis, mit denselben Filtern.“
   (vorher z. B. „Vergleich mit die 3 Monate davor“).
+
+## D175 – Schnellere Erfassung: Serienerfassung, Rechnen im Betragsfeld, häufige Kategorien
+*Wunsch des Nutzers (Runde 5, Punkte 1, 2, 5)*
+
+- **„Erfassen & weitere“** im Dialog „Neue Buchung“: speichert und öffnet sofort den nächsten Dialog; Art, Konto und
+  Datum bleiben stehen. Nicht beim Buchen eines fälligen Termins oder eines geteilten Belegs.
+- **Rechnen im Betragsfeld:** „12,50+3,20“, „89,90-10“, „3*2,49“ (auch „x“); Punkt vor Strich, keine Klammern. Beim
+  Verlassen des Feldes steht das Ergebnis da; eine unverständliche Rechnung meldet der Dialog beim Speichern.
+- **Häufige Kategorien:** In der Kategorie-Auswahl des Buchungsdialogs steht oben die Gruppe „Häufig“ mit den bis zu
+  5 meistgebuchten Unterkategorien der gewählten Art (ab 2 Buchungen; bei Gleichstand die zuletzt benutzte zuerst).
+
+## D176 – „Rückgängig“ nach dem Löschen, Zurück-Taste schließt Dialoge
+*Punkte 3 und 4*
+
+- Nach „In den Papierkorb“ (Buchung, relevante Ausgabe) zeigt die Meldung 7 Sekunden lang den Knopf „Rückgängig“.
+- Jeder Dialog legt einen Eintrag in den Browser-Verlauf; die Zurück-Taste (Android) schließt den obersten Dialog,
+  statt die App zu verlassen. Beim normalen Schließen nimmt die App den Eintrag selbst wieder heraus.
+  Der Sperrbildschirm (App-Login) ist davon ausgenommen.
+
+## D177 – Schriftgröße einstellbar, Budgetbalken in Kategorie-Farbe
+*Punkte 6 und 7*
+
+- Stammdaten → Einstellungen → „Darstellung“: Schriftgröße Klein / Normal / Groß, je Gerät gespeichert
+  (localStorage „finanzapp-schrift“, wird wie Hell/Dunkel schon vor dem ersten Zeichnen gesetzt).
+- Die Budgetbalken unter „Noch erwartet“ haben die Farbe ihrer Hauptkategorie (voll = verbraucht, schraffiert =
+  eingeplant, D170); über Budget bleibt die Warnfarbe. Vor dem Namen steht der Farbpunkt.
+
+## D178 – Sicherung als Datei wiederherstellen
+*Punkt 8*
+
+- Stammdaten → Daten & Sicherheit → Export: neben „Kompletter Datenstand (JSON)“ gibt es „Aus Datei
+  wiederherstellen …“. Die Datei wird geprüft, auf die aktuelle Datenversion gebracht und mit dem jetzigen Stand
+  verglichen (Vorschau wie D108); erst „Wiederherstellen“ ersetzt etwas.
+- Mit eingerichtetem Drive ersetzt das den Stand auf dem Gerät und in Drive (vorher Backup in Drive); ohne Drive
+  nur auf dem Gerät. Belegdateien stecken nicht in der Datei, nur ihre Namen.
+
+## D179 – Belege-Übersicht
+*Punkt 9*
+
+- Tab Projekte, vierter Umschalter „Belege“: alle Belege aus Buchungen, relevanten Ausgaben und Verträgen
+  (Unterlagen), neueste zuerst, mit Suche in Name, Titel und Datum. Antippen öffnet den Beleg, der Knopf rechts
+  den zugehörigen Eintrag. Papierkorb zählt nicht; höchstens 100 Einträge werden gezeigt.
+
+## D180 – Stammdaten mit sechs Umschaltern
+*Punkt 10 (ändert D160/D173)*
+
+- Konten · Kategorien · **Daten & Sicherheit** (Google Drive, App-Login, Export, Archiv untereinander; am Handy
+  „Daten“) · Notfall-Mappe · Papierkorb · **Einstellungen** (Darstellung, Schwellen für Budgethinweise, Über die
+  Daten). Beim Entwickeln zusätzlich „Testdaten“.
+
+## D181 – Hausputz
+*Punkt 11*
+
+- 26 Stil-Regeln für nicht mehr benutzte Klassen entfernt (u. a. Kategorie-Kacheln, alte Filter-Klappe,
+  Seitenkopf, Zwischentitel) und vier nicht mehr benutzte Funktionen samt Test
+  (kennzahlKategorien, summenJeHauptkategorie, FARBTOENE, istAenderbar).
+- Oben in dieser Datei steht jetzt „Was gilt aktuell“ als Wegweiser.

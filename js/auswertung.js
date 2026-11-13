@@ -568,3 +568,21 @@ export function schoeneObergrenze(wert) {
   }
   return 10 * potenz;
 }
+
+/**
+ * D175: Die am häufigsten gebuchten Unterkategorien einer Art (ohne Papierkorb), häufigste zuerst.
+ * Bei Gleichstand gewinnt die zuletzt benutzte. Erst ab 2 Buchungen gilt eine Kategorie als „häufig“.
+ */
+export function haeufigeKategorien(buchungen, art, anzahl = 5) {
+  const zaehler = new Map();
+  for (const b of buchungen) {
+    if (b.geloeschtAm || b.art !== art || !b.kategorieId) continue;
+    const x = zaehler.get(b.kategorieId) ?? { id: b.kategorieId, n: 0, zuletzt: '' };
+    x.n++;
+    if (b.datum > x.zuletzt) x.zuletzt = b.datum;
+    zaehler.set(b.kategorieId, x);
+  }
+  return [...zaehler.values()].filter((x) => x.n >= 2)
+    .sort((a, b) => b.n - a.n || b.zuletzt.localeCompare(a.zuletzt))
+    .slice(0, anzahl).map((x) => x.id);
+}

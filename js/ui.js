@@ -6,13 +6,19 @@ let feldZaehler = 0;
 let toastTimer = null;
 
 /** Kurze Meldung unten am Bildschirm, verschwindet von selbst */
-export function toast(text) {
+export function toast(text, { aktion = null, beiAktion = null } = {}) {
   const el = document.getElementById('toast');
   if (!el) return;
-  el.textContent = text;
+  // D176: optional ein Knopf in der Meldung (z. B. „Rückgängig“) – dann bleibt sie länger stehen
+  const ausblenden = () => el.classList.remove('sichtbar', 'mit-aktion');
+  el.replaceChildren(text, aktion ? h('button', {
+    type: 'button', class: 'toast-aktion',
+    onclick: async () => { ausblenden(); await beiAktion?.(); },
+  }, aktion) : '');
   el.classList.add('sichtbar');
+  el.classList.toggle('mit-aktion', Boolean(aktion));
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove('sichtbar'), 2600);
+  toastTimer = setTimeout(ausblenden, aktion ? 7000 : 2600);
 }
 
 /**
@@ -20,6 +26,32 @@ export function toast(text) {
  * onSpeichern darf einen Fehler werfen – dessen Text erscheint dann im Dialog,
  * und der Dialog bleibt offen.
  */
+/**
+ * D176: Zurück-Taste am Handy. Jeder geöffnete Dialog legt einen Eintrag in den Browser-Verlauf; „Zurück“
+ * schließt dann den obersten Dialog. Wird der Dialog normal geschlossen, nimmt die App den Eintrag wieder
+ * heraus (und überspringt das dadurch ausgelöste „Zurück“-Ereignis).
+ */
+const offeneDialoge = [];
+let zurueckIgnorieren = 0;
+function merkeFuerZurueck(dlg) {
+  offeneDialoge.push(dlg);
+  try { history.pushState({ finanzDialog: true }, ''); } catch { /* z. B. eingebettete Vorschau */ }
+  dlg.addEventListener('close', () => {
+    const i = offeneDialoge.indexOf(dlg);
+    if (i >= 0) offeneDialoge.splice(i, 1);
+    if (dlg.dataset.perZurueck) return; // der Verlaufseintrag ist durch „Zurück“ schon weg
+    zurueckIgnorieren++;
+    history.back();
+  });
+}
+if (typeof window !== 'undefined') {
+  window.addEventListener('popstate', () => {
+    if (zurueckIgnorieren > 0) { zurueckIgnorieren--; return; }
+    const oben = offeneDialoge.at(-1);
+    if (oben) { oben.dataset.perZurueck = '1'; oben.close(); }
+  });
+}
+
 export function dialog({ titel, inhalt, speichernText = 'Speichern', gefahr = false, onSpeichern, abbrechenText = 'Abbrechen', zusatz = null }) {
   const fehler = h('p', { class: 'dialog-fehler', role: 'alert' });
   const speichern = h('button', { type: 'submit', class: 'knopf ' + (gefahr ? 'knopf-gefahr-voll' : 'knopf-primaer') }, speichernText);
@@ -59,6 +91,7 @@ export function dialog({ titel, inhalt, speichernText = 'Speichern', gefahr = fa
 
   document.body.append(dlg);
   dlg.showModal();
+  merkeFuerZurueck(dlg); // D176: Zurück-Taste (Android) schließt den Dialog statt die App zu verlassen
   (dlg.querySelector('[autofocus]') ?? dlg.querySelector('input, select') ?? speichern).focus();
   return dlg;
 }

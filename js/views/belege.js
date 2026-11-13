@@ -8,6 +8,7 @@ import { h } from '../dom.js';
 import * as db from '../db.js';
 import { dialog, toast } from '../ui.js';
 import { belegDatei, belegSpaeterLoeschen } from '../sync/abgleich.js';
+import { belegListe, filtereBelege } from '../belegliste.js';
 
 const MAX_SEITE = 1600;
 const MAX_BYTES = 15 * 1024 * 1024;
@@ -161,4 +162,50 @@ export async function belegeEntfernen(buchungen) {
       await belegSpaeterLoeschen(x.relevantDriveId);
     }
   }
+}
+
+/* =========================== D179: Belege-Übersicht (Tab Projekte) =========================== */
+
+const QUELLE_TEXT = { buchung: 'Buchung', relevant: 'Relevante Ausgabe', vertrag: 'Vertrag' };
+let belegSuche = ''; // solange die App offen ist
+
+/**
+ * Alle Belege an einem Ort, mit Suche. Antippen öffnet den Beleg; „Zur Buchung“ öffnet den Eintrag.
+ * daten: braucht buchungen, relevant, vertraege, kategorien. oeffne(eintrag): öffnet den zugehörigen Dialog.
+ */
+export function belegeBereich(daten, oeffne) {
+  const MAX = 100;
+  const alle = belegListe(daten);
+  const such = h('input', { type: 'search', class: 'such-eingabe', placeholder: 'Suchen nach Name, Empfänger, Datum …', 'aria-label': 'Belege durchsuchen', value: belegSuche });
+  const liste = h('ul', { class: 'beleg-uebersicht' });
+  const info = h('p', { class: 'klein gedaempft' });
+
+  const zeichne = () => {
+    belegSuche = such.value;
+    const treffer = filtereBelege(alle, such.value);
+    info.textContent = (treffer.length === alle.length ? `${alle.length} Beleg${alle.length === 1 ? '' : 'e'}` : `${treffer.length} von ${alle.length} Belegen`)
+      + (treffer.length > MAX ? ` – die neuesten ${MAX} angezeigt` : '');
+    liste.replaceChildren(...treffer.slice(0, MAX).map((x) => h('li', {},
+      h('button', { type: 'button', class: 'beleg-zeile', title: 'Beleg ansehen', onclick: () => zeigeBeleg(x.beleg) },
+        h('span', { class: 'beleg-symbol', 'aria-hidden': 'true' }, x.beleg.mime === 'application/pdf' ? '📄' : '🖼'),
+        h('span', { class: 'beleg-text' },
+          h('span', { class: 'beleg-titel' }, x.name),
+          h('span', { class: 'klein gedaempft' }, [x.datum && `${x.datum.slice(8, 10)}.${x.datum.slice(5, 7)}.${x.datum.slice(0, 4)}`, x.titel,
+            !x.beleg.driveId && 'noch nicht in Drive'].filter(Boolean).join(' · ')))),
+      h('button', { type: 'button', class: 'knopf knopf-klein', title: `${QUELLE_TEXT[x.quelle]} öffnen`, onclick: () => oeffne(x) },
+        x.quelle === 'vertrag' ? 'Vertrag' : 'Buchung'))));
+    if (!treffer.length) liste.replaceChildren(h('li', { class: 'leer' }, alle.length ? 'Kein Beleg passt zur Suche.' : 'Noch keine Belege.'));
+  };
+  let warte = null;
+  such.addEventListener('input', () => { clearTimeout(warte); warte = setTimeout(zeichne, 150); });
+  zeichne();
+
+  return h('section', { class: 'bereich belege-bereich', 'aria-labelledby': 'titel-belege' },
+    h('div', { class: 'bereich-kopf' }, h('h2', { id: 'titel-belege' }, 'Belege')),
+    h('p', { class: 'hinweis erklaerung' },
+      'Alle Belege aus Buchungen, relevanten Ausgaben und Verträgen, neueste zuerst. Einen Beleg antippen öffnet ihn; ' +
+      'der Knopf rechts öffnet den zugehörigen Eintrag. Neue Belege hängst du wie gewohnt an der Buchung an.'),
+    alle.length > 0 && such,
+    info,
+    liste);
 }

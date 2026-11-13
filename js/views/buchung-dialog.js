@@ -2,10 +2,10 @@
 
 import { h } from '../dom.js';
 import * as db from '../db.js';
-import { parseEuro, centZuEingabe, heuteIso } from '../format.js';
+import { parseEuro, centZuEingabe, heuteIso, rechneBetrag } from '../format.js';
 import { dialog, toast, eingabe, auswahl, optionsGruppe, datenGeaendert, geraet } from '../ui.js';
-import { speichereBuchung, gruppeVon, inPapierkorb } from '../buchungen.js';
-import { partnerListe, partnerSchluessel } from '../auswertung.js';
+import { speichereBuchung, gruppeVon, inPapierkorb, wiederherstellen } from '../buchungen.js';
+import { partnerListe, partnerSchluessel, haeufigeKategorien } from '../auswertung.js';
 import { belegeFeld } from './belege.js';
 import { sortiereKonten } from '../konten.js';
 import { wiederkehrendDialog } from './annahmen.js';
@@ -59,6 +59,16 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
     autofocus: true,
     class: 'eingabe-betrag',
   });
+
+  // D175: Rechnen im Betragsfeld („12,50+3,20“) – beim Verlassen des Feldes steht das Ergebnis da
+  const liesBetrag = () => rechneBetrag(betrag.input.value, 'Betrag') ?? parseEuro(betrag.input.value, 'Betrag');
+  betrag.input.addEventListener('change', () => {
+    try {
+      const cent = rechneBetrag(betrag.input.value, 'Betrag');
+      if (cent != null && cent > 0) betrag.input.value = centZuEingabe(cent);
+    } catch { /* unverständlich: beim Speichern kommt die Meldung */ }
+  });
+  betrag.input.title = 'Rechnen möglich, z. B. 12,50+3,20 oder 3*2,49';
 
   const kategorie = auswahl({ label: 'Kategorie', optionen: [] });
   // Bekannter Empfänger/Absender bei neuer Buchung: Kategorie der letzten Buchung vorschlagen
@@ -142,7 +152,7 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
     gegenkonto.feld.hidden = !istUmbuchung;
     budgetFeld.feld.hidden = !istUmbuchung;
     konto.feld.querySelector('label').textContent = istUmbuchung ? 'Von Konto' : 'Konto';
-    if (!istUmbuchung) fuelleKategorien(kategorie.select, kategorien, art, startKategorie);
+    if (!istUmbuchung) fuelleKategorien(kategorie.select, kategorien, art, startKategorie, haeufigeKategorien(alle, art));
   }
   aktualisiere();
 
@@ -151,7 +161,7 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
   // ungespeicherte Änderungen an ihr werden verworfen.
   const aktuelleWerte = () => {
     let betragCent = null;
-    try { betragCent = parseEuro(betrag.input.value, 'Betrag'); } catch { /* leer lassen */ }
+    try { betragCent = liesBetrag(); } catch { /* leer lassen */ }
     return {
       art,
       betragCent,
@@ -202,6 +212,8 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
   const extras = buchung && h('div', { class: 'knopfreihe dialog-extras' }, kopieren, alsWiederkehrend);
 
   // ---------- Dialog ----------
+  // Serienerfassung nur bei wirklich neuen Buchungen – nicht beim Buchen eines fälligen Termins oder geteilten Belegs
+  const serie = !buchung && !vorgaben.wiederkehrendId && !vorgaben.geplantId && !vorgaben.dateien?.length;
   const dlg = dialog({
     titel: buchung ? (ref.art === 'umbuchung' ? 'Umbuchung bearbeiten' : 'Buchung bearbeiten') : (vorgaben.titel ?? 'Neue Buchung'),
     inhalt: (vorgaben.belegZuerst || vorgaben.dateien?.length
@@ -209,20 +221,37 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
       : [extras, artKnoepfe, betrag.feld, partner.feld, kategorie.feld, konto.feld, gegenkonto.feld, budgetFeld.feld, datum.feld, status.feld, notiz.feld, weitere, belege.feld]
     ).filter(Boolean),
     speichernText: buchung ? 'Speichern' : 'Erfassen',
-    zusatz: buchung && {
+    zusatz: buchung ? {
       text: 'In den Papierkorb',
       variante: 'knopf-gefahr',
       onclick: async (d) => {
         await inPapierkorb(gruppe);
         d.close();
-        toast('In den Papierkorb gelegt (Stammdaten → Papierkorb)');
+        // D176: „Rückgängig“ direkt in der Meldung statt Umweg über Stammdaten → Papierkorb
+        toast('In den Papierkorb gelegt', {
+          aktion: 'Rückgängig',
+          beiAktion: async () => { await wiederherstellen(gruppe); toast('Wiederhergestellt'); datenGeaendert(); },
+        });
         datenGeaendert();
       },
+    } : serie && {
+      // D175: Serienerfassung – speichern und gleich die nächste Buchung, Art/Konto/Datum bleiben stehen
+      text: 'Erfassen & weitere',
+      onclick: async (d) => {
+        const werte = await speichere();
+        d.close();
+        setTimeout(() => oeffneBuchungsdialog(null, { art: werte.art, kontoId: werte.kontoId, datum: werte.datum, titel: 'Weitere Buchung' }), 0);
+      },
     },
-    onSpeichern: async () => {
+    onSpeichern: () => speichere(),
+  });
+  if (vorgaben.dateien?.length) await belege.fuegeHinzu(vorgaben.dateien);
+  return dlg;
+
+  async function speichere() {
       const werte = {
         art,
-        betragCent: parseEuro(betrag.input.value, 'Betrag'),
+        betragCent: liesBetrag(),
         datum: datum.input.value,
         kontoId: konto.select.value,
         gegenkontoId: gegenkonto.select.value,
@@ -248,10 +277,8 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
       geraet.schreib('letztes-konto', werte.kontoId);
       toast(buchung ? 'Buchung gespeichert' : 'Buchung erfasst');
       datenGeaendert();
-    },
-  });
-  if (vorgaben.dateien?.length) await belege.fuegeHinzu(vorgaben.dateien);
-  return dlg;
+      return werte;
+  }
 }
 
 const PARTNER_LABEL = { ausgabe: 'An (Empfänger, optional)', einnahme: 'Von (Absender, optional)' };
@@ -375,7 +402,7 @@ export function artWahl(ref, aktuell, beiWahl) {
 }
 
 /** Füllt die Kategorieauswahl mit den Unterkategorien passend zur Art, gruppiert nach Hauptkategorie */
-export function fuelleKategorien(select, kategorien, art, aktuelleId) {
+export function fuelleKategorien(select, kategorien, art, aktuelleId, haeufig = []) {
   const vorher = select.value || aktuelleId || '';
   const haupt = kategorien
     .filter((k) => !k.elternId && k.art === art)
@@ -387,6 +414,11 @@ export function fuelleKategorien(select, kategorien, art, aktuelleId) {
       .sort(nachName);
     if (unter.length) gruppen.push(h('optgroup', { label: hk.name }, unter.map((u) => h('option', { value: u.id }, u.name))));
   }
+  // D175: die häufigsten Kategorien stehen zusätzlich ganz oben (mit Hauptkategorie dahinter)
+  const nachId = new Map(kategorien.map((k) => [k.id, k]));
+  const oben = haeufig.map((id) => nachId.get(id))
+    .filter((u) => u && !u.archiviert && nachId.get(u.elternId)?.art === art && !nachId.get(u.elternId)?.archiviert);
+  if (oben.length) gruppen.unshift(h('optgroup', { label: 'Häufig' }, oben.map((u) => h('option', { value: u.id }, `${u.name} (${nachId.get(u.elternId).name})`))));
   select.replaceChildren(h('option', { value: '' }, gruppen.length ? 'Bitte wählen …' : 'Keine passende Kategorie vorhanden'), ...gruppen);
   select.value = [...select.options].some((o) => o.value === vorher) ? vorher : '';
 }

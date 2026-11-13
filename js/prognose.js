@@ -286,42 +286,6 @@ export function ausgabenJeKontoUndKategorie(buchungen, kategorien, monat) {
 }
 
 /**
- * Summe je Hauptkategorie in einem Monat – Einnahmen und Ausgaben (ohne Umbuchungen), als positive Cent.
- * Ohne Projektbuchungen, damit der Vergleich mit dem Budget stimmt (D52).
- */
-export function summenJeHauptkategorie(buchungen, kategorien, monat) {
-  const kat = new Map(kategorien.map((k) => [k.id, k]));
-  const summe = new Map();
-  for (const b of buchungen) {
-    if (!istAktiv(b) || b.art === 'umbuchung' || b.projektId || b.datum.slice(0, 7) !== monat) continue;
-    const hId = kat.get(b.kategorieId)?.elternId;
-    if (hId) summe.set(hId, (summe.get(hId) ?? 0) + b.betragCent);
-  }
-  return summe;
-}
-
-/**
- * Welche drei Kategorien zeigt die Übersicht oben? Gespeicherte Wahl
- * (einstellungen, id 'uebersicht'), fehlende Plätze werden mit den größten
- * Ausgaben-Hauptkategorien des Monats aufgefüllt (dann alphabetisch).
- */
-export function kennzahlKategorien(einstellungen, kategorien, summen) {
-  const haupt = kategorien.filter((k) => !k.elternId && !k.archiviert);
-  const gueltig = (id) => haupt.some((k) => k.id === id);
-  const gewaehlt = (einstellungen.find((e) => e.id === 'uebersicht')?.kategorien ?? []).slice(0, 3);
-  const vorschlaege = haupt
-    .filter((k) => k.art === 'ausgabe')
-    .sort((a, b) => (summen.get(b.id) ?? 0) - (summen.get(a.id) ?? 0) || a.name.localeCompare(b.name, 'de'))
-    .map((k) => k.id);
-  const ergebnis = [];
-  for (let i = 0; i < 3; i++) {
-    const id = gewaehlt[i];
-    ergebnis.push(id && gueltig(id) ? id : vorschlaege.find((v) => !ergebnis.includes(v) && !gewaehlt.includes(v)) ?? null);
-  }
-  return ergebnis;
-}
-
-/**
  * Prognose für den laufenden Monat (Regeln aus CLAUDE.md, Entscheidungen D35, D85):
  * - Je Konto und Hauptkategorie mit Budget: Prognose = das Höhere aus Budget und
  *   (Ist + offene wiederkehrende Ausgaben – beides nur auf diesem Konto). Ohne Budget: Ist + offene.

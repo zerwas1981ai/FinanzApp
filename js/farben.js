@@ -9,7 +9,6 @@
  * (Rot … Magenta) in je 6 Helligkeitsstufen (1 = sehr hell … 6 = sehr dunkel). Je Stufe sind Sättigung und
  * Helligkeit gleich, dadurch passen die Farben zueinander. Reihenfolge = Reihenfolge in der Auswahl.
  */
-export const FARBTOENE = ['rot', 'orange', 'bernstein', 'gelb', 'limette', 'gruen', 'tuerkis', 'petrol', 'blau', 'indigo', 'violett', 'magenta'];
 export const PALETTE = [
   { schluessel: 'weiss', name: 'Weiß', hex: '#ffffff', grau: true },
   { schluessel: 'grau-1', name: 'Grau 1', hex: '#dcdee0', grau: true },

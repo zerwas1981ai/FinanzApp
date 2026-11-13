@@ -7,6 +7,10 @@
     t = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dunkel' : 'hell';
   }
   document.documentElement.setAttribute('data-theme', t);
+  // D177: Schriftgröße je Gerät ("klein" / "normal" / "gross"), gespeichert in localStorage
+  var g = null;
+  try { g = localStorage.getItem('finanzapp-schrift'); } catch (e) { /* egal */ }
+  if (g === 'klein' || g === 'gross') document.documentElement.setAttribute('data-schrift', g);
   var meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.setAttribute('content', t === 'dunkel' ? '#0e1013' : '#f5f6f8');
 })();

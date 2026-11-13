@@ -6,7 +6,7 @@ import { heuteIso, formatEuro, formatDatum } from '../format.js';
 import { frage, toast, herunterladen, dialog, eingabe } from '../ui.js';
 import * as abgleich from '../sync/abgleich.js';
 import { buchungenAlsCsv, exportName } from '../export.js';
-import { DATENMODELL_VERSION } from '../migrationen.js';
+import { DATENMODELL_VERSION, migriereDaten } from '../migrationen.js';
 import { naechstesArchivJahr, letztesArchiv } from '../archiv.js';
 import { standUebersicht, vergleiche } from '../datensicherung.js';
 
@@ -42,6 +42,48 @@ async function wiederherstellenDialog(b, inhalt) {
     onSpeichern: async () => {
       await abgleich.wiederherstellen(b.id, inhalt);
       toast(`Stand vom ${zeit(b.zeit)} wiederhergestellt`);
+    },
+  });
+}
+
+/**
+ * D178: Sicherung als Datei wiederherstellen – unabhängig von Google Drive. Die Datei stammt aus
+ * „Kompletter Datenstand (JSON)“; ältere Stände werden beim Laden auf die aktuelle Datenversion gebracht.
+ * Vorher dieselbe Vorschau wie beim Backup (D108). Belegdateien stecken nicht in der Datei, nur ihre Namen.
+ */
+async function ausDateiWiederherstellen(datei) {
+  let roh;
+  try { roh = JSON.parse(await datei.text()); } catch { throw new Error('Die Datei ist keine gültige Sicherung (kein JSON).'); }
+  if (!roh || typeof roh !== 'object' || !Array.isArray(roh.konten) || !Array.isArray(roh.buchungen)) {
+    throw new Error('Die Datei ist keine Sicherung dieser App (Konten oder Buchungen fehlen).');
+  }
+  const inhalt = { ...migriereDaten(roh).daten, version: DATENMODELL_VERSION };
+  const heute = heuteIso();
+  const zeilen = vergleiche(standUebersicht(await db.leseDatenstand(), heute), standUebersicht(inhalt, heute), { euro: formatEuro, datum: formatDatum });
+  const mitDrive = abgleich.istEingerichtet();
+  dialog({
+    titel: 'Sicherung aus Datei wiederherstellen?',
+    inhalt: [
+      h('p', {}, `Datei „${datei.name}“ im Vergleich zu jetzt (Kontostände bis heute). Unterschiede sind markiert.`),
+      h('div', { class: 'tabelle-rahmen' },
+        h('table', { class: 'tabelle backup-vergleich' },
+          h('thead', {}, h('tr', {}, h('th', {}, ''), h('th', {}, 'Jetzt'), h('th', {}, 'Datei'))),
+          h('tbody', {}, zeilen.map((z) => h('tr', { class: z.anders ? 'anders' : null },
+            h('td', {}, z.text), h('td', {}, z.jetzt), h('td', {}, z.backup)))))),
+      h('p', { class: 'hinweis' }, mitDrive
+        ? 'Wiederherstellen ersetzt deine Daten auf diesem Gerät und in Google Drive. Der jetzige Stand wird vorher als Backup in Drive gesichert – du kannst also zurück.'
+        : 'Wiederherstellen ersetzt deine Daten auf diesem Gerät. Tipp: Sichere den jetzigen Stand vorher mit „Kompletter Datenstand (JSON)“, dann kannst du zurück.'),
+      h('p', { class: 'hinweis' }, 'Belege (Fotos, PDFs) stecken nicht in der Datei, nur ihre Namen – sie bleiben, wo sie sind (Gerät bzw. Google Drive).'),
+    ],
+    speichernText: 'Wiederherstellen',
+    gefahr: true,
+    onSpeichern: async () => {
+      if (mitDrive) await abgleich.wiederherstellen(null, inhalt);
+      else {
+        await db.schreibeDatenstand(inhalt);
+        window.dispatchEvent(new Event('daten-geaendert'));
+      }
+      toast('Sicherung aus der Datei wiederhergestellt');
     },
   });
 }
@@ -138,7 +180,8 @@ export function exportBereich() {
     h('h2', { id: 'titel-export' }, 'Export'),
     h('p', { class: 'hinweis erklaerung' },
       'Alle Buchungen (ohne Papierkorb) als CSV-Datei, die Excel direkt öffnet. Eine gefilterte Liste ' +
-      'exportierst du unter „Alle Buchungen“. Zusätzlich lässt sich der komplette Datenstand als JSON sichern.'),
+      'exportierst du unter „Alle Buchungen“. Zusätzlich lässt sich der komplette Datenstand als Datei (JSON) sichern ' +
+      'und daraus wiederherstellen – unabhängig von Google Drive, z. B. als Kopie auf dem PC oder einem USB-Stick.'),
     h('div', { class: 'knopfreihe' },
       h('button', {
         type: 'button',
@@ -155,7 +198,19 @@ export function exportBereich() {
           const daten = { ...(await db.leseDatenstand()), version: DATENMODELL_VERSION };
           herunterladen(JSON.stringify(daten, null, 1), `finanzen-datenstand-${heuteIso()}.json`, 'application/json');
         }),
-      }, 'Kompletter Datenstand (JSON)')),
+      }, 'Kompletter Datenstand (JSON)'),
+      // D178: dieselbe Datei wieder einspielen – auch ohne Google Drive
+      (() => {
+        const eingabeDatei = h('input', {
+          type: 'file', accept: 'application/json,.json', hidden: true,
+          onchange: sicher(async (e) => {
+            const datei = e.target.files[0];
+            e.target.value = '';
+            if (datei) await ausDateiWiederherstellen(datei);
+          }),
+        });
+        return [eingabeDatei, h('button', { type: 'button', class: 'knopf', onclick: () => eingabeDatei.click() }, 'Aus Datei wiederherstellen …')];
+      })()),
   );
 }
 

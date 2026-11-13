@@ -266,7 +266,15 @@ export function relevantDialog(e, daten) {
         const zeit = new Date().toISOString();
         await db.speichere('relevant', { ...e, geloeschtAm: zeit, geaendertAm: zeit });
         d.close();
-        toast('In den Papierkorb gelegt (Stammdaten → Papierkorb)');
+        // D176: „Rückgängig“ direkt in der Meldung
+        toast('In den Papierkorb gelegt', {
+          aktion: 'Rückgängig',
+          beiAktion: async () => {
+            await db.speichere('relevant', { ...e, geloeschtAm: null, geaendertAm: new Date().toISOString() });
+            toast('Wiederhergestellt');
+            datenGeaendert();
+          },
+        });
         datenGeaendert();
       },
     },

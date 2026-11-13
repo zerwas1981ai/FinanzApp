@@ -3,7 +3,7 @@
 import { h } from '../dom.js';
 import * as db from '../db.js';
 import { formatEuro, formatDatum, parseEuro, centZuEingabe, heuteIso, istGueltigesDatum } from '../format.js';
-import { dialog, frage, toast, eingabe, auswahl, optionsGruppe, knopf, schalter, katPunkt, bereichsWahl } from '../ui.js';
+import { dialog, frage, toast, eingabe, auswahl, optionsGruppe, knopf, schalter, katPunkt, bereichsWahl, kurzLang, geraet } from '../ui.js';
 import { PALETTE, farbenZuordnung, paletteEintrag } from '../farben.js';
 import { notfallBereich } from './notfall.js';
 import { hatTestdaten, ladeTestdaten, loescheTestdaten } from '../testdaten.js';
@@ -77,22 +77,19 @@ export async function zeigeStammdaten(container) {
   // filter(Boolean): ausgeblendete Bereiche (false) weglassen – sonst stünde "false" als Text da
   // D160: Umschalter statt alles untereinander (ersetzt die Klappbereiche aus D154); Wahl merkt sich das Gerät
   const papierkorbAnzahl = alleBuchungen.filter((b) => b.geloeschtAm).length + relevant.filter((r) => r.geloeschtAm).length;
+  // D180: nur noch sechs Umschalter – selten Gebrauchtes ist zusammengefasst
+  const mehrere = async (...teile) => h('div', { class: 'stamm-gruppe' }, ...(await Promise.all(teile.map((t) => t()))).filter(Boolean));
   const bereiche = [
     ['konten', 'Konten', () => kontenBereich(konten, neu)],
     ['kategorien', 'Kategorien', () => kategorienBereich(kategorien, neu)],
-    ['schwellen', 'Budgethinweise', async () => schwellenBereich(await leseEinstellungen())],
-    ['drive', 'Google Drive', () => driveBereich(neu)],
-    ['login', 'App-Login', () => sperreBereich(neu)],
-    ['export', 'Export', () => exportBereich()],
+    ['daten', kurzLang('Daten & Sicherheit', 'Daten'), () => mehrere(() => driveBereich(neu), () => sperreBereich(neu), () => exportBereich(), () => archivBereich(neu))],
     ['notfall', 'Notfall-Mappe', () => notfallBereich()], // D168
     // Testdaten nur beim Entwickeln am PC (localhost), nicht in der veröffentlichten App (D66)
     IST_ENTWICKLUNG && ['testdaten', 'Testdaten', () => testdatenBereich(konten, kategorien, neu)],
     // D140: auf Wunsch ausgeblendet – zum Wiedereinblenden auf true setzen (die Funktion bleibt im Code)
     ZEIGE_NEU_BEGINNEN && ['neu', 'Neu beginnen', () => neuBeginnenBereich()],
-    // D172/D173: Archiv, dann Papierkorb, direkt vor „Info“
-    ['archiv', 'Archiv', () => archivBereich(neu)],
     ['papierkorb', 'Papierkorb', () => papierkorbBereich(konten, kategorien, neu), papierkorbAnzahl],
-    ['info', 'Info', () => infoBereich()],
+    ['einstellungen', 'Einstellungen', () => mehrere(() => darstellungBereich(), async () => schwellenBereich(await leseEinstellungen()), () => infoBereich())],
   ].filter(Boolean);
   const wahl = bereichsWahl('ansicht-stammdaten', bereiche.map(([k, text, , zahl]) => [k, text, zahl]));
   const bereich = await bereiche.find(([k]) => k === wahl.aktuell)[2]();
@@ -645,6 +642,26 @@ function testdatenBereich(konten, kategorien, neu) {
       }, 'Testdaten löschen'),
     ),
   );
+}
+
+/** D177: Schriftgröße je Gerät (klein / normal / groß) – wirkt sofort */
+function darstellungBereich() {
+  const aktuell = document.documentElement.getAttribute('data-schrift') ?? 'normal';
+  const wahl = optionsGruppe({
+    label: 'Schriftgröße auf diesem Gerät',
+    optionen: [{ wert: 'klein', text: 'Klein' }, { wert: 'normal', text: 'Normal' }, { wert: 'gross', text: 'Groß' }],
+    wert: aktuell,
+  });
+  wahl.feld.addEventListener('change', () => {
+    const g = wahl.wert();
+    if (g === 'normal') document.documentElement.removeAttribute('data-schrift');
+    else document.documentElement.setAttribute('data-schrift', g);
+    geraet.schreib('schrift', g);
+  });
+  return h('section', { class: 'bereich', 'aria-labelledby': 'titel-darstellung' },
+    h('h2', { id: 'titel-darstellung' }, 'Darstellung'),
+    wahl.feld,
+    h('p', { class: 'hinweis' }, 'Gilt nur für dieses Gerät – Handy und PC lassen sich getrennt einstellen. Hell/Dunkel schaltest du oben rechts um.'));
 }
 
 function infoBereich() {

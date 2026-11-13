@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import {
   monatsende, plusMonate, plusTage, betragAm, budgetFuerMonat, termine, naechsterTermin,
   offeneTermine, faelligListe, monatsprognose, budgetHinweise, terminWirkung,
-  kennzahlKategorien, summenJeHauptkategorie,
 } from '../js/prognose.js';
 import { baueBudget, baueWiederkehrend, mitAusnahme, budgetMitVorschlag } from '../js/annahmen.js';
 import { baueBuchungen } from '../js/buchungen.js';
@@ -83,19 +82,6 @@ test('Termine immer am Monatsletzten', () => {
   assert.equal(gebaut.start, '2026-11-30');
   assert.equal(gebaut.monatsletzter, true);
   assert.equal(gebaut.stufen[0].ab, '2026-11-30');
-});
-
-test('Drei Kategorien für die Übersicht: gespeicherte Wahl, sonst größte Ausgaben', () => {
-  const kats = [
-    ...kategorien,
-    { id: 'freizeit', name: 'Freizeit', elternId: null, art: 'ausgabe' },
-    { id: 'alt', name: 'Alt', elternId: null, art: 'ausgabe', archiviert: true },
-  ];
-  const summen = new Map([['freizeit', 500], ['wohnen', 900]]);
-  assert.deepEqual(kennzahlKategorien([], kats, summen), ['wohnen', 'freizeit', 'lebensm']);
-  assert.deepEqual(kennzahlKategorien([{ id: 'uebersicht', kategorien: ['eink', 'alt'] }], kats, summen), ['eink', 'wohnen', 'freizeit']);
-  const b = buchung('ausgabe', 1234, '2026-11-02', { kategorieId: 'super' });
-  assert.equal(summenJeHauptkategorie(b, kategorien, '2026-11').get('lebensm'), 1234);
 });
 
 test('Offene Termine: erledigt durch verknüpfte Buchung, Fenster ab Vormonat bzw. Anlage', () => {
