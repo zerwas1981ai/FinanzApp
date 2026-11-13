@@ -69,7 +69,7 @@ export async function zeigeUebersicht(container) {
   const prognose = zl.start;
   const warnungen = mindestsaldoWarnungen(zl);
   const hinweise = budgetHinweise(daten, heute);
-  // Fällige Posten (bis 7 Tage im Voraus) je Konto zählen – als Zahl an den Kontoknöpfen
+  // Fällige Belastungen (bis 3 Tage im Voraus, ohne Einnahmen, D189) je Konto zählen – als Zahl an den Kontoknöpfen
   const faelligJeKonto = new Map();
   for (const t of faelligListe(daten, heute)) {
     faelligJeKonto.set(t.wiederkehrend.kontoId, (faelligJeKonto.get(t.wiederkehrend.kontoId) ?? 0) + 1);
@@ -250,7 +250,7 @@ function kontoAuswahl(konten, aktiv, faelligJeKonto, beiWahl) {
         class: 'chip',
         'aria-pressed': String(k.id === aktiv?.id),
         'aria-label': anzahl ? `${k.name}, ${anzahl} fällige Buchung${anzahl === 1 ? '' : 'en'}` : k.name,
-        title: anzahl ? `${anzahl} fällige wiederkehrende Buchung${anzahl === 1 ? '' : 'en'}` : null,
+        title: anzahl ? `${anzahl} fällige Buchung${anzahl === 1 ? '' : 'en'}` : null,
         onclick: () => beiWahl(k.id),
       }, k.name, anzahl > 0 && h('span', { class: 'chip-zahl', 'aria-hidden': 'true' }, String(anzahl)));
     })), 'konto-wahl'); // D171: Scrollposition bleiben lassen

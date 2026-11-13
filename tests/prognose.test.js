@@ -93,6 +93,12 @@ test('Offene Termine: erledigt durch verknüpfte Buchung, Fenster ab Vormonat bz
   const offen = faelligListe(daten, heute);
   // Oktober erledigt, November (03.11.) offen und überfällig; Dezember noch zu weit weg
   assert.deepEqual(offen.map((t) => [t.termin, t.ueberfaellig]), [['2026-11-03', true]]);
+  // D189: nur Belastungen, höchstens 3 Tage im Voraus
+  const gehalt = { id: 'w2', art: 'einnahme', kontoId: 'giro', kategorieId: 'gehalt', start: '2026-11-01', intervall: 'monatlich', stufen: [{ ab: '2026-11-01', betragCent: 300000 }], erstelltAm: '2026-08-01T00:00:00Z' };
+  const strom = (tag) => ({ id: `s${tag}`, art: 'ausgabe', kontoId: 'giro', kategorieId: 'miete', start: `2026-11-${tag}`, intervall: 'monatlich', stufen: [{ ab: `2026-11-${tag}`, betragCent: 100 }], erstelltAm: '2026-08-01T00:00:00Z' });
+  const h = '2026-11-10';
+  const f = faelligListe({ wiederkehrende: [gehalt, strom('13'), strom('14')], buchungen: [], konten }, h);
+  assert.deepEqual(f.map((t) => t.wiederkehrend.id), ['s13'], 'ohne Gehalt, der 14. ist mehr als 3 Tage weg');
 
   // Gerade erst angelegt → Oktober zählt nicht als offen
   const neu = { ...miete, erstelltAm: '2026-11-05T10:00:00Z' };

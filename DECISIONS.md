@@ -2489,3 +2489,14 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
 - Die Kategoriefarbe (D155) steht nicht mehr als runder Punkt, sondern als schmaler senkrechter Balken
   (4 px breit, eine Zeile hoch) vor dem Namen – überall, wo bisher der Punkt war (Buchungslisten, Budgetbalken,
   Rückblick, Stammdaten → Kategorien). Die Farbwahl im Kategorie-Dialog bleibt bei runden Feldern.
+
+## D188 – Texte „fällig“ und „eingeplant“ ohne „wiederkehrend“
+- Die Zahl an den Kontoknöpfen und der schraffierte Teil im Budgetbalken zählen offene Termine aus
+  wiederkehrenden Buchungen UND geplanten Einmalbuchungen. Die Texte hießen fälschlich „fällige wiederkehrende
+  Buchung“ bzw. „… wiederkehrend eingeplant“; jetzt „fällige Buchung“ bzw. „… noch eingeplant“. Rechnung unverändert.
+
+## D189 – Zahl am Kontoknopf: nur Belastungen, 3 Tage im Voraus
+- Die Zahl (und der Text „x fällige Buchungen“) am Kontoknopf zählt nur noch offene Belastungen: Ausgaben und
+  abgehende Umbuchungen aus wiederkehrenden Buchungen und geplanten Einmalbuchungen. Einnahmen zählen nicht.
+- Vorlauf 3 statt 7 Tage (`FAELLIG_TAGE`); überfällige zählen weiter mit.
+- „Noch erwartet bis Monatsende“ zeigt unverändert alle offenen Termine des Monats.

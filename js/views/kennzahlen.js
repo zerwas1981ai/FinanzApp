@@ -138,19 +138,19 @@ export function erwartetBereich(kd, daten) {
         'aria-valuemax': String(b.budget),
         'aria-valuenow': String(Math.min(b.ist, b.budget)),
         'aria-label': `${b.name}: ${formatProzent(b.ist / b.budget)} des Budgets verbraucht` +
-          (b.offen > 0 ? `, weitere ${formatProzent(b.offen / b.budget)} wiederkehrend eingeplant` : ''),
+          (b.offen > 0 ? `, weitere ${formatProzent(b.offen / b.budget)} noch eingeplant` : ''),
       },
       h('span', { class: 'meter-ist', style: `width:${anteil * 100}%` }),
       anteilOffen > 0 && h('span', {
         class: 'meter-eingeplant' + (offenUeber ? ' ueber' : ''),
         style: `width:${anteilOffen * 100}%`,
-        title: `${formatEuro(b.offen)} wiederkehrend eingeplant`,
+        title: `${formatEuro(b.offen)} noch eingeplant`,
       })),
       h('div', { class: 'buchung-unter' + (ueber ? ' warn-text' : '') },
         ueber
           ? `${formatEuro(b.ist)} von ${formatEuro(b.budget)} – überschritten um ${formatEuro(b.ist - b.budget)}`
           : `${formatEuro(b.ist)} von ${formatEuro(b.budget)} verbraucht` +
-            (b.offen > 0 ? ` · ${formatEuro(b.offen)} wiederkehrend eingeplant` : '') +
+            (b.offen > 0 ? ` · ${formatEuro(b.offen)} noch eingeplant` : '') +
             ` · Rest ${formatEuro(b.rest)}`)]; // D115: ohne „in der Prognose“
     // D99: Monatsbudget im laufenden Monat nur für diesen Monat ändern (Jahresbudgets nicht)
     if (b.jaehrlich) return h('li', { class: 'budget-eintrag' }, ...inhalt);

@@ -259,9 +259,13 @@ export function offeneTermine({ wiederkehrende, buchungen, konten, geplant = [] 
   return ergebnis.sort((a, b) => a.datum.localeCompare(b.datum));
 }
 
-/** Fällig-Liste für die Übersicht: offene Termine bis 7 Tage im Voraus */
+/**
+ * Fällig-Liste für die Zahl am Kontoknopf (D189): offene Belastungen (Ausgaben und abgehende Umbuchungen,
+ * keine Einnahmen) bis 3 Tage im Voraus, überfällige eingeschlossen. Gezählt wird beim abgebenden Konto (kontoId).
+ */
+export const FAELLIG_TAGE = 3;
 export function faelligListe(daten, heute) {
-  return offeneTermine(daten, heute, plusTage(heute, 7));
+  return offeneTermine(daten, heute, plusTage(heute, FAELLIG_TAGE)).filter((t) => t.wiederkehrend.art !== 'einnahme');
 }
 
 /* ======================= Monatsprognose ======================= */
