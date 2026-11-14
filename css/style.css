@@ -1733,3 +1733,32 @@ html[data-schrift="gross"] { font-size: 103.125%; }
 .budget-liste .buchung-titel { min-width: 0; }
 .budget-liste-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .budget-liste .datum-klein { flex: none; margin-right: 8px; }
+
+/* D201: Summen bei den wiederkehrenden Buchungen */
+.wk-summe { margin: 0 0 6px; }
+.wk-art-kopf { display: flex; justify-content: space-between; gap: 12px; }
+.wk-art-kopf > span:last-child { font-variant-numeric: tabular-nums; }
+/* D202: letzter Abgleich mit Drive länger als einen Tag her */
+.sync-knopf.sync-alt { color: var(--warnung); border-color: var(--warnung); }
+.sync-knopf[data-zustand="ok"] .sync-text { font-size: .75rem; font-weight: 500; opacity: .85; }
+
+/* D204: Hilfe bei der Kontoabstimmung */
+.abstimm-hilfe { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--rand); }
+.liste-schlicht { list-style: none; margin: 4px 0 8px; padding: 0; }
+.abstimm-vorschlag { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 0; }
+.abstimm-vorschlag + .abstimm-vorschlag { border-top: 1px solid var(--rand); }
+.abstimm-vorschlag .knopf { flex: none; }
+
+/* D205: Stammdaten → Empfänger */
+.empf-vorschlaege { margin-bottom: 12px; }
+.empf-gruppe { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; padding: 8px 0; border-bottom: 1px solid var(--rand); }
+.empf-optionen { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.empf-option { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.empf-liste { margin-top: 6px; }
+
+/* D206: Monatsabschluss-Checkliste */
+.abschluss-liste { list-style: none; margin: 0 0 8px; padding: 0; }
+.abschluss-liste li { display: flex; gap: 8px; padding: 4px 0; }
+.abschluss-haken { flex: none; width: 1.2em; text-align: center; font-weight: 700; }
+.abschluss-liste li.ok .abschluss-haken { color: var(--einnahme); }
+.abschluss-liste li.offen .abschluss-haken { color: var(--warnung); }

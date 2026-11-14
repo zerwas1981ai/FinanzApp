@@ -7,9 +7,17 @@ import { formatEuro, formatDatum, heuteIso } from '../format.js';
 import { klappBereich, toast, datenGeaendert, geraet, frage } from '../ui.js';
 import { wiederkehrendDialog } from './annahmen.js';
 import { plusTage } from '../vertraege.js';
+import { mitWertAenderung } from '../erkennung.js';
+import { annahmeTitel } from '../prognose.js';
+import { formatMonat } from '../format.js';
 
 let erkanntOffen = false;
 let archivOffen = false;
+let preisOffen = false;
+let abschlussOffen = false;
+
+/** D203: abgelehnte Preisänderungen („id|betrag“) */
+export const abgelehntePreise = (einstellungen = []) => einstellungen.find((e) => e.id === 'erkennung')?.preisAbgelehnt ?? [];
 
 /** Abgelehnte Vorschläge (Schlüssel „art|empfänger“), über Drive abgeglichen (einstellungen, id 'erkennung') */
 export const abgelehnteVorschlaege = (einstellungen = []) => einstellungen.find((e) => e.id === 'erkennung')?.abgelehnt ?? [];
@@ -113,4 +121,63 @@ export function archivHinweis(erinnerung) {
           datenGeaendert();
         },
       }, 'In 30 Tagen erinnern'))));
+}
+
+/** D203: „Preisänderung erkannt“ – Betrag einer wiederkehrenden Buchung ab dem nächsten Termin anpassen? */
+export function preisBereich(vorschlaege, daten) {
+  if (!vorschlaege.length) return null;
+  const titelVon = (w) => annahmeTitel(w, daten.kategorien ?? []);
+  return klappBereich({
+    klasse: 'hinweise-klapp',
+    titel: `${vorschlaege.length === 1 ? 'Preisänderung erkannt' : `${vorschlaege.length} Preisänderungen erkannt`} · ${vorschlaege.map((v) => titelVon(v.w)).join(', ')}`,
+    offen: preisOffen,
+    beiWechsel: (o) => { preisOffen = o; },
+  }, h('div', { class: 'hinweiskarten' }, vorschlaege.map((v) => {
+    const uebernehmen = async () => {
+      const w = (await db.hole('wiederkehrend', v.w.id)) ?? v.w;
+      await db.speichere('wiederkehrend', { ...mitWertAenderung(w, v.ab, v.neuCent), geaendertAm: new Date().toISOString() });
+      toast(`${titelVon(w)}: ab ${formatDatum(v.ab)} ${formatEuro(v.neuCent)}`);
+      datenGeaendert();
+    };
+    const ablehnen = async () => {
+      const alt = (await db.hole('einstellungen', 'erkennung')) ?? { id: 'erkennung', abgelehnt: [] };
+      await db.speichere('einstellungen', { ...alt, preisAbgelehnt: [...new Set([...(alt.preisAbgelehnt ?? []), v.schluessel])], geaendertAm: new Date().toISOString() });
+      toast('Betrag bleibt wie geplant');
+      datenGeaendert();
+    };
+    return h('section', { class: 'bereich hinweiskarte', 'aria-label': `Preisänderung ${titelVon(v.w)}` },
+      h('h2', {}, h('span', { class: 'klein' }, 'Preisänderung · '), titelVon(v.w)),
+      h('p', {}, `Die letzten zwei Zahlungen waren ${formatEuro(v.neuCent)} statt geplant ${formatEuro(v.altCent)}. ` +
+        `Ab dem nächsten Termin (${formatDatum(v.ab)}) mit ${formatEuro(v.neuCent)} rechnen? Frühere Termine bleiben unverändert.`),
+      h('div', { class: 'hinweis-aktionen' },
+        h('button', { type: 'button', class: 'knopf knopf-primaer', onclick: uebernehmen }, 'Übernehmen'),
+        h('button', { type: 'button', class: 'knopf', onclick: ablehnen }, 'Nicht ändern')));
+  })));
+}
+
+/** D206: erledigt markierte Monatsabschlüsse ('JJJJ-MM'), über Drive abgeglichen (einstellungen, id 'abschluss') */
+export const erledigteAbschluesse = (einstellungen = []) => einstellungen.find((e) => e.id === 'abschluss')?.erledigt ?? [];
+
+/** D206: „Monatsabschluss Oktober · 2 von 4 erledigt“ – erscheint vom 1. bis 10., solange etwas offen ist */
+export function abschlussBereich(monat, punkte) {
+  if (!monat || punkte.every((p) => p.ok)) return null;
+  const name = formatMonat(Number(monat.slice(0, 4)), Number(monat.slice(5, 7)));
+  const fertig = punkte.filter((p) => p.ok).length;
+  const erledigt = async () => {
+    const alt = (await db.hole('einstellungen', 'abschluss')) ?? { id: 'abschluss', erledigt: [] };
+    await db.speichere('einstellungen', { ...alt, erledigt: [...new Set([...(alt.erledigt ?? []), monat])].sort().slice(-24), geaendertAm: new Date().toISOString() });
+    toast(`Monatsabschluss ${name} erledigt`);
+    datenGeaendert();
+  };
+  return klappBereich({
+    klasse: 'hinweise-klapp',
+    titel: `Monatsabschluss ${name} · ${fertig} von ${punkte.length} erledigt`,
+    offen: abschlussOffen,
+    beiWechsel: (o) => { abschlussOffen = o; },
+  }, h('section', { class: 'bereich hinweiskarte', 'aria-label': `Monatsabschluss ${name}` },
+    h('ul', { class: 'abschluss-liste' }, punkte.map((p) => h('li', { class: p.ok ? 'ok' : 'offen' },
+      h('span', { class: 'abschluss-haken', 'aria-hidden': 'true' }, p.ok ? '✓' : '○'),
+      h('span', {}, h('strong', {}, p.titel), p.text && h('span', { class: 'klein gedaempft' }, ` – ${p.text}`))))),
+    h('div', { class: 'hinweis-aktionen' },
+      h('button', { type: 'button', class: 'knopf', onclick: erledigt }, 'Als erledigt markieren'))));
 }

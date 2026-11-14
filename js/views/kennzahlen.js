@@ -240,19 +240,7 @@ function terminDialog(t, titel) {
     ],
     speichernText: 'Buchen',
     onSpeichern: () => {
-      setTimeout(() => oeffneBuchungsdialog(null, {
-        titel: `Buchen: ${titel}`,
-        art: w.art,
-        betragCent: t.betragCent,
-        kontoId: w.kontoId,
-        gegenkontoId: w.gegenkontoId,
-        budgetKategorieId: w.budgetKategorieId ?? null, // D98
-        kategorieId: w.kategorieId,
-        datum: t.datum,
-        notiz: istGeplant ? w.bezeichnung : (w.notiz ?? ''), // D96: Notiz der wiederkehrenden Buchung
-        partner: w.partner ?? '',
-        ...(istGeplant ? { geplantId: w.id, projektId: w.projektId ?? null } : { wiederkehrendId: w.id, faelligAm: t.termin }),
-      }), 0);
+      setTimeout(() => oeffneBuchungsdialog(null, buchungsVorgaben(t, titel)), 0);
     },
   });
 }
@@ -353,4 +341,23 @@ export function hinweisBereich(hinweise, daten) {
           },
         }, 'Später')));
   })));
+}
+
+/** Vorgaben für den Buchungsdialog beim Buchen eines offenen Termins (auch für die Abstimmhilfe, D204) */
+export function buchungsVorgaben(t, titel) {
+  const w = t.wiederkehrend;
+  const istGeplant = t.quelle === 'geplant';
+  return {
+    titel: `Buchen: ${titel}`,
+    art: w.art,
+    betragCent: t.betragCent,
+    kontoId: w.kontoId,
+    gegenkontoId: w.gegenkontoId,
+    budgetKategorieId: w.budgetKategorieId ?? null, // D98
+    kategorieId: w.kategorieId,
+    datum: t.datum,
+    notiz: istGeplant ? w.bezeichnung : (w.notiz ?? ''), // D96: Notiz der wiederkehrenden Buchung
+    partner: w.partner ?? '',
+    ...(istGeplant ? { geplantId: w.id, projektId: w.projektId ?? null } : { wiederkehrendId: w.id, faelligAm: t.termin }),
+  };
 }

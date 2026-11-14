@@ -252,6 +252,24 @@ export function aktuellerBetrag(w, heute) {
   return (stufen.filter((s) => s.ab <= heute).pop() ?? stufen[0])?.betragCent ?? 0;
 }
 
+/** D201: Betrag einer wiederkehrenden Buchung auf einen Monat umgerechnet (vierteljährlich ÷ 3 usw.), in Cent */
+export const monatsBetrag = (w, heute) => Math.round(aktuellerBetrag(w, heute) * (INTERVALL_JE_JAHR[w.intervall] ?? 12) / 12);
+
+/**
+ * D201: Summen wiederkehrender Buchungen je Monat – nur eingeschaltete, nicht beendete (auch erst künftig beginnende);
+ * Umbuchungen zählen nicht. Ergebnis: { einnahmen, ausgaben } in Cent je Monat (beide positiv).
+ */
+export function wiederkehrendJeMonat(liste, heute) {
+  let einnahmen = 0;
+  let ausgaben = 0;
+  for (const w of liste) {
+    if (w.aktiv === false || (w.ende && w.ende < heute) || w.art === 'umbuchung') continue;
+    if (w.art === 'einnahme') einnahmen += monatsBetrag(w, heute);
+    else ausgaben += monatsBetrag(w, heute);
+  }
+  return { einnahmen, ausgaben };
+}
+
 /**
  * Laufende Kosten eines Vertrags aus seinen wiederkehrenden Buchungen (eingeschaltet, nicht beendet).
  * Ausgaben und Umbuchungen zählen als Kosten, Einnahmen (z. B. Erstattung) mindern sie.

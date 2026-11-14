@@ -2,6 +2,7 @@
 // Die App schlägt nur vor oder markiert; sie ändert nie selbst etwas. Reine Funktionen, mit `npm test` geprüft.
 
 import { partnerSchluessel } from './auswertung.js';
+import { terminBetrag, naechsterTermin, plusTage } from './prognose.js';
 
 const monat = (iso) => iso.slice(0, 7);
 const plusMonat = (m, n) => {
@@ -158,4 +159,47 @@ export function archivErinnerung(naechstes, heute, spaeterBis = null) {
   if (!naechstes || naechstes.anzahl === 0) return null;
   if (spaeterBis && spaeterBis >= heute) return null;
   return naechstes;
+}
+
+/* ======================= D203: Preisänderung bei wiederkehrenden Buchungen ======================= */
+
+/** Gleicher Betrag (höchstens 1 % oder 1 Cent Unterschied) */
+const gleich = (a, b) => Math.abs(a - b) <= Math.max(1, Math.round(Math.max(a, b) * 0.01));
+/** Spürbare Abweichung vom geplanten Betrag: mindestens 50 Cent und 2 % */
+const abweichend = (ist, plan) => Math.abs(ist - plan) >= Math.max(50, Math.round(plan * 0.02));
+
+/**
+ * Vorschläge „Betrag anpassen“: Die letzten zwei gebuchten Termine einer wiederkehrenden Buchung hatten
+ * (fast) denselben Betrag, und beide weichen spürbar vom geplanten Betrag ab – z. B. Strom jetzt 92 € statt 85 €.
+ * Vorgeschlagen wird eine Wertänderung ab dem nächsten Termin nach der letzten Buchung.
+ * Ohne Vorschlag: ausgeschaltete/beendete, Umbuchungen, schon angepasste, abgelehnte („id|betrag“).
+ * Ergebnis: [{ schluessel, w, altCent, neuCent, ab, letzte }]
+ */
+export function preisAenderungen(wiederkehrend, buchungen, heute, abgelehnt = []) {
+  const nein = new Set(abgelehnt);
+  const ergebnis = [];
+  for (const w of wiederkehrend) {
+    if (w.aktiv === false || (w.ende && w.ende < heute) || w.art === 'umbuchung') continue;
+    const gebucht = buchungen
+      .filter((b) => echte(b) && b.wiederkehrendId === w.id && b.faelligAm)
+      .sort((a, b) => b.faelligAm.localeCompare(a.faelligAm));
+    if (gebucht.length < 2) continue;
+    const [a, b] = gebucht;
+    if (!gleich(a.betragCent, b.betragCent)) continue;
+    if (!abweichend(a.betragCent, terminBetrag(w, a.faelligAm)) || !abweichend(b.betragCent, terminBetrag(w, b.faelligAm))) continue;
+    const naechster = naechsterTermin(w, plusTage(a.faelligAm, 1));
+    if (!naechster) continue;
+    const altCent = terminBetrag(w, naechster.termin);
+    if (gleich(altCent, a.betragCent)) continue; // schon angepasst
+    const schluessel = `${w.id}|${a.betragCent}`;
+    if (nein.has(schluessel)) continue;
+    ergebnis.push({ schluessel, w, altCent, neuCent: a.betragCent, ab: naechster.termin, letzte: a.datum });
+  }
+  return ergebnis;
+}
+
+/** Wertänderung ab einem Termin eintragen (D203): vorhandene Stufe am selben Tag wird ersetzt */
+export function mitWertAenderung(w, ab, betragCent) {
+  const stufen = [...(w.stufen ?? []).filter((s) => s.ab !== ab), { ab, betragCent }].sort((x, y) => x.ab.localeCompare(y.ab));
+  return { ...w, stufen };
 }

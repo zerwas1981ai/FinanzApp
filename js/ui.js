@@ -322,3 +322,33 @@ export function schalter(text, an, beiAenderung) {
     h('input', { type: 'checkbox', checked: an, onchange: (e) => beiAenderung(e.target.checked) }),
     text);
 }
+
+/**
+ * D200: Wischgeste (links/rechts) auf einem Element. beiWisch(+1) = nach links gewischt (weiter),
+ * beiWisch(-1) = nach rechts (zurück). Ignoriert Gesten, die in Eingabefeldern, Dialogen oder
+ * waagerecht scrollbaren Leisten beginnen, und alles, was eher senkrecht ist (normales Scrollen).
+ */
+export function wischGeste(el, beiWisch) {
+  let start = null;
+  const scrollbar = (ziel) => {
+    for (let e = ziel; e && e !== el; e = e.parentElement) {
+      if (e.scrollWidth > e.clientWidth + 2 && ['auto', 'scroll'].includes(getComputedStyle(e).overflowX)) return true;
+    }
+    return false;
+  };
+  el.addEventListener('touchstart', (e) => {
+    const t = e.touches[0];
+    const ziel = e.target;
+    start = e.touches.length === 1 && !ziel.closest('input, textarea, select, dialog, .chips') && !scrollbar(ziel)
+      ? { x: t.clientX, y: t.clientY, zeit: Date.now() } : null;
+  }, { passive: true });
+  el.addEventListener('touchend', (e) => {
+    if (!start) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - start.x;
+    const dy = t.clientY - start.y;
+    const schnell = Date.now() - start.zeit < 700;
+    start = null;
+    if (schnell && Math.abs(dx) > 70 && Math.abs(dx) > 2 * Math.abs(dy)) beiWisch(dx < 0 ? 1 : -1);
+  }, { passive: true });
+}

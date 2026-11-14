@@ -26,10 +26,11 @@ Kurzer Wegweiser, weil viele spätere Einträge frühere aufheben. Maßgeblich b
 - Projekte: Umschalter Projekte · Relevante Ausgaben (D153, D161, D191)
 - Annahmen: Umschalter Budgets · Wiederkehrende · Verträge · Geplante (D160, D191, D193)
 - Die Untertabs (Projekte, Annahmen, Stammdaten) bleiben beim Scrollen oben fixiert (D193)
-- Stammdaten: Umschalter Konten · Kategorien · Daten & Sicherheit · Notfall-Mappe · Papierkorb · Einstellungen (D180)
+- Stammdaten: Umschalter Konten · Kategorien · Empfänger · Daten & Sicherheit · Notfall-Mappe · Papierkorb · Einstellungen (D180, D205)
+- Übersicht: Monat per Wischen wechseln (D200); Wolke oben zeigt den letzten Drive-Abgleich (D202)
 - Scrollbare Leisten behalten ihre Position (D171); „+“-Knöpfe überall im blauen Stil (D161)
 
-**Schlaue Hinweise ohne KI:** erkannte wiederkehrende Zahlungen, „↑ hoch“-Marke, Kategorie aus Notiz, Archiv-Erinnerung (D182–D185); „↑ hoch“ per Antippen bestätigen (D186); Kategoriefarbe als schmaler Balken (D187). KI bleibt außen vor.
+**Schlaue Hinweise ohne KI:** erkannte wiederkehrende Zahlungen, „↑ hoch“-Marke, Kategorie aus Notiz, Archiv-Erinnerung (D182–D185); Preisänderung, Abstimmhilfe, Monatsabschluss (D203, D204, D206); „↑ hoch“ per Antippen bestätigen (D186); Kategoriefarbe als schmaler Balken (D187). KI bleibt außen vor.
 
 **Datenstand:** Datenmodell-Version 23, DB-Struktur 12. Alte Schubladen (werden geleert): szenarien, sparziele, vorlagen.
 Sammlungen: konten, kategorien, buchungen, abstimmungen, budgets, wiederkehrend, hinweise, einstellungen, geplant,
@@ -2583,3 +2584,40 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
 - Eine Buchung antippen schließt den Budget-Dialog und öffnet die Buchung.
 - Jahresbudgets sind jetzt ebenfalls antippbar: Sie zeigen nur die Liste (Zeitraum der laufenden Tranche),
   geändert werden sie wie bisher unter Annahmen.
+
+## D200–D206 – Runde 7 (Wunsch des Nutzers, 14.11.2026: Punkte 1, 4, 5, 6, 7, 8, 9)
+
+### D200 – Wischen zum Monatswechsel
+- In der Kontoansicht der Übersicht wechselt Wischen nach links/rechts den Monat (wie ‹ ›). Nur bei deutlich
+  waagerechter, schneller Bewegung (> 70 px); nicht in Eingabefeldern, Dialogen und waagerecht scrollbaren Leisten.
+
+### D201 – Summen bei den wiederkehrenden Buchungen
+- Annahmen → Wiederkehrend: oben „Je Monat insgesamt“ (Einnahmen und feste Kosten), je Konto „… / Monat“ und je
+  Intervall-Gruppe die Summe je Termin. Vierteljährlich/halbjährlich/jährlich wird auf den Monat umgerechnet;
+  ausgeschaltete, beendete und Umbuchungen zählen nicht, künftig beginnende schon (wie bei den Verträgen).
+
+### D202 – Abgleich-Status an der Wolke
+- Neben dem ✓ oben steht, wann zuletzt mit Drive abgeglichen wurde („14:32“, „gestern“, „12.11.“). Länger als
+  24 Stunden her → orange, Tooltip „länger als einen Tag her“. Die Angabe wird jede Minute aktualisiert.
+
+### D203 – Preisänderung erkennen
+- Waren die letzten zwei gebuchten Termine einer wiederkehrenden Buchung (fast) gleich hoch und beide spürbar anders
+  als geplant (≥ 50 Cent und ≥ 2 %), erscheint oben in der Übersicht „Preisänderung erkannt“ mit „Übernehmen“
+  (Wertänderung ab dem nächsten Termin) oder „Nicht ändern“ (gemerkt je Buchung und Betrag, einstellungen 'erkennung').
+
+### D204 – Hilfe bei der Kontoabstimmung
+- Bei einer Differenz sucht die App Posten, die sie genau erklären: fällige, nicht gebuchte Termine (Knopf „Buchen“),
+  Buchungen bis 7 Tage nach dem Abstimm-Datum (bei der Bank vielleicht schon gebucht) und vorgemerkte Buchungen
+  (bei der Bank vielleicht noch nicht). Erst Einzelposten, sonst Paare; höchstens 5 Vorschläge.
+
+### D205 – Empfänger vereinheitlichen
+- Neuer Umschalter Stammdaten → Empfänger: alle Empfänger/Absender (Buchungen, wiederkehrende, geplante, relevante,
+  Verträge) mit Anzahl; ähnliche Schreibweisen oben als Vorschlag (gleicher Kern ohne Rechtsform/„Markt“/„City“ usw.,
+  oder ein Kern beginnt mit dem anderen). „Zusammenfassen“ bzw. Umbenennen ändert alle Datensätze; archivierte Jahre
+  bleiben unverändert. Bei Gleichstand gewinnt die Schreibweise mit Großbuchstaben.
+
+### D206 – Monatsabschluss-Checkliste
+- Vom 1. bis 10. eines Monats oben in der Übersicht „Monatsabschluss Oktober · x von 4 erledigt“: Konten im Monat
+  oder danach ohne Differenz abgestimmt, keine vorgemerkten Buchungen bis Monatsende, keine fälligen offenen Termine,
+  Belege bei allen relevanten Ausgaben des Monats. Verschwindet, wenn alles erfüllt ist oder nach „Als erledigt
+  markieren“ (einstellungen 'abschluss', über Drive abgeglichen).

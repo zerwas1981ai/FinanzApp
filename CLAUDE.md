@@ -83,7 +83,7 @@ Oberfläche auf Deutsch, Währung Euro, deutsches Datums- und Zahlenformat.
    Einmalbuchungen. Nur absolute Werte, KEINE Prozentsteigerungen oder
    Inflation. Ein/Aus-Schalter je Posten, um ihn für die Prognose
    auszuschalten, ohne etwas zu löschen.
-5. Stammdaten (Umschalter Konten · Kategorien · Daten & Sicherheit · Notfall-Mappe · Papierkorb · Einstellungen, D180)
+5. Stammdaten (Umschalter Konten · Kategorien · Empfänger · Daten & Sicherheit · Notfall-Mappe · Papierkorb · Einstellungen, D180/D205)
 
 ## Rechenlogik
 - Zukunftsmonate werden bei jedem Öffnen berechnet, nicht gespeichert.
@@ -113,7 +113,8 @@ Oberfläche auf Deutsch, Währung Euro, deutsches Datums- und Zahlenformat.
   zuletzt benutzt. „Erfassen & weitere“, Rechnen im Betragsfeld, häufige Kategorien oben (D175). Kurzbefehle am
   App-Symbol (D105), Belege per „Teilen“ an die App schicken (Android, D106).
 - Hinweise aus eigenen Buchungen, ohne KI: wiederkehrende Zahlungen erkennen (D182), ungewöhnlich hohe
-  Ausgaben markieren (D183), Kategorie aus der Notiz vorschlagen (D184), Archiv-Erinnerung (D185)
+  Ausgaben markieren (D183), Kategorie aus der Notiz vorschlagen (D184), Archiv-Erinnerung (D185),
+  Preisänderung erkennen (D203), Hilfe bei der Kontoabstimmung (D204), Monatsabschluss-Checkliste (D206)
 - Kamera-Button für Belegfoto, Bilder beim Hochladen verkleinern
 - Automatisches Backup bei jedem Speichern (letzte 30 Stände), Export als
   CSV/Excel, kompletter Datenstand als Datei sichern und wiederherstellen (D178)

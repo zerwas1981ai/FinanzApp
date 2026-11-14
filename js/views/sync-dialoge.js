@@ -126,6 +126,17 @@ function neustart() {
 
 /* ---------- Statusanzeige oben rechts ---------- */
 
+/** D202: „14:32“ (heute), „gestern“ oder „12.11.“ */
+function kurzZeit(iso) {
+  const d = new Date(iso);
+  const tag = (x) => x.toLocaleDateString('sv-SE');
+  const heute = new Date();
+  const gestern = new Date(Date.now() - 86400000);
+  if (tag(d) === tag(heute)) return d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+  if (tag(d) === tag(gestern)) return 'gestern';
+  return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+}
+
 const SYMBOL = { aus: '☁', anmelden: '☁', laeuft: '⟳', ok: '✓', offline: '⚡', fehler: '!', konflikt: '?' };
 
 export function richteSyncEin() {
@@ -141,15 +152,24 @@ export function richteSyncEin() {
     // Noch nicht hochgeladene Änderungen deutlich zeigen (D70)
     const offen = s.zustand !== 'laeuft' && s.zustand !== 'ok' && s.offen > 0;
     knopf.classList.toggle('sync-offen', offen);
+    // D202: wann zuletzt abgeglichen – kurz neben dem Symbol; älter als 24 Stunden → farbig
+    const alt = Boolean(s.letzter) && Date.now() - new Date(s.letzter).getTime() > 24 * 3600 * 1000;
+    knopf.classList.toggle('sync-alt', alt && !offen && s.zustand !== 'laeuft');
     knopf.querySelector('.sync-text').textContent = offen
       ? `⬆ ${s.offen} nicht hochgeladen`
-      : ({ anmelden: 'Anmelden', konflikt: 'Entscheiden', fehler: 'Fehler', offline: 'Offline' }[s.zustand] ?? '');
+      : ({ anmelden: 'Anmelden', konflikt: 'Entscheiden', fehler: 'Fehler', offline: 'Offline' }[s.zustand]
+        ?? (s.letzter && s.zustand !== 'aus' ? kurzZeit(s.letzter) : ''));
+    if (alt && !offen) {
+      knopf.title = `Letzter Abgleich mit Google Drive: ${zeit(s.letzter)} – länger als einen Tag her. Antippen, um jetzt abzugleichen.`;
+      knopf.setAttribute('aria-label', knopf.title);
+    }
     if (offen) {
       knopf.title = `${s.offen} ${s.offen === 1 ? 'Änderung ist' : 'Änderungen sind'} noch nicht in Google Drive. ${s.text}`;
       knopf.setAttribute('aria-label', `Google Drive: ${knopf.title}`);
     }
   };
   window.addEventListener('sync-status', (e) => zeige(e.detail));
+  setInterval(() => zeige(abgleich.status), 60000); // D202: Zeitangabe aktuell halten
   knopf.addEventListener('click', async () => {
     try {
       if (abgleich.status.zustand === 'fehler') toast(abgleich.status.text);

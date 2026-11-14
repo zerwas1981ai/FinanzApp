@@ -11,7 +11,7 @@ import { baueBudget, baueWiederkehrend, baueGeplant, geplantErledigt, haeufigste
 import { betragAm, terminBetrag, naechsterTermin, plusMonate, monatsende, annahmeTitel } from '../prognose.js';
 import { artWahl, fuelleKategorien, projektFeld, oeffneBuchungsdialog, partnerFeld, budgetZuordnungFeld, vertragFeld } from './buchung-dialog.js';
 import { VERTEILUNGEN, istJaehrlich } from '../jahresbudget.js';
-import { kuendigungsHinweise } from '../vertraege.js';
+import { kuendigungsHinweise, wiederkehrendJeMonat, aktuellerBetrag } from '../vertraege.js';
 import { vertraegeBereich } from './vertraege.js';
 
 const nachName = (a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base' });
@@ -310,18 +310,34 @@ function wiederkehrendBereich(daten) {
       h('h2', { id: 'titel-wiederkehrend' }, 'Wiederkehrende Buchungen'),
       h('button', { type: 'button', class: 'knopf knopf-primaer', onclick: () => wiederkehrendDialog(null, daten) }, '+ Wiederkehrend')),
     h('p', { class: 'hinweis erklaerung' },
-      'Fällige Termine erscheinen in der Übersicht. Erst wenn du dort auf „Buchen“ tippst, entsteht eine echte Buchung.'),
+      'Fällige Termine erscheinen in der Übersicht. Erst wenn du dort auf „Buchen“ tippst, entsteht eine echte Buchung. ' +
+      'Die Summen rechnen vierteljährliche, halbjährliche und jährliche Zahlungen auf den Monat um; ausgeschaltete, beendete und Umbuchungen zählen nicht.'),
+    // D201: feste Kosten und Einnahmen je Monat insgesamt
+    sortiert.length > 0 && (() => {
+      const s = wiederkehrendJeMonat(wiederkehrend, heute);
+      return h('div', { class: 'vertrag-summe wk-summe' },
+        h('span', { class: 'klein' }, 'Je Monat insgesamt'),
+        s.einnahmen > 0 && h('span', { class: 'betrag plus' }, `+${formatEuro(s.einnahmen)}`),
+        h('span', { class: 'betrag stark' }, `${formatEuro(-s.ausgaben)} feste Kosten`));
+    })(),
     sortiert.length === 0
       ? h('p', { class: 'leer' }, 'Noch keine wiederkehrenden Buchungen.')
       // D97: nach Konto (eigene Reihenfolge), darin nach Zeithorizont – wie die Budgets (D86/D91)
       : gruppen.map((g) => {
         const liste = sortiert.filter((w) => (g.id === null ? !kontoName.has(w.kontoId) : w.kontoId === g.id));
+        // D201: Summe je Konto (je Monat) und je Intervall-Gruppe (je Termin)
+        const jeMonat = wiederkehrendJeMonat(liste, heute);
+        const netto = jeMonat.einnahmen - jeMonat.ausgaben;
         return h('div', { class: 'budget-gruppe' },
-          h('div', { class: 'tag-kopf' }, h('span', {}, g.name)),
+          h('div', { class: 'tag-kopf' }, h('span', {}, g.name),
+            (jeMonat.einnahmen || jeMonat.ausgaben) ? h('span', { class: 'tag-stand' }, `${netto > 0 ? '+' : ''}${formatEuro(netto)} / Monat`) : null),
           Object.keys(INTERVALL_UEBERSCHRIFT).map((iv) => {
             const teil = liste.filter((w) => (INTERVALL_UEBERSCHRIFT[w.intervall] ? w.intervall : 'monatlich') === iv);
+            const zaehlt = teil.filter((w) => w.aktiv !== false && !(w.ende && w.ende < heute) && w.art !== 'umbuchung');
+            const summe = zaehlt.reduce((s, w) => s + (w.art === 'einnahme' ? 1 : -1) * aktuellerBetrag(w, heute), 0);
             return teil.length > 0 && h('div', { class: 'budget-art' },
-              h('div', { class: 'budget-art-kopf' }, INTERVALL_UEBERSCHRIFT[iv]),
+              h('div', { class: 'budget-art-kopf wk-art-kopf' }, h('span', {}, INTERVALL_UEBERSCHRIFT[iv]),
+                zaehlt.length > 0 && h('span', {}, `${summe > 0 ? '+' : ''}${formatEuro(summe)}`)),
               h('ul', { class: 'liste' }, teil.map(zeile)));
           }).filter(Boolean));
       }),

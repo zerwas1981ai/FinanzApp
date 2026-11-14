@@ -9,7 +9,7 @@ import {
   isoMonatsanfang, naechsterMonat, vorigerMonat, istGueltigesDatum,
 } from '../format.js';
 import { monatsuebersicht, kontostand, vorgemerktBis, wirkungCent } from '../rechnen.js';
-import { dialog, eingabe, hinweis, toast, geraet, datenGeaendert, klappBereich, katPunkt, merkeScroll } from '../ui.js';
+import { dialog, eingabe, hinweis, toast, geraet, datenGeaendert, klappBereich, katPunkt, merkeScroll, wischGeste } from '../ui.js';
 import { farbenZuordnung, farbeVon } from '../farben.js';
 import { oeffneBuchungsdialog } from './buchung-dialog.js';
 import { kuendigungsBereich } from './vertraege.js';
@@ -17,12 +17,14 @@ import { notizKnopf, notizZeile } from './monatsnotiz.js';
 import { kuendigungsHinweise } from '../vertraege.js';
 import { vorgemerkteVonKonto, alsGebuchtMarkieren } from '../buchungen.js';
 import { sortiereKonten, abstimmungFaellig, tageZwischen, ABSTIMM_ERINNERUNG_TAGE } from '../konten.js';
-import { faelligListe, budgetHinweise, zeitleiste, nurWirksam, mindestsaldoWarnungen, LETZTER_MONAT, prognoseJahresende } from '../prognose.js';
-import { umbuchungKnopf, kennzahlenBereich, erwartetBereich, hinweisBereich } from './kennzahlen.js';
+import { faelligListe, budgetHinweise, zeitleiste, nurWirksam, mindestsaldoWarnungen, LETZTER_MONAT, prognoseJahresende, offeneTermine, terminWirkung, annahmeTitel } from '../prognose.js';
+import { umbuchungKnopf, kennzahlenBereich, erwartetBereich, hinweisBereich, buchungsVorgaben } from './kennzahlen.js';
 import { zeitleisteBereich, postenListe } from './zeitleiste.js';
 import { oeffnePostenDialog } from './posten-dialog.js';
-import { erkanntBereich, archivHinweis, abgelehnteVorschlaege, hochMarke } from './erkennung.js';
-import { wiederkehrendVorschlaege, archivErinnerung, ungewoehnlicheBuchungen } from '../erkennung.js';
+import { erkanntBereich, archivHinweis, abgelehnteVorschlaege, hochMarke, preisBereich, abgelehntePreise, abschlussBereich, erledigteAbschluesse } from './erkennung.js';
+import { abschlussMonat, abschlussPruefung } from '../abschluss.js';
+import { wiederkehrendVorschlaege, archivErinnerung, ungewoehnlicheBuchungen, preisAenderungen } from '../erkennung.js';
+import { abstimmVorschlaege } from '../abstimmhilfe.js';
 import { naechstesArchivJahr } from '../archiv.js';
 
 const ALLE = '__alle'; // gemerkte Auswahl "Alle Konten"
@@ -37,13 +39,19 @@ const monatVon = (iso) => [Number(iso.slice(0, 4)), Number(iso.slice(5, 7))];
 
 // D183: ungewöhnlich hohe Ausgaben (Map Buchung → Durchschnitt), bei jedem Zeichnen neu berechnet
 let ungewoehnlich = new Map();
+// D200: Wischen wechselt in der Kontoansicht den Monat (null = gerade nicht möglich, z. B. „Alle Konten“)
+let wischWechsel = null;
+// D204: Daten für die Abstimmhilfe (offene Termine, Buchungen)
+let abstimmDaten = null;
+const mitWischen = new WeakSet();
 
 export async function zeigeUebersicht(container) {
-  const namen = ['konten', 'kategorien', 'buchungen', 'abstimmungen', 'budgets', 'wiederkehrend', 'hinweise', 'einstellungen', 'geplant', 'projekte', 'vertraege', 'monatsnotizen'];
+  const namen = ['konten', 'kategorien', 'buchungen', 'abstimmungen', 'budgets', 'wiederkehrend', 'hinweise', 'einstellungen', 'geplant', 'projekte', 'vertraege', 'monatsnotizen', 'relevant'];
   const werte = await Promise.all(namen.map((s) => db.alle(s)));
   const alleDaten = Object.fromEntries(namen.map((n, i) => [n, werte[i]]));
   // Nur eingeschaltete Annahmen (Ein/Aus-Häkchen) zählen in Prognose und Zeitleiste
   const daten = nurWirksam(alleDaten);
+  abstimmDaten = daten; // D204
   ungewoehnlich = ungewoehnlicheBuchungen(alleDaten.buchungen); // D183
   const { konten, kategorien, buchungen, abstimmungen } = daten;
   const neu = () => zeigeUebersicht(container);
@@ -81,6 +89,13 @@ export async function zeigeUebersicht(container) {
     kuendigungsBereich(kuendigungsHinweise(alleDaten.vertraege, heute), alleDaten), // D148
     // D182: erkannte wiederkehrende Zahlungen; D185: Archiv-Erinnerung
     erkanntBereich(wiederkehrendVorschlaege(alleDaten.buchungen, alleDaten.wiederkehrend, abgelehnteVorschlaege(alleDaten.einstellungen), heute), alleDaten),
+    preisBereich(preisAenderungen(alleDaten.wiederkehrend, alleDaten.buchungen, heute, abgelehntePreise(alleDaten.einstellungen)), alleDaten), // D203
+    // D206: Monatsabschluss des Vormonats (1. bis 10.), solange nicht alles erledigt oder abgehakt ist
+    (() => {
+      const am = abschlussMonat(heute);
+      if (!am || erledigteAbschluesse(alleDaten.einstellungen).includes(am)) return null;
+      return abschlussBereich(am, abschlussPruefung(alleDaten, offeneTermine(daten, heute, `${am}-31`), am));
+    })(),
     archivHinweis(archivErinnerung(naechstesArchivJahr({ buchungen: alleDaten.buchungen }, heute), heute, geraet.lies('archiv-spaeter'))),
     // D164: Überschrift „Konten“ entfällt, der Abstand bleibt gleich
     h('div', { class: 'konten-abstand', 'aria-hidden': 'true' }),
@@ -91,6 +106,7 @@ export async function zeigeUebersicht(container) {
 
   // "Alle Konten": Gesamtstand und Zeitleiste über alle aktiven Konten
   if (gemerkt === ALLE) {
+    wischWechsel = null; // D200
     container.replaceChildren(...[
       ...oben,
       kontoAuswahl(aktive, null, faelligJeKonto, waehle),
@@ -100,6 +116,10 @@ export async function zeigeUebersicht(container) {
     return;
   }
   const konto = aktive.find((k) => k.id === gemerkt) ?? aktive[0];
+  if (!mitWischen.has(container)) {
+    mitWischen.add(container);
+    wischGeste(container, (r) => { if (wischWechsel && /^#?(uebersicht)?$/.test(location.hash)) wischWechsel(r); });
+  }
 
   // Monat festlegen und auf den sinnvollen Bereich begrenzen
   if (ansicht.jahr === null) [ansicht.jahr, ansicht.monat] = monatVon(heute);
@@ -127,11 +147,11 @@ export async function zeigeUebersicht(container) {
       vor: schluessel([ansicht.jahr, ansicht.monat]) < schluessel(maxMonat),
       istAktuellerMonat,
       notizen: alleDaten.monatsnotizen,
-      wechsel: (richtung) => {
+      wechsel: (wischWechsel = (richtung) => { // D200: dieselbe Aktion beim Wischen
         if (richtung === 'heute') [ansicht.jahr, ansicht.monat] = monatVon(heute);
         else [ansicht.jahr, ansicht.monat] = (richtung < 0 ? vorigerMonat : naechsterMonat)(ansicht.jahr, ansicht.monat);
         neu();
-      },
+      }),
     }),
     ...(istZukunft
       ? zukunftsMonat(zlKonto, isoMonatsanfang(ansicht.jahr, ansicht.monat).slice(0, 7), kd?.prognose ?? 0, m, konto, konten, kategorien, aendern)
@@ -589,13 +609,13 @@ function abstimmungsDialog(konto, buchungen) {
         erstelltAm: new Date().toISOString(),
       });
       // Ergebnis zeigen, sobald dieser Dialog zu ist
-      setTimeout(() => zeigeErgebnis(d, bankstandCent, berechnet, vorgemerkt), 0);
+      setTimeout(() => zeigeErgebnis(d, bankstandCent, berechnet, vorgemerkt, konto, buchungen), 0);
       datenGeaendert();
     },
   });
 }
 
-function zeigeErgebnis(datum, bank, app, vorgemerkt) {
+function zeigeErgebnis(datum, bank, app, vorgemerkt, konto, buchungen) {
   const differenz = bank - app;
   const zeile = (label, wert, klasse = '') => h('div', { class: `summe ${klasse}` },
     h('span', {}, label), h('span', { class: 'betrag' + (wert < 0 ? ' negativ' : '') }, formatEuro(wert)));
@@ -613,6 +633,8 @@ function zeigeErgebnis(datum, bank, app, vorgemerkt) {
       ? `Bei der Bank sind ${formatEuro(differenz)} mehr als in der App.`
       : `In der App sind ${formatEuro(-differenz)} mehr als bei der Bank.`));
     text.push(h('p', { class: 'hinweis' }, 'Mögliche Ursachen: fehlende oder doppelte Buchung, falscher Betrag oder falsches Datum.'));
+    const hilfe = abstimmHilfe(datum, bank - app, konto, buchungen); // D204
+    if (hilfe) text.push(hilfe);
     if (vorgemerkt !== 0) {
       text.push(h('p', { class: 'hinweis' },
         `Im App-Stand stecken vorgemerkte Buchungen (zusammen ${formatEuro(vorgemerkt)}). ` +
@@ -621,4 +643,38 @@ function zeigeErgebnis(datum, bank, app, vorgemerkt) {
   }
   hinweis({ titel: `Ergebnis für ${formatDatum(datum)}`, text });
   toast('Abstimmung gespeichert');
+}
+
+/**
+ * D204: Posten, die die Differenz genau erklären könnten – mit Knopf zum Buchen bzw. Öffnen.
+ * Antippen schließt das Ergebnis und öffnet den passenden Dialog.
+ */
+function abstimmHilfe(datum, differenz, konto, buchungen) {
+  if (!abstimmDaten || !konto) return null;
+  const termine = offeneTermine(abstimmDaten, heuteIso(), datum)
+    .map((t) => ({ t, wirkung: terminWirkung(t.wiederkehrend, t.betragCent, konto.id) }));
+  const vorschlaege = abstimmVorschlaege({ kontoId: konto.id, buchungen, termine, datum, differenz });
+  if (!vorschlaege.length) return null;
+  const kategorien = abstimmDaten.kategorien ?? [];
+  const schliessen = (dann) => { document.querySelector('dialog[open]')?.close(); setTimeout(dann, 0); };
+  const teilZeile = (k) => {
+    if (k.art === 'termin') {
+      const titel = annahmeTitel(k.termin.wiederkehrend, kategorien);
+      return h('li', { class: 'abstimm-vorschlag' },
+        h('span', {}, `${titel} (${formatDatum(k.termin.datum)}, ${formatEuro(k.wirkung)}) – fällig, aber noch nicht gebucht.`),
+        h('button', { type: 'button', class: 'knopf knopf-klein', onclick: () => schliessen(() => oeffneBuchungsdialog(null, buchungsVorgaben(k.termin, titel))) }, 'Buchen'));
+    }
+    const b = k.buchung;
+    const name = b.partner || b.notiz || 'Buchung';
+    return h('li', { class: 'abstimm-vorschlag' },
+      h('span', {}, k.art === 'spaeter'
+        ? `${name} (${formatDatum(b.datum)}, ${formatEuro(k.wirkung)}) – steht in der App nach dem Abstimm-Datum, ist bei der Bank aber vielleicht schon gebucht. Datum prüfen.`
+        : `${name} (${formatDatum(b.datum)}, ${formatEuro(k.wirkung)}) – vorgemerkt; ist bei der Bank wohl noch nicht abgebucht. Dann ist alles in Ordnung.`),
+      h('button', { type: 'button', class: 'knopf knopf-klein', onclick: () => schliessen(() => oeffneBuchungsdialog(b)) }, 'Öffnen'));
+  };
+  return h('div', { class: 'abstimm-hilfe' },
+    h('p', {}, h('strong', {}, vorschlaege.length === 1 ? 'Das könnte die Differenz genau erklären:' : 'Diese Posten könnten die Differenz genau erklären:')),
+    vorschlaege.map((v, i) => h('div', {},
+      vorschlaege.length > 1 && h('p', { class: 'klein gedaempft' }, `Möglichkeit ${i + 1}${v.teile.length > 1 ? ' (zwei Posten zusammen)' : ''}`),
+      h('ul', { class: 'liste-schlicht' }, v.teile.map(teilZeile)))));
 }

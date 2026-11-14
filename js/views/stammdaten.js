@@ -6,6 +6,7 @@ import { formatEuro, formatDatum, parseEuro, centZuEingabe, heuteIso, istGueltig
 import { dialog, frage, toast, eingabe, auswahl, optionsGruppe, knopf, schalter, katPunkt, bereichsWahl, kurzLang, geraet } from '../ui.js';
 import { PALETTE, farbenZuordnung, paletteEintrag } from '../farben.js';
 import { notfallBereich } from './notfall.js';
+import { empfaengerBereich } from './empfaenger.js';
 import { hatTestdaten, ladeTestdaten, loescheTestdaten } from '../testdaten.js';
 import { neueKategorie } from '../startdaten.js';
 import { DATENMODELL_VERSION } from '../migrationen.js';
@@ -82,6 +83,7 @@ export async function zeigeStammdaten(container) {
   const bereiche = [
     ['konten', 'Konten', () => kontenBereich(konten, neu)],
     ['kategorien', 'Kategorien', () => kategorienBereich(kategorien, neu)],
+    ['empfaenger', 'Empfänger', () => empfaengerBereich(neu)], // D205
     ['daten', kurzLang('Daten & Sicherheit', 'Daten'), () => mehrere(() => driveBereich(neu), () => sperreBereich(neu), () => exportBereich(), () => archivBereich(neu))],
     ['notfall', 'Notfall-Mappe', () => notfallBereich()], // D168
     // Testdaten nur beim Entwickeln am PC (localhost), nicht in der veröffentlichten App (D66)
