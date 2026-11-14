@@ -3,7 +3,7 @@
 import { h } from '../dom.js';
 import * as db from '../db.js';
 import { dialog, frage, toast, eingabe, datenGeaendert } from '../ui.js';
-import { empfaengerListe, aehnlicheGruppen, umbenennen, EMPFAENGER_FELDER } from '../empfaenger.js';
+import { empfaengerListe, aehnlicheGruppen, umbenennen, EMPFAENGER_FELDER, offeneGruppen, getrenntMerken } from '../empfaenger.js';
 
 let suche = ''; // solange die App offen ist
 const SAMMLUNGEN = [...new Set(EMPFAENGER_FELDER.map(([s]) => s))];
@@ -28,7 +28,59 @@ const mal = (n) => (n === 1 ? '1-mal' : `${n}-mal`);
 export async function empfaengerBereich(neu) {
   const daten = await ladeDaten();
   const liste = empfaengerListe(daten);
-  const gruppen = aehnlicheGruppen(liste);
+  // D207: bewusst getrennt gelassene Gruppen ausblenden (kommen bei neuer Schreibweise wieder)
+  const getrennt = (await db.hole('einstellungen', 'empfaenger'))?.getrennt ?? [];
+  const gruppen = offeneGruppen(aehnlicheGruppen(liste), getrennt);
+
+  const trennen = async (gruppe) => {
+    const alt = (await db.hole('einstellungen', 'empfaenger')) ?? { id: 'empfaenger', getrennt: [] };
+    await db.speichere('einstellungen', { ...alt, getrennt: getrenntMerken(alt.getrennt ?? [], gruppe.map((e) => e.schluessel)), geaendertAm: new Date().toISOString() });
+    toast('Bleibt getrennt – erscheint erst wieder, wenn eine neue Schreibweise dazukommt');
+    datenGeaendert();
+    neu();
+  };
+
+  // D207: von Hand mehrere Empfänger auswählen und zusammenfassen
+  const manuellDialog = () => {
+    const gewaehlt = new Set();
+    const ziel = eingabe({ label: 'Gemeinsamer Name', maxlength: 80, placeholder: 'erst Empfänger auswählen',
+      hilfe: 'Vorbelegt mit dem häufigsten ausgewählten Namen – du kannst ihn ändern.' });
+    const filter = h('input', { type: 'search', class: 'such-eingabe', placeholder: 'Empfänger suchen …', 'aria-label': 'Empfänger suchen' });
+    const info = h('p', { class: 'klein gedaempft' });
+    const auswahl = h('ul', { class: 'empf-auswahl' });
+    const aktualisiere = () => {
+      const liste2 = liste.filter((e) => gewaehlt.has(e.schluessel));
+      info.textContent = liste2.length ? `Ausgewählt: ${liste2.map((e) => e.name).join(', ')}` : 'Noch nichts ausgewählt.';
+      if (!ziel.input.dataset.geaendert) ziel.input.value = liste2[0]?.name ?? '';
+    };
+    ziel.input.addEventListener('input', () => { ziel.input.dataset.geaendert = '1'; });
+    const zeichne = () => {
+      const w = filter.value.trim().toLocaleLowerCase('de');
+      const treffer = liste.filter((e) => !w || gewaehlt.has(e.schluessel) || e.schreibweisen.some((n) => n.toLocaleLowerCase('de').includes(w)));
+      auswahl.replaceChildren(...treffer.slice(0, 200).map((e) => h('li', {},
+        h('label', { class: 'empf-option' },
+          h('input', {
+            type: 'checkbox', checked: gewaehlt.has(e.schluessel),
+            onchange: (ev) => { if (ev.target.checked) gewaehlt.add(e.schluessel); else gewaehlt.delete(e.schluessel); aktualisiere(); },
+          }),
+          h('span', {}, e.name), h('span', { class: 'klein gedaempft' }, ` · ${mal(e.anzahl)}`)))));
+    };
+    filter.addEventListener('input', zeichne);
+    zeichne();
+    aktualisiere();
+    dialog({
+      titel: 'Empfänger zusammenfassen',
+      inhalt: [h('p', { class: 'hinweis' }, 'Wähle mindestens zwei Empfänger aus, die dasselbe sind.'), filter, auswahl, info, ziel.feld],
+      speichernText: 'Zusammenfassen',
+      onSpeichern: async () => {
+        if (gewaehlt.size < 2) throw new Error('Bitte mindestens zwei Empfänger auswählen.');
+        const n = await speichere(umbenennen(await ladeDaten(), [...gewaehlt], ziel.input.value));
+        toast(`${n} Einträge auf „${ziel.input.value.trim()}“ geändert`);
+        datenGeaendert();
+        neu();
+      },
+    });
+  };
 
   const zusammenfassen = async (gruppe, ziel) => {
     const ok = await frage({
@@ -68,13 +120,15 @@ export async function empfaengerBereich(neu) {
       h('span', {}, e.name), h('span', { class: 'klein gedaempft' }, ` · ${mal(e.anzahl)}`)));
     return h('div', { class: 'empf-gruppe' },
       h('div', { class: 'empf-optionen' }, optionen),
-      h('button', {
-        type: 'button', class: 'knopf knopf-klein',
-        onclick: (ev) => {
-          const ziel = ev.currentTarget.closest('.empf-gruppe').querySelector('input:checked')?.value ?? gruppe[0].name;
-          zusammenfassen(gruppe, ziel);
-        },
-      }, 'Zusammenfassen'));
+      h('div', { class: 'empf-aktionen' },
+        h('button', {
+          type: 'button', class: 'knopf knopf-klein knopf-primaer',
+          onclick: (ev) => {
+            const ziel = ev.currentTarget.closest('.empf-gruppe').querySelector('input:checked')?.value ?? gruppe[0].name;
+            zusammenfassen(gruppe, ziel);
+          },
+        }, 'Zusammenfassen'),
+        h('button', { type: 'button', class: 'knopf knopf-klein', title: 'Diese Schreibweisen bewusst getrennt lassen', onclick: () => trennen(gruppe) }, 'Getrennt lassen')));
   };
 
   const listeEl = h('ul', { class: 'liste empf-liste' });
@@ -97,11 +151,13 @@ export async function empfaengerBereich(neu) {
     h('div', { class: 'bereich-kopf' }, h('h2', { id: 'titel-empfaenger' }, 'Empfänger')),
     h('p', { class: 'hinweis erklaerung' },
       'Alle Empfänger und Absender aus Buchungen, Annahmen, relevanten Ausgaben und Verträgen. Einheitliche Namen machen ' +
-      'Analyse, Erkennung und die Markierung „↑ hoch“ genauer. Antippen zum Umbenennen; ähnliche Schreibweisen stehen oben als Vorschlag.'),
+      'Analyse, Erkennung und die Markierung „↑ hoch“ genauer. Antippen zum Umbenennen; ähnliche Schreibweisen stehen oben als Vorschlag. ' +
+      '„Getrennt lassen“ blendet einen Vorschlag aus, bis eine neue passende Schreibweise dazukommt. Mit „Zusammenfassen …“ wählst du Empfänger selbst aus.'),
     gruppen.length > 0 && h('div', { class: 'empf-vorschlaege' },
       h('div', { class: 'tag-kopf' }, h('span', {}, `Ähnliche Schreibweisen (${gruppen.length})`)),
       gruppen.map(vorschlagKarte)),
-    h('div', { class: 'tag-kopf' }, h('span', {}, `Alle Empfänger (${liste.length})`)),
+    h('div', { class: 'tag-kopf' }, h('span', {}, `Alle Empfänger (${liste.length})`),
+      liste.length > 1 && h('button', { type: 'button', class: 'knopf knopf-klein', onclick: manuellDialog }, 'Zusammenfassen …')),
     liste.length > 8 && such,
     listeEl);
 }

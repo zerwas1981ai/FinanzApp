@@ -2621,3 +2621,13 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
   oder danach ohne Differenz abgestimmt, keine vorgemerkten Buchungen bis Monatsende, keine fälligen offenen Termine,
   Belege bei allen relevanten Ausgaben des Monats. Verschwindet, wenn alles erfüllt ist oder nach „Als erledigt
   markieren“ (einstellungen 'abschluss', über Drive abgeglichen).
+
+## D207 – Empfänger: getrennt lassen und von Hand zusammenfassen
+*Wunsch des Nutzers (14.11.2026)*
+- Jeder Vorschlag „Ähnliche Schreibweisen“ hat neben „Zusammenfassen“ den Knopf **„Getrennt lassen“**. Die Gruppe
+  wird gemerkt (einstellungen 'empfaenger' → getrennt, über Drive abgeglichen) und nicht mehr vorgeschlagen.
+- Kommt später eine **neue passende Schreibweise** dazu, erscheint genau diese Gruppe wieder – mit den alten und der
+  neuen Schreibweise. Andere getrennt gelassene Gruppen bleiben verborgen. Erneutes „Getrennt lassen“ ersetzt den
+  alten Eintrag durch die größere Gruppe.
+- **„Zusammenfassen …“** neben „Alle Empfänger“: Empfänger per Häkchen auswählen (mit Suche), gemeinsamen Namen
+  eintragen (vorbelegt mit dem häufigsten) – ganz ohne Vorschlag.

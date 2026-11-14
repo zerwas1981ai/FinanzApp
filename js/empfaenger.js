@@ -95,3 +95,23 @@ export function umbenennen(daten, schluessel, neuerName, jetzt = new Date().toIS
   }
   return ergebnis;
 }
+
+/* ---------- D207: bewusst getrennt lassen ---------- */
+
+/**
+ * Vorschläge ohne die bewusst getrennt gelassenen: Eine Gruppe bleibt verborgen, solange alle ihre Empfänger
+ * zu EINER abgelehnten Gruppe gehören. Kommt eine neue Schreibweise dazu, erscheint die Gruppe wieder –
+ * mit den alten und der neuen Schreibweise. Gruppen ohne neue Schreibweise bleiben verborgen.
+ * getrennt: [[schluessel, …], …] (einstellungen 'empfaenger').
+ */
+export function offeneGruppen(gruppen, getrennt = []) {
+  const sets = getrennt.map((g) => new Set(g));
+  return gruppen.filter((gruppe) => !sets.some((s) => gruppe.every((e) => s.has(e.schluessel))));
+}
+
+/** Gruppe als „getrennt lassen“ merken; kleinere, darin enthaltene Einträge entfallen */
+export function getrenntMerken(getrennt = [], schluessel) {
+  const neu = [...new Set(schluessel)].sort();
+  const rest = getrennt.filter((g) => !g.every((k) => neu.includes(k)));
+  return [...rest, neu];
+}

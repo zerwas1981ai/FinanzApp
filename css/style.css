@@ -1762,3 +1762,9 @@ html[data-schrift="gross"] { font-size: 103.125%; }
 .abschluss-haken { flex: none; width: 1.2em; text-align: center; font-weight: 700; }
 .abschluss-liste li.ok .abschluss-haken { color: var(--einnahme); }
 .abschluss-liste li.offen .abschluss-haken { color: var(--warnung); }
+
+/* D207: Getrennt lassen, manuell zusammenfassen */
+.empf-aktionen { display: flex; flex-wrap: wrap; gap: 6px; }
+.empf-auswahl { list-style: none; margin: 8px 0; padding: 0; max-height: 40vh; overflow-y: auto; border: 1px solid var(--rand); border-radius: 8px; }
+.empf-auswahl li { padding: 6px 10px; }
+.empf-auswahl li + li { border-top: 1px solid var(--rand); }

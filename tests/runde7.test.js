@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { wiederkehrendJeMonat, monatsBetrag } from '../js/vertraege.js';
 import { preisAenderungen, mitWertAenderung } from '../js/erkennung.js';
 import { abstimmVorschlaege } from '../js/abstimmhilfe.js';
-import { empfaengerListe, aehnlicheGruppen, namensKern, umbenennen } from '../js/empfaenger.js';
+import { empfaengerListe, aehnlicheGruppen, namensKern, umbenennen, offeneGruppen, getrenntMerken } from '../js/empfaenger.js';
 import { abschlussMonat, abschlussPruefung } from '../js/abschluss.js';
 
 const stufe = (betragCent, ab = '2026-01-01') => [{ ab, betragCent }];
@@ -113,4 +113,20 @@ test('D206: Monatsabschluss-Checkliste', () => {
   const leer = abschlussPruefung({ ...daten, buchungen: [], relevant: [], abstimmungen: [
     { kontoId: 'giro', datum: '2026-12-01', bankstandCent: 1, berechnetCent: 1 }, { kontoId: 'tg', datum: '2026-11-30', bankstandCent: 1, berechnetCent: 1 }] }, [], '2026-11');
   assert.ok(leer.every((x) => x.ok));
+});
+
+test('D207: Schreibweisen bewusst getrennt lassen', () => {
+  const e = (schluessel) => ({ schluessel, name: schluessel, anzahl: 1 });
+  const gruppen = [[e('rewe'), e('rewe city')], [e('amazon'), e('amazon marketplace')]];
+  const getrennt = getrenntMerken([], ['rewe city', 'rewe']);
+  assert.deepEqual(getrennt, [['rewe', 'rewe city']]);
+  assert.deepEqual(offeneGruppen(gruppen, getrennt).map((g) => g[0].schluessel), ['amazon'], 'abgelehnte Gruppe verborgen');
+  // neue Schreibweise kommt dazu → nur diese Gruppe erscheint wieder, mit allen Schreibweisen
+  const mitNeu = [[e('rewe'), e('rewe city'), e('rewe markt')], [e('amazon'), e('amazon marketplace')]];
+  const offen = offeneGruppen(mitNeu, [...getrennt, ['amazon', 'amazon marketplace']]);
+  assert.deepEqual(offen.map((g) => g.map((x) => x.schluessel)), [['rewe', 'rewe city', 'rewe markt']]);
+  // erneut getrennt lassen: größere Gruppe ersetzt die kleinere
+  assert.deepEqual(getrenntMerken(getrennt, ['rewe', 'rewe city', 'rewe markt']), [['rewe', 'rewe city', 'rewe markt']]);
+  // Teilmenge einer abgelehnten Gruppe bleibt verborgen
+  assert.equal(offeneGruppen([[e('rewe'), e('rewe city')]], [['rewe', 'rewe city', 'rewe markt']]).length, 0);
 });
