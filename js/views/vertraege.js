@@ -18,7 +18,7 @@ import { belegeFeld, zeigeBeleg, belegeEntfernen } from './belege.js';
 import { oeffneBuchungsdialog, partnerFeld } from './buchung-dialog.js';
 import { wiederkehrendDialog } from './annahmen.js';
 
-const INTERVALL = { monatlich: 'monatlich', vierteljaehrlich: 'vierteljährlich', jaehrlich: 'jährlich' };
+const INTERVALL = { monatlich: 'monatlich', vierteljaehrlich: 'vierteljährlich', halbjaehrlich: 'halbjährlich', jaehrlich: 'jährlich' };
 const nachName = (a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base' });
 const offen = new Set(); // aufgeklappte Verträge, solange die App offen ist
 

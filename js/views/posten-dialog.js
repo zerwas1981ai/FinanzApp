@@ -12,6 +12,7 @@ import { dialog, toast, eingabe, datenGeaendert } from '../ui.js';
 import { mitAusnahme, budgetMitMonatsAusnahme } from '../annahmen.js';
 import { betragAm, terminBetrag, regelBetrag as budgetRegelBetrag } from '../prognose.js';
 import { geplantDialog } from './annahmen.js';
+import { oeffneBuchungsdialog } from './buchung-dialog.js';
 
 const monatText = (m) => formatMonat(Number(m.slice(0, 4)), Number(m.slice(5, 7)));
 
@@ -83,6 +84,57 @@ export function budgetMonatAendern(info, daten) {
   return budgetAendern(info, daten);
 }
 
+/**
+ * D199: Liste der Buchungen, die ein Budget verbrauchen, plus noch eingeplante Termine.
+ * liste: { buchungen, termine, zeitraum }. Antippen einer Buchung schließt den Dialog und öffnet die Buchung.
+ */
+function budgetListe(liste, daten, schliessen) {
+  if (!liste) return null;
+  const kat = new Map(daten.kategorien.map((k) => [k.id, k]));
+  const summe = liste.buchungen.reduce((s, b) => s + b.betragCent, 0);
+  const text = (b) => [b.partner, b.art === 'umbuchung' ? 'Umbuchung' : kat.get(b.kategorieId)?.name, b.notiz].filter(Boolean).join(' · ');
+  const tag = (iso) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}.`;
+  const zeitraumText = liste.zeitraum.von.slice(0, 7) === liste.zeitraum.bis.slice(0, 7)
+    ? 'in diesem Monat'
+    : `${formatDatum(liste.zeitraum.von)} – ${formatDatum(liste.zeitraum.bis)}`;
+  return h('div', { class: 'budget-liste' },
+    h('div', { class: 'tag-kopf' },
+      h('span', {}, `Gebucht ${zeitraumText} (${liste.buchungen.length})`),
+      h('span', { class: 'tag-stand' }, formatEuro(-summe))),
+    liste.buchungen.length
+      ? h('ul', { class: 'liste' }, liste.buchungen.map((b) => h('li', {},
+        h('button', {
+          type: 'button', class: 'buchung einzeilig',
+          onclick: () => { schliessen(); setTimeout(() => oeffneBuchungsdialog(b), 0); },
+        },
+        h('span', { class: 'buchung-text' }, h('span', { class: 'buchung-titel' },
+          h('span', { class: 'datum-klein' }, tag(b.datum)), h('span', { class: 'budget-liste-text' }, text(b) || 'Buchung'))),
+        h('span', { class: 'betrag' }, formatEuro(-b.betragCent))))))
+      : h('p', { class: 'leer' }, 'Noch keine Buchungen.'),
+    liste.termine.length > 0 && h('div', { class: 'tag-kopf' },
+      h('span', {}, `Noch eingeplant (${liste.termine.length})`),
+      h('span', { class: 'tag-stand' }, formatEuro(-liste.termine.reduce((s, t) => s + t.betragCent, 0)))),
+    liste.termine.length > 0 && h('ul', { class: 'liste' }, liste.termine.map((t) => h('li', {},
+      h('div', { class: 'buchung einzeilig geplant' },
+        h('span', { class: 'buchung-text' }, h('span', { class: 'buchung-titel' },
+          h('span', { class: 'datum-klein' }, tag(t.datum)),
+          h('span', { class: 'budget-liste-text' }, [t.wiederkehrend.partner, t.wiederkehrend.notiz || t.wiederkehrend.bezeichnung].filter(Boolean).join(' · ') || 'Wiederkehrend'))),
+        h('span', { class: 'betrag annahme' }, formatEuro(-t.betragCent)))))));
+}
+
+/** D199: Nur die Liste (z. B. bei Jahresbudgets, die man hier nicht ändert) */
+export function budgetBuchungenDialog(info, daten) {
+  let dlg;
+  dlg = dialog({
+    titel: `Budget ${info.name}`,
+    inhalt: [budgetListe(info, daten, () => dlg.close())],
+    speichernText: 'Schließen',
+    abbrechenText: null,
+    onSpeichern: () => {},
+  });
+  return dlg;
+}
+
 function budgetAendern(info, daten) {
   const { kategorieId, monat } = info;
   const name = daten.kategorien.find((k) => k.id === kategorieId)?.name ?? '?';
@@ -97,9 +149,11 @@ function budgetAendern(info, daten) {
     const b = einmalig[0];
     if (!b) return null;
     const betrag = eingabe({ label: 'Betrag in €', inputmode: 'decimal', value: centZuEingabe(b.betragCent), class: 'eingabe-betrag', autofocus: true });
-    return dialog({
+    let einDlg;
+    einDlg = dialog({
       titel: `Budget ${name} – ${monatText(monat)}`,
-      inhalt: [h('p', { class: 'hinweis' }, 'Einmaliges Budget für diesen Monat.' + (b.notiz ? ` (${b.notiz})` : '')), betrag.feld],
+      inhalt: [h('p', { class: 'hinweis' }, 'Einmaliges Budget für diesen Monat.' + (b.notiz ? ` (${b.notiz})` : '')), betrag.feld,
+        budgetListe(info.liste, daten, () => einDlg.close())], // D199
       onSpeichern: async () => {
         const cent = parseEuro(betrag.input.value, 'Betrag');
         if (!cent || cent <= 0) throw new Error('Bitte einen Betrag größer 0 eingeben.');
@@ -108,6 +162,7 @@ function budgetAendern(info, daten) {
         datenGeaendert();
       },
     });
+    return einDlg;
   }
 
   const regel = budgetRegelBetrag(wiederkehrend, monat); // inkl. fester Kalendermonat-Abweichung (D92)
@@ -129,6 +184,7 @@ function budgetAendern(info, daten) {
         (einmaligSumme ? `Dazu kommt ein einmaliges Budget von ${formatEuro(einmaligSumme)}. ` : '') +
         `${info.laufend ? 'Schon verbraucht und noch eingeplant' : 'Schon verplant (wiederkehrend/geplant)'}: ${formatEuro(info.verbrauchtCent)} – in der Prognose zählt nur der Rest bis zum Budget.`),
       betrag.feld,
+      budgetListe(info.liste, daten, () => dlg.close()), // D199
       ausnahme && h('div', { class: 'knopfreihe' },
         h('button', {
           type: 'button',

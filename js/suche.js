@@ -93,7 +93,7 @@ export function suche(begriff, daten) {
     ergebnis.wiederkehrend.push({
       bereich: 'wiederkehrend', id: w.id, datum: w.start, art: w.art, betragCent: betrag, ref: w,
       titel: w.partner || w.notiz || katText(w.kategorieId).split(' › ').pop() || 'Wiederkehrend',
-      details: [{ monatlich: 'monatlich', vierteljaehrlich: 'vierteljährlich', jaehrlich: 'jährlich' }[w.intervall],
+      details: [{ monatlich: 'monatlich', vierteljaehrlich: 'vierteljährlich', halbjaehrlich: 'halbjährlich', jaehrlich: 'jährlich' }[w.intervall],
         konto.get(w.kontoId), katText(w.kategorieId), w.aktiv === false && 'ausgeschaltet'].filter(Boolean).join(' · '),
     });
   }

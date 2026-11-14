@@ -46,7 +46,8 @@ export function trancheImMonat(b, monat) {
  *   (vergangene Monate: echte Buchungen; laufender: echte + offene; künftige: geplante/wiederkehrende).
  * ersterOffenerMonat: Monate davor sind vorbei (laufendes Jahr: aktueller Monat; künftige Jahre: 1).
  * Ergebnis: Posten, die ab dem ersten offenen Monat wirken:
- *   [{ monat, art: 'tranche' | 'rest', betragCent, verbrauchtCent, restCent, uebertragCent }]
+ *   [{ monat, vonMonat, art: 'tranche' | 'rest', betragCent, verbrauchtCent, restCent, uebertragCent }]
+ *   vonMonat: erster Monat des Abschnitts, den diese Tranche abdeckt (D198: für den Zeitstrich)
  *   restCent > 0 ist der Betrag, der in diesem Monat zusätzlich als Ausgabe erwartet wird.
  */
 export function jahresbudgetJahr(b, jahr, ausgabe, ersterOffenerMonat) {
@@ -62,10 +63,11 @@ export function jahresbudgetJahr(b, jahr, ausgabe, ersterOffenerMonat) {
   let vorher = 0;
   for (const t of alle.filter((x) => x.monat < 12)) {
     const verbraucht = summe(vorher + 1, t.monat);
+    const vonMonat = vorher + 1;
     vorher = t.monat;
     const rest = t.betragCent - verbraucht;
     if (t.monat >= ersterOffenerMonat && rest > 0) {
-      ergebnis.push({ monat: t.monat, art: 'tranche', betragCent: t.betragCent, verbrauchtCent: verbraucht, restCent: rest, uebertragCent: 0 });
+      ergebnis.push({ monat: t.monat, vonMonat, art: 'tranche', betragCent: t.betragCent, verbrauchtCent: verbraucht, restCent: rest, uebertragCent: 0 });
     } else {
       uebertrag += rest; // vorbei (Rest oder Überziehung) bzw. schon überzogen → zum 31.12.
     }
@@ -76,7 +78,7 @@ export function jahresbudgetJahr(b, jahr, ausgabe, ersterOffenerMonat) {
   const rest = topf - verbraucht;
   if (rest > 0) {
     ergebnis.push({
-      monat: 12, art: uebertrag !== 0 || dezember === 0 ? 'rest' : 'tranche',
+      monat: 12, vonMonat: vorher + 1, art: uebertrag !== 0 || dezember === 0 ? 'rest' : 'tranche',
       betragCent: topf, verbrauchtCent: verbraucht, restCent: rest, uebertragCent: uebertrag,
     });
   }

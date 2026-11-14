@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   monatsende, plusMonate, plusTage, betragAm, budgetFuerMonat, termine, naechsterTermin,
-  offeneTermine, faelligListe, monatsprognose, budgetHinweise, terminWirkung,
+  offeneTermine, faelligListe, zeitAnteil, budgetBuchungen, monatsprognose, budgetHinweise, terminWirkung,
 } from '../js/prognose.js';
 import { baueBudget, baueWiederkehrend, mitAusnahme, budgetMitVorschlag } from '../js/annahmen.js';
 import { baueBuchungen } from '../js/buchungen.js';
@@ -346,4 +346,38 @@ test('Migration 7 → 8: Empfänger/Absender kommt dazu, vorhandene Werte bleibe
   assert.deepEqual(daten.buchungen.map((b) => b.partner), ['', 'X']);
   assert.equal(daten.wiederkehrend[0].partner, '');
   assert.equal(daten.geplant[0].partner, '');
+});
+
+test('D197: halbjährliche wiederkehrende Buchung', () => {
+  const w = { start: '2026-03-15', intervall: 'halbjaehrlich', stufen: [{ ab: '2026-03-15', betragCent: 30000 }] };
+  assert.deepEqual(termine(w, '2026-01-01', '2027-12-31').map((t) => t.datum), ['2026-03-15', '2026-09-15', '2027-03-15', '2027-09-15']);
+  const gebaut = baueWiederkehrend({
+    bezeichnung: '', art: 'ausgabe', kontoId: 'giro', kategorieId: 'miete', intervall: 'halbjaehrlich',
+    start: '2026-03-15', ende: '', stufen: [{ ab: '', betragCent: 30000 }],
+  }, { konten, kategorien });
+  assert.equal(gebaut.intervall, 'halbjaehrlich');
+});
+
+test('D198: Zeitanteil für den Zeitstrich im Budgetbalken', () => {
+  assert.equal(zeitAnteil('2026-11-01', '2026-11-30', '2026-11-15'), 0.5);
+  assert.equal(zeitAnteil('2026-11-01', '2026-11-30', '2026-11-30'), 1);
+  assert.equal(zeitAnteil('2026-11-01', '2026-11-30', '2026-10-31'), 0);
+  assert.equal(zeitAnteil('2026-07-01', '2026-12-31', '2026-12-31'), 1, 'zweite Hälfte eines Jahresbudgets');
+  assert.ok(Math.abs(zeitAnteil('2026-07-01', '2026-12-31', '2026-09-30') - 92 / 184) < 1e-9);
+});
+
+test('D199: Buchungen, die ein Budget verbrauchen', () => {
+  const kat = [{ id: 'leb', elternId: null, art: 'ausgabe' }, { id: 'super', elternId: 'leb' }, { id: 'woh', elternId: null, art: 'ausgabe' }, { id: 'miete', elternId: 'woh' }];
+  const b = (id, datum, extra = {}) => ({ id, datum, betragCent: 100, art: 'ausgabe', kontoId: 'giro', kategorieId: 'super', ...extra });
+  const liste = [
+    b('1', '2026-11-03'), b('2', '2026-11-10'),
+    b('3', '2026-11-05', { kontoId: 'kk' }), // anderes Konto
+    b('4', '2026-11-06', { kategorieId: 'miete' }), // andere Hauptkategorie
+    b('5', '2026-11-07', { projektId: 'p' }), // Projekt zählt nicht gegen das Budget
+    b('6', '2026-10-30'), // Vormonat
+    b('7', '2026-11-08', { geloeschtAm: 'X' }), // Papierkorb
+    b('8', '2026-11-09', { art: 'umbuchung', richtung: 'ab', kategorieId: null, budgetKategorieId: 'leb' }), // D98
+    b('9', '2026-11-09', { art: 'einnahme' }),
+  ];
+  assert.deepEqual(budgetBuchungen(liste, kat, 'giro', 'leb', '2026-11-01', '2026-11-30').map((x) => x.id), ['2', '8', '1']);
 });

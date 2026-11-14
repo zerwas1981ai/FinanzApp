@@ -1718,3 +1718,18 @@ html[data-schrift="gross"] { font-size: 103.125%; }
 /* D195: Anzahl laufender Verträge größer und fett */
 .vertraege .vertrag-summe .klein { font-size: 1rem; font-weight: 700; color: var(--text); }
 .vertrag-gruppe-kopf { flex-wrap: wrap; gap: 2px 12px; }
+
+/* D198: Zeitstrich im Budgetbalken – so weit ist der Monat (bzw. die Tranche) vorbei */
+.meter-huelle { position: relative; padding: 3px 0; margin: 1px 0 0; }
+.meter-huelle > .meter { margin: 0; }
+.meter-zeit {
+  position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; border-radius: 1px;
+  background: var(--text); opacity: .75; pointer-events: none;
+}
+
+/* D199: Buchungen zu einem Budget im Budget-Dialog */
+.budget-liste { margin-top: 12px; }
+.budget-liste .liste { margin: 0 0 6px; }
+.budget-liste .buchung-titel { min-width: 0; }
+.budget-liste-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.budget-liste .datum-klein { flex: none; margin-right: 8px; }

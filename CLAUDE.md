@@ -47,7 +47,7 @@ Oberfläche auf Deutsch, Währung Euro, deutsches Datums- und Zahlenformat.
 - Vertrag (D148): Name, Empfänger (Pflicht, D150), Kategorie (Hauptkategorie, gruppiert, D194), Vertragsnummer, Beginn, Mindestlaufzeit, Verlängerung,
   Kündigungsfrist (zum Laufzeit-, Monats- oder Quartalsende, D192), Erinnerung, gekündigt zum, Unterlagen; Klammer um Buchungen und wiederkehrende
   Buchungen (Feld „Vertrag“, rückwirkend über die wiederkehrende Buchung)
-- Wiederkehrende Buchung: Intervall (monatlich/vierteljährlich/jährlich),
+- Wiederkehrende Buchung: Intervall (monatlich/vierteljährlich/halbjährlich/jährlich, D197),
   Start, optional Ende, Wertänderungen ab Datum, feste Abweichung je
   Kalendermonat (jedes Jahr, D94), einzelne Monate überspringen oder verschieben;
   keine Pflicht-Bezeichnung, sondern optionale Notiz wie bei Buchungen (D96)

@@ -195,3 +195,10 @@ test('D194: Vertragskategorie und Gruppierung', () => {
   assert.equal(baueVertrag({ name: 'X', anbieter: 'Y' }, { jetzt: 'T', alt: { id: 'x', kategorieId: 'vers' } }).kategorieId, 'vers');
   assert.equal(baueVertrag({ name: 'X', anbieter: 'Y', kategorieId: '' }, { jetzt: 'T', alt: { id: 'x', kategorieId: 'vers' } }).kategorieId, null);
 });
+
+test('D197: Vertragskosten bei halbjährlicher Zahlung', () => {
+  const wk = [{ id: 'h', vertragId: 'v', art: 'ausgabe', intervall: 'halbjaehrlich', stufen: [{ ab: '2026-01-01', betragCent: 30000 }] }];
+  const k = vertragsKosten('v', wk, '2026-11-14');
+  assert.equal(k.jahrCent, 60000);
+  assert.equal(k.monatCent, 5000);
+});

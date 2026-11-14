@@ -128,6 +128,19 @@ export function budgetHauptVon(x, hauptVon) {
   return hauptVon(x.kategorieId) ?? null;
 }
 
+/**
+ * D199: Echte Buchungen, die ein Budget verbrauchen (Konto + Hauptkategorie, Zeitraum von–bis), neueste zuerst.
+ * Gleiche Regel wie beim Verbrauch: Ausgaben ohne Projekt auf Unterkategorien dieser Hauptkategorie,
+ * abgehende Umbuchungen mit Budget-Zuordnung (D98); Papierkorb zählt nicht.
+ */
+export function budgetBuchungen(buchungen, kategorien, kontoId, hauptId, von, bis) {
+  const kat = new Map(kategorien.map((k) => [k.id, k]));
+  return buchungen
+    .filter((b) => istAktiv(b) && b.kontoId === kontoId && b.datum >= von && b.datum <= bis
+      && budgetHauptVon(b, (id) => kat.get(id)?.elternId) === hauptId)
+    .sort((a, b) => b.datum.localeCompare(a.datum) || (b.erstelltAm ?? '').localeCompare(a.erstelltAm ?? ''));
+}
+
 /** Schlüssel für „Hauptkategorie auf einem Konto“ (D85) */
 export const budgetSchluessel = (kontoId, kategorieId) => `${kontoId}|${kategorieId}`;
 
@@ -142,7 +155,7 @@ export function budgetPaare(budgets) {
 
 /* ======================= Wiederkehrende Buchungen ======================= */
 
-const SCHRITT = { monatlich: 1, vierteljaehrlich: 3, jaehrlich: 12 };
+const SCHRITT = { monatlich: 1, vierteljaehrlich: 3, halbjaehrlich: 6, jaehrlich: 12 };
 
 /**
  * Alle Termine einer wiederkehrenden Buchung, deren (ggf. verschobenes) Datum
@@ -302,6 +315,17 @@ export function ausgabenJeKontoUndKategorie(buchungen, kategorien, monat) {
  *   Umbuchungen in beide Richtungen) − offener Budgetrest. Noch ausstehende echte Einnahmen
  *   zählen NICHT – so sieht man den ungünstigsten Fall, falls Geld später kommt als die Abbuchungen.
  */
+/**
+ * D198: Wie viel des Budget-Zeitraums ist heute schon vorbei? Zählt den heutigen Tag mit
+ * (15.11. von 30 Tagen = 0,5). von/bis: "JJJJ-MM-TT". Ergebnis 0..1.
+ */
+export function zeitAnteil(von, bis, heute) {
+  const tag = (iso) => Date.UTC(Number(iso.slice(0, 4)), Number(iso.slice(5, 7)) - 1, Number(iso.slice(8, 10))) / 86400000;
+  const gesamt = tag(bis) - tag(von) + 1;
+  if (gesamt <= 0) return 1;
+  return Math.min(1, Math.max(0, (tag(heute) - tag(von) + 1) / gesamt));
+}
+
 export function monatsprognose(daten, heute) {
   const { konten, kategorien, buchungen, budgets } = daten;
   const monat = heute.slice(0, 7);
@@ -347,6 +371,8 @@ export function monatsprognose(daten, heute) {
       id, kontoId, name: hk.name, ist, offen: offenCent, prognose, rest,
       budget: budget.vorhanden ? budget.betragCent : null,
       auslastung: budget.vorhanden && budget.betragCent > 0 ? ist / budget.betragCent : null,
+      zeit: zeitAnteil(`${monat}-01`, monatsende(monat), heute), // D198
+      zeitraum: { von: `${monat}-01`, bis: monatsende(monat) }, // D199: für die Buchungsliste
     });
   }
 
@@ -369,6 +395,9 @@ export function monatsprognose(daten, heute) {
       rest: p.restCent,
       prognose: Math.max(p.betragCent, p.verbrauchtCent),
       auslastung: p.betragCent > 0 ? (p.verbrauchtCent - offenCent) / p.betragCent : null,
+      // D198: Zeitstrich über den ganzen Abschnitt der Tranche (z. B. Jan.–Jun. bei hälftig)
+      zeit: zeitAnteil(`${monat.slice(0, 4)}-${String(p.vonMonat ?? Number(monat.slice(5, 7))).padStart(2, '0')}-01`, monatsende(monat), heute),
+      zeitraum: { von: `${monat.slice(0, 4)}-${String(p.vonMonat ?? Number(monat.slice(5, 7))).padStart(2, '0')}-01`, bis: monatsende(monat) }, // D199
     });
   }
 

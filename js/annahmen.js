@@ -18,7 +18,7 @@
 //
 // Datensatz Wiederkehrende Buchung (Datenversion 3):
 // { id, notiz (optional, ab Version 15 statt "bezeichnung", D96), art: 'einnahme'|'ausgabe'|'umbuchung', kontoId, gegenkontoId, kategorieId,
-//   intervall: 'monatlich'|'vierteljaehrlich'|'jaehrlich', start "JJJJ-MM-TT", ende "JJJJ-MM-TT"|null,
+//   intervall: 'monatlich'|'vierteljaehrlich'|'halbjaehrlich'|'jaehrlich', start "JJJJ-MM-TT", ende "JJJJ-MM-TT"|null,
 //   monatsletzter: true|false  // true = jeder Termin am letzten Tag des Monats (fehlt = false)
 //   stufen: [{ ab "JJJJ-MM-TT", betragCent }],
 //   ausnahmen: [{ termin, aktion: 'ueberspringen'|'verschieben'|'aendern', neuesDatum?, betragCent? }],
@@ -176,7 +176,7 @@ export function haeufigstesKonto(hauptId, kategorien, buchungen, konten) {
 export function baueWiederkehrend(eingabe, { konten, kategorien, alt = null, jetzt = new Date().toISOString() }) {
   const notiz = (eingabe.notiz ?? '').trim(); // optional (D96, ersetzt die Pflicht-Bezeichnung)
   if (!['einnahme', 'ausgabe', 'umbuchung'].includes(eingabe.art)) throw new Error('Bitte die Art wählen.');
-  if (!['monatlich', 'vierteljaehrlich', 'jaehrlich'].includes(eingabe.intervall)) throw new Error('Bitte das Intervall wählen.');
+  if (!['monatlich', 'vierteljaehrlich', 'halbjaehrlich', 'jaehrlich'].includes(eingabe.intervall)) throw new Error('Bitte das Intervall wählen.');
   if (!istGueltigesDatum(eingabe.start)) throw new Error('Bitte ein gültiges Startdatum wählen.');
   if (eingabe.ende && !istGueltigesDatum(eingabe.ende)) throw new Error('Das Enddatum ist ungültig.');
   if (eingabe.ende && eingabe.ende < eingabe.start) throw new Error('Das Enddatum liegt vor dem Start.');

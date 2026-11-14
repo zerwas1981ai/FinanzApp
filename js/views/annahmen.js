@@ -15,8 +15,8 @@ import { kuendigungsHinweise } from '../vertraege.js';
 import { vertraegeBereich } from './vertraege.js';
 
 const nachName = (a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base' });
-const INTERVALL_TEXT = { monatlich: 'monatlich', vierteljaehrlich: 'vierteljährlich', jaehrlich: 'jährlich' };
-const INTERVALL_UEBERSCHRIFT = { monatlich: 'Monatlich', vierteljaehrlich: 'Vierteljährlich', jaehrlich: 'Jährlich' };
+const INTERVALL_TEXT = { monatlich: 'monatlich', vierteljaehrlich: 'vierteljährlich', halbjaehrlich: 'halbjährlich', jaehrlich: 'jährlich' };
+const INTERVALL_UEBERSCHRIFT = { monatlich: 'Monatlich', vierteljaehrlich: 'Vierteljährlich', halbjaehrlich: 'Halbjährlich', jaehrlich: 'Jährlich' };
 const monatText = (m) => formatMonat(Number(m.slice(0, 4)), Number(m.slice(5, 7)));
 const MONATSNAMEN = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
 const TYP_TEXT = { wiederkehrend: 'Jeden Monat', jaehrlich: 'Jährlich', einmalig: 'Einmalig' };

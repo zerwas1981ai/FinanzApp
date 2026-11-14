@@ -5,7 +5,7 @@ import { kontostand } from './rechnen.js';
 import { vertragsStand, vertragsKosten, fristText, aktuellerBetrag } from './vertraege.js';
 import { sortiereKonten } from './konten.js';
 
-const INTERVALL = { monatlich: 'monatlich', vierteljaehrlich: 'vierteljährlich', jaehrlich: 'jährlich' };
+const INTERVALL = { monatlich: 'monatlich', vierteljaehrlich: 'vierteljährlich', halbjaehrlich: 'halbjährlich', jaehrlich: 'jährlich' };
 
 export function notfallDaten({ konten = [], buchungen = [], abstimmungen = [], vertraege = [], wiederkehrend = [], kategorien = [], heute }) {
   const kat = new Map(kategorien.map((k) => [k.id, k]));

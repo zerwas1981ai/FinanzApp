@@ -7,12 +7,12 @@ import { h } from '../dom.js';
 import * as db from '../db.js';
 import { formatEuro, formatDatum, formatMonat, formatProzent, formatTag, heuteIso, istGueltigesDatum } from '../format.js';
 import { dialog, eingabe, toast, datenGeaendert, auswahl, klappBereich, katPunkt } from '../ui.js';
-import { plusMonate, plusTage, annahmeTitel } from '../prognose.js';
+import { plusMonate, plusTage, annahmeTitel, budgetBuchungen, budgetHauptVon } from '../prognose.js';
 import { farbenZuordnung } from '../farben.js';
 import { budgetMitVorschlag, merkeHinweis } from '../annahmen.js';
 import { oeffneBuchungsdialog } from './buchung-dialog.js';
 import { speichereAusnahme, aendereGeplant } from './annahmen.js';
-import { budgetMonatAendern } from './posten-dialog.js';
+import { budgetMonatAendern, budgetBuchungenDialog } from './posten-dialog.js';
 
 const monatText = (m) => formatMonat(Number(m.slice(0, 4)), Number(m.slice(5, 7)));
 const kurzMonat = (m) => new Intl.DateTimeFormat('de-DE', { month: 'short' }).format(new Date(Number(m.slice(0, 4)), Number(m.slice(5, 7)) - 1, 1)).replace('.', '');
@@ -126,42 +126,55 @@ export function erwartetBereich(kd, daten) {
     // D170: noch ausstehende wiederkehrende Ausgaben schraffiert direkt hinter dem Verbrauchten
     const anteilOffen = b.budget > 0 ? Math.max(0, Math.min(1 - anteil, b.offen / b.budget)) : 0;
     const offenUeber = !ueber && b.ist + b.offen > b.budget; // mit den eingeplanten Terminen über Budget
+    // D198: Zeitstrich – so weit ist der Budget-Zeitraum heute vorbei; Verbrauch links davon = sparsam
+    const zeitText = b.zeit != null ? `${formatProzent(b.zeit)} der Zeit vorbei, ${formatProzent(b.ist / b.budget)} verbraucht` : null;
     const inhalt = [
       h('div', { class: 'budget-kopf' },
         h('span', { class: 'buchung-titel' }, katPunkt(farben.get(b.id)?.hex), `Budget ${b.name}`),
         h('span', { class: 'betrag annahme' }, b.rest > 0 ? formatEuro(-b.rest) : formatEuro(0))),
-      h('div', {
-        class: 'meter' + (ueber ? ' ueber' : ''),
-        style: farben.get(b.id) ? `--balken:${farben.get(b.id).hex}` : null,
-        role: 'meter',
-        'aria-valuemin': '0',
-        'aria-valuemax': String(b.budget),
-        'aria-valuenow': String(Math.min(b.ist, b.budget)),
-        'aria-label': `${b.name}: ${formatProzent(b.ist / b.budget)} des Budgets verbraucht` +
-          (b.offen > 0 ? `, weitere ${formatProzent(b.offen / b.budget)} noch eingeplant` : ''),
-      },
-      h('span', { class: 'meter-ist', style: `width:${anteil * 100}%` }),
-      anteilOffen > 0 && h('span', {
-        class: 'meter-eingeplant' + (offenUeber ? ' ueber' : ''),
-        style: `width:${anteilOffen * 100}%`,
-        title: `${formatEuro(b.offen)} noch eingeplant`,
-      })),
+      h('div', { class: 'meter-huelle', title: zeitText },
+        h('div', {
+          class: 'meter' + (ueber ? ' ueber' : ''),
+          style: farben.get(b.id) ? `--balken:${farben.get(b.id).hex}` : null,
+          role: 'meter',
+          'aria-valuemin': '0',
+          'aria-valuemax': String(b.budget),
+          'aria-valuenow': String(Math.min(b.ist, b.budget)),
+          'aria-label': `${b.name}: ${formatProzent(b.ist / b.budget)} des Budgets verbraucht` +
+            (b.offen > 0 ? `, weitere ${formatProzent(b.offen / b.budget)} noch eingeplant` : ''),
+        },
+        h('span', { class: 'meter-ist', style: `width:${anteil * 100}%` }),
+        anteilOffen > 0 && h('span', {
+          class: 'meter-eingeplant' + (offenUeber ? ' ueber' : ''),
+          style: `width:${anteilOffen * 100}%`,
+          title: `${formatEuro(b.offen)} noch eingeplant`,
+        })),
+        b.zeit != null && b.budget > 0 && h('span', { class: 'meter-zeit', style: `left:${(b.zeit * 100).toFixed(1)}%`, 'aria-hidden': 'true' })),
       h('div', { class: 'buchung-unter' + (ueber ? ' warn-text' : '') },
         ueber
           ? `${formatEuro(b.ist)} von ${formatEuro(b.budget)} – überschritten um ${formatEuro(b.ist - b.budget)}`
           : `${formatEuro(b.ist)} von ${formatEuro(b.budget)} verbraucht` +
             (b.offen > 0 ? ` · ${formatEuro(b.offen)} noch eingeplant` : '') +
             ` · Rest ${formatEuro(b.rest)}`)]; // D115: ohne „in der Prognose“
-    // D99: Monatsbudget im laufenden Monat nur für diesen Monat ändern (Jahresbudgets nicht)
-    if (b.jaehrlich) return h('li', { class: 'budget-eintrag' }, ...inhalt);
+    // D199: die Buchungen, die dieses Budget verbrauchen, und die noch eingeplanten Termine
+    const zr = b.zeitraum ?? { von: `${monat}-01`, bis: `${monat}-31` };
+    const liste = {
+      buchungen: budgetBuchungen(daten.buchungen, daten.kategorien, b.kontoId, b.id, zr.von, zr.bis),
+      termine: kd.termine.filter((t) => t.wiederkehrend.kontoId === b.kontoId
+        && budgetHauptVon(t.wiederkehrend, (id) => kat.get(id)?.elternId) === b.id),
+      zeitraum: zr,
+    };
+    // D99: Monatsbudget im laufenden Monat nur für diesen Monat ändern; Jahresbudgets: nur die Liste (D199)
     return h('li', { class: 'budget-eintrag' },
       h('button', {
         type: 'button',
         class: 'budget-knopf',
-        title: 'Budget nur für diesen Monat ändern',
-        onclick: () => budgetMonatAendern({
-          kategorieId: b.id, kontoId: b.kontoId, monat, betragCent: b.budget, verbrauchtCent: b.ist + b.offen, laufend: true,
-        }, daten),
+        title: b.jaehrlich ? 'Buchungen zu diesem Budget anzeigen' : 'Buchungen anzeigen und Budget für diesen Monat ändern',
+        onclick: () => (b.jaehrlich
+          ? budgetBuchungenDialog({ name: b.name, ...liste }, daten)
+          : budgetMonatAendern({
+            kategorieId: b.id, kontoId: b.kontoId, monat, betragCent: b.budget, verbrauchtCent: b.ist + b.offen, laufend: true, liste,
+          }, daten)),
       }, ...inhalt));
   });
 
@@ -184,7 +197,7 @@ export function erwartetBereich(kd, daten) {
     budgetZeilen.length > 0 && h('div', { class: 'erwartet-teil' },
       h('div', { class: 'erwartet-summe' }, h('span', {}, 'Budgets (belasten dieses Konto)'), h('span', { class: 'annahme' }, formatEuro(-kd.rest))),
       h('ul', { class: 'liste' }, budgetZeilen),
-      kd.budgets.some((b) => !b.jaehrlich) && h('p', { class: 'hinweis' }, 'Budget antippen, um es nur für diesen Monat zu ändern.')),
+      h('p', { class: 'hinweis' }, 'Budget antippen: Buchungen dazu ansehen' + (kd.budgets.some((b) => !b.jaehrlich) ? ' und das Budget nur für diesen Monat ändern.' : '.'))),
   );
 }
 

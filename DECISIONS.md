@@ -2558,3 +2558,28 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
 - PC: eine Zeile mit Name · Empfänger, Stand („kündbar bis …“) und „… / Monat · … / Jahr“.
 - Handy: eine Zeile mit Name, Monatsbetrag und – nur wenn die Kündigungsfrist bald endet – orange „bis TT.MM.“.
   Empfänger, Stand und Jahresbetrag stehen dort erst im aufgeklappten Vertrag (Angaben „Kosten“, „Nächstes Vertragsende“).
+
+## D197 – Intervall „halbjährlich“
+*Wunsch des Nutzers (14.11.2026)*
+- Wiederkehrende Buchungen können jetzt auch halbjährlich laufen (alle 6 Monate ab dem Start, `halbjaehrlich`).
+- Überall ergänzt: Auswahl im Dialog, eigene Gruppe „Halbjährlich“ in Annahmen → Wiederkehrende, Prognose,
+  Vertragskosten (× 2 im Jahr), Suche und Notfall-Mappe. Kein neues Datenmodell nötig.
+
+## D198 – Zeitstrich im Budgetbalken
+*Wunsch des Nutzers (14.11.2026)*
+- Im Budgetbalken unter „Noch erwartet bis Monatsende“ steht ein senkrechter Strich: So weit ist der
+  Budget-Zeitraum heute vorbei (heutiger Tag mitgezählt; 15.11. = 50 %). Liegt der Verbrauch links vom Strich,
+  wurde anteilig weniger ausgegeben als geplant; rechts davon mehr.
+- Monatsbudget: Zeitraum = laufender Monat. Jahresbudget (D90): Zeitraum = Abschnitt der aktuellen Tranche
+  (z. B. 01.07.–31.12. bei hälftig; neues Feld `vonMonat` in den Tranchen).
+- Tooltip am Balken: „47 % der Zeit vorbei, 96 % verbraucht“.
+
+## D199 – Budget antippen zeigt die zugehörigen Buchungen
+*Wunsch des Nutzers (14.11.2026)*
+- Der Dialog nach dem Antippen eines Budgetbalkens zeigt unter dem Betragsfeld „Gebucht in diesem Monat (n)“ mit
+  Summe und allen echten Buchungen, die das Budget verbrauchen (gleiche Regel wie beim Verbrauch: Ausgaben ohne
+  Projekt auf Unterkategorien dieser Hauptkategorie auf diesem Konto, abgehende Umbuchungen mit Budget, D98),
+  neueste zuerst. Darunter „Noch eingeplant (n)“ mit den offenen wiederkehrenden/geplanten Terminen.
+- Eine Buchung antippen schließt den Budget-Dialog und öffnet die Buchung.
+- Jahresbudgets sind jetzt ebenfalls antippbar: Sie zeigen nur die Liste (Zeitraum der laufenden Tranche),
+  geändert werden sie wie bisher unter Annahmen.
