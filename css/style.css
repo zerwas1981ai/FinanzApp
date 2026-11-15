@@ -840,16 +840,17 @@ p.erklaerung { margin-top: 0; }
 /* Kategorien-Auswertung */
 .kat-zeile {
   display: grid;
-  grid-template-columns: minmax(90px, 1.3fr) 2fr auto 3.2em;
+  /* D218: feste Breiten in rem, damit Überschriften (kleinere Schrift) genau über den Werten stehen */
+  grid-template-columns: minmax(90px, 1.3fr) 2fr 7.5rem 3rem;
   gap: 4px 12px;
   align-items: center;
   padding: 8px 4px;
   border-bottom: 1px solid var(--rand);
   font-size: .92rem;
 }
-.mit-schnitt .kat-zeile { grid-template-columns: minmax(90px, 1.3fr) 2fr auto 3.2em 7.5em; }
+.mit-schnitt .kat-zeile { grid-template-columns: minmax(90px, 1.3fr) 2fr 7.5rem 3rem 7rem; }
 /* D217: Budgetabweichung in derselben Zeile hinter dem Ø */
-.mit-schnitt.mit-budget .kat-zeile { grid-template-columns: minmax(90px, 1.3fr) 2fr auto 3.2em 11em; }
+.mit-schnitt.mit-budget .kat-zeile { grid-template-columns: minmax(90px, 1.3fr) 2fr 7.5rem 3rem 10.5rem; }
 .kat-zeile:hover { background: var(--flaeche-2); }
 .kat-zeile-knopf { width: 100%; text-align: left; font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
 .segmente + .segmente { margin-top: 6px; }
@@ -882,7 +883,7 @@ p.erklaerung { margin-top: 0; }
 .kat-zeile.gewaehlt .kat-zeile-name { color: var(--akzent); font-weight: 700; }
 .kat-zeile.ebene-2 .kat-zeile-name { padding-left: 28px; }
 /* D125: Spaltenköpfe, Zusatzzeile (Budget, Vorperiode) */
-.kat-kopf { font-size: .72rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--text-2); padding-top: 0; }
+.kat-kopf { white-space: nowrap; font-size: .72rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--text-2); padding-top: 0; }
 .kat-kopf > span:nth-child(n+3) { text-align: right; }
 .kat-kopf:hover { background: none; }
 .kat-info { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 2px 16px; font-size: .8rem; font-weight: 400; color: var(--text-2); padding-left: 1em; }
@@ -1776,9 +1777,13 @@ html[data-schrift="gross"] { font-size: 103.125%; }
 /* D208: Budget-Vorschlag */
 .budget-vorschlag { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: -4px 0 10px; }
 /* D209: Ausgaben im Vergleich zum Vormonat */
-.vergleich-zeile { margin: 6px 4px 10px; }
-.vergleich-diff.mehr { color: var(--warnung); }
-.vergleich-diff.weniger { color: var(--einnahme); }
+/* D218: Vormonatsvergleich immer einzeilig, ohne Farbe; am Handy kürzerer Text */
+.vergleich-zeile { margin: 6px 4px 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vgl-handy { display: none; }
+@media (max-width: 767px) {
+  .vgl-pc { display: none; }
+  .vgl-handy { display: inline; }
+}
 
 /* D211: Buchung wischen – rechts = Papierkorb (rot), links = Kopieren (blau) */
 li[data-bid] { position: relative; }

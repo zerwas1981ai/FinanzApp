@@ -2709,3 +2709,11 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
 - Analyse → Nach Kategorien: Die Abweichung vom Budget steht als „· +12 %“ bzw. „· −8 %“ direkt hinter dem Ø der
   Hauptkategorie, in derselben Zeile (PC und Handy), ohne Orange. Der Budgetbetrag (Budget Ø …/Monat) steht im Tooltip.
 - Die Zusatzzeile darunter zeigt nur noch den Vergleich zur Vorperiode.
+
+### D218 – Analyse-Spaltenköpfe ausgerichtet, Vormonatsvergleich einzeilig
+*Wunsch des Nutzers (ändert D209)*
+- Analyse → Nach Kategorien: Die Spalten Summe, Anteil und Ø/Monat haben feste Breiten in `rem` statt `auto`/`em`.
+  Vorher waren sie in der Kopfzeile (kleinere Schrift) schmaler, und „Summe“ war je Zeile verschieden breit, daher
+  standen die Überschriften nicht über den Werten.
+- Übersicht: „Ausgaben bis heute … · Vormonat bis 15.10.: … (+18 %)“ steht immer in einer Zeile, ohne Orange/Grün.
+  Am Handy verkürzt zu „Bis heute … · Vormonat: … (+18 %)“; das Datum steht im Tooltip.

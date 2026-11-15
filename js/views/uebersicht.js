@@ -388,11 +388,13 @@ function vergleichZeile(konto, buchungen, heute) {
   if (!v.jetzt && !v.vorher) return null;
   const diff = v.jetzt - v.vorher;
   const prozent = v.vorher ? Math.round((diff / v.vorher) * 100) : null;
-  const klasse = diff > 0 ? 'mehr' : diff < 0 ? 'weniger' : '';
-  return h('p', { class: 'vergleich-zeile klein', title: 'Nur Ausgaben dieses Kontos, ohne Umbuchungen' },
-    h('span', {}, 'Ausgaben bis heute ', h('strong', {}, formatEuro(v.jetzt))),
-    h('span', { class: 'gedaempft' }, ` · Vormonat bis ${formatDatum(v.vorBis).slice(0, 6)}: ${formatEuro(v.vorher)}`),
-    prozent != null && diff !== 0 && h('span', { class: `vergleich-diff ${klasse}` }, ` (${diff > 0 ? '+' : '−'}${Math.abs(prozent)} %)`));
+  const vorBis = formatDatum(v.vorBis).slice(0, 6);
+  // D218: immer einzeilig, ohne Warnfarbe; am Handy kürzer („Bis heute … · Vormonat …“), Datum im Tooltip
+  return h('p', { class: 'vergleich-zeile klein', title: `Nur Ausgaben dieses Kontos, ohne Umbuchungen; Vormonat bis ${vorBis}` },
+    h('span', { class: 'vgl-pc' }, 'Ausgaben bis heute '), h('span', { class: 'vgl-handy' }, 'Bis heute '),
+    h('strong', {}, formatEuro(v.jetzt)),
+    h('span', { class: 'gedaempft' }, ' · Vormonat', h('span', { class: 'vgl-pc' }, ` bis ${vorBis}`), `: ${formatEuro(v.vorher)}`,
+      prozent != null && diff !== 0 ? ` (${diff > 0 ? '+' : '−'}${Math.abs(prozent)} %)` : ''));
 }
 
 /* ---------- Monatsnavigation ---------- */
