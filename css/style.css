@@ -848,6 +848,8 @@ p.erklaerung { margin-top: 0; }
   font-size: .92rem;
 }
 .mit-schnitt .kat-zeile { grid-template-columns: minmax(90px, 1.3fr) 2fr auto 3.2em 7.5em; }
+/* D217: Budgetabweichung in derselben Zeile hinter dem Ø */
+.mit-schnitt.mit-budget .kat-zeile { grid-template-columns: minmax(90px, 1.3fr) 2fr auto 3.2em 11em; }
 .kat-zeile:hover { background: var(--flaeche-2); }
 .kat-zeile-knopf { width: 100%; text-align: left; font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
 .segmente + .segmente { margin-top: 6px; }
@@ -903,6 +905,8 @@ p.erklaerung { margin-top: 0; }
     grid-template-columns: 1fr auto auto;
     grid-template-areas: "name betrag anteil" "balken balken schnitt" "info info info";
   }
+  /* D217: Ø mit Budgetabweichung darf unter Summe und Anteil reichen, ohne die Spalten zu verschieben */
+  .mit-schnitt.mit-budget .kat-zeile { grid-template-columns: 1fr auto auto; grid-template-areas: "name betrag anteil" "balken schnitt schnitt" "info info info"; }
   .kat-zeile-name { grid-area: name; }
   .kat-balken-spur { grid-area: balken; }
   .kat-balken-spur { height: 6px; }

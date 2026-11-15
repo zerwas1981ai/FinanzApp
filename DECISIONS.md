@@ -2703,3 +2703,9 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
 - Häkchen im Buchungsdialog (neu: an), Umbuchung folgt der Ausgabe beim Ändern, Löschen und Wiederherstellen (wie D215).
 - Bewusst nicht: Einnahmen auf PayPal weiterleiten; alte Buchungen nachträglich ausgleichen; späteres Datum.
 - Dabei behoben: ausgeblendete Häkchen (Aufrunden/Ausgleich) waren wegen `.schalter` trotzdem sichtbar.
+
+### D217 – Analyse: Budgetabweichung in derselben Zeile
+*Wunsch des Nutzers (ändert D125)*
+- Analyse → Nach Kategorien: Die Abweichung vom Budget steht als „· +12 %“ bzw. „· −8 %“ direkt hinter dem Ø der
+  Hauptkategorie, in derselben Zeile (PC und Handy), ohne Orange. Der Budgetbetrag (Budget Ø …/Monat) steht im Tooltip.
+- Die Zusatzzeile darunter zeigt nur noch den Vergleich zur Vorperiode.

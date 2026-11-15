@@ -966,20 +966,27 @@ function kategorieBereich(eintraege, daten, monate, heute, neu, erster) {
     const schlecht = p != null && (art === 'ausgabe' ? p > 10 : p < -10);
     return h('span', { class: 'kat-vergleich' + (schlecht ? ' warn-text' : '') }, text);
   };
-  // Ist vs. Budget (nur Ausgaben, nur mit abgeschlossenen Monaten)
+  // Ist vs. Budget (nur Ausgaben, nur mit abgeschlossenen Monaten); D217: als „+12 %“ hinter dem Ø in derselben
+  // Zeile, ohne Warnfarbe – der Budgetbetrag steht im Tooltip
+  const budgetAbw = new Map();
+  if (art === 'ausgabe' && mitSchnitt) {
+    for (const g of gruppen) {
+      const budget = budgetSchnitt(daten.budgets ?? [], g.id, schnittMonate, zustand.filter.kontoIds);
+      const p = budget == null ? null : veraenderungProzent(g.schnitt, budget);
+      if (p != null) budgetAbw.set(g.id, { budget, p });
+    }
+  }
   const budgetText = (g) => {
-    if (art !== 'ausgabe' || !mitSchnitt) return null;
-    const budget = budgetSchnitt(daten.budgets ?? [], g.id, schnittMonate, zustand.filter.kontoIds);
-    if (budget == null) return null;
-    const p = veraenderungProzent(g.schnitt, budget);
-    return h('span', { class: 'kat-budget' + (p != null && p > 0 ? ' warn-text' : '') },
-      `Budget Ø ${formatEuro(budget)}/Monat` + (p == null ? '' : ` · Ist ${p > 0 ? '+' : ''}${p} %`));
+    const x = budgetAbw.get(g.id);
+    if (!x) return null;
+    return h('span', { class: 'kat-budget', title: `Budget Ø ${formatEuro(x.budget)}/Monat` },
+      ` · ${x.p > 0 ? '+' : x.p < 0 ? '−' : ''}${Math.abs(x.p)} %`);
   };
 
   // D128: Zeile antippen = Liste auf diese Hauptkategorie filtern (Diagramm folgt dem Filter);
   // „+“ links klappt die Unterkategorien auf
   const hauptZeile = (g, klapp) => {
-    const info = [budgetText(g), vergleich(g.summe, vpSummen.get(g.id))].filter(Boolean);
+    const info = [vergleich(g.summe, vpSummen.get(g.id))].filter(Boolean);
     const filtern = () => g.id !== 'unbekannt' && filtereKategorie(g.id);
     return h('div', {
       class: 'kat-zeile ebene-1 kat-zeile-knopf' + (gewaehlt.has(g.id) ? ' gewaehlt' : ''),
@@ -994,7 +1001,7 @@ function kategorieBereich(eintraege, daten, monate, heute, neu, erster) {
     balken(g.summe),
     h('span', { class: 'betrag' }, formatEuro(g.summe)),
     h('span', { class: 'kat-anteil' }, formatProzent(g.anteil)),
-    mitSchnitt && h('span', { class: 'kat-schnitt' }, `Ø ${formatEuro(g.schnitt)}`),
+    mitSchnitt && h('span', { class: 'kat-schnitt' }, `Ø ${formatEuro(g.schnitt)}`, budgetText(g)),
     info.length > 0 && h('span', { class: 'kat-info' }, info));
   };
   const gewaehlt = new Set(zustand.filter.kategorieIds);
@@ -1017,10 +1024,10 @@ function kategorieBereich(eintraege, daten, monate, heute, neu, erster) {
     artWahlAnalyse(neu),
     gruppen.length === 0
       ? h('p', { class: 'leer' }, art === 'ausgabe' ? 'Keine Ausgaben in der Auswahl.' : 'Keine Einnahmen in der Auswahl.')
-      : h('div', { class: 'kat-tabelle' + (mitSchnitt ? ' mit-schnitt' : '') },
+      : h('div', { class: 'kat-tabelle' + (mitSchnitt ? ' mit-schnitt' : '') + (budgetAbw.size > 0 ? ' mit-budget' : '') },
         h('div', { class: 'kat-zeile kat-kopf', 'aria-hidden': 'true' },
           h('span', {}, 'Kategorie'), h('span', {}), h('span', {}, 'Summe'), h('span', {}, 'Anteil'),
-          mitSchnitt && h('span', {}, 'Ø/Monat')),
+          mitSchnitt && h('span', {}, budgetAbw.size > 0 ? 'Ø/Monat · Budget' : 'Ø/Monat')),
         gruppen.map((g) => {
           const offen = zustand.offen.has(g.id) || g.unter.some((u) => gewaehlt.has(u.id));
           const unter = h('div', { class: 'kat-unter', hidden: !offen }, g.unter.map(unterZeile));
@@ -1052,7 +1059,8 @@ function kategorieBereich(eintraege, daten, monate, heute, neu, erster) {
       + '„+“ klappt die Unterkategorien auf; ihr Anteil bezieht sich auf die Hauptkategorie. '
       + (mitSchnitt ? `Ø = Durchschnitt pro Monat über ${anzahlMonate === 1 ? '1 abgeschlossenen Monat' : `${anzahlMonate} abgeschlossene Monate`} `
         + `(${formatMonat(...schnittMonate[0])}${anzahlMonate > 1 ? ` bis ${formatMonat(...schnittMonate.at(-1))}` : ''}); der laufende Monat zählt nicht mit. ` : '')
-      + (art === 'ausgabe' && mitSchnitt ? 'Budget Ø = Monatsbudgets im selben Zeitraum, Jahresbudgets mit einem Zwölftel je Monat. ' : '')
+      + (budgetAbw.size > 0 ? '„+12 %“ hinter dem Ø = so weit liegt der Ø über (bzw. bei „−“ unter) dem Budget; Budget = Monatsbudgets im selben Zeitraum, '
+        + 'Jahresbudgets mit einem Zwölftel je Monat (Betrag beim Draufzeigen). ' : '')
       + (vp ? `Vergleichszeitraum „${vp.text}“: ${formatDatum(vp.von)} – ${formatDatum(vp.bis)}, mit denselben Filtern.` : '')),
   );
 }
