@@ -91,7 +91,7 @@ export async function zeigeStammdaten(container) {
     // D140: auf Wunsch ausgeblendet – zum Wiedereinblenden auf true setzen (die Funktion bleibt im Code)
     ZEIGE_NEU_BEGINNEN && ['neu', 'Neu beginnen', () => neuBeginnenBereich()],
     ['papierkorb', 'Papierkorb', () => papierkorbBereich(konten, kategorien, neu), papierkorbAnzahl],
-    ['einstellungen', 'Einstellungen', () => mehrere(() => darstellungBereich(), async () => schwellenBereich(await leseEinstellungen()), () => infoBereich())],
+    ['einstellungen', 'Einstellungen', () => mehrere(() => darstellungBereich(), async () => schwellenBereich(await leseEinstellungen()), async () => aufrundenBereich(konten, await db.hole('einstellungen', 'aufrunden')), async () => ausgleichBereich(konten, await db.hole('einstellungen', 'ausgleich')), () => infoBereich())],
   ].filter(Boolean);
   const wahl = bereichsWahl('ansicht-stammdaten', bereiche.map(([k, text, , zahl]) => [k, text, zahl]));
   const bereich = await bereiche.find(([k]) => k === wahl.aktuell)[2]();
@@ -543,6 +543,84 @@ function schwellenBereich(einstellungen) {
           await speichereEinstellungen({ monate: Number(monate.input.value), prozent: Number(prozent.input.value) });
           fehler.textContent = '';
           toast('Schwellen gespeichert');
+        } catch (err) {
+          fehler.textContent = err.message;
+        }
+      },
+    }, 'Speichern')),
+  );
+}
+
+/* ===================== D215: Aufrunden auf volle Euro ===================== */
+
+function aufrundenBereich(konten, gespeichert) {
+  const e = gespeichert ?? { id: 'aufrunden', aktiv: false, vonKontoId: null, zielKontoId: null };
+  const waehlbar = sortiereKonten(konten.filter((k) => !k.archiviert || k.id === e.vonKontoId || k.id === e.zielKontoId));
+  const optionen = [{ wert: '', text: 'Bitte wählen …' }, ...waehlbar.map((k) => ({ wert: k.id, text: k.name }))];
+  const aktiv = h('input', { type: 'checkbox', checked: Boolean(e.aktiv) });
+  const von = auswahl({ label: 'Ausgaben von Konto', optionen, wert: e.vonKontoId ?? '' });
+  const ziel = auswahl({ label: 'Aufrundung auf Konto', optionen, wert: e.zielKontoId ?? '' });
+  const fehler = h('p', { class: 'dialog-fehler', role: 'alert' });
+  return h('section', { class: 'bereich', 'aria-labelledby': 'titel-aufrunden' },
+    h('h2', { id: 'titel-aufrunden' }, 'Aufrunden auf volle Euro'),
+    h('p', { class: 'hinweis erklaerung' },
+      'Bei jeder neuen Ausgabe vom gewählten Konto mit Cent-Betrag bucht die App zusätzlich eine Umbuchung über den Rest '
+      + 'bis zum nächsten vollen Euro auf das Ziel-Konto (12,30 € → 0,70 €). Im Buchungsdialog steht dafür ein Häkchen, '
+      + 'das du im Einzelfall abwählen kannst. Die Aufrundung folgt ihrer Ausgabe beim Ändern und Löschen. '
+      + 'Bisherige Buchungen und die Prognose bleiben unverändert.'),
+    h('label', { class: 'schalter feld-schalter' }, aktiv, 'Aufrunden eingeschaltet'),
+    h('div', { class: 'feld-paar' }, von.feld, ziel.feld),
+    fehler,
+    h('div', { class: 'knopfreihe' }, h('button', {
+      type: 'button',
+      class: 'knopf',
+      onclick: async () => {
+        try {
+          if (aktiv.checked && (!von.select.value || !ziel.select.value)) throw new Error('Bitte beide Konten wählen.');
+          if (aktiv.checked && von.select.value === ziel.select.value) throw new Error('Bitte zwei verschiedene Konten wählen.');
+          await db.speichere('einstellungen', { ...e, id: 'aufrunden', aktiv: aktiv.checked, vonKontoId: von.select.value || null,
+            zielKontoId: ziel.select.value || null, geaendertAm: jetzt() });
+          fehler.textContent = '';
+          toast(aktiv.checked ? 'Aufrunden eingeschaltet' : 'Aufrunden ausgeschaltet');
+        } catch (err) {
+          fehler.textContent = err.message;
+        }
+      },
+    }, 'Speichern')),
+  );
+}
+
+/* ===================== D216: Ausgaben automatisch ausgleichen ===================== */
+
+function ausgleichBereich(konten, gespeichert) {
+  const e = gespeichert ?? { id: 'ausgleich', aktiv: false, kontoId: null, vonKontoId: null };
+  const waehlbar = sortiereKonten(konten.filter((k) => !k.archiviert || k.id === e.kontoId || k.id === e.vonKontoId));
+  const optionen = [{ wert: '', text: 'Bitte wählen …' }, ...waehlbar.map((k) => ({ wert: k.id, text: k.name }))];
+  const aktiv = h('input', { type: 'checkbox', checked: Boolean(e.aktiv) });
+  const konto = auswahl({ label: 'Ausgaben auf Konto (z. B. PayPal)', optionen, wert: e.kontoId ?? '' });
+  const von = auswahl({ label: 'Ausgleichen von Konto', optionen, wert: e.vonKontoId ?? '' });
+  const fehler = h('p', { class: 'dialog-fehler', role: 'alert' });
+  return h('section', { class: 'bereich', 'aria-labelledby': 'titel-ausgleich' },
+    h('h2', { id: 'titel-ausgleich' }, 'Ausgaben automatisch ausgleichen'),
+    h('p', { class: 'hinweis erklaerung' },
+      'Für ein Konto wie PayPal, das selbst kein Geld hat: Jede neue Ausgabe darauf bekommt eine Umbuchung in gleicher Höhe '
+      + 'vom gewählten Konto (gleiches Datum). Die Umbuchung zählt gegen das Budget der Kategorie auf diesem Konto – außer bei '
+      + 'Projekt-Ausgaben und Auslagen. Im Buchungsdialog steht dafür ein Häkchen; die Umbuchung folgt ihrer Ausgabe beim Ändern '
+      + 'und Löschen. Bisherige Buchungen bleiben unverändert.'),
+    h('label', { class: 'schalter feld-schalter' }, aktiv, 'Ausgleich eingeschaltet'),
+    h('div', { class: 'feld-paar' }, konto.feld, von.feld),
+    fehler,
+    h('div', { class: 'knopfreihe' }, h('button', {
+      type: 'button',
+      class: 'knopf',
+      onclick: async () => {
+        try {
+          if (aktiv.checked && (!konto.select.value || !von.select.value)) throw new Error('Bitte beide Konten wählen.');
+          if (aktiv.checked && konto.select.value === von.select.value) throw new Error('Bitte zwei verschiedene Konten wählen.');
+          await db.speichere('einstellungen', { ...e, id: 'ausgleich', aktiv: aktiv.checked, kontoId: konto.select.value || null,
+            vonKontoId: von.select.value || null, geaendertAm: jetzt() });
+          fehler.textContent = '';
+          toast(aktiv.checked ? 'Ausgleich eingeschaltet' : 'Ausgleich ausgeschaltet');
         } catch (err) {
           fehler.textContent = err.message;
         }

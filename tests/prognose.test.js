@@ -267,7 +267,7 @@ test('Wiederkehrende Buchung bauen und prüfen', () => {
 test('Migration 2 → 23', () => {
   const v2 = { version: 2, konten: [], kategorien: [], buchungen: [{ id: 'b' }], abstimmungen: [] };
   const { daten } = migriereDaten(v2);
-  assert.equal(daten.version, 23);
+  assert.equal(daten.version, 24);
   assert.deepEqual(daten.budgets, []);
   assert.deepEqual(daten.archive, []);
   assert.deepEqual(daten.wiederkehrend, []);
@@ -278,7 +278,7 @@ test('Migration 2 → 23', () => {
   assert.equal('szenarien' in daten, false);
   assert.deepEqual(daten.einstellungen, [{ id: 'hinweise', monate: 3, prozent: 10 }]);
   assert.deepEqual(daten.buchungen[0], {
-    id: 'b', wiederkehrendId: null, faelligAm: null, geplantId: null, projektId: null, partner: '', relevant: false, relevantGruppe: '', budgetKategorieId: null, vertragId: null,
+    id: 'b', wiederkehrendId: null, faelligAm: null, geplantId: null, projektId: null, partner: '', relevant: false, relevantGruppe: '', budgetKategorieId: null, vertragId: null, auslage: null, auslageId: null, aufrundungFuer: null, ausgleichFuer: null,
   });
 });
 

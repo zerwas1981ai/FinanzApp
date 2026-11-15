@@ -4,7 +4,8 @@ import { h } from '../dom.js';
 import * as db from '../db.js';
 import { parseEuro, centZuEingabe, heuteIso, rechneBetrag, formatEuro } from '../format.js';
 import { dialog, toast, eingabe, auswahl, optionsGruppe, datenGeaendert, geraet } from '../ui.js';
-import { speichereBuchung, gruppeVon, inPapierkorb, wiederherstellen } from '../buchungen.js';
+import { speichereBuchung, gruppeVon, inPapierkorb, wiederherstellen, aufrundungCent, aufrundenGilt, aufrundungenVon, aufrundungAnpassen,
+  ausgleichGilt, ausgleicheVon, ausgleichAnpassen } from '../buchungen.js';
 import { partnerListe, partnerSchluessel, haeufigeKategorien } from '../auswertung.js';
 import { belegeFeld } from './belege.js';
 import { sortiereKonten } from '../konten.js';
@@ -13,6 +14,7 @@ import { monatsende, tageImMonat } from '../prognose.js';
 import { relevanteZeilen, gruppenListe, MAX_GRUPPE, benenneBelege } from '../relevant.js';
 import { istAktiv } from '../vertraege.js';
 import { ungewoehnlichHoch, vorherigeBetraege, kategorieAusNotiz } from '../erkennung.js';
+import { auslagenUebersicht, passendeAuslagen, auslageTitel } from '../auslagen.js';
 
 const nachName = (a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base' });
 
@@ -33,6 +35,8 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
   const gruppe = buchung ? gruppeVon(buchung, alle) : [];
   // Bei Umbuchungen ist die "ab"-Hälfte maßgeblich (Von-Konto)
   const ref = gruppe.find((b) => b.richtung === 'ab') ?? buchung;
+  const aufrunden = await db.hole('einstellungen', 'aufrunden'); // D215
+  const ausgleich = await db.hole('einstellungen', 'ausgleich'); // D216
 
   const waehlbareKonten = sortiereKonten(konten
     .filter((k) => !k.archiviert || gruppe.some((b) => b.kontoId === k.id)));
@@ -144,14 +148,82 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
     h('label', { class: 'schalter feld-schalter' }, relevantHaken, 'Relevante Ausgabe (erscheint unter Projekte → Relevante Ausgaben, Belege zusätzlich im Drive-Ordner)'),
     relevantGruppe.feld);
 
+  // D215: Aufrunden auf den vollen Euro – Häkchen unter dem Betrag (neu: an; beim Bearbeiten: an, wenn es schon eine Aufrundung gibt)
+  const aufrundenHaken = h('input', { type: 'checkbox', checked: buchung ? aufrundungenVon([buchung.id], alle).some((b) => !b.geloeschtAm) : true });
+  const aufrundenText = h('span');
+  const aufrundenFeld = h('label', { class: 'schalter feld-schalter aufrunden-feld', hidden: true }, aufrundenHaken, aufrundenText);
+  betrag.feld.append(aufrundenFeld);
+  const zielName = konten.find((k) => k.id === aufrunden?.zielKontoId)?.name ?? '?';
+  const pruefeAufrunden = () => {
+    let cent = 0;
+    try { cent = aufrundungCent(liesBetrag() ?? 0); } catch { /* egal */ }
+    const gilt = art === 'ausgabe' && cent > 0 && aufrundenGilt(aufrunden, konto.select.value);
+    aufrundenFeld.hidden = !gilt;
+    aufrundenText.textContent = gilt ? `Auf vollen Euro aufrunden: ${formatEuro(cent)} auf „${zielName}“` : '';
+  };
+
+  // D216: Ausgleich (z. B. PayPal-Ausgabe → Umbuchung in gleicher Höhe vom Girokonto) – Häkchen, neu: an
+  const ausgleichHaken = h('input', { type: 'checkbox', checked: buchung ? ausgleicheVon([buchung.id], alle).some((b) => !b.geloeschtAm) : true });
+  const ausgleichText = h('span');
+  const ausgleichFeld = h('label', { class: 'schalter feld-schalter aufrunden-feld', hidden: true }, ausgleichHaken, ausgleichText);
+  betrag.feld.append(ausgleichFeld);
+  const ausgleichVonName = konten.find((k) => k.id === ausgleich?.vonKontoId)?.name ?? '?';
+  const pruefeAusgleich = () => {
+    let cent = 0;
+    try { cent = liesBetrag() ?? 0; } catch { /* egal */ }
+    const gilt = art === 'ausgabe' && ausgleichGilt(ausgleich, konto.select.value);
+    ausgleichFeld.hidden = !gilt;
+    ausgleichText.textContent = gilt ? `Von „${ausgleichVonName}“ ausgleichen${cent > 0 ? `: ${formatEuro(cent)}` : ''} (Umbuchung, zählt gegen das Budget dort)` : '';
+  };
+
+  // D214: Auslage (Ausgabe: bekomme ich zurück) bzw. Rückzahlung (Einnahme: für welche Auslage)
+  const auslageHaken = h('input', { type: 'checkbox', checked: Boolean(ref?.auslage ?? vorgaben.auslage) });
+  const auslageFuer = eingabe({ label: 'Von wem? (optional)', maxlength: 80, value: ref?.auslage?.fuer ?? vorgaben.auslage?.fuer ?? '', placeholder: 'z. B. Krankenkasse, Max' });
+  const auslageFeld = h('div', { class: 'relevant-feld' },
+    h('label', { class: 'schalter feld-schalter' }, auslageHaken, 'Auslage – bekomme ich zurück (zählt nicht als Ausgabe und nicht gegen das Budget, bis der Rest abgeschlossen ist)'),
+    auslageFuer.feld);
+  const zeigeAuslage = () => { auslageFuer.feld.hidden = !auslageHaken.checked; };
+  auslageHaken.addEventListener('change', zeigeAuslage);
+  zeigeAuslage();
+  const auslagen = auslagenUebersicht(alle);
+  const eigeneId = ref?.auslageId ?? vorgaben.auslageId ?? '';
+  const waehlbareAuslagen = auslagen.filter((a) => a.status === 'offen' || a.buchung.id === eigeneId);
+  const auslageText = (a) => `${auslageTitel(a.buchung)} · ${formatEuro(a.buchung.betragCent)} vom ${a.buchung.datum.split('-').reverse().join('.')}`
+    + (a.status === 'offen' ? ` · offen ${formatEuro(a.offenCent + (a.buchung.id === eigeneId ? ref?.betragCent ?? 0 : 0))}` : '');
+  const rueckzahlung = auswahl({
+    label: 'Rückzahlung für Auslage (optional)',
+    optionen: [{ wert: '', text: 'Keine – normale Einnahme' }, ...waehlbareAuslagen.map((a) => ({ wert: a.buchung.id, text: auslageText(a) }))],
+    wert: eigeneId,
+    hilfe: 'Eine Rückzahlung zählt nicht als Einnahme. Offene Auslagen stehen unter Projekte → Auslagen.',
+  });
+  // Vorschlag (nur neue Einnahmen ohne Zuordnung): passt Absender oder Betrag zu einer offenen Auslage?
+  const vorschlagKnopf = h('button', { type: 'button', class: 'knopf knopf-klein auslage-vorschlag', hidden: true });
+  betrag.feld.append(vorschlagKnopf); // sichtbar, auch wenn „Weitere Angaben“ zu ist
+  const pruefeRueckzahlung = () => {
+    vorschlagKnopf.hidden = true;
+    if (buchung || art !== 'einnahme' || rueckzahlung.select.value) return;
+    let cent = null;
+    try { cent = liesBetrag(); } catch { /* egal */ }
+    const [treffer] = passendeAuslagen({ partner: partner.input.value, betragCent: cent }, auslagen);
+    if (!treffer) return;
+    vorschlagKnopf.hidden = false;
+    vorschlagKnopf.textContent = `Rückzahlung für Auslage „${auslageTitel(treffer.buchung)}“ (offen ${formatEuro(treffer.offenCent)})? Zuordnen`;
+    vorschlagKnopf.onclick = () => {
+      rueckzahlung.select.value = treffer.buchung.id;
+      weitere.open = true;
+      pruefeRueckzahlung();
+    };
+  };
+
   // D152: seltene Felder unter „Weitere Angaben“ – offen, sobald eines davon ausgefüllt ist
   const weitereText = h('span', { class: 'weitere-angaben-text' });
   const weitere = h('details', {
     class: 'weitere-angaben',
-    open: Boolean((projekt && projekt.select.value) || (vertrag && vertrag.select.value) || relevantHaken.checked),
-  }, h('summary', {}, 'Weitere Angaben', weitereText), projekt?.feld, vertrag?.feld, relevantFeld);
+    open: Boolean((projekt && projekt.select.value) || (vertrag && vertrag.select.value) || relevantHaken.checked || auslageHaken.checked || rueckzahlung.select.value),
+  }, h('summary', {}, 'Weitere Angaben', weitereText), projekt?.feld, vertrag?.feld, relevantFeld, auslageFeld, rueckzahlung.feld);
   const zeigeWeitere = () => {
-    const sichtbar = [projekt && !projekt.feld.hidden && 'Projekt', vertrag && 'Vertrag', !relevantFeld.hidden && 'Relevante Ausgabe'].filter(Boolean);
+    const sichtbar = [projekt && !projekt.feld.hidden && 'Projekt', vertrag && 'Vertrag', !relevantFeld.hidden && 'Relevante Ausgabe',
+      !auslageFeld.hidden && 'Auslage', !rueckzahlung.feld.hidden && 'Rückzahlung'].filter(Boolean);
     weitere.hidden = sichtbar.length === 0;
     weitereText.textContent = ` (${sichtbar.join(', ')})`;
   };
@@ -168,6 +240,8 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
     if (projekt) projekt.feld.hidden = istUmbuchung;
     belege.feld.hidden = istUmbuchung;
     relevantFeld.hidden = art !== 'ausgabe';
+    auslageFeld.hidden = art !== 'ausgabe'; // D214
+    rueckzahlung.feld.hidden = art !== 'einnahme' || (waehlbareAuslagen.length === 0 && !eigeneId);
     zeigeWeitere(); // D152
     zeigeGruppe(); // D142: Notiz-Beschriftung (Pflicht/optional) passend zur Art
     partner.setzeArt(art);
@@ -182,6 +256,24 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
   partner.input.addEventListener('change', pruefeHoehe);
   artKnoepfe.addEventListener('click', () => setTimeout(pruefeHoehe, 0));
   pruefeHoehe();
+  // D215: Aufrunden-Häkchen aktuell halten
+  betrag.input.addEventListener('input', pruefeAufrunden);
+  betrag.input.addEventListener('change', pruefeAufrunden);
+  konto.select.addEventListener('change', pruefeAufrunden);
+  artKnoepfe.addEventListener('click', () => setTimeout(pruefeAufrunden, 0));
+  pruefeAufrunden();
+  // D216: Ausgleich-Häkchen aktuell halten
+  betrag.input.addEventListener('input', pruefeAusgleich);
+  betrag.input.addEventListener('change', pruefeAusgleich);
+  konto.select.addEventListener('change', pruefeAusgleich);
+  artKnoepfe.addEventListener('click', () => setTimeout(pruefeAusgleich, 0));
+  pruefeAusgleich();
+  // D214: Vorschlag „Rückzahlung für …“
+  betrag.input.addEventListener('change', pruefeRueckzahlung);
+  partner.input.addEventListener('change', pruefeRueckzahlung);
+  rueckzahlung.select.addEventListener('change', pruefeRueckzahlung);
+  artKnoepfe.addEventListener('click', () => setTimeout(pruefeRueckzahlung, 0));
+  pruefeRueckzahlung();
 
   // ---------- Kopieren / als wiederkehrend übernehmen (D71) ----------
   // Beide nehmen die Werte, die gerade im Dialog stehen. Die Buchung selbst bleibt unverändert,
@@ -295,14 +387,34 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
         vertragId: vertrag ? vertrag.select.value : undefined,
         relevant: art === 'ausgabe' && relevantHaken.checked,
         relevantGruppe: relevantGruppe.input.value,
+        // D214: Auslage bzw. Rückzahlung
+        auslage: art === 'ausgabe' && auslageHaken.checked ? { fuer: auslageFuer.input.value } : null,
+        auslageId: art === 'einnahme' ? rueckzahlung.select.value || null : null,
       };
       // D142/D143: Belegnamen nach dem gespeicherten Stand („JJJJ-MM-TT Notiz“ bzw. „JJJJ-MM-TT Empfänger“)
       if (art !== 'umbuchung') belege.umbenennen((l) => benenneBelege(l, werte.datum, belegNamensteil()));
       werte.belege = art === 'umbuchung' ? undefined : belege.liste();
-      await speichereBuchung(werte, gruppe);
+      const gespeichert = await speichereBuchung(werte, gruppe);
+      // D215: Aufrundung anlegen, ändern oder (Häkchen aus, andere Art, anderes Konto, glatter Betrag) in den Papierkorb
+      let warnung = '';
+      if (art !== 'umbuchung') {
+        try {
+          const dazu = aufrundungAnpassen(gespeichert[0], aufrunden, await db.alle('buchungen'), { konten, an: !aufrundenFeld.hidden && aufrundenHaken.checked });
+          if (dazu.length) await db.speichere('buchungen', dazu);
+        } catch (err) {
+          warnung = ` – Aufrundung nicht gebucht: ${err.message}`;
+        }
+        // D216: Ausgleich anlegen, ändern oder in den Papierkorb
+        try {
+          const dazu = ausgleichAnpassen(gespeichert[0], ausgleich, await db.alle('buchungen'), { konten, kategorien, an: !ausgleichFeld.hidden && ausgleichHaken.checked });
+          if (dazu.length) await db.speichere('buchungen', dazu);
+        } catch (err) {
+          warnung += ` – Ausgleich nicht gebucht: ${err.message}`;
+        }
+      }
       if (art !== 'umbuchung') await belege.uebernehme(); // neue Dateien ablegen, entfernte vormerken
       geraet.schreib('letztes-konto', werte.kontoId);
-      toast(buchung ? 'Buchung gespeichert' : 'Buchung erfasst');
+      toast((buchung ? 'Buchung gespeichert' : 'Buchung erfasst') + warnung);
       datenGeaendert();
       return werte;
   }

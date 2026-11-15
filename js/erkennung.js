@@ -14,7 +14,8 @@ const median = (werte) => {
   const s = [...werte].sort((a, b) => a - b);
   return s.length % 2 ? s[(s.length - 1) / 2] : Math.round((s[s.length / 2 - 1] + s[s.length / 2]) / 2);
 };
-const echte = (b) => !b.geloeschtAm && (b.art === 'ausgabe' || b.art === 'einnahme');
+// D214: Auslagen und Rückzahlungen sind keine eigenen Ausgaben/Einnahmen – sie fließen in keine Erkennung ein
+const echte = (b) => !b.geloeschtAm && (b.art === 'ausgabe' || b.art === 'einnahme') && !b.auslage && !b.auslageId;
 
 /* ======================= D182: wiederkehrende Zahlungen erkennen ======================= */
 

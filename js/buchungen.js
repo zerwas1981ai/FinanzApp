@@ -19,12 +19,30 @@
 //   partner,                // ab Version 8: Empfänger (Ausgabe) bzw. Absender (Einnahme), '' = keine Angabe
 //   relevant, relevantGruppe,  // ab Version 10: Häkchen "Relevante Ausgabe" (nur Ausgaben) und Gruppe (D74)
 //   vertragId,              // ab Version 18: zugeordneter Vertrag (oder null, D148)
+//   auslage,                // ab Version 24 (D214), nur Ausgaben: null oder { fuer, erledigtAm, restCent } – bekomme ich zurück
+//   auslageId,              // ab Version 24 (D214), nur Einnahmen: Rückzahlung für diese Auslage (Buchungs-ID) oder null
+//   aufrundungFuer,         // ab Version 24 (D215), nur Umbuchungen: Aufrundung zu dieser Ausgabe (Buchungs-ID) oder null
+//   ausgleichFuer,          // ab Version 24 (D216), nur Umbuchungen: Ausgleich (z. B. Girokonto → PayPal) zu dieser Ausgabe oder null
 //   erstelltAm, geaendertAm, testdaten?
 // }
 
 import * as db from './db.js';
 import { formatDatum, istGueltigesDatum } from './format.js';
 import { normGruppe } from './relevant.js';
+
+/**
+ * D214: Auslage vereinheitlichen. wert: null/false = keine Auslage, true oder { fuer } = Auslage.
+ * Ein schon gesetzter Abschluss (erledigtAm, restCent) bleibt beim Bearbeiten erhalten.
+ */
+function normAuslage(wert, alt) {
+  if (!wert) return null;
+  const fuer = String((typeof wert === 'object' ? wert.fuer : alt?.fuer) ?? '').trim().slice(0, 80);
+  return {
+    fuer,
+    erledigtAm: (typeof wert === 'object' && 'erledigtAm' in wert ? wert.erledigtAm : alt?.erledigtAm) ?? null,
+    restCent: (typeof wert === 'object' && 'restCent' in wert ? wert.restCent : alt?.restCent) ?? null,
+  };
+}
 
 /**
  * Baut aus den Formularwerten die zu speichernden Datensätze und prüft sie.
@@ -79,6 +97,16 @@ export function baueBuchungen(eingabe, { konten, bestehende = [], jetzt = new Da
       : normGruppe(eingabe.relevantGruppe === undefined ? bestehende[0]?.relevantGruppe : eingabe.relevantGruppe),
     // Vertrag (Datenversion 18, D148): undefined = unverändert, '' oder null = keiner
     vertragId: eingabe.vertragId === undefined ? bestehende[0]?.vertragId ?? null : eingabe.vertragId || null,
+    // D214: Auslage (nur Ausgaben) bzw. Rückzahlung (nur Einnahmen); undefined = unverändert
+    auslage: art !== 'ausgabe' ? null : normAuslage(eingabe.auslage === undefined ? bestehende[0]?.auslage : eingabe.auslage, bestehende[0]?.auslage),
+    auslageId: art !== 'einnahme' ? null
+      : (eingabe.auslageId === undefined ? bestehende[0]?.auslageId ?? null : eingabe.auslageId || null),
+    // D215: automatische Aufrundung – an welcher Ausgabe die Umbuchung hängt; undefined = unverändert
+    aufrundungFuer: art !== 'umbuchung' ? null
+      : (eingabe.aufrundungFuer === undefined ? bestehende[0]?.aufrundungFuer ?? null : eingabe.aufrundungFuer || null),
+    // D216: automatischer Ausgleich – an welcher Ausgabe die Umbuchung hängt; undefined = unverändert
+    ausgleichFuer: art !== 'umbuchung' ? null
+      : (eingabe.ausgleichFuer === undefined ? bestehende[0]?.ausgleichFuer ?? null : eingabe.ausgleichFuer || null),
     geaendertAm: jetzt,
   };
   // D142: relevante Ausgabe → Notiz ist Pflicht (sie benennt auch den Beleg)
@@ -161,6 +189,73 @@ export function alsGebuchtMarkieren(ids, alle, jetzt = new Date().toISOString())
   return [...geaendert.values()];
 }
 
+/* ---------- D215: Aufrunden auf den nächsten vollen Euro ---------- */
+// Einstellung (Sammlung einstellungen, id 'aufrunden'): { aktiv, vonKontoId, zielKontoId }.
+// Ausgaben vom Von-Konto mit Cent-Betrag bekommen eine Umbuchung über den Rest bis zum vollen Euro aufs Ziel-Konto.
+// Die Umbuchung trägt aufrundungFuer = ID der Ausgabe und folgt ihr beim Ändern, Löschen und Wiederherstellen.
+
+/** Fehlender Betrag bis zum nächsten vollen Euro in Cent (12,30 € → 70; 12,00 € → 0) */
+export const aufrundungCent = (betragCent) => (100 - (Number(betragCent) % 100)) % 100;
+
+/** Ist das Aufrunden eingerichtet und gilt es für dieses Konto? */
+export const aufrundenGilt = (einstellung, kontoId) => Boolean(einstellung?.aktiv && einstellung.vonKontoId && einstellung.zielKontoId
+  && einstellung.vonKontoId !== einstellung.zielKontoId && kontoId === einstellung.vonKontoId);
+
+/** Aufrundungs-Umbuchungen (beide Hälften) zu diesen Ausgaben */
+export function aufrundungenVon(ausgabeIds, alle) {
+  const ids = new Set(ausgabeIds);
+  return alle.filter((b) => b.art === 'umbuchung' && b.aufrundungFuer && ids.has(b.aufrundungFuer));
+}
+
+/**
+ * Passt die Aufrundung zu einer gespeicherten Ausgabe an. an: Häkchen im Dialog.
+ * Ergebnis: Datensätze zum Speichern (neue/geänderte Umbuchung, oder die alte in den Papierkorb).
+ * Keine Aufrundung, wenn sie nicht gilt, das Häkchen aus ist oder der Betrag glatte Euro hat.
+ */
+export function aufrundungAnpassen(ausgabe, einstellung, alle, { konten, an = true, jetzt = new Date().toISOString() }) {
+  const alt = aufrundungenVon([ausgabe.id], alle).filter((b) => !b.geloeschtAm);
+  const cent = aufrundungCent(ausgabe.betragCent);
+  const soll = an && ausgabe.art === 'ausgabe' && !ausgabe.geloeschtAm && cent > 0 && aufrundenGilt(einstellung, ausgabe.kontoId);
+  if (!soll) return alt.map((b) => ({ ...b, geloeschtAm: jetzt, geaendertAm: jetzt }));
+  return baueBuchungen({
+    art: 'umbuchung', betragCent: cent, datum: ausgabe.datum, kontoId: einstellung.vonKontoId, gegenkontoId: einstellung.zielKontoId,
+    notiz: 'Aufrundung', status: ausgabe.status, aufrundungFuer: ausgabe.id,
+  }, { konten, bestehende: alt, jetzt });
+}
+
+/* ---------- D216: Ausgaben eines Kontos automatisch ausgleichen (z. B. PayPal aus dem Girokonto) ---------- */
+// Einstellung (einstellungen, id 'ausgleich'): { aktiv, kontoId (z. B. PayPal), vonKontoId (z. B. Girokonto) }.
+// Jede Ausgabe auf kontoId bekommt eine Umbuchung in gleicher Höhe vonKontoId → kontoId, gleiches Datum.
+// Die Umbuchung trägt das Budget der Hauptkategorie (D98) – so zählt die Ausgabe gegen das Budget auf dem Girokonto –,
+// außer bei Projekt-Ausgaben und Auslagen (die zählen nicht gegen Budgets, D52/D214).
+
+/** Ist der Ausgleich eingerichtet und gilt er für dieses Konto? */
+export const ausgleichGilt = (einstellung, kontoId) => Boolean(einstellung?.aktiv && einstellung.kontoId && einstellung.vonKontoId
+  && einstellung.kontoId !== einstellung.vonKontoId && kontoId === einstellung.kontoId);
+
+/** Ausgleichs-Umbuchungen (beide Hälften) zu diesen Ausgaben */
+export function ausgleicheVon(ausgabeIds, alle) {
+  const ids = new Set(ausgabeIds);
+  return alle.filter((b) => b.art === 'umbuchung' && b.ausgleichFuer && ids.has(b.ausgleichFuer));
+}
+
+/**
+ * Passt den Ausgleich zu einer gespeicherten Ausgabe an (an: Häkchen im Dialog). kategorien: für die Budget-Zuordnung.
+ * Ergebnis: Datensätze zum Speichern (neue/geänderte Umbuchung, oder die alte in den Papierkorb).
+ */
+export function ausgleichAnpassen(ausgabe, einstellung, alle, { konten, kategorien = [], an = true, jetzt = new Date().toISOString() }) {
+  const alt = ausgleicheVon([ausgabe.id], alle).filter((b) => !b.geloeschtAm);
+  const soll = an && ausgabe.art === 'ausgabe' && !ausgabe.geloeschtAm && ausgleichGilt(einstellung, ausgabe.kontoId);
+  if (!soll) return alt.map((b) => ({ ...b, geloeschtAm: jetzt, geaendertAm: jetzt }));
+  const zaehltGegenBudget = !ausgabe.projektId && !ausgabe.auslage;
+  const hauptId = kategorien.find((k) => k.id === ausgabe.kategorieId)?.elternId ?? null;
+  return baueBuchungen({
+    art: 'umbuchung', betragCent: ausgabe.betragCent, datum: ausgabe.datum, kontoId: einstellung.vonKontoId, gegenkontoId: einstellung.kontoId,
+    notiz: ['Ausgleich', ausgabe.partner].filter(Boolean).join(' '), status: ausgabe.status, ausgleichFuer: ausgabe.id,
+    budgetKategorieId: zaehltGegenBudget ? hauptId : null,
+  }, { konten, bestehende: alt, jetzt });
+}
+
 /* ---------- Datenbank-Operationen ---------- */
 
 export const alleBuchungen = () => db.alle('buchungen');
@@ -172,16 +267,29 @@ export async function speichereBuchung(eingabe, bestehende = []) {
   return datensaetze;
 }
 
+/** D215: Gruppe plus die Aufrundungen ihrer Ausgaben (nur solche mit passendem Papierkorb-Zustand) */
+async function mitAufrundungen(gruppe, geloescht) {
+  const ausgaben = gruppe.filter((b) => b.art === 'ausgabe').map((b) => b.id);
+  if (!ausgaben.length) return gruppe;
+  const alle = await db.alle('buchungen');
+  const dazu = [...aufrundungenVon(ausgaben, alle), ...ausgleicheVon(ausgaben, alle)] // D215/D216
+    .filter((b) => Boolean(b.geloeschtAm) === geloescht && !gruppe.some((g) => g.id === b.id));
+  return [...gruppe, ...dazu];
+}
+
 export async function inPapierkorb(gruppe) {
   const zeit = new Date().toISOString();
-  await db.speichere('buchungen', gruppe.map((b) => ({ ...b, geloeschtAm: zeit, geaendertAm: zeit })));
+  const alle = await mitAufrundungen(gruppe, false);
+  await db.speichere('buchungen', alle.map((b) => ({ ...b, geloeschtAm: zeit, geaendertAm: zeit })));
 }
 
 export async function wiederherstellen(gruppe) {
   const zeit = new Date().toISOString();
-  await db.speichere('buchungen', gruppe.map((b) => ({ ...b, geloeschtAm: null, geaendertAm: zeit })));
+  const alle = await mitAufrundungen(gruppe, true);
+  await db.speichere('buchungen', alle.map((b) => ({ ...b, geloeschtAm: null, geaendertAm: zeit })));
 }
 
 export async function endgueltigLoeschen(gruppe) {
-  await db.loesche('buchungen', gruppe.map((b) => b.id));
+  const alle = await mitAufrundungen(gruppe, true);
+  await db.loesche('buchungen', alle.map((b) => b.id));
 }

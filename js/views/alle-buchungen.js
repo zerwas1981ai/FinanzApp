@@ -3,7 +3,7 @@
 import { h } from '../dom.js';
 import * as db from '../db.js';
 import { formatEuro, formatEuroRund, formatProzent, formatDatum, formatMonat, heuteIso, parseEuro } from '../format.js';
-import { herunterladen, toast, katPunkt, merkeScroll } from '../ui.js';
+import { herunterladen, toast, katPunkt, merkeScroll, auslageMarke } from '../ui.js';
 import { farbenZuordnung, farbeVon } from '../farben.js';
 import { oeffneRueckblick } from './rueckblick.js';
 import { ungewoehnlicheBuchungen } from '../erkennung.js';
@@ -498,7 +498,8 @@ function summenKarte(s, von, bis) {
   const textKachel = (label, text) => h('div', { class: 'kachel' }, h('div', { class: 'klein' }, label), h('div', { class: 'betrag' }, text));
   return h('section', { class: 'bereich summen-kopf' },
     h('div', { class: 'klein' }, zeitraumText,
-      s.anzahlUmbuchungen > 0 && ` · ${s.anzahlUmbuchungen === 1 ? '1 Umbuchung' : `${s.anzahlUmbuchungen} Umbuchungen`} nicht mitgezählt`),
+      s.anzahlUmbuchungen > 0 && ` · ${s.anzahlUmbuchungen === 1 ? '1 Umbuchung' : `${s.anzahlUmbuchungen} Umbuchungen`} nicht mitgezählt`,
+      s.anzahlAuslagen > 0 && ` · ${s.anzahlAuslagen === 1 ? '1 Auslage/Rückzahlung' : `${s.anzahlAuslagen} Auslagen/Rückzahlungen`} nicht mitgezählt`), // D214
     h('div', { class: 'kacheln' },
       // D121: nur Summe, Anzahl und Ø (Einnahmen/Ausgaben einzeln entfallen)
       kachel('Summe', s.summe, '', true),
@@ -617,6 +618,7 @@ function liste(eintraege, daten, neu) {
           : [h('span', { class: 'nur-breit gedaempft' }, '–'), h('span', { class: 'nur-schmal btab-partner-name' }, unterName)],
         // D141: keine v-Spalte hier – „Alle Buchungen“ zeigt nur gebuchte Buchungen (D120)
         b.status === 'vorgemerkt' && h('span', { class: 'marke marke-vorgemerkt' }, 'vorgemerkt'),
+        auslageMarke(b), // D214
         hochMarke(b, ungewoehnlich.get(b.id)), // D186: antippen = bestätigen
         b.archivJahr && h('span', { class: 'marke' }, 'Archiv')),
       h('span', { class: 'btab-unter' },

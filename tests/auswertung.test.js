@@ -98,7 +98,7 @@ test('Summen ohne Umbuchungen', () => {
   const s = summen(filtere(daten, f({}), ctx));
   // D120: Anzahl, Summe und Ø nur über Einnahmen und Ausgaben; die Umbuchung wird extra gezählt
   assert.deepEqual(s, {
-    anzahl: 4, anzahlUmbuchungen: 1, einnahmen: 300000, ausgaben: 107500, saldo: 192500, summe: 192500, umbuchungen: 0, schnitt: 48125,
+    anzahl: 4, anzahlUmbuchungen: 1, anzahlAuslagen: 0, einnahmen: 300000, ausgaben: 107500, saldo: 192500, summe: 192500, umbuchungen: 0, schnitt: 48125,
   });
   const giro = summen(filtere(daten, f({ kontoIds: ['giro'] }), ctx));
   assert.equal(giro.umbuchungen, -20000);

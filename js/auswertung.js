@@ -7,7 +7,7 @@
 // Umbuchungen erscheinen als EINE Zeile (die "ab"-Hälfte). Ist nach einem Konto gefiltert,
 // wird die Hälfte dieses Kontos genommen, damit + / − aus dessen Sicht stimmt.
 
-import { wirkungCent, istAktiv } from './rechnen.js';
+import { wirkungCent, istAktiv, zaehltCent } from './rechnen.js';
 import { isoMonatsanfang, naechsterMonat, vorigerMonat } from './format.js';
 import { budgetFuerMonat, wirksam, monatsende } from './prognose.js';
 import { istJaehrlich, giltImJahr, tranchen } from './jahresbudget.js';
@@ -225,14 +225,18 @@ export function summen(eintraege) {
   let umbuchungen = 0;
   let anzahl = 0;
   let anzahlUmbuchungen = 0;
+  let anzahlAuslagen = 0;
   for (const { buchung: b, wirkung } of eintraege) {
-    if (b.art === 'einnahme') { einnahmen += b.betragCent; anzahl += 1; }
-    else if (b.art === 'ausgabe') { ausgaben += b.betragCent; anzahl += 1; }
-    else { umbuchungen += wirkung; anzahlUmbuchungen += 1; }
+    if (b.art === 'umbuchung') { umbuchungen += wirkung; anzahlUmbuchungen += 1; continue; }
+    // D214: offene Auslagen und Rückzahlungen zählen nicht; abgeschlossene Auslage nur mit dem Rest
+    const cent = zaehltCent(b);
+    if (cent === 0 && b.betragCent > 0) { anzahlAuslagen += 1; continue; }
+    if (b.art === 'einnahme') { einnahmen += cent; anzahl += 1; }
+    else if (b.art === 'ausgabe') { ausgaben += cent; anzahl += 1; }
   }
   const saldo = einnahmen - ausgaben;
   return {
-    anzahl, anzahlUmbuchungen, einnahmen, ausgaben, saldo, summe: saldo, umbuchungen,
+    anzahl, anzahlUmbuchungen, anzahlAuslagen, einnahmen, ausgaben, saldo, summe: saldo, umbuchungen,
     schnitt: anzahl ? Math.round(saldo / anzahl) : null,
   };
 }
@@ -292,8 +296,8 @@ export function verlaufJeMonat(eintraege, monate) {
   for (const { buchung: b } of eintraege) {
     const i = index.get(b.datum.slice(0, 7));
     if (i === undefined || b.art === 'umbuchung') continue;
-    if (b.art === 'einnahme') zeilen[i].einnahmen += b.betragCent;
-    else zeilen[i].ausgaben += b.betragCent;
+    if (b.art === 'einnahme') zeilen[i].einnahmen += zaehltCent(b); // D214
+    else zeilen[i].ausgaben += zaehltCent(b);
   }
   for (const z of zeilen) z.saldo = z.einnahmen - z.ausgaben;
   return zeilen;
@@ -339,7 +343,8 @@ export function summenJeKategorie(eintraege, kategorien, art, schnittMonate = []
   const haupt = new Map();
   let gesamt = 0;
   for (const { buchung: b } of eintraege) {
-    if (b.art !== art) continue;
+    if (b.art !== art || zaehltCent(b) === 0) continue; // D214: offene Auslagen und Rückzahlungen nicht
+    const cent = zaehltCent(b);
     const zaehltFuerSchnitt = schnittSchluessel.has(b.datum.slice(0, 7));
     const unter = kat.get(b.kategorieId);
     const hk = kat.get(unter?.elternId);
@@ -349,10 +354,10 @@ export function summenJeKategorie(eintraege, kategorien, art, schnittMonate = []
     const uId = unter?.id ?? 'unbekannt';
     if (!h.unter.has(uId)) h.unter.set(uId, { id: uId, name: unter?.name ?? 'Unbekannt', summe: 0, schnittSumme: 0 });
     for (const ziel of [h, h.unter.get(uId)]) {
-      ziel.summe += b.betragCent;
-      if (zaehltFuerSchnitt) ziel.schnittSumme += b.betragCent;
+      ziel.summe += cent;
+      if (zaehltFuerSchnitt) ziel.schnittSumme += cent;
     }
-    gesamt += b.betragCent;
+    gesamt += cent;
   }
   const n = schnittMonate.length;
   const mitAnteil = (x) => ({
@@ -445,7 +450,7 @@ export function budgetSchnitt(budgets, kategorieId, monate, kontoIds = []) {
 /** Die größten Einzelbuchungen einer Art (absteigend nach Betrag), höchstens `anzahl` */
 export function groessteBuchungen(eintraege, art, anzahl = 10) {
   return eintraege
-    .filter((e) => e.buchung.art === art)
+    .filter((e) => e.buchung.art === art && zaehltCent(e.buchung) > 0) // D214: ohne offene Auslagen
     .sort((a, b) => b.buchung.betragCent - a.buchung.betragCent || b.buchung.datum.localeCompare(a.buchung.datum))
     .slice(0, anzahl);
 }
@@ -478,7 +483,7 @@ export function ausgabenVerlauf({ istEintraege, zl, buchungen, kategorien, filte
   const ist = new Map();
   for (const { buchung: b } of istEintraege) {
     if (b.art !== 'ausgabe') continue;
-    ist.set(b.datum.slice(0, 7), (ist.get(b.datum.slice(0, 7)) ?? 0) + b.betragCent);
+    ist.set(b.datum.slice(0, 7), (ist.get(b.datum.slice(0, 7)) ?? 0) + zaehltCent(b)); // D214
   }
 
   const kat = new Map(kategorien.map((k) => [k.id, k]));
@@ -498,7 +503,7 @@ export function ausgabenVerlauf({ istEintraege, zl, buchungen, kategorien, filte
     for (const b of buchungen) {
       if (!istAktiv(b) || b.art !== 'ausgabe' || b.datum.slice(0, 7) !== aktuellerMonat || b.datum > ende) continue;
       if (!(b.status === 'vorgemerkt' || b.datum > heute)) continue;
-      if (passtKonto(b.kontoId) && passtKat(hauptVon(b.kategorieId), b.kategorieId)) summe += b.betragCent;
+      if (passtKonto(b.kontoId) && passtKat(hauptVon(b.kategorieId), b.kategorieId)) summe += zaehltCent(b); // D214
     }
     for (const [kontoId, kd] of zl.start.jeKonto) {
       if (!passtKonto(kontoId)) continue;
@@ -544,14 +549,15 @@ export function summenJePartner(eintraege, art, schnittMonate = []) {
   const gruppen = new Map();
   let gesamt = 0;
   for (const { buchung: b } of [...eintraege].sort((x, y) => y.buchung.datum.localeCompare(x.buchung.datum))) {
-    if (b.art !== art) continue;
+    if (b.art !== art || zaehltCent(b) === 0) continue; // D214
+    const cent = zaehltCent(b);
     const k = partnerSchluessel(b.partner) || OHNE_PARTNER;
     if (!gruppen.has(k)) gruppen.set(k, { id: k, name: k === OHNE_PARTNER ? 'Ohne Angabe' : b.partner.trim(), anzahl: 0, summe: 0, schnittSumme: 0 });
     const g = gruppen.get(k);
     g.anzahl += 1;
-    g.summe += b.betragCent;
-    if (schnittSchluessel.has(b.datum.slice(0, 7))) g.schnittSumme += b.betragCent;
-    gesamt += b.betragCent;
+    g.summe += cent;
+    if (schnittSchluessel.has(b.datum.slice(0, 7))) g.schnittSumme += cent;
+    gesamt += cent;
   }
   const n = schnittMonate.length;
   return [...gruppen.values()]

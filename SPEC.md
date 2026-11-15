@@ -9,11 +9,15 @@ Details zu Datenmodell, Oberfläche und Rechenlogik (aus CLAUDE.md verschoben). 
   verschiebbar, D93; Unterkategorien zusammenführbar, D210)
 - Buchung: Datum, Betrag, Art (Einnahme/Ausgabe), Konto, Empfänger/Absender
   (optional), Unterkategorie, Notiz, Projekt (optional), Belege (mehrere
-  möglich, PDF/JPG), Status
+  möglich, PDF/JPG), Status, Auslage bzw. Rückzahlung (D214)
 - Umbuchung: zwei verknüpfte Buchungen (Abgang Konto A, Zugang Konto B).
   Zählt in Auswertungen NICHT als Einnahme oder Ausgabe. Optional einem Budget
   zugeordnet: verbraucht dann das Budget dieser Hauptkategorie auf dem
   abgebenden Konto (auch wiederkehrend/geplant, D98).
+- Auslage (D214): Ausgabe, die ich zurückbekomme; Rückzahlungen sind Einnahmen mit Verweis darauf. Offene Auslagen und
+  Rückzahlungen zählen nicht als Ausgabe/Einnahme und nicht gegen Budgets, nur im Kontostand.
+- Aufrunden (D215): Ausgaben vom gewählten Konto bekommen eine Umbuchung bis zum vollen Euro aufs gewählte Sparkonto.
+- Ausgleich (D216): Ausgaben auf z. B. PayPal bekommen eine Umbuchung in gleicher Höhe vom Girokonto (mit Budget-Zuordnung).
 - Budget: pro Hauptkategorie und Konto, monatlich, jährlich (in Tranchen, D90) oder einmalig (D85);
   je Kategorie und Konto entweder Monats- oder Jahresbudget
 - Monatsnotiz (D165): ein Satz je Monat
@@ -48,7 +52,7 @@ Details zu Datenmodell, Oberfläche und Rechenlogik (aus CLAUDE.md verschoben). 
      gekennzeichnet (z. B. kursiv oder schraffiert).
 2. Alle Buchungen (Umschalter Liste · Analyse · Belege, D191): über alle Konten filtern, sortieren, analysieren, Monats-/Jahresrückblick (D156); nur gebuchte
    Buchungen bis heute (D120/D121); Filter "ohne Beleg" vorerst entfallen (D123)
-3. Projekte (Umschalter Projekte · Relevante Ausgaben, D153/D191): Einmalausgaben (echte und geplante Buchungen) einem Projekt
+3. Projekte (Umschalter Projekte · Relevante Ausgaben · Auslagen, D153/D191/D214): Einmalausgaben (echte und geplante Buchungen) einem Projekt
    zuordnen, z. B. Umbau oder Urlaub; Gesamtkosten mit optionalem Rahmen.
    Projektausgaben zählen nicht gegen das Monatsbudget. (Ersetzt die
    früher geplanten Szenarien „Was wäre wenn“, siehe DECISIONS.md D51.)

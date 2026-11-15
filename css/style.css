@@ -1788,3 +1788,18 @@ li.wisch-aktiv::before {
 li.wisch-aktiv[data-richtung="rechts"]::before { content: '🗑 Papierkorb'; justify-content: flex-start; background: var(--warnung); opacity: .55; }
 li.wisch-aktiv[data-richtung="links"]::before { content: 'Kopieren ⧉'; justify-content: flex-end; background: var(--akzent); opacity: .55; }
 li.wisch-aktiv.wisch-bereit::before { opacity: 1; }
+
+/* D214: Auslagen – Zeile mit Knopf „Rest als Ausgabe“ daneben */
+.auslage-zeile { display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--rand); padding: 2px 0; }
+.auslagen-liste > .auslage-zeile:first-child { border-top: none; }
+.auslage-zeile > .buchung { flex: 1; min-width: 0; margin: 0; width: auto; }
+.auslage-zeile > .knopf { flex: none; }
+@media (max-width: 767px) {
+  .auslage-zeile { flex-wrap: wrap; }
+  .auslage-zeile > .buchung { flex-basis: 100%; }
+  .auslage-zeile > .knopf { margin: 0 0 6px auto; }
+}
+.knopf.auslage-vorschlag { display: block; width: 100%; margin-top: 6px; white-space: normal; text-align: left; height: auto; line-height: 1.3; padding-top: 6px; padding-bottom: 6px; }
+.knopf.auslage-vorschlag[hidden] { display: none; }
+/* D215/D216: Häkchen Aufrunden/Ausgleich – [hidden] muss gegen .schalter gewinnen */
+.aufrunden-feld[hidden] { display: none; }

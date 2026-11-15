@@ -9,7 +9,7 @@ import {
   isoMonatsanfang, naechsterMonat, vorigerMonat, istGueltigesDatum,
 } from '../format.js';
 import { monatsuebersicht, kontostand, vorgemerktBis, wirkungCent, ausgabenVergleich } from '../rechnen.js';
-import { dialog, eingabe, hinweis, toast, geraet, datenGeaendert, klappBereich, katPunkt, merkeScroll, wischGeste } from '../ui.js';
+import { dialog, eingabe, hinweis, toast, geraet, datenGeaendert, klappBereich, katPunkt, merkeScroll, wischGeste, auslageMarke } from '../ui.js';
 import { farbenZuordnung, farbeVon } from '../farben.js';
 import { oeffneBuchungsdialog } from './buchung-dialog.js';
 import { kuendigungsBereich } from './vertraege.js';
@@ -437,6 +437,7 @@ function summenKarte(konto, m, kd) {
     zeile('Einnahmen', m.einnahmen, 'plus', true),
     zeile('Ausgaben', -m.ausgaben, '', true),
     m.umbuchungen !== 0 && zeile('Umbuchungen (saldiert)', m.umbuchungen, 'gedaempft', true),
+    m.auslagen !== 0 && zeile('Auslagen und Rückzahlungen (saldiert)', m.auslagen, 'gedaempft', true), // D214
     zeile(kd ? 'Stand nach erfassten Buchungen' : 'Stand Monatsende', m.ende, 'ergebnis'),
     // D110: offene wiederkehrende und geplante Buchungen getrennt nach Eingängen und Belastungen
     kd && kd.offenEinnahmen !== 0 && zeile('Noch offene Einnahmen', kd.offenEinnahmen, 'annahme plus', true),
@@ -543,7 +544,7 @@ function kontoTabelle(auswahl, tagesKopf, katName, kontoName) {
         h('span', { class: 'btab-zelle btab-status', title: b.status === 'vorgemerkt' ? 'vorgemerkt' : null }, b.status === 'vorgemerkt' ? 'v' : ''),
         h('span', { class: 'btab-zelle btab-partner', title: partner || null },
           partner ? h('span', { class: 'btab-partner-name' }, partner) : h('span', { class: 'gedaempft' }, '–'),
-          ungewoehnlichMarke(b)),
+          ungewoehnlichMarke(b), auslageMarke(b)), // D214
         h('span', { class: 'btab-unter' },
           h('span', { class: 'btab-zelle btab-datum' }, formatDatum(b.datum)),
           h('span', { class: 'btab-zelle btab-kategorie', title: katText }, b.art !== 'umbuchung' && katPunkt(farbeVon(b.kategorieId, katName, farben)), katText),
@@ -586,7 +587,7 @@ function buchungsZeile(b, katName, kontoName, farben = farbenZuordnung([...katNa
           b.art !== 'umbuchung' && katPunkt(farbeVon(b.kategorieId, katName, farben), katName.get(katName.get(b.kategorieId)?.elternId)?.name), // D155
           h('span', { class: 'nur-breit' }, titel), h('span', { class: 'nur-schmal', title: titelHandy }, titelHandy),
           b.status === 'vorgemerkt' && h('span', { class: 'marke marke-vorgemerkt' }, 'vorgemerkt'),
-          ungewoehnlichMarke(b)),
+          ungewoehnlichMarke(b), auslageMarke(b)), // D214
         unterzeile && h('span', { class: 'buchung-unter nur-breit' }, unterzeile)),
       h('span', { class: 'betrag ' + (b.art === 'umbuchung' ? 'gedaempft' : wirkung > 0 ? 'plus' : '') },
         (wirkung > 0 ? '+' : '') + formatEuro(wirkung)),

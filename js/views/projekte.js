@@ -10,11 +10,12 @@ import { baueProjekt, projektZahlen } from '../annahmen.js';
 import { oeffneBuchungsdialog } from './buchung-dialog.js';
 import { geplantDialog } from './annahmen.js';
 import { relevantBereich } from './relevant.js';
+import { auslagenBereich } from './auslagen.js';
 
 const nachName = (a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base' });
 export const ANSICHT_SCHLUESSEL = 'ansicht-projekte';
 // D191: Verträge stehen jetzt unter Annahmen, Belege unter Alle Buchungen
-const ANSICHTEN = [['projekte', 'Projekte'], ['relevant', 'Relevante Ausgaben']];
+const ANSICHTEN = [['projekte', 'Projekte'], ['relevant', 'Relevante Ausgaben'], ['auslagen', 'Auslagen']]; // D214
 
 export async function zeigeProjekte(container) {
   const namen = ['konten', 'kategorien', 'buchungen', 'geplant', 'projekte', 'archive', 'relevant', 'vertraege', 'wiederkehrend', 'budgets'];
@@ -35,7 +36,9 @@ export async function zeigeProjekte(container) {
   container.replaceChildren(
     titel,
     wahl.leiste(neu),
-    ansicht === 'relevant' ? await relevantBereich(daten) : projekteBereich(daten, laufend, abgeschlossen, heute),
+    ansicht === 'relevant' ? await relevantBereich(daten)
+      : ansicht === 'auslagen' ? auslagenBereich(daten)
+        : projekteBereich(daten, laufend, abgeschlossen, heute),
   );
 }
 

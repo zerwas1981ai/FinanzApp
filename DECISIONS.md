@@ -29,11 +29,12 @@ Kurzer Wegweiser, weil viele spätere Einträge frühere aufheben. Maßgeblich b
 - Stammdaten: Umschalter Konten · Kategorien · Empfänger · Daten & Sicherheit · Notfall-Mappe · Papierkorb · Einstellungen (D180, D205)
 - Übersicht: Monat per Wischen wechseln (D200); Wolke oben zeigt den letzten Drive-Abgleich (D202)
 - Buchungen wischen: rechts = Papierkorb, links = Kopie (D211); Sicherungsdatei wahlweise mit Passwort (D212)
+- Auslagen mit Rückzahlung (D214); automatisches Aufrunden auf volle Euro aufs Sparkonto (D215); PayPal-Ausgaben automatisch vom Girokonto ausgleichen (D216)
 - Scrollbare Leisten behalten ihre Position (D171); „+“-Knöpfe überall im blauen Stil (D161)
 
 **Schlaue Hinweise ohne KI:** erkannte wiederkehrende Zahlungen, „↑ hoch“-Marke, Kategorie aus Notiz, Archiv-Erinnerung (D182–D185); Preisänderung, Abstimmhilfe, Monatsabschluss (D203, D204, D206); „↑ hoch“ per Antippen bestätigen (D186); Kategoriefarbe als schmaler Balken (D187). KI bleibt außen vor.
 
-**Datenstand:** Datenmodell-Version 23, DB-Struktur 12. Alte Schubladen (werden geleert): szenarien, sparziele, vorlagen.
+**Datenstand:** Datenmodell-Version 24, DB-Struktur 12. Alte Schubladen (werden geleert): szenarien, sparziele, vorlagen.
 Sammlungen: konten, kategorien, buchungen, abstimmungen, budgets, wiederkehrend, hinweise, einstellungen, geplant,
 projekte, archive, relevant, vertraege, monatsnotizen.
 
@@ -2666,3 +2667,37 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
   ausgegeben; jede Änderung leert ihn, andere offene App-Fenster werden per BroadcastChannel informiert.
 - Ergebnis (PC, 11.000 Buchungen): Übersicht 224 → 130 ms, Alle Buchungen 116 → 60 ms, Annahmen 83 → 20 ms.
   Am Handy ist mit etwa dem 4- bis 5-Fachen zu rechnen; mit Archivierung alter Jahre (D68) bleibt der Bestand kleiner.
+
+### D214 – Auslagen (bekomme ich zurück)
+- Ausgabe im Buchungsdialog unter „Weitere Angaben“ als **Auslage** markieren, optional „Von wem?“. Feld `auslage`
+  ({ fuer, erledigtAm, restCent }) an der Ausgabe; Rückzahlung = Einnahme mit `auslageId` (Datenversion 24).
+- Rückzahlung zuordnen beim Erfassen der Einnahme („Rückzahlung für Auslage“). Passt Absender oder Betrag zu einer offenen
+  Auslage, erscheint unter dem Betrag ein Vorschlag – zugeordnet wird erst per Klick. Teilzahlungen möglich.
+- Zählregel (`zaehltCent`): offene Auslagen und Rückzahlungen zählen **nicht** als Ausgabe/Einnahme – weder in Analyse,
+  Rückblick, Vormonatsvergleich, Erkennung noch gegen Budgets. Der Kontostand rechnet immer mit dem vollen Betrag;
+  die Monatsübersicht zeigt die Differenz als „Auslagen und Rückzahlungen (saldiert)“ (wie Umbuchungen).
+- Kommt weniger zurück: „Rest als Ausgabe“ bzw. „Kommt nicht zurück“ schließt die Auslage ab (Rückfrage); der Rest zählt
+  ab dann als normale Ausgabe ihrer Kategorie (auch gegen das Budget). „Wieder öffnen“ macht das rückgängig.
+- Liste unter Projekte → **Auslagen**: offene oben (Summe offen), erledigte eingeklappt. Marken „Auslage“/„Rückzahlung“ in den Listen.
+- Bewusst nicht: Auslagen in der Prognose als erwartete Einnahme; Überzahlungen (mehr zurück als ausgelegt) zählen nicht als Einnahme.
+
+### D215 – Aufrunden auf volle Euro
+- Stammdaten → Einstellungen → „Aufrunden auf volle Euro“: an/aus, „Ausgaben von Konto“, „Aufrundung auf Konto“
+  (Kontonamen nicht im Code; gedacht für Girokonto → Sparkonto wie beim Aufrunden der Bank).
+- Nur **Ausgaben** vom Von-Konto mit Cent-Betrag: zusätzlich eine Umbuchung über den Rest bis zum vollen Euro
+  (12,30 € → 0,70 €), gleiches Datum und gleicher Status, Notiz „Aufrundung“, Feld `aufrundungFuer` = ID der Ausgabe.
+- Im Buchungsdialog Häkchen „Auf vollen Euro aufrunden: … auf …“, bei neuen Ausgaben vorgewählt, im Einzelfall abwählbar.
+- Die Aufrundung folgt ihrer Ausgabe: Betrag/Datum/Konto ändern passt sie an; Häkchen aus, glatter Betrag oder anderes Konto
+  legt sie in den Papierkorb; Papierkorb, Wiederherstellen und endgültiges Löschen der Ausgabe nehmen sie mit.
+- Bewusst nicht: alte Buchungen nachträglich aufrunden; Aufrundungen in der Prognose.
+
+### D216 – Ausgaben automatisch ausgleichen (PayPal aus dem Girokonto)
+- Stammdaten → Einstellungen → „Ausgaben automatisch ausgleichen“: an/aus, „Ausgaben auf Konto“ (z. B. PayPal),
+  „Ausgleichen von Konto“ (z. B. Girokonto). Kontonamen nicht im Code.
+- Jede **Ausgabe** auf dem Konto bekommt eine Umbuchung in gleicher Höhe vom Ausgleichs-Konto, gleiches Datum und gleicher
+  Status, Notiz „Ausgleich <Empfänger>“, Feld `ausgleichFuer` = ID der Ausgabe. Das PayPal-Konto bleibt so bei 0.
+- Die Umbuchung trägt die Hauptkategorie der Ausgabe als Budget-Zuordnung (D98): die Ausgabe zählt gegen das Budget auf dem
+  Girokonto. Ohne Budget-Zuordnung bei Projekt-Ausgaben (D52) und Auslagen (D214).
+- Häkchen im Buchungsdialog (neu: an), Umbuchung folgt der Ausgabe beim Ändern, Löschen und Wiederherstellen (wie D215).
+- Bewusst nicht: Einnahmen auf PayPal weiterleiten; alte Buchungen nachträglich ausgleichen; späteres Datum.
+- Dabei behoben: ausgeblendete Häkchen (Aufrunden/Ausgleich) waren wegen `.schalter` trotzdem sichtbar.

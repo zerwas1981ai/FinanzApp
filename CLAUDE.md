@@ -8,8 +8,8 @@ Oberfläche auf Deutsch, Währung Euro, deutsches Datums- und Zahlenformat.
 
 ## Aktueller Stand
 - Alle Grundfunktionen sind fertig und online (GitHub Pages); seitdem Verbesserungsrunden auf Wunsch.
-- Letzte Entscheidung: D213, Cache-Version in sw.js: finanzapp-v116.
-- 181 Tests mit `npm test`, alle grün.
+- Letzte Entscheidung: D216, Cache-Version in sw.js: finanzapp-v117, Datenmodell-Version 24.
+- 189 Tests mit `npm test`, alle grün.
 - Offen: Wischen in Buchungslisten (D211) am echten Handy prüfen.
 
 ## Arbeitsweise (wichtig)
@@ -33,7 +33,7 @@ Oberfläche auf Deutsch, Währung Euro, deutsches Datums- und Zahlenformat.
 ## Unverletzliche Regeln
 - Bei Konflikten (beide Geräte geändert) MUSS die App nachfragen und darf nie still überschreiben.
 - Die App schlägt nur vor (Budgethinweise, Erkennung, Preisänderung …); geändert wird erst nach einem Klick.
-- Umbuchungen zählen in Auswertungen NIE als Einnahme oder Ausgabe.
+- Umbuchungen zählen in Auswertungen NIE als Einnahme oder Ausgabe; offene Auslagen und Rückzahlungen auch nicht (D214, `zaehltCent`).
 - Nur absolute Werte: keine Prozentsteigerungen, keine Inflation.
 - Zukunftsmonate werden bei jedem Öffnen berechnet, nie gespeichert.
 - Geplante Einmalbuchungen werden bei Eingang der echten Buchung erledigt, nie doppelt gezählt.
@@ -50,6 +50,7 @@ Oberfläche auf Deutsch, Währung Euro, deutsches Datums- und Zahlenformat.
 - `js/annahmen.js`, `js/jahresbudget.js` – Budgets, wiederkehrende und geplante Buchungen bauen
 - `js/sync/` – Google-Drive-Abgleich mit Konfliktabfrage
 - `js/erkennung.js`, `js/abstimmhilfe.js`, `js/abschluss.js` – Hinweise ohne KI
+- `js/auslagen.js` – Auslagen und Rückzahlungen (D214); Aufrunden und Ausgleich stecken in `js/buchungen.js` (D215/D216)
 - `js/ui.js`, `js/dom.js` – Dialoge, Umschalter, Meldungen, `h()`-Helfer
 - `js/views/*.js` – Ansicht je Tab/Bereich (uebersicht, alle-buchungen, annahmen, stammdaten …)
 - `js/testdaten.js` – erfundene Testdaten (nur auf localhost); `tests/` – Tests der reinen Funktionen

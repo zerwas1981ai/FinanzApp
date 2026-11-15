@@ -22,6 +22,26 @@ export function wirkungCent(b) {
 
 export const istAktiv = (b) => !b.geloeschtAm;
 
+/**
+ * D214: Betrag, der in Auswertungen und Budgets als Einnahme bzw. Ausgabe zählt (Cent, positiv).
+ * - Auslage (Ausgabe mit `auslage`): zählt nicht – erst wenn sie mit Rest abgeschlossen ist, zählt der Rest
+ *   (`auslage.restCent`) als normale Ausgabe.
+ * - Rückzahlung (Einnahme mit `auslageId`): zählt nie als Einnahme.
+ * Der Kontostand rechnet immer mit dem vollen Betrag (wirkungCent).
+ */
+export function zaehltCent(b) {
+  if (b.art === 'ausgabe' && b.auslage) return b.auslage.erledigtAm ? Math.min(b.betragCent, b.auslage.restCent ?? 0) : 0;
+  if (b.art === 'einnahme' && b.auslageId) return 0;
+  return b.betragCent;
+}
+
+/** D214: Teil der Kontowirkung, der als Auslage/Rückzahlung saldiert wird (nicht als Einnahme/Ausgabe) */
+export function auslageWirkungCent(b) {
+  if (b.art === 'ausgabe') return -(b.betragCent - zaehltCent(b));
+  if (b.art === 'einnahme') return b.betragCent - zaehltCent(b);
+  return 0;
+}
+
 const summe = (liste) => liste.reduce((s, b) => s + wirkungCent(b), 0);
 
 const nachDatum = (a, b) =>
@@ -57,9 +77,10 @@ export function monatsuebersicht(konto, buchungen, jahr, monat) {
   const imMonat = alle.filter((b) => b.datum >= erster && b.datum < folgeErster);
   const anfang = konto.anfangssaldoCent + summe(alle.filter((b) => b.datum < erster));
 
-  const einnahmen = imMonat.filter((b) => b.art === 'einnahme').reduce((s, b) => s + b.betragCent, 0);
-  const ausgaben = imMonat.filter((b) => b.art === 'ausgabe').reduce((s, b) => s + b.betragCent, 0);
+  const einnahmen = imMonat.filter((b) => b.art === 'einnahme').reduce((s, b) => s + zaehltCent(b), 0);
+  const ausgaben = imMonat.filter((b) => b.art === 'ausgabe').reduce((s, b) => s + zaehltCent(b), 0);
   const umbuchungen = summe(imMonat.filter((b) => b.art === 'umbuchung'));
+  const auslagen = imMonat.reduce((s, b) => s + auslageWirkungCent(b), 0); // D214: saldiert wie Umbuchungen
 
   // Nach Tagen gruppieren, mit Kontostand am Ende jedes Tages
   const tage = [];
@@ -83,6 +104,7 @@ export function monatsuebersicht(konto, buchungen, jahr, monat) {
     einnahmen,
     ausgaben,
     umbuchungen,
+    auslagen,
     ende: stand,
     anzahl: imMonat.length,
     tage,
@@ -109,8 +131,8 @@ export function ausgabenVergleich(konto, buchungen, heute) {
   let vorher = 0;
   for (const b of buchungen) {
     if (!istAktiv(b) || b.kontoId !== konto.id || b.art !== 'ausgabe') continue;
-    if (b.datum >= jetztVon && b.datum <= heute) jetzt += b.betragCent;
-    else if (b.datum >= vorVon && b.datum <= vorBis) vorher += b.betragCent;
+    if (b.datum >= jetztVon && b.datum <= heute) jetzt += zaehltCent(b); // D214: ohne Auslagen
+    else if (b.datum >= vorVon && b.datum <= vorBis) vorher += zaehltCent(b);
   }
   return { jetzt, vorher, vorBis };
 }

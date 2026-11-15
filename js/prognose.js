@@ -1,7 +1,7 @@
 // Etappe 4: Budgets, Termine wiederkehrender Buchungen, Monatsprognose, Budgethinweise.
 // Reine Funktionen ohne Datenbank – mit `npm test` geprüft. Siehe DECISIONS.md D33–D40.
 
-import { istAktiv, kontostand, buchungenVonKonto, wirkungCent } from './rechnen.js';
+import { istAktiv, kontostand, buchungenVonKonto, wirkungCent, zaehltCent } from './rechnen.js';
 import { istJaehrlich, jahresbudgetJahr } from './jahresbudget.js';
 
 const pad = (n) => String(n).padStart(2, '0');
@@ -136,7 +136,7 @@ export function budgetHauptVon(x, hauptVon) {
 export function budgetBuchungen(buchungen, kategorien, kontoId, hauptId, von, bis) {
   const kat = new Map(kategorien.map((k) => [k.id, k]));
   return buchungen
-    .filter((b) => istAktiv(b) && b.kontoId === kontoId && b.datum >= von && b.datum <= bis
+    .filter((b) => istAktiv(b) && b.kontoId === kontoId && b.datum >= von && b.datum <= bis && zaehltCent(b) > 0 // D214
       && budgetHauptVon(b, (id) => kat.get(id)?.elternId) === hauptId)
     .sort((a, b) => b.datum.localeCompare(a.datum) || (b.erstelltAm ?? '').localeCompare(a.erstelltAm ?? ''));
 }
@@ -297,7 +297,7 @@ export function ausgabenJeKontoUndKategorie(buchungen, kategorien, monat) {
     const hId = budgetHauptVon(b, (id) => kat.get(id)?.elternId); // inkl. Umbuchungen mit Budget (D98)
     if (!hId) continue;
     const s = budgetSchluessel(b.kontoId, hId);
-    summe.set(s, (summe.get(s) ?? 0) + b.betragCent);
+    summe.set(s, (summe.get(s) ?? 0) + zaehltCent(b)); // D214: offene Auslagen verbrauchen kein Budget
   }
   return summe;
 }
@@ -339,8 +339,8 @@ export function monatsprognose(daten, heute) {
   let ausgaben = 0;
   for (const b of buchungen) {
     if (!istAktiv(b) || b.datum < erster || b.datum > ende) continue;
-    if (b.art === 'einnahme') einnahmen += b.betragCent;
-    else if (b.art === 'ausgabe') ausgaben += b.betragCent;
+    if (b.art === 'einnahme') einnahmen += zaehltCent(b); // D214
+    else if (b.art === 'ausgabe') ausgaben += zaehltCent(b);
   }
 
   const istJe = ausgabenJeKontoUndKategorie(buchungen, kategorien, monat);
@@ -574,6 +574,7 @@ export function zeitleiste(daten, heute, bisMonat = LETZTER_MONAT) {
       art: b.art, kontoId: b.kontoId, gegenkontoId: b.gegenkontoId, betragCent: b.betragCent, datum: b.datum,
       hauptId: hauptVon(b.kategorieId), unterId: b.kategorieId ?? null, text: [b.partner, b.notiz || kat.get(b.kategorieId)?.name || 'Umbuchung'].filter(Boolean).join(' · '), quelle: 'gebucht',
       projektId: b.projektId ?? null, budgetKategorieId: b.budgetKategorieId ?? null,
+      budgetCent: zaehltCent(b), // D214: offene Auslage verbraucht kein Budget
     });
   }
   for (const w of wiederkehrende) {
@@ -648,7 +649,7 @@ export function zeitleiste(daten, heute, bisMonat = LETZTER_MONAT) {
       // und nur auf dem eigenen Konto (D85)
       if (x.art === 'ausgabe' && x.hauptId && !x.projektId) {
         const s = budgetSchluessel(x.kontoId, x.hauptId);
-        istJe.set(s, (istJe.get(s) ?? 0) + x.betragCent);
+        istJe.set(s, (istJe.get(s) ?? 0) + (x.budgetCent ?? x.betragCent));
       }
     }
 
@@ -779,7 +780,7 @@ export function erwarteteAusgaben(daten, heute, bisMonat) {
   const bis = monatsende(`${bisMonat}-01`);
 
   for (const b of buchungen) {
-    if (istAktiv(b) && b.datum <= bis) dazu(b, b.datum, b.betragCent);
+    if (istAktiv(b) && b.datum <= bis) dazu(b, b.datum, zaehltCent(b)); // D214
   }
   for (const t of offeneTermine({ ...daten, wiederkehrende, geplant }, heute, ende)) {
     if (t.datum < `${monat}-01`) continue;
@@ -839,7 +840,7 @@ export function budgetVorschlag(buchungen, kategorien, kontoId, hauptId, heute) 
   const relevant = buchungen.filter((b) => istAktiv(b) && b.kontoId === kontoId && budgetHauptVon(b, (id) => kat.get(id)?.elternId) === hauptId);
   if (!relevant.length) return null;
   const erster = relevant.map((b) => b.datum.slice(0, 7)).sort()[0];
-  const summe = (monat) => relevant.filter((b) => b.datum.slice(0, 7) === monat).reduce((s, b) => s + b.betragCent, 0);
+  const summe = (monat) => relevant.filter((b) => b.datum.slice(0, 7) === monat).reduce((s, b) => s + zaehltCent(b), 0); // D214
   const schnitt = (n) => {
     const monate = [];
     for (let i = 1; i <= n; i++) {

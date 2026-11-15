@@ -174,6 +174,20 @@ export async function ladeTestdaten() {
       { konten: neueKonten },
     ));
   }
+  // D214: Auslagen – Arztrechnung, von der Kasse teilweise erstattet; Geschenk für einen Freund, noch offen
+  const arzt = kat('Gesundheit & Pflege', 'Arzt & Zuzahlungen');
+  const erstattung = kat('Einkommen', 'Erstattungen');
+  if (arzt && erstattung) {
+    const [rechnung] = baueBuchungen({ art: 'ausgabe', betragCent: 12000, datum: tag(monate[1], 8), kontoId: giro.id, kategorieId: arzt,
+      notiz: 'Rechnung Zahnarzt', partner: 'Praxis Beispiel', status: 'gebucht', auslage: { fuer: 'Krankenkasse Muster' } }, { konten: neueKonten });
+    datensaetze.push(rechnung, ...baueBuchungen({ art: 'einnahme', betragCent: 9000, datum: tag(monate[2], 12), kontoId: giro.id,
+      kategorieId: erstattung, notiz: 'Erstattung', partner: 'Krankenkasse Muster', status: 'gebucht', auslageId: rechnung.id }, { konten: neueKonten }));
+  }
+  const geschenke = kat('Sonstiges', 'Geschenke');
+  if (geschenke) {
+    datensaetze.push(...baueBuchungen({ art: 'ausgabe', betragCent: 4500, datum: tag(aktuell, 1), kontoId: giro.id, kategorieId: geschenke,
+      notiz: 'Gemeinsames Geschenk', partner: 'Buchhandlung Muster', status: 'gebucht', auslage: { fuer: 'Max Muster' } }, { konten: neueKonten }));
+  }
   await db.speichere('buchungen', datensaetze.map((b) => ({ ...b, testdaten: true })));
 
   /* ---------- Budgets ---------- */

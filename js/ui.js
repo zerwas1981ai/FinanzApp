@@ -311,6 +311,16 @@ export function bereichsWahl(speicher, ansichten, standard = ansichten[0][0]) {
   };
 }
 
+/** D214: dezente Marke „Auslage“ bzw. „Rückzahlung“ in Buchungslisten (sonst null) */
+export function auslageMarke(b) {
+  if (b.art === 'ausgabe' && b.auslage) {
+    return h('span', { class: 'marke marke-vorgemerkt', title: 'Bekomme ich zurück – zählt nicht als Ausgabe' + (b.auslage.erledigtAm ? ' (abgeschlossen, Rest zählt)' : '') },
+      b.auslage.erledigtAm ? 'Auslage ✓' : 'Auslage');
+  }
+  if (b.art === 'einnahme' && b.auslageId) return h('span', { class: 'marke marke-vorgemerkt', title: 'Rückzahlung einer Auslage – zählt nicht als Einnahme' }, 'Rückzahlung');
+  return null;
+}
+
 /** D155: kleiner Farbpunkt einer Kategorie (hex oder null = kein Punkt) */
 export function katPunkt(hex, titel = null) {
   return hex ? h('span', { class: 'kat-punkt', style: `--kat-farbe:${hex}`, title: titel, 'aria-hidden': 'true' }) : null;

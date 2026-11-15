@@ -5,6 +5,7 @@
 // Reine Funktionen – mit `npm test` geprüft.
 
 import { sparquote } from './auswertung.js';
+import { zaehltCent } from './rechnen.js';
 
 const MONAT_KURZ = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
 const MONAT_LANG = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
@@ -23,7 +24,8 @@ export const monatKurz = (schluessel) => `${MONAT_KURZ[Number(schluessel.slice(5
 export const monatLang = (schluessel) => `${MONAT_LANG[Number(schluessel.slice(5, 7)) - 1]} ${schluessel.slice(0, 4)}`;
 
 /** Echte Buchungen, die in Einnahmen/Ausgaben zählen */
-const zaehlt = (b, heute) => !b.geloeschtAm && (b.art === 'einnahme' || b.art === 'ausgabe') && b.datum <= heute;
+// D214: offene Auslagen und Rückzahlungen zählen nicht (zaehltCent 0)
+const zaehlt = (b, heute) => !b.geloeschtAm && (b.art === 'einnahme' || b.art === 'ausgabe') && b.datum <= heute && zaehltCent(b) > 0;
 
 /** Summen eines Zeitraums: Einnahmen, Ausgaben, Saldo, Sparquote und Ausgaben je Hauptkategorie */
 export function periodenSummen(buchungen, kategorien, von, bis, heute) {
@@ -33,11 +35,11 @@ export function periodenSummen(buchungen, kategorien, von, bis, heute) {
   const jeHaupt = new Map();
   for (const b of buchungen) {
     if (!zaehlt(b, heute) || b.datum < von || b.datum > bis) continue;
-    if (b.art === 'einnahme') { einnahmen += b.betragCent; continue; }
-    ausgaben += b.betragCent;
+    if (b.art === 'einnahme') { einnahmen += zaehltCent(b); continue; }
+    ausgaben += zaehltCent(b);
     const unter = kat.get(b.kategorieId);
     const hId = unter?.elternId ?? unter?.id ?? 'unbekannt';
-    jeHaupt.set(hId, (jeHaupt.get(hId) ?? 0) + b.betragCent);
+    jeHaupt.set(hId, (jeHaupt.get(hId) ?? 0) + zaehltCent(b));
   }
   return { von, bis, einnahmen, ausgaben, saldo: einnahmen - ausgaben, sparquote: sparquote(einnahmen, ausgaben), jeHaupt };
 }
