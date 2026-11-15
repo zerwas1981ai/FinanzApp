@@ -7,7 +7,7 @@ Wird eine Entscheidung geändert, den alten Eintrag nicht löschen, sondern als
 
 ---
 
-## Was gilt aktuell (Stand 13.11.2026, D181)
+## Was gilt aktuell (Stand 15.11.2026, D216)
 
 Kurzer Wegweiser, weil viele spätere Einträge frühere aufheben. Maßgeblich bleibt der jeweils letzte Eintrag.
 
@@ -2667,6 +2667,8 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
   ausgegeben; jede Änderung leert ihn, andere offene App-Fenster werden per BroadcastChannel informiert.
 - Ergebnis (PC, 11.000 Buchungen): Übersicht 224 → 130 ms, Alle Buchungen 116 → 60 ms, Annahmen 83 → 20 ms.
   Am Handy ist mit etwa dem 4- bis 5-Fachen zu rechnen; mit Archivierung alter Jahre (D68) bleibt der Bestand kleiner.
+
+## D214–D216 – Runde 9 (Wunsch des Nutzers, 15.11.2026)
 
 ### D214 – Auslagen (bekomme ich zurück)
 - Ausgabe im Buchungsdialog unter „Weitere Angaben“ als **Auslage** markieren, optional „Von wem?“. Feld `auslage`

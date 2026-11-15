@@ -8,7 +8,8 @@
 - Hinweise ohne KI: Erkennung, „↑ hoch“, Preisänderung, Abstimmhilfe, Monatsabschluss (1.–10.).
 - Runde 8 (D208–D213): Wischen in Listen, Budget-Vorschlag, Unterkategorien zusammenführen,
   Monatsvergleich, Sicherungsdatei mit Passwort, Zwischenspeicher in db.js.
-- D214: Auslagen mit Rückzahlung (Projekte → Auslagen). D215: Aufrunden auf volle Euro. D216: PayPal-Ausgaben vom Girokonto ausgleichen (beides Stammdaten → Einstellungen).
+- Runde 9 (D214–D216): Auslagen mit Rückzahlung (Projekte → Auslagen), Aufrunden auf volle Euro und
+  Ausgaben automatisch ausgleichen, z. B. PayPal vom Girokonto (beides Stammdaten → Einstellungen).
 
 ## Offene Bugs
 - Keine bekannten.
@@ -24,8 +25,10 @@
 - Offene Entscheidung: Empfänger-Logos – Variante (Initialen-Kreis / eigenes Bild) noch nicht gewählt.
 
 ## Nächste Schritte
-1. D211, D200 und D176 am Handy testen, Rückmeldung einarbeiten.
-2. Tempo am Handy prüfen; bei Bedarf alte Jahre archivieren oder weiter optimieren.
-3. Entscheidung zu Empfänger-Logos einholen.
-4. Nicht gewählte Vorschläge bei Bedarf erneut anbieten: automatische Sperre, Notiz-Vorschläge,
+1. In der App einrichten: Stammdaten → Einstellungen → Aufrunden (N26 Girokonto → N26 Wechselsparen) und
+   Ausgleich (PayPal vom DKB Girokonto); dann D214–D216 mit echten Daten und am Handy prüfen.
+2. D211, D200 und D176 am Handy testen, Rückmeldung einarbeiten.
+3. Tempo am Handy prüfen; bei Bedarf alte Jahre archivieren oder weiter optimieren.
+4. Entscheidung zu Empfänger-Logos einholen (ein Initialen-Kreis wurde ausprobiert und wieder zurückgebaut).
+5. Nicht gewählte Vorschläge bei Bedarf erneut anbieten: automatische Sperre, Notiz-Vorschläge,
    Vorgemerkte nachfassen.

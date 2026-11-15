@@ -1,12 +1,34 @@
 # Finanzen – private Finanz-App (PWA)
 
-Stand: **Etappe 6** (Google-Drive-Abgleich mit Konfliktabfrage, Belege, Backups, Export) plus
-App-Login (Passwort für alle Geräte + Passkey), Archiv alter Jahre und „Alles löschen und neu beginnen“.
-Davor: Etappe 5 (Zeitleiste bis 2050, geplante Einmalbuchungen, Projekte, Empfänger/Absender),
-Etappe 4 (Budgets, wiederkehrende Buchungen, Kennzahlen, Budgethinweise), Etappe 3 (Alle
-Buchungen: Filter, Sortierung, Analyse), Etappe 2 (Buchungen, Monatsansicht, Umbuchungen,
-Papierkorb, Kontoabstimmung) und Etappe 1 (Grundgerüst, Design, Hell/Dunkel, Stammdaten).
-Ziele und Etappen: siehe `CLAUDE.md`. Technische Entscheidungen: siehe `DECISIONS.md`.
+Private Finanz-App für eine Person: Einnahmen und Ausgaben werden von Hand erfasst (keine Bankanbindung),
+mehrere Konten, Budgets, Prognose bis 2050. Läuft im Browser am PC und als installierte App auf Android.
+Daten liegen auf dem Gerät und in deinem Google Drive – nie im Programmcode.
+
+Stand: **15.11.2026** · Entscheidung **D216** · Datenmodell-Version **24** · Cache `finanzapp-v117` · 189 Tests.
+Ziele und Regeln: `CLAUDE.md` · fachliche Details: `SPEC.md` · alle Entscheidungen: `DECISIONS.md` · aktueller Stand: `NOTES.md`.
+
+## Was die App kann (Überblick)
+
+| Tab | Inhalt |
+|---|---|
+| **Übersicht** | Kontostände heute, zum Monats- und Jahresende; Monatsansicht je Konto mit Tagesständen; Zukunftsmonate bis 2050; Hinweise (Budgets, Erkennung, Monatsabschluss) |
+| **Alle Buchungen** | Liste mit Filter und Sortierung, Analyse nach Kategorien oder Empfängern, Monats-/Jahresrückblick, Belege |
+| **Projekte** | Projekte (z. B. Umbau, Urlaub), Relevante Ausgaben (z. B. für Garantie), **Auslagen** |
+| **Annahmen** | Budgets, wiederkehrende Buchungen, Verträge, geplante Einmalbuchungen |
+| **Stammdaten** | Konten, Kategorien, Empfänger, Daten & Sicherheit (Drive, App-Login, Export, Archiv), Notfall-Mappe, Papierkorb, Einstellungen |
+
+Neu in Runde 9:
+- **Auslagen (D214):** Ausgabe im Buchungsdialog unter „Weitere Angaben“ als „Auslage – bekomme ich zurück“ markieren;
+  die Rückzahlung bei der Einnahme zuordnen (die App schlägt passende Auslagen vor). Offene Auslagen und Rückzahlungen
+  zählen nicht als Ausgabe/Einnahme und nicht gegen Budgets. Übersicht unter Projekte → Auslagen.
+- **Aufrunden auf volle Euro (D215):** Stammdaten → Einstellungen → „Aufrunden auf volle Euro“ einschalten und die Konten
+  wählen (z. B. Girokonto → Sparkonto). Ausgaben mit Cent-Betrag bekommen dann eine Umbuchung über den Rest.
+- **Ausgaben automatisch ausgleichen (D216):** Stammdaten → Einstellungen → „Ausgaben automatisch ausgleichen“, z. B.
+  Ausgaben auf PayPal, ausgeglichen vom Girokonto. Jede PayPal-Ausgabe bekommt eine Umbuchung in gleicher Höhe;
+  sie zählt gegen das Budget auf dem Girokonto.
+
+Bei Aufrunden und Ausgleich steht im Buchungsdialog ein vorgewähltes Häkchen, das du im Einzelfall abwählen kannst.
+Die Umbuchung folgt ihrer Ausgabe beim Ändern, Löschen und Wiederherstellen. Bisherige Buchungen bleiben unverändert.
 
 ## App starten (Windows)
 
@@ -51,7 +73,7 @@ welche App sich anmelden möchte. Du trägst sie in der App ein; sie steht nicht
    - Weiterleitungs-URIs: leer lassen → **Erstellen**
    - Die angezeigte **Client-ID** kopieren (endet auf `.apps.googleusercontent.com`).
      Ein „Clientschlüssel“ wird nicht gebraucht.
-6. **In der App:** Stammdaten → **Google Drive** → Client-ID einfügen → **Mit Google Drive
+6. **In der App:** Stammdaten → **Daten & Sicherheit** → **Google Drive** → Client-ID einfügen → **Mit Google Drive
    verbinden**. Im Google-Fenster dein Konto wählen. Erscheint „Google hat diese App nicht
    überprüft“: auf **Weiter** (es ist ja deine eigene App) → Zugriff erlauben.
 
@@ -89,14 +111,12 @@ erfundene Testdaten – keine Finanzdaten, keine Zugangsdaten).
 Neue Versionen: Nach jeder Änderung wird der Code wieder hochgeladen (`git push`); die App holt
 sich die neue Version beim nächsten Öffnen mit Internet.
 
-## Mit echten Daten starten
+## Testdaten und „Neu beginnen“
 
-1. Auf **einem** Gerät (z. B. PC): Stammdaten → ganz unten **„Alles löschen und neu beginnen“**.
-   Das löscht auf diesem Gerät und in Google Drive alle bisherigen Daten (auch Backups und Belege).
-2. Auf den **anderen** Geräten die App öffnen und oben auf den Wolken-Knopf tippen. Die App meldet
-   „Auf einem anderen Gerät wurde neu begonnen“ → **„Ja, hier auch löschen“**.
-3. Unter Stammdaten Konten anlegen, Kategorien prüfen, dann unter Annahmen wiederkehrende Buchungen
-   und Budgets anlegen.
+- **Testdaten** (erfundene Konten und Buchungen) gibt es nur beim Entwickeln auf `localhost`:
+  Stammdaten → **Testdaten** → laden bzw. wieder löschen. In der veröffentlichten App fehlt dieser Bereich.
+- **„Alles löschen und neu beginnen“** ist seit D140 ausgeblendet, weil die App mit echten Daten läuft.
+  Zum Wiedereinblenden in `js/views/stammdaten.js` den Wert `ZEIGE_NEU_BEGINNEN` auf `true` setzen.
 
 ## App-Login
 
@@ -104,7 +124,7 @@ Die App ist nur mit Passwort nutzbar (Pflicht). Beim ersten Start legst du das P
 (mindestens 8 Zeichen). Es gilt für **alle Geräte**: Es wird (nur als Prüfwert, nie im Klartext) über
 Google Drive abgeglichen. Auf einem weiteren Gerät beim ersten Start „Von Google Drive holen“ tippen.
 
-- **Passkey:** Stammdaten → **App-Login** → „Passkey einrichten“ (Fingerabdruck, Gesicht bzw.
+- **Passkey:** Stammdaten → Daten & Sicherheit → **App-Login** → „Passkey einrichten“ (Fingerabdruck, Gesicht bzw.
   Windows Hello) – je Gerät einmal. Das Passwort funktioniert immer zusätzlich.
 - **Wann erneut anmelden:** dort je Gerät wählbar (Standard: nach 5 Minuten im Hintergrund).
 - **Passwort ändern:** dort mit dem aktuellen Passwort; gilt nach dem Abgleich überall.
@@ -114,7 +134,7 @@ Google Drive abgeglichen. Auf einem weiteren Gerät beim ersten Start „Von Goo
 
 ## Archiv alter Jahre
 
-Stammdaten → **Archiv alter Jahre**: Ein abgeschlossenes Jahr wandert – nur wenn du es auslöst –
+Stammdaten → Daten & Sicherheit → **Archiv alter Jahre**: Ein abgeschlossenes Jahr wandert – nur wenn du es auslöst –
 in eine eigene Datei in Google Drive; die Konten starten danach mit dem Jahresendstand. Unter
 „Alle Buchungen“ sind archivierte Jahre weiter in Liste und Analyse enthalten (nur lesen). Das
 zuletzt archivierte Jahr lässt sich von Hand zurückholen.
@@ -123,35 +143,40 @@ zuletzt archivierte Jahr lässt sich von Hand zurückholen.
 
 | Befehl | Was er tut |
 |---|---|
-| `npm test` | automatische Tests (Beträge, Datum, Migrationen, Prognose, Abgleich, Export, Archiv) |
+| `npm test` | automatische Tests (Beträge, Datum, Migrationen, Prognose, Budgets, Abgleich, Export, Archiv, Auslagen, Aufrunden, Ausgleich) |
 | `npm run icons` | App-Symbole neu erzeugen |
 
 ## Ordner
 
 ```
-index.html, manifest.webmanifest, sw.js   App-Rahmen und PWA-Dateien
+index.html, manifest.webmanifest, sw.js   App-Rahmen und PWA-Dateien (sw.js: Offline-Cache, Version hochzählen)
 server.js                                  lokaler Testserver
 css/style.css                              Design (Hell/Dunkel)
-js/app.js                                  Start und Tab-Navigation
-js/db.js, js/migrationen.js                Datenbank, Versionen, Migrationen
-js/format.js                               Euro- und Datumsformat
-js/buchungen.js, js/rechnen.js             Buchungsregeln, Kontostände, Monatssummen
-js/auswertung.js                           Filter, Sortierung, Analysen
-js/prognose.js, js/annahmen.js             Budgets, wiederkehrende/geplante Buchungen, Projekte, Prognose, Hinweise
-js/sync/                                   Google Drive: Anmeldung, Abgleich, Zusammenführen, Backups
-js/export.js                               CSV-Export für Excel
-js/login.js, js/sperre.js, js/archiv.js    App-Login (Passwort, Passkey), Archiv alter Jahre
-js/konten.js                               Reihenfolge der Konten
+js/app.js, js/theme.js                     Start, Tab-Navigation, Hell/Dunkel
+js/db.js, js/migrationen.js                Datenbank (mit Zwischenspeicher), Versionen, Migrationen
+js/format.js, js/dom.js, js/ui.js          Euro-/Datumsformat, Bausteine der Oberfläche
+js/buchungen.js                            Buchungsregeln, Papierkorb, Aufrunden (D215), Ausgleich (D216)
+js/rechnen.js                              Kontostände, Monatssummen, Zählregel für Auslagen (zaehltCent)
+js/auslagen.js                             Auslagen und Rückzahlungen (D214)
+js/auswertung.js, js/rueckblick.js         Filter, Sortierung, Analysen, Monats-/Jahresrückblick
+js/prognose.js, js/annahmen.js             Budgets, wiederkehrende/geplante Buchungen, Projekte, Prognose
 js/jahresbudget.js                         Jahresbudgets in Tranchen (D90)
-js/kategorien.js                           Unterkategorie verschieben (D93)
-js/relevant.js                             Relevante Ausgaben (Liste unten im Tab Projekte)
-js/vorlagen.js                             Vorlagen für häufige Buchungen (D104)
-js/datensicherung.js                       Vorschau vor dem Wiederherstellen eines Backups (D108)
-js/startdaten.js, js/testdaten.js          Kategorie-Startsatz, Testdaten
-js/ui.js, js/dom.js                        Bausteine der Oberfläche
+js/vertraege.js                            Verträge, Kündigungsfristen (D148)
+js/erkennung.js, js/abstimmhilfe.js        Hinweise ohne KI: Erkennung, Ausreißer, Preisänderung, Abstimmhilfe
+js/abschluss.js                            Monatsabschluss-Checkliste (D206)
+js/empfaenger.js                           Empfänger vereinheitlichen und zusammenfassen (D205)
+js/kategorien.js, js/konten.js, js/farben.js  Kategorien verschieben/zusammenführen, Konto-Reihenfolge, Farben
+js/relevant.js, js/belegliste.js           Relevante Ausgaben, Belegliste
+js/monatsnotizen.js, js/suche.js           Monatsnotizen, Suche
+js/notfall.js                              Notfall-Mappe
+js/sync/                                   Google Drive: Anmeldung, Abgleich, Zusammenführen, Backups
+js/export.js, js/datensicherung.js         CSV-Export, Sicherungsdatei, Vorschau vor dem Wiederherstellen
+js/verschluesselung.js                     Sicherungsdatei mit Passwort (D212)
+js/login.js, js/sperre.js, js/archiv.js    App-Login (Passwort, Passkey), Archiv alter Jahre
+js/startdaten.js, js/testdaten.js          Kategorie-Startsatz, erfundene Testdaten (nur localhost)
 js/views/                                  die Tabs und Dialoge
 tests/                                     automatische Tests
-tools/                                     Hilfsskripte
+tools/                                     Hilfsskripte (App-Symbole, Drive-Attrappe für Tests)
 ```
 
 ## Wo liegen die Daten?
@@ -159,5 +184,5 @@ tools/                                     Hilfsskripte
 - **Auf dem Gerät** im Browser (IndexedDB) – die App funktioniert auch offline.
 - **In deinem Google Drive** (wenn verbunden): Ordner `Finanzapp` mit der Datendatei, den
   Belegen und den Backups (die letzten 30 Stände und je einer pro Tag der letzten 30 Tage).
-- Unter Stammdaten → **Export** gibt es die Buchungen als CSV für Excel und den kompletten
-  Datenstand als JSON-Datei.
+- Unter Stammdaten → Daten & Sicherheit → **Export** gibt es die Buchungen als CSV für Excel und den kompletten
+  Datenstand als Sicherungsdatei (wahlweise mit Passwort verschlüsselt).
