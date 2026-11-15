@@ -88,3 +88,29 @@ export function monatsuebersicht(konto, buchungen, jahr, monat) {
     tage,
   };
 }
+
+/**
+ * D209: Ausgaben eines Kontos im laufenden Monat bis heute und im Vormonat bis zum gleichen Tag
+ * (bei kürzerem Vormonat bis zu dessen Ende). Umbuchungen zählen nicht. Ergebnis in Cent (positiv).
+ */
+export function ausgabenVergleich(konto, buchungen, heute) {
+  const tag = Number(heute.slice(8, 10));
+  const j = Number(heute.slice(0, 4));
+  const m = Number(heute.slice(5, 7));
+  const vj = m === 1 ? j - 1 : j;
+  const vm = m === 1 ? 12 : m - 1;
+  const letzter = new Date(Date.UTC(vj, vm, 0)).getUTCDate();
+  const vTag = Math.min(tag, letzter);
+  const p = (n) => String(n).padStart(2, '0');
+  const vorVon = `${vj}-${p(vm)}-01`;
+  const vorBis = `${vj}-${p(vm)}-${p(vTag)}`;
+  const jetztVon = `${heute.slice(0, 7)}-01`;
+  let jetzt = 0;
+  let vorher = 0;
+  for (const b of buchungen) {
+    if (!istAktiv(b) || b.kontoId !== konto.id || b.art !== 'ausgabe') continue;
+    if (b.datum >= jetztVon && b.datum <= heute) jetzt += b.betragCent;
+    else if (b.datum >= vorVon && b.datum <= vorBis) vorher += b.betragCent;
+  }
+  return { jetzt, vorher, vorBis };
+}

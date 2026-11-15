@@ -33,7 +33,7 @@ Oberfläche auf Deutsch, Währung Euro, deutsches Datums- und Zahlenformat.
 - Konto: Name, Anfangssaldo, Stichtag, Mindestsaldo, Reihenfolge (per ▲/▼, D84)
 - Kategorie: Hauptkategorie mit Unterkategorien (Startsatz vorbelegt, in den
   Stammdaten anpassbar; Unterkategorien zwischen Hauptkategorien gleicher Art
-  verschiebbar, D93)
+  verschiebbar, D93; Unterkategorien zusammenführbar, D210)
 - Buchung: Datum, Betrag, Art (Einnahme/Ausgabe), Konto, Empfänger/Absender
   (optional), Unterkategorie, Notiz, Projekt (optional), Belege (mehrere
   möglich, PDF/JPG), Status
@@ -117,7 +117,7 @@ Oberfläche auf Deutsch, Währung Euro, deutsches Datums- und Zahlenformat.
   Preisänderung erkennen (D203), Hilfe bei der Kontoabstimmung (D204), Monatsabschluss-Checkliste (D206)
 - Kamera-Button für Belegfoto, Bilder beim Hochladen verkleinern
 - Automatisches Backup bei jedem Speichern (letzte 30 Stände), Export als
-  CSV/Excel, kompletter Datenstand als Datei sichern und wiederherstellen (D178)
+  CSV/Excel, kompletter Datenstand als Datei sichern und wiederherstellen (D178), wahlweise mit Passwort verschlüsselt (D212)
 - App-Login: Pflicht-Passwort für alle Geräte (über Drive abgeglichen), je Gerät
   ersetzbar durch Passkey (siehe DECISIONS.md D83)
 - Dark- und Hell-Modus umschaltbar, Schriftgröße je Gerät (D177); schlichtes, modernes Design

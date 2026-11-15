@@ -9,6 +9,7 @@ import { buchungenAlsCsv, exportName } from '../export.js';
 import { DATENMODELL_VERSION, migriereDaten } from '../migrationen.js';
 import { naechstesArchivJahr, letztesArchiv } from '../archiv.js';
 import { standUebersicht, vergleiche } from '../datensicherung.js';
+import { verschluesseln, entschluesseln, istVerschluesselt, pruefePasswort } from '../verschluesselung.js';
 
 const zeit = (iso) => (iso ? new Date(iso).toLocaleString('de-DE', { dateStyle: 'medium', timeStyle: 'short' }) : '–');
 const groesse = (bytes) => `${Math.max(1, Math.round(bytes / 1024))} KB`;
@@ -51,9 +52,31 @@ async function wiederherstellenDialog(b, inhalt) {
  * „Kompletter Datenstand (JSON)“; ältere Stände werden beim Laden auf die aktuelle Datenversion gebracht.
  * Vorher dieselbe Vorschau wie beim Backup (D108). Belegdateien stecken nicht in der Datei, nur ihre Namen.
  */
+/** D212: Passwort für eine verschlüsselte Sicherungsdatei abfragen; liefert den entschlüsselten Inhalt oder null */
+function passwortAbfragen(roh, dateiname) {
+  return new Promise((resolve) => {
+    let ergebnis = null;
+    const pw = eingabe({ label: 'Passwort der Sicherung', type: 'password', autocomplete: 'off', autofocus: true });
+    const dlg = dialog({
+      titel: 'Verschlüsselte Sicherung',
+      inhalt: [h('p', {}, `„${dateiname}“ ist mit einem Passwort geschützt.`), pw.feld],
+      speichernText: 'Öffnen',
+      onSpeichern: async () => {
+        if (!pw.input.value) throw new Error('Bitte das Passwort eingeben.');
+        ergebnis = JSON.parse(await entschluesseln(roh, pw.input.value));
+      },
+    });
+    dlg.addEventListener('close', () => setTimeout(() => resolve(ergebnis), 0));
+  });
+}
+
 async function ausDateiWiederherstellen(datei) {
   let roh;
   try { roh = JSON.parse(await datei.text()); } catch { throw new Error('Die Datei ist keine gültige Sicherung (kein JSON).'); }
+  if (istVerschluesselt(roh)) { // D212
+    roh = await passwortAbfragen(roh, datei.name);
+    if (!roh) return;
+  }
   if (!roh || typeof roh !== 'object' || !Array.isArray(roh.konten) || !Array.isArray(roh.buchungen)) {
     throw new Error('Die Datei ist keine Sicherung dieser App (Konten oder Buchungen fehlen).');
   }
@@ -194,10 +217,7 @@ export function exportBereich() {
       h('button', {
         type: 'button',
         class: 'knopf',
-        onclick: sicher(async () => {
-          const daten = { ...(await db.leseDatenstand()), version: DATENMODELL_VERSION };
-          herunterladen(JSON.stringify(daten, null, 1), `finanzen-datenstand-${heuteIso()}.json`, 'application/json');
-        }),
+        onclick: () => sicherungDialog(), // D212: wahlweise mit Passwort
       }, 'Kompletter Datenstand (JSON)'),
       // D178: dieselbe Datei wieder einspielen – auch ohne Google Drive
       (() => {
@@ -212,6 +232,41 @@ export function exportBereich() {
         return [eingabeDatei, h('button', { type: 'button', class: 'knopf', onclick: () => eingabeDatei.click() }, 'Aus Datei wiederherstellen …')];
       })()),
   );
+}
+
+/**
+ * D212: Kompletter Datenstand als Datei – „Mit Passwort verschlüsseln“ ist vorgewählt.
+ * Ohne Haken entsteht wie bisher eine lesbare JSON-Datei.
+ */
+function sicherungDialog() {
+  const haken = h('input', { type: 'checkbox', checked: true });
+  const pw = eingabe({ label: 'Passwort (mindestens 8 Zeichen)', type: 'password', autocomplete: 'new-password' });
+  const pw2 = eingabe({ label: 'Passwort wiederholen', type: 'password', autocomplete: 'new-password' });
+  const felder = h('div', {}, pw.feld, pw2.feld,
+    h('p', { class: 'hinweis warn-text' }, 'Merke dir das Passwort gut – ohne es lässt sich die Datei nicht mehr öffnen, auch nicht von der App.'));
+  haken.addEventListener('change', () => { felder.hidden = !haken.checked; });
+  dialog({
+    titel: 'Datenstand als Datei sichern',
+    inhalt: [
+      h('p', { class: 'hinweis' }, 'Die Datei enthält alle deine Finanzdaten (ohne Belegdateien). Verschlüsselt kann sie niemand lesen, ' +
+        'der das Passwort nicht kennt – sinnvoll für USB-Stick, Mail oder Cloud.'),
+      h('label', { class: 'schalter' }, haken, 'Mit Passwort verschlüsseln'),
+      felder,
+    ],
+    speichernText: 'Sichern',
+    onSpeichern: async () => {
+      const text = JSON.stringify({ ...(await db.leseDatenstand()), version: DATENMODELL_VERSION }, null, 1);
+      if (haken.checked) {
+        pruefePasswort(pw.input.value, pw2.input.value);
+        const datei = await verschluesseln(text, pw.input.value);
+        herunterladen(JSON.stringify(datei), `finanzen-datenstand-${heuteIso()}-verschluesselt.json`, 'application/json');
+        toast('Verschlüsselte Sicherung erstellt');
+      } else {
+        herunterladen(text, `finanzen-datenstand-${heuteIso()}.json`, 'application/json');
+        toast('Sicherung erstellt (unverschlüsselt)');
+      }
+    },
+  });
 }
 
 /* ---------- Alles löschen und neu beginnen (D66) ---------- */

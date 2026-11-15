@@ -8,7 +8,7 @@ import * as db from '../db.js';
 import { formatEuro, formatDatum, formatMonat, centZuEingabe, parseEuro, heuteIso } from '../format.js';
 import { dialog, frage, toast, eingabe, auswahl, datenGeaendert, bereichsWahl, kurzLang } from '../ui.js';
 import { baueBudget, baueWiederkehrend, baueGeplant, geplantErledigt, haeufigstesKonto, mitAusnahme } from '../annahmen.js';
-import { betragAm, terminBetrag, naechsterTermin, plusMonate, monatsende, annahmeTitel } from '../prognose.js';
+import { betragAm, terminBetrag, naechsterTermin, plusMonate, monatsende, annahmeTitel, budgetVorschlag } from '../prognose.js';
 import { artWahl, fuelleKategorien, projektFeld, oeffneBuchungsdialog, partnerFeld, budgetZuordnungFeld, vertragFeld } from './buchung-dialog.js';
 import { VERTEILUNGEN, istJaehrlich } from '../jahresbudget.js';
 import { kuendigungsHinweise, wiederkehrendJeMonat, aktuellerBetrag } from '../vertraege.js';
@@ -255,9 +255,38 @@ function budgetDialog(budget, daten) {
   }
   aktualisiere();
 
+  // D208: Vorschlag aus den bisherigen Ausgaben (nur beim Anlegen) – füllt den Betrag des gewählten Budget-Typs
+  const vorschlag = h('div', { class: 'budget-vorschlag', hidden: true });
+  const setzeBetrag = (monatsCent) => {
+    if (typ === 'jaehrlich') {
+      if (verteilung.select.value === 'quartal') quartale.forEach((q) => { q.input.value = centZuEingabe(monatsCent * 3); });
+      else jahrBetrag.input.value = centZuEingabe(monatsCent * 12);
+      zeigeQuartalSumme();
+    } else if (typ === 'einmalig') betrag.input.value = centZuEingabe(monatsCent);
+    else {
+      const feld = stufen.feld.querySelector('.stufe input[inputmode="decimal"]');
+      if (feld) feld.value = centZuEingabe(monatsCent);
+    }
+    toast(typ === 'jaehrlich' ? `Übernommen: ${formatEuro(monatsCent * 12)} im Jahr` : `Übernommen: ${formatEuro(monatsCent)}`);
+  };
+  const zeigeVorschlag = () => {
+    const v = budget ? null : budgetVorschlag(buchungen, kategorien, konto.select.value, kat.select.value, heute);
+    vorschlag.hidden = !v;
+    if (!v) return;
+    const knopfFuer = (cent, text) => h('button', { type: 'button', class: 'knopf knopf-klein', onclick: () => setzeBetrag(cent) }, text);
+    vorschlag.replaceChildren(...[
+      h('span', { class: 'klein' }, 'Bisher im Schnitt je Monat:'),
+      knopfFuer(v.schnitt3, `${Math.min(3, v.monate)} Monate: ${formatEuro(v.schnitt3)}`),
+      v.monate > 3 && knopfFuer(v.schnitt6, `${v.monate} Monate: ${formatEuro(v.schnitt6)}`),
+    ].filter(Boolean)); // replaceChildren zeigt false sonst als Text
+  };
+  kat.select.addEventListener('change', () => setTimeout(zeigeVorschlag, 0));
+  konto.select.addEventListener('change', zeigeVorschlag);
+  zeigeVorschlag();
+
   dialog({
     titel: budget ? 'Budget bearbeiten' : 'Neues Budget',
-    inhalt: [typWahl, kat.feld, wiederkehrendFelder, jaehrlichFelder, einmaligFelder, konto.feld],
+    inhalt: [typWahl, kat.feld, konto.feld, vorschlag, wiederkehrendFelder, jaehrlichFelder, einmaligFelder],
     zusatz: budget && {
       text: 'Löschen',
       variante: 'knopf-gefahr',

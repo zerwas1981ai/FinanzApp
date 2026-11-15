@@ -8,7 +8,7 @@ import {
   formatEuro, formatDatum, formatMonat, formatTag, heuteIso, parseEuro,
   isoMonatsanfang, naechsterMonat, vorigerMonat, istGueltigesDatum,
 } from '../format.js';
-import { monatsuebersicht, kontostand, vorgemerktBis, wirkungCent } from '../rechnen.js';
+import { monatsuebersicht, kontostand, vorgemerktBis, wirkungCent, ausgabenVergleich } from '../rechnen.js';
 import { dialog, eingabe, hinweis, toast, geraet, datenGeaendert, klappBereich, katPunkt, merkeScroll, wischGeste } from '../ui.js';
 import { farbenZuordnung, farbeVon } from '../farben.js';
 import { oeffneBuchungsdialog } from './buchung-dialog.js';
@@ -25,6 +25,7 @@ import { erkanntBereich, archivHinweis, abgelehnteVorschlaege, hochMarke, preisB
 import { abschlussMonat, abschlussPruefung } from '../abschluss.js';
 import { wiederkehrendVorschlaege, archivErinnerung, ungewoehnlicheBuchungen, preisAenderungen } from '../erkennung.js';
 import { abstimmVorschlaege } from '../abstimmhilfe.js';
+import { buchungenWischbar } from './wisch-buchung.js';
 import { naechstesArchivJahr } from '../archiv.js';
 
 const ALLE = '__alle'; // gemerkte Auswahl "Alle Konten"
@@ -116,6 +117,7 @@ export async function zeigeUebersicht(container) {
     return;
   }
   const konto = aktive.find((k) => k.id === gemerkt) ?? aktive[0];
+  buchungenWischbar(container, () => abstimmDaten?.buchungen); // D211
   if (!mitWischen.has(container)) {
     mitWischen.add(container);
     wischGeste(container, (r) => { if (wischWechsel && /^#?(uebersicht)?$/.test(location.hash)) wischWechsel(r); });
@@ -157,6 +159,7 @@ export async function zeigeUebersicht(container) {
       ? zukunftsMonat(zlKonto, isoMonatsanfang(ansicht.jahr, ansicht.monat).slice(0, 7), kd?.prognose ?? 0, m, konto, konten, kategorien, aendern)
       : [
         summenKarte(konto, m, istAktuellerMonat ? kd : null),
+        istAktuellerMonat && vergleichZeile(konto, buchungen, heute), // D209
         buchungsliste(m, konto, konten, kategorien),
         istAktuellerMonat && erwartetBereich(kd, daten),
       ]),
@@ -379,6 +382,19 @@ function ungewoehnlichMarke(b) {
   return hochMarke(b, ungewoehnlich.get(b.id)); // D186: antippen = bestätigen
 }
 
+/** D209: „Ausgaben bis heute 812 € · Vormonat bis 15.10.: 690 € (+18 %)“ */
+function vergleichZeile(konto, buchungen, heute) {
+  const v = ausgabenVergleich(konto, buchungen, heute);
+  if (!v.jetzt && !v.vorher) return null;
+  const diff = v.jetzt - v.vorher;
+  const prozent = v.vorher ? Math.round((diff / v.vorher) * 100) : null;
+  const klasse = diff > 0 ? 'mehr' : diff < 0 ? 'weniger' : '';
+  return h('p', { class: 'vergleich-zeile klein', title: 'Nur Ausgaben dieses Kontos, ohne Umbuchungen' },
+    h('span', {}, 'Ausgaben bis heute ', h('strong', {}, formatEuro(v.jetzt))),
+    h('span', { class: 'gedaempft' }, ` · Vormonat bis ${formatDatum(v.vorBis).slice(0, 6)}: ${formatEuro(v.vorher)}`),
+    prozent != null && diff !== 0 && h('span', { class: `vergleich-diff ${klasse}` }, ` (${diff > 0 ? '+' : '−'}${Math.abs(prozent)} %)`));
+}
+
 /* ---------- Monatsnavigation ---------- */
 
 function monatsNavigation({ zurueck, vor, istAktuellerMonat, wechsel, notizen = [] }) {
@@ -522,7 +538,7 @@ function kontoTabelle(auswahl, tagesKopf, katName, kontoName) {
       partner = b.partner ?? '';
       katText = [katName.get(unter?.elternId)?.name, unter?.name ?? 'Unbekannte Kategorie'].filter(Boolean).join(' › ');
     }
-    return h('li', { role: 'row', class: b.art === 'umbuchung' ? 'ub-ausblendbar' : null },
+    return h('li', { role: 'row', class: b.art === 'umbuchung' ? 'ub-ausblendbar' : null, 'data-bid': b.id },
       h('button', { type: 'button', class: 'btab-zeile' + (b.art === 'umbuchung' ? ' umbuchung' : ''), onclick: () => oeffneBuchungsdialog(b) },
         h('span', { class: 'btab-zelle btab-status', title: b.status === 'vorgemerkt' ? 'vorgemerkt' : null }, b.status === 'vorgemerkt' ? 'v' : ''),
         h('span', { class: 'btab-zelle btab-partner', title: partner || null },
@@ -563,7 +579,7 @@ function buchungsZeile(b, katName, kontoName, farben = farbenZuordnung([...katNa
   }
   const wirkung = b.art === 'einnahme' || b.richtung === 'zu' ? b.betragCent : -b.betragCent;
 
-  return h('li', { class: b.art === 'umbuchung' ? 'ub-ausblendbar' : null },
+  return h('li', { class: b.art === 'umbuchung' ? 'ub-ausblendbar' : null, 'data-bid': b.id }, // D211: wischbar
     h('button', { type: 'button', class: 'buchung einzeilig', onclick: () => oeffneBuchungsdialog(b) },
       h('span', { class: 'buchung-text' },
         h('span', { class: 'buchung-titel' },

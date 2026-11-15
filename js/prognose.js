@@ -827,3 +827,29 @@ export function jahresbudgetPlan(daten, heute, bisMonat) {
   }
   return plan;
 }
+
+/**
+ * D208: Budget-Vorschlag beim Anlegen – Durchschnitt der Ausgaben dieser Hauptkategorie auf diesem Konto
+ * in den letzten 3 bzw. 6 abgeschlossenen Monaten (gleiche Regel wie der Budgetverbrauch, ohne Projekte).
+ * Monate vor der ersten Buchung dieser Kategorie zählen nicht mit. Ergebnis: { schnitt3, schnitt6, monate } (Cent) oder null.
+ */
+export function budgetVorschlag(buchungen, kategorien, kontoId, hauptId, heute) {
+  const aktuell = heute.slice(0, 7);
+  const kat = new Map(kategorien.map((k) => [k.id, k]));
+  const relevant = buchungen.filter((b) => istAktiv(b) && b.kontoId === kontoId && budgetHauptVon(b, (id) => kat.get(id)?.elternId) === hauptId);
+  if (!relevant.length) return null;
+  const erster = relevant.map((b) => b.datum.slice(0, 7)).sort()[0];
+  const summe = (monat) => relevant.filter((b) => b.datum.slice(0, 7) === monat).reduce((s, b) => s + b.betragCent, 0);
+  const schnitt = (n) => {
+    const monate = [];
+    for (let i = 1; i <= n; i++) {
+      const m = plusMonate(aktuell, -i);
+      if (m >= erster) monate.push(summe(m));
+    }
+    return monate.length ? { cent: Math.round(monate.reduce((s, x) => s + x, 0) / monate.length), anzahl: monate.length } : null;
+  };
+  const s3 = schnitt(3);
+  const s6 = schnitt(6);
+  if (!s3) return null;
+  return { schnitt3: s3.cent, schnitt6: s6.cent, monate: s6.anzahl };
+}

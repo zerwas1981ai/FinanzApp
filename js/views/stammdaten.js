@@ -17,7 +17,7 @@ import { belegeEntfernen } from './belege.js';
 import { driveBereich, exportBereich, neuBeginnenBereich, archivBereich } from './drive-bereich.js';
 import { sperreBereich } from './sperre-ui.js';
 import { sortiereKonten, verschiebeKonto, naechsteReihenfolge } from '../konten.js';
-import { moeglicheZiele, verschiebeUnterkategorie } from '../kategorien.js';
+import { moeglicheZiele, verschiebeUnterkategorie, zusammenfuehrZiele, unterkategorieZusammenfuehren, KATEGORIE_SAMMLUNGEN } from '../kategorien.js';
 
 // Alle Buchungen (auch im Papierkorb) – für die Löschsperre. Wird bei jedem Zeichnen neu geladen.
 let buchungen = [];
@@ -315,6 +315,7 @@ function unterZeile(u, haupt, kategorien, neu) {
     h('div', { class: 'zeile-aktionen' },
       knopf('Bearbeiten', () => unterDialog(u, haupt, kategorien, neu)),
       !u.archiviert && moeglicheZiele(u, kategorien).length > 0 && knopf('Verschieben', () => verschiebenDialog(u, haupt, kategorien, neu)),
+      zusammenfuehrZiele(u, kategorien).length > 0 && knopf('Zusammenführen', () => zusammenfuehrenDialog(u, kategorien, neu)), // D210
       u.archiviert
         ? knopf('Wiederherstellen', () => setzeArchiv('kategorien', u, false, neu))
         : knopf('Archivieren', () => setzeArchiv('kategorien', u, true, neu)),
@@ -417,6 +418,39 @@ function verschiebenDialog(u, haupt, kategorien, neu) {
       const zielName = kategorien.find((k) => k.id === neuer.elternId)?.name;
       ansicht.offen.add(neuer.elternId);
       toast(`„${u.name}“ gehört jetzt zu „${zielName}“`);
+      neu();
+    },
+  });
+}
+
+/** D210: Unterkategorie in eine andere aufgehen lassen – alle Verweise ziehen um, danach wird sie gelöscht */
+function zusammenfuehrenDialog(u, kategorien, neu) {
+  const ziele = zusammenfuehrZiele(u, kategorien);
+  const ziel = auswahl({ label: 'Aufgehen in', optionen: ziele.map((k) => ({ wert: k.id, text: k.pfad })), wert: ziele[0]?.id });
+  const anzahl = anzahlFuerKategorien([u.id], buchungen);
+  const annahmen = annahmenFuer({ kategorieIds: [u.id] });
+  const relevantAnzahl = relevantListe.filter((r) => r.kategorieId === u.id).length;
+  const teile = [
+    anzahl === 1 ? '1 Buchung' : `${anzahl} Buchungen`,
+    annahmen > 0 && `${annahmen} wiederkehrende/geplante`,
+    relevantAnzahl > 0 && `${relevantAnzahl} relevante Ausgabe${relevantAnzahl === 1 ? '' : 'n'}`,
+  ].filter(Boolean).join(', ');
+  dialog({
+    titel: `„${u.name}“ zusammenführen`,
+    inhalt: [
+      h('p', { class: 'hinweis' }, `${teile} mit „${u.name}“ ${anzahl + annahmen + relevantAnzahl === 1 ? 'bekommt' : 'bekommen'} die gewählte Unterkategorie. Danach wird „${u.name}“ gelöscht. ` +
+        'Budgets gelten je Hauptkategorie und bleiben unverändert; archivierte Jahre behalten den alten Namen.'),
+      ziel.feld,
+    ],
+    speichernText: 'Zusammenführen',
+    onSpeichern: async () => {
+      const daten = Object.fromEntries(await Promise.all(KATEGORIE_SAMMLUNGEN.map(async (s) => [s, await db.alle(s)])));
+      const aenderungen = unterkategorieZusammenfuehren(u.id, ziel.select.value, daten, jetzt());
+      for (const [s, liste] of Object.entries(aenderungen)) await db.speichere(s, liste);
+      await db.loesche('kategorien', u.id);
+      const zielKat = ziele.find((k) => k.id === ziel.select.value);
+      ansicht.offen.add(zielKat?.elternId);
+      toast(`„${u.name}“ ist jetzt Teil von „${zielKat?.pfad ?? '?'}“`);
       neu();
     },
   });

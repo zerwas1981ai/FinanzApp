@@ -75,9 +75,35 @@ const abgeschlossen = (tx) => new Promise((resolve, reject) => {
 });
 
 /** Alle Datensätze einer Sammlung */
+/*
+ * D213: Zwischenspeicher im Arbeitsspeicher – jede Sammlung wird nur einmal aus IndexedDB gelesen und danach als
+ * tiefe Kopie (structuredClone) ausgegeben; das ist bei vielen Buchungen etwa fünfmal schneller. Jede Änderung über
+ * diese Datei leert den Speicher der Sammlung; andere offene Fenster der App erfahren es per BroadcastChannel.
+ * Belegdateien (lokale Sammlungen) und meta werden nicht zwischengespeichert.
+ */
+const zwischenspeicher = new Map();
+// nur im Browser (in Node würde der Kanal die Tests offen halten)
+const kanal = typeof window !== 'undefined' && typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('finanzapp-db') : null;
+if (kanal) kanal.onmessage = (e) => (e.data === '*' ? zwischenspeicher.clear() : zwischenspeicher.delete(e.data));
+function vergiss(sammlung) {
+  if (sammlung === '*') zwischenspeicher.clear(); else zwischenspeicher.delete(sammlung);
+  kanal?.postMessage(sammlung);
+}
+const mitSpeicher = (sammlung) => sammlung !== 'meta' && !LOKALE_SAMMLUNGEN.includes(sammlung);
+const kopie = (x) => (typeof structuredClone === 'function' ? structuredClone(x) : JSON.parse(JSON.stringify(x)));
+
 export async function alle(sammlung) {
+  if (mitSpeicher(sammlung) && zwischenspeicher.has(sammlung)) return kopie(await zwischenspeicher.get(sammlung));
   const db = await oeffne();
-  return alsVersprechen(db.transaction(sammlung).objectStore(sammlung).getAll());
+  const lesen = alsVersprechen(db.transaction(sammlung).objectStore(sammlung).getAll());
+  if (!mitSpeicher(sammlung)) return lesen;
+  zwischenspeicher.set(sammlung, lesen);
+  try {
+    return kopie(await lesen);
+  } catch (err) {
+    zwischenspeicher.delete(sammlung);
+    throw err;
+  }
 }
 
 /**
@@ -94,7 +120,9 @@ export async function speichere(sammlung, datensaetze) {
   const db = await oeffne();
   const tx = db.transaction(sammlung, 'readwrite');
   for (const d of liste) tx.objectStore(sammlung).put(d);
+  vergiss(sammlung); // D213
   await abgeschlossen(tx);
+  vergiss(sammlung);
   meldeAenderung(sammlung);
 }
 
@@ -104,7 +132,9 @@ export async function loesche(sammlung, ids) {
   const db = await oeffne();
   const tx = db.transaction(sammlung, 'readwrite');
   for (const id of liste) tx.objectStore(sammlung).delete(id);
+  vergiss(sammlung); // D213
   await abgeschlossen(tx);
+  vergiss(sammlung);
   meldeAenderung(sammlung);
 }
 
@@ -157,7 +187,9 @@ export async function schreibeDatenstand(daten) {
     for (const d of daten[s] ?? []) store.put(d);
   }
   tx.objectStore('meta').put({ schluessel: 'datenVersion', wert: daten.version });
+  vergiss('*'); // D213
   await abgeschlossen(tx);
+  vergiss('*');
 }
 
 /**
@@ -165,6 +197,7 @@ export async function schreibeDatenstand(daten) {
  * Danach muss die Seite neu geladen werden.
  */
 export async function datenbankLoeschen() {
+  vergiss('*'); // D213
   if (dbVersprechen) {
     const db = await dbVersprechen;
     db.onversionchange = null;
@@ -193,7 +226,9 @@ export async function leere(sammlung) {
   const db = await oeffne();
   const tx = db.transaction(sammlung, 'readwrite');
   tx.objectStore(sammlung).clear();
+  vergiss(sammlung); // D213
   await abgeschlossen(tx);
+  vergiss(sammlung);
 }
 
 /**

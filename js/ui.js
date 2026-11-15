@@ -339,7 +339,7 @@ export function wischGeste(el, beiWisch) {
   el.addEventListener('touchstart', (e) => {
     const t = e.touches[0];
     const ziel = e.target;
-    start = e.touches.length === 1 && !ziel.closest('input, textarea, select, dialog, .chips') && !scrollbar(ziel)
+    start = e.touches.length === 1 && !ziel.closest('input, textarea, select, dialog, .chips, li[data-bid]') && !scrollbar(ziel)
       ? { x: t.clientX, y: t.clientY, zeit: Date.now() } : null;
   }, { passive: true });
   el.addEventListener('touchend', (e) => {

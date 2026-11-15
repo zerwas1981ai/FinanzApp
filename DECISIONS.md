@@ -28,6 +28,7 @@ Kurzer Wegweiser, weil viele spätere Einträge frühere aufheben. Maßgeblich b
 - Die Untertabs (Projekte, Annahmen, Stammdaten) bleiben beim Scrollen oben fixiert (D193)
 - Stammdaten: Umschalter Konten · Kategorien · Empfänger · Daten & Sicherheit · Notfall-Mappe · Papierkorb · Einstellungen (D180, D205)
 - Übersicht: Monat per Wischen wechseln (D200); Wolke oben zeigt den letzten Drive-Abgleich (D202)
+- Buchungen wischen: rechts = Papierkorb, links = Kopie (D211); Sicherungsdatei wahlweise mit Passwort (D212)
 - Scrollbare Leisten behalten ihre Position (D171); „+“-Knöpfe überall im blauen Stil (D161)
 
 **Schlaue Hinweise ohne KI:** erkannte wiederkehrende Zahlungen, „↑ hoch“-Marke, Kategorie aus Notiz, Archiv-Erinnerung (D182–D185); Preisänderung, Abstimmhilfe, Monatsabschluss (D203, D204, D206); „↑ hoch“ per Antippen bestätigen (D186); Kategoriefarbe als schmaler Balken (D187). KI bleibt außen vor.
@@ -2631,3 +2632,37 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
   alten Eintrag durch die größere Gruppe.
 - **„Zusammenfassen …“** neben „Alle Empfänger“: Empfänger per Häkchen auswählen (mit Suche), gemeinsamen Namen
   eintragen (vorbelegt mit dem häufigsten) – ganz ohne Vorschlag.
+
+## D208–D213 – Runde 8 (Wunsch des Nutzers, 15.11.2026: Punkte 2, 3, 4, 6, 7, 8)
+
+### D208 – Budget-Vorschlag beim Anlegen
+- Neues Budget: unter Kategorie und Konto „Bisher im Schnitt je Monat: 3 Monate … · 6 Monate …“ (abgeschlossene Monate,
+  gleiche Regel wie der Verbrauch, Monate vor der ersten Buchung zählen nicht). Antippen übernimmt den Betrag
+  (Jahresbudget × 12, Quartal × 3). Das Feld „Belastet Konto“ steht dafür jetzt direkt unter der Kategorie.
+
+### D209 – Monat im Vergleich
+- Unter der Monatsübersicht des laufenden Monats: „Ausgaben bis heute … · Vormonat bis TT.MM.: … (±x %)“ –
+  nur Ausgaben dieses Kontos, ohne Umbuchungen; mehr = orange, weniger = grün.
+
+### D210 – Unterkategorien zusammenführen
+- Stammdaten → Kategorien: Knopf „Zusammenführen“ je Unterkategorie. Ziel: andere Unterkategorie gleicher Art
+  (dieselbe Hauptkategorie zuerst). Buchungen, wiederkehrende, geplante und relevante Ausgaben ziehen um,
+  danach wird die alte Unterkategorie gelöscht. Budgets (je Hauptkategorie) bleiben; Archivjahre unverändert.
+
+### D211 – Buchungen wischen (Handy)
+- In der Übersicht und in „Alle Buchungen“: nach **rechts** wischen = in den Papierkorb (kurze Rückfrage, danach
+  „Rückgängig“), nach **links** = Kopie mit heutigem Datum (Buchungsdialog). Ab 90 px; farbiger Hinweis beim Wischen.
+  Auf Buchungszeilen startet kein Monatswechsel (D200). Archivierte Buchungen: nur lesen.
+
+### D212 – Sicherungsdatei mit Passwort
+- „Kompletter Datenstand (JSON)“ fragt jetzt: „Mit Passwort verschlüsseln“ (vorgewählt, abwählbar). Verfahren:
+  PBKDF2-SHA256 (310.000 Durchläufe, zufälliges Salz) → AES-GCM-256, nur Web-Crypto des Browsers. Passwort mind.
+  8 Zeichen, zweimal eingeben, wird nirgends gespeichert. Beim Wiederherstellen erkennt die App die verschlüsselte
+  Datei und fragt nach dem Passwort; alte unverschlüsselte Dateien gehen weiter.
+
+### D213 – Belastungstest und Zwischenspeicher
+- Test mit 11.000 erfundenen Buchungen über 10 Jahre (PC): Lesen aus IndexedDB war der größte Brocken (~150 ms).
+- Neu: Zwischenspeicher in db.js – jede Sammlung wird einmal gelesen und als tiefe Kopie (structuredClone)
+  ausgegeben; jede Änderung leert ihn, andere offene App-Fenster werden per BroadcastChannel informiert.
+- Ergebnis (PC, 11.000 Buchungen): Übersicht 224 → 130 ms, Alle Buchungen 116 → 60 ms, Annahmen 83 → 20 ms.
+  Am Handy ist mit etwa dem 4- bis 5-Fachen zu rechnen; mit Archivierung alter Jahre (D68) bleibt der Bestand kleiner.

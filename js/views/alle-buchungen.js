@@ -11,6 +11,9 @@ import { hochMarke } from './erkennung.js';
 import { belegeBereich } from './belege.js';
 import { relevantDialog } from './relevant.js';
 import { vertragDialog } from './vertraege.js';
+import { buchungenWischbar } from './wisch-buchung.js';
+
+let wischDaten = null; // D211: aktuelle Buchungen (inkl. geladener Archivjahre) für das Wischen
 import { notizListe } from './monatsnotiz.js';
 import { archivInhalt } from '../sync/abgleich.js';
 import { buchungenAlsCsv, exportName } from '../export.js';
@@ -106,7 +109,9 @@ export async function zeigeBuchungen(container, { archivAnmelden = false } = {})
     relevant, vertraege, // D191: für die Belege-Ansicht
   };
 
+  wischDaten = daten.buchungen;
   const ergebnis = h('div', { class: 'ergebnis' });
+  buchungenWischbar(ergebnis, () => wischDaten); // D211
   const neuZeichnen = () => zeigeBuchungen(container);
   const aktualisiere = () => {
     zustand.sichtbar = SEITE;
@@ -599,7 +604,7 @@ function liste(eintraege, daten, neu) {
     const klasse = b.art === 'umbuchung' ? 'gedaempft' : wirkung > 0 ? 'plus' : '';
     const unterName = b.art === 'umbuchung' ? katText : kat.get(b.kategorieId)?.name ?? 'Unbekannte Kategorie';
     // Am Handy Umbuchungen standardmäßig ausgeblendet (D77) – außer sie sind ausdrücklich gefiltert
-    return h('li', { role: 'row', class: b.art === 'umbuchung' && !umbuchungGefiltert ? 'ub-ausblendbar' : null },
+    return h('li', { role: 'row', class: b.art === 'umbuchung' && !umbuchungGefiltert ? 'ub-ausblendbar' : null, 'data-bid': b.id }, // D211
       h('button', {
         type: 'button',
         class: 'btab-zeile' + (b.art === 'umbuchung' ? ' umbuchung' : ''),

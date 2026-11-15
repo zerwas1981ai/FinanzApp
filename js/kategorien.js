@@ -33,3 +33,33 @@ export function verschiebeUnterkategorie(unter, zielId, kategorien, jetzt = new 
   }
   return { ...unter, elternId: ziel.id, geaendertAm: jetzt };
 }
+
+/* ---------- D210: Unterkategorien zusammenführen ---------- */
+
+/** Sammlungen mit einem Verweis auf eine Unterkategorie (Feld kategorieId) */
+export const KATEGORIE_SAMMLUNGEN = ['buchungen', 'wiederkehrend', 'geplant', 'relevant'];
+
+/** Mögliche Ziele zum Zusammenführen: andere, nicht archivierte Unterkategorien gleicher Art – dieselbe Hauptkategorie zuerst */
+export function zusammenfuehrZiele(unter, kategorien) {
+  const kat = new Map(kategorien.map((k) => [k.id, k]));
+  const art = kat.get(unter.elternId)?.art;
+  return kategorien
+    .filter((k) => k.elternId && k.id !== unter.id && !k.archiviert && kat.get(k.elternId)?.art === art && !kat.get(k.elternId)?.archiviert)
+    .map((k) => ({ ...k, pfad: `${kat.get(k.elternId)?.name ?? '?'} › ${k.name}` }))
+    .sort((a, b) => (a.elternId !== unter.elternId) - (b.elternId !== unter.elternId)
+      || a.pfad.localeCompare(b.pfad, 'de', { sensitivity: 'base' }));
+}
+
+/**
+ * Alles, was auf `quelleId` verweist, zeigt danach auf `zielId`. daten: { buchungen, wiederkehrend, geplant, relevant }.
+ * Ergebnis: { sammlung: [geänderte Datensätze] } – die Quell-Kategorie löscht der Aufrufer danach.
+ */
+export function unterkategorieZusammenfuehren(quelleId, zielId, daten, jetzt = new Date().toISOString()) {
+  if (!zielId || quelleId === zielId) throw new Error('Bitte eine andere Unterkategorie wählen.');
+  const ergebnis = {};
+  for (const s of KATEGORIE_SAMMLUNGEN) {
+    const geaendert = (daten[s] ?? []).filter((x) => x.kategorieId === quelleId).map((x) => ({ ...x, kategorieId: zielId, geaendertAm: jetzt }));
+    if (geaendert.length) ergebnis[s] = geaendert;
+  }
+  return ergebnis;
+}

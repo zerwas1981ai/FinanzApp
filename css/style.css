@@ -1768,3 +1768,23 @@ html[data-schrift="gross"] { font-size: 103.125%; }
 .empf-auswahl { list-style: none; margin: 8px 0; padding: 0; max-height: 40vh; overflow-y: auto; border: 1px solid var(--rand); border-radius: 8px; }
 .empf-auswahl li { padding: 6px 10px; }
 .empf-auswahl li + li { border-top: 1px solid var(--rand); }
+
+/* D208: Budget-Vorschlag */
+.budget-vorschlag { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: -4px 0 10px; }
+/* D209: Ausgaben im Vergleich zum Vormonat */
+.vergleich-zeile { margin: 6px 4px 10px; }
+.vergleich-diff.mehr { color: var(--warnung); }
+.vergleich-diff.weniger { color: var(--einnahme); }
+
+/* D211: Buchung wischen – rechts = Papierkorb (rot), links = Kopieren (blau) */
+li[data-bid] { position: relative; }
+li[data-bid] > :first-child { position: relative; z-index: 1; }
+li.wisch-aktiv > :first-child { background: var(--flaeche); }
+li.wisch-aktiv { overflow: hidden; }
+li.wisch-aktiv::before {
+  position: absolute; inset: 0; display: flex; align-items: center; padding: 0 16px;
+  font-size: .85rem; font-weight: 600; color: #fff;
+}
+li.wisch-aktiv[data-richtung="rechts"]::before { content: '🗑 Papierkorb'; justify-content: flex-start; background: var(--warnung); opacity: .55; }
+li.wisch-aktiv[data-richtung="links"]::before { content: 'Kopieren ⧉'; justify-content: flex-end; background: var(--akzent); opacity: .55; }
+li.wisch-aktiv.wisch-bereit::before { opacity: 1; }

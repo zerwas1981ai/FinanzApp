@@ -6,6 +6,10 @@ import { preisAenderungen, mitWertAenderung } from '../js/erkennung.js';
 import { abstimmVorschlaege } from '../js/abstimmhilfe.js';
 import { empfaengerListe, aehnlicheGruppen, namensKern, umbenennen, offeneGruppen, getrenntMerken } from '../js/empfaenger.js';
 import { abschlussMonat, abschlussPruefung } from '../js/abschluss.js';
+import { budgetVorschlag } from '../js/prognose.js';
+import { ausgabenVergleich } from '../js/rechnen.js';
+import { zusammenfuehrZiele, unterkategorieZusammenfuehren } from '../js/kategorien.js';
+import { verschluesseln, entschluesseln, istVerschluesselt, pruefePasswort } from '../js/verschluesselung.js';
 
 const stufe = (betragCent, ab = '2026-01-01') => [{ ab, betragCent }];
 
@@ -129,4 +133,62 @@ test('D207: Schreibweisen bewusst getrennt lassen', () => {
   assert.deepEqual(getrenntMerken(getrennt, ['rewe', 'rewe city', 'rewe markt']), [['rewe', 'rewe city', 'rewe markt']]);
   // Teilmenge einer abgelehnten Gruppe bleibt verborgen
   assert.equal(offeneGruppen([[e('rewe'), e('rewe city')]], [['rewe', 'rewe city', 'rewe markt']]).length, 0);
+});
+
+test('D208: Budget-Vorschlag aus den letzten Monaten', () => {
+  const kat = [{ id: 'leb', elternId: null, art: 'ausgabe' }, { id: 'super', elternId: 'leb' }];
+  const b = (datum, betragCent, extra = {}) => ({ datum, betragCent, art: 'ausgabe', kontoId: 'giro', kategorieId: 'super', ...extra });
+  const liste = [
+    b('2026-05-10', 60000), b('2026-08-03', 30000), b('2026-09-03', 40000), b('2026-10-03', 20000), b('2026-10-20', 10000),
+    b('2026-11-02', 99900), // laufender Monat zählt nicht
+    b('2026-10-05', 50000, { projektId: 'p' }), // Projekt zählt nicht
+    b('2026-10-05', 50000, { kontoId: 'kk' }),
+  ];
+  const v = budgetVorschlag(liste, kat, 'giro', 'leb', '2026-11-15');
+  assert.equal(v.schnitt3, Math.round((40000 + 30000 + 30000) / 3));
+  assert.equal(v.monate, 6);
+  assert.equal(v.schnitt6, Math.round((60000 + 0 + 0 + 30000 + 40000 + 30000) / 6));
+  // erst seit zwei Monaten Buchungen → nur diese Monate zählen
+  const kurz = budgetVorschlag([b('2026-09-03', 30000), b('2026-10-03', 10000)], kat, 'giro', 'leb', '2026-11-15');
+  assert.deepEqual([kurz.schnitt3, kurz.monate], [20000, 2]);
+  assert.equal(budgetVorschlag([], kat, 'giro', 'leb', '2026-11-15'), null);
+});
+
+test('D209: Ausgaben bis heute im Vergleich zum Vormonat', () => {
+  const b = (datum, betragCent, extra = {}) => ({ datum, betragCent, art: 'ausgabe', kontoId: 'giro', ...extra });
+  const liste = [b('2026-11-02', 1000), b('2026-11-15', 500), b('2026-11-16', 9999), b('2026-10-10', 700), b('2026-10-15', 100),
+    b('2026-10-20', 9999), b('2026-11-03', 9999, { art: 'umbuchung' }), b('2026-11-03', 9999, { kontoId: 'kk' })];
+  assert.deepEqual(ausgabenVergleich({ id: 'giro' }, liste, '2026-11-15'), { jetzt: 1500, vorher: 800, vorBis: '2026-10-15' });
+  assert.equal(ausgabenVergleich({ id: 'giro' }, [], '2026-03-31').vorBis, '2026-02-28', 'kürzerer Vormonat');
+});
+
+test('D210: Unterkategorien zusammenführen', () => {
+  const kat = [
+    { id: 'leb', elternId: null, art: 'ausgabe', name: 'Lebensmittel' }, { id: 'super', elternId: 'leb', name: 'Supermarkt' },
+    { id: 'disc', elternId: 'leb', name: 'Discounter' }, { id: 'frei', elternId: null, art: 'ausgabe', name: 'Freizeit' },
+    { id: 'kino', elternId: 'frei', name: 'Kino' }, { id: 'alt', elternId: 'frei', name: 'Alt', archiviert: true },
+    { id: 'ein', elternId: null, art: 'einnahme', name: 'Einkommen' }, { id: 'gehalt', elternId: 'ein', name: 'Gehalt' },
+  ];
+  assert.deepEqual(zusammenfuehrZiele(kat[2], kat).map((k) => k.pfad), ['Lebensmittel › Supermarkt', 'Freizeit › Kino'], 'gleiche Hauptkategorie zuerst');
+  const daten = {
+    buchungen: [{ id: '1', kategorieId: 'disc' }, { id: '2', kategorieId: 'super' }],
+    wiederkehrend: [{ id: 'w', kategorieId: 'disc' }], geplant: [], relevant: [{ id: 'r', kategorieId: 'disc' }],
+  };
+  const a = unterkategorieZusammenfuehren('disc', 'super', daten, 'T');
+  assert.deepEqual(Object.keys(a), ['buchungen', 'wiederkehrend', 'relevant']);
+  assert.deepEqual(a.buchungen.map((x) => [x.id, x.kategorieId]), [['1', 'super']]);
+  assert.throws(() => unterkategorieZusammenfuehren('disc', 'disc', daten));
+});
+
+test('D212: Sicherungsdatei mit Passwort', async () => {
+  const text = JSON.stringify({ konten: [{ id: 'k', name: 'Testkonto' }], buchungen: [] });
+  const datei = await verschluesseln(text, 'Test-Passwort-123', { durchlaeufe: 1000 });
+  assert.ok(istVerschluesselt(datei));
+  assert.ok(!JSON.stringify(datei).includes('Testkonto'), 'Inhalt ist nicht lesbar');
+  assert.equal(await entschluesseln(datei, 'Test-Passwort-123'), text);
+  await assert.rejects(entschluesseln(datei, 'falsch-falsch'), /Passwort passt nicht/);
+  assert.ok(!istVerschluesselt({ konten: [], buchungen: [] }));
+  assert.throws(() => pruefePasswort('kurz', 'kurz'), /8 Zeichen/);
+  assert.throws(() => pruefePasswort('lang-genug-1', 'lang-genug-2'), /stimmen nicht/);
+  pruefePasswort('lang-genug-1', 'lang-genug-1');
 });
