@@ -6,132 +6,63 @@ manuell erfasst (keine Bankanbindung). Funktionen: mehrere Konten, Budgets,
 Prognose bis 2050. Läuft als PWA auf Windows-PC und Android-Handy.
 Oberfläche auf Deutsch, Währung Euro, deutsches Datums- und Zahlenformat.
 
+## Aktueller Stand
+- Alle Grundfunktionen sind fertig und online (GitHub Pages); seitdem Verbesserungsrunden auf Wunsch.
+- Letzte Entscheidung: D213, Cache-Version in sw.js: finanzapp-v116.
+- 181 Tests mit `npm test`, alle grün.
+- Offen: Wischen in Buchungslisten (D211) am echten Handy prüfen.
+
 ## Arbeitsweise (wichtig)
-- Arbeite IMMER nur an der aktuell genannten Etappe. Baue nichts aus späteren
-  Etappen vor.
+- Nur umsetzen, was der Nutzer verlangt; nichts ungefragt vorbauen.
 - Der Nutzer hat wenig Programmiererfahrung. Erkläre Entscheidungen kurz in
   einfachen Worten und sage, wie man das Ergebnis testet.
 - Verwende ausschließlich erfundene Testdaten. Keine echten Kontodaten, keine
   Zugangsdaten im Code oder im Repository.
-- Nach jeder Etappe: kurze Zusammenfassung, was funktioniert, was nicht.
+- Nach jeder Änderung: kurze Zusammenfassung, was funktioniert, was nicht.
 - Bei Unklarheit nachfragen, nicht raten.
+- Details zu Datenmodell, Oberfläche und Rechenlogik stehen in SPEC.md – nur bei Bedarf lesen.
+- DECISIONS.md nur lesen, wenn eine konkrete D-Nummer gebraucht wird (gezielt suchen, nicht ganz lesen).
 
 ## Technik-Rahmen
 - PWA, installierbar auf Android, läuft auch im Browser unter Windows
-- Statisches Hosting (GitHub Pages oder Cloudflare Pages): nur Programmcode,
-  keine Finanzdaten
-- Daten: eine JSON-Datendatei im Google Drive des Nutzers (privates Konto);
-  Belege als Dateien in einem Drive-Ordner
-- Die App arbeitet lokal (IndexedDB) und gleicht beim Start und beim Speichern
-  mit Drive ab. Bei Konflikten (beide Geräte geändert) MUSS sie nachfragen
-  und darf nie still überschreiben.
-- Das Datenmodell hat eine Versionsnummer. Ältere Datenstände werden beim
-  Laden automatisch migriert.
-- Optional: Daten pro Jahr getrennt speicherbar (Archivierung alter Jahre)
+- Statisches Hosting (GitHub Pages): nur Programmcode, keine Finanzdaten
+- Daten: eine JSON-Datendatei im Google Drive des Nutzers; Belege als Dateien in einem Drive-Ordner
+- Die App arbeitet lokal (IndexedDB) und gleicht beim Start und beim Speichern mit Drive ab.
+- Das Datenmodell hat eine Versionsnummer; ältere Stände werden beim Laden automatisch migriert.
 
-## Datenmodell
-- Konto: Name, Anfangssaldo, Stichtag, Mindestsaldo, Reihenfolge (per ▲/▼, D84)
-- Kategorie: Hauptkategorie mit Unterkategorien (Startsatz vorbelegt, in den
-  Stammdaten anpassbar; Unterkategorien zwischen Hauptkategorien gleicher Art
-  verschiebbar, D93; Unterkategorien zusammenführbar, D210)
-- Buchung: Datum, Betrag, Art (Einnahme/Ausgabe), Konto, Empfänger/Absender
-  (optional), Unterkategorie, Notiz, Projekt (optional), Belege (mehrere
-  möglich, PDF/JPG), Status
-- Umbuchung: zwei verknüpfte Buchungen (Abgang Konto A, Zugang Konto B).
-  Zählt in Auswertungen NICHT als Einnahme oder Ausgabe. Optional einem Budget
-  zugeordnet: verbraucht dann das Budget dieser Hauptkategorie auf dem
-  abgebenden Konto (auch wiederkehrend/geplant, D98).
-- Budget: pro Hauptkategorie und Konto, monatlich, jährlich (in Tranchen, D90) oder einmalig (D85);
-  je Kategorie und Konto entweder Monats- oder Jahresbudget
-- Monatsnotiz (D165): ein Satz je Monat
-- Vertrag (D148): Name, Empfänger (Pflicht, D150), Kategorie (Hauptkategorie, gruppiert, D194), Vertragsnummer, Beginn, Mindestlaufzeit, Verlängerung,
-  Kündigungsfrist (zum Laufzeit-, Monats- oder Quartalsende, D192), Erinnerung, gekündigt zum, Unterlagen; Klammer um Buchungen und wiederkehrende
-  Buchungen (Feld „Vertrag“, rückwirkend über die wiederkehrende Buchung)
-- Wiederkehrende Buchung: Intervall (monatlich/vierteljährlich/halbjährlich/jährlich, D197),
-  Start, optional Ende, Wertänderungen ab Datum, feste Abweichung je
-  Kalendermonat (jedes Jahr, D94), einzelne Monate überspringen oder verschieben;
-  keine Pflicht-Bezeichnung, sondern optionale Notiz wie bei Buchungen (D96)
-- Geplante Einmalbuchung: bekannt, aber nicht wiederkehrend. Wird bei
-  Eingang der echten Buchung als erledigt markiert und nicht doppelt gezählt
-  (Soll/Ist-Abgleich).
-- Gelöschte Buchungen kommen zuerst in einen Papierkorb.
+## Unverletzliche Regeln
+- Bei Konflikten (beide Geräte geändert) MUSS die App nachfragen und darf nie still überschreiben.
+- Die App schlägt nur vor (Budgethinweise, Erkennung, Preisänderung …); geändert wird erst nach einem Klick.
+- Umbuchungen zählen in Auswertungen NIE als Einnahme oder Ausgabe.
+- Nur absolute Werte: keine Prozentsteigerungen, keine Inflation.
+- Zukunftsmonate werden bei jedem Öffnen berechnet, nie gespeichert.
+- Geplante Einmalbuchungen werden bei Eingang der echten Buchung erledigt, nie doppelt gezählt.
+- Gelöschte Buchungen kommen zuerst in den Papierkorb.
+- Budgets gelten je Hauptkategorie und Konto; Projektausgaben zählen nicht gegen Budgets.
 
-## Oberfläche (5 Tabs)
-1. Übersicht
-   - Oben: Kasten „Übersicht“ (D164) mit Gesamtkontostand heute und prognostiziert zum Monats- und Jahresende (alle
-     Konten, D116) ( Einnahmen/Ausgaben des Monats entfallen, D115), Warnung bei Unterschreiten des
-     Mindestsaldos (mit erstem betroffenen Monat; im laufenden Monat nach dem
-     niedrigsten erwarteten Stand ohne offene echte Einnahmen, D110/D111), max. 2 Budget-Hinweise
-     (eingeklappt in einer Zeile, D117).
-     Keine Kategorie-Kacheln (Budgetauslastung steht je Konto unter „Noch
-     erwartet“, siehe DECISIONS.md D78)
-   - „Alle Konten“: Aufstellung je Konto (heute, Monats-, Jahresende) mit Summe (D118)
-   - Konten nebeneinander oder umschaltbar, je Konto Monatsansicht mit
-     Zwischensummen; am PC Buchungen als Tabelle mit Tageszeilen (Tagesstand), am Handy
-     einzeilig. Umbuchungen per Knopf ein-/ausblendbar (D75–D78)
-   - Unter dem aktuellen Monat die Zukunftsmonate: Rest des laufenden Jahres
-     immer sichtbar (komprimiert, aufklappbar), Folgejahre bis 2050 einzeln
-     ein- und ausblendbar. Zukunftswerte optisch klar als Annahme
-     gekennzeichnet (z. B. kursiv oder schraffiert).
-2. Alle Buchungen (Umschalter Liste · Analyse · Belege, D191): über alle Konten filtern, sortieren, analysieren, Monats-/Jahresrückblick (D156); nur gebuchte
-   Buchungen bis heute (D120/D121); Filter "ohne Beleg" vorerst entfallen (D123)
-3. Projekte (Umschalter Projekte · Relevante Ausgaben, D153/D191): Einmalausgaben (echte und geplante Buchungen) einem Projekt
-   zuordnen, z. B. Umbau oder Urlaub; Gesamtkosten mit optionalem Rahmen.
-   Projektausgaben zählen nicht gegen das Monatsbudget. (Ersetzt die
-   früher geplanten Szenarien „Was wäre wenn“, siehe DECISIONS.md D51.)
-4. Annahmen (Umschalter Budgets · Wiederkehrende · Verträge · Geplante, D160/D191/D193): wiederkehrende Buchungen, Budgets für die Zukunft, geplante
-   Einmalbuchungen. Nur absolute Werte, KEINE Prozentsteigerungen oder
-   Inflation. Ein/Aus-Schalter je Posten, um ihn für die Prognose
-   auszuschalten, ohne etwas zu löschen.
-5. Stammdaten (Umschalter Konten · Kategorien · Empfänger · Daten & Sicherheit · Notfall-Mappe · Papierkorb · Einstellungen, D180/D205)
-
-## Rechenlogik
-- Zukunftsmonate werden bei jedem Öffnen berechnet, nicht gespeichert.
-- Budget: Es gilt pro Hauptkategorie, Konto und Monat. Nur Buchungen
-  (echte, wiederkehrende, geplante) auf Unterkategorien auf DIESEM Konto
-  verbrauchen es; Ausgaben auf Konten ohne eigenes Budget zählen gegen kein
-  Budget (D85). Nicht verbrauchter Rest verfällt am Monatsende.
-- Jahresbudget (D90): wirkt zu einem Monatsende, hälftig zum 30.06./31.12. oder
-  je Quartalsende (Euro je Quartal). Rest einer abgelaufenen Tranche geht ins
-  Restbudget zum 31.12., Überziehung verringert es; kein Übertrag ins neue Jahr.
-- Monatsbudget mit festen Abweichungen je Kalendermonat (z. B. jeden Juli 200 €,
-  D92); eine Einzel-Ausnahme für genau einen Monat hat Vorrang.
-- Zukunft: Das Budget wirkt wie eine wiederkehrende Ausgabe in der vom
-  Nutzer vorgegebenen Höhe.
-- Laufender Monat: Prognose = echte Buchungen bisher + noch offener
-  Budgetrest, mindestens aber die echten Buchungen.
-- Budgethinweis (je Konto, D85): Wenn eine Hauptkategorie auf einem Konto 3 Monate in Folge über oder unter
-  dem Budget liegt (Durchschnittsabweichung mehr als 10 %, beides einstellbar),
-  erscheint eine ruhige Hinweiskarte (kein Pop-up) mit Zahlen und einem
-  Vorschlag zur Anpassung. Nutzer wählt: übernehmen (ab welchem Monat),
-  ablehnen, später erinnern. Die App ändert nie selbst etwas.
-- Kontoabstimmung: Der Nutzer gibt den echten Bankstand ein, die App zeigt
-  die Differenz zum berechneten Stand.
+## Wo liegt was
+- `index.html`, `css/style.css` – Gerüst und gesamtes Design (Dark/Hell)
+- `sw.js` – Offline-Cache: bei jeder Änderung CACHE hochzählen, neue Dateien eintragen
+- `js/app.js` – Start, Tab-Umschaltung; `js/sperre.js`, `js/login.js` – App-Login/Passkey
+- `js/db.js` – IndexedDB mit Zwischenspeicher; `js/migrationen.js` – Datenmodell-Version, Migrationen
+- `js/prognose.js` – Prognose, Zeitleiste bis 2050, Budgets, Termine wiederkehrender Buchungen
+- `js/rechnen.js` – Kontostände, Monatsübersicht; `js/buchungen.js` – Buchungen, Umbuchungen, Papierkorb
+- `js/annahmen.js`, `js/jahresbudget.js` – Budgets, wiederkehrende und geplante Buchungen bauen
+- `js/sync/` – Google-Drive-Abgleich mit Konfliktabfrage
+- `js/erkennung.js`, `js/abstimmhilfe.js`, `js/abschluss.js` – Hinweise ohne KI
+- `js/ui.js`, `js/dom.js` – Dialoge, Umschalter, Meldungen, `h()`-Helfer
+- `js/views/*.js` – Ansicht je Tab/Bereich (uebersicht, alle-buchungen, annahmen, stammdaten …)
+- `js/testdaten.js` – erfundene Testdaten (nur auf localhost); `tests/` – Tests der reinen Funktionen
+- `SPEC.md` – fachliche Details; `DECISIONS.md` – alle Entscheidungen (D-Nummern)
 
 ## Komfort und Sicherheit
-- Schnellerfassung: Betrag, Kategorie, fertig. Datum Standard heute, Konto
-  zuletzt benutzt. „Erfassen & weitere“, Rechnen im Betragsfeld, häufige Kategorien oben (D175). Kurzbefehle am
-  App-Symbol (D105), Belege per „Teilen“ an die App schicken (Android, D106).
-- Hinweise aus eigenen Buchungen, ohne KI: wiederkehrende Zahlungen erkennen (D182), ungewöhnlich hohe
-  Ausgaben markieren (D183), Kategorie aus der Notiz vorschlagen (D184), Archiv-Erinnerung (D185),
-  Preisänderung erkennen (D203), Hilfe bei der Kontoabstimmung (D204), Monatsabschluss-Checkliste (D206)
-- Kamera-Button für Belegfoto, Bilder beim Hochladen verkleinern
-- Automatisches Backup bei jedem Speichern (letzte 30 Stände), Export als
-  CSV/Excel, kompletter Datenstand als Datei sichern und wiederherstellen (D178), wahlweise mit Passwort verschlüsselt (D212)
-- App-Login: Pflicht-Passwort für alle Geräte (über Drive abgeglichen), je Gerät
-  ersetzbar durch Passkey (siehe DECISIONS.md D83)
-- Dark- und Hell-Modus umschaltbar, Schriftgröße je Gerät (D177); schlichtes, modernes Design
+- Schnellerfassung: Betrag, Kategorie, fertig. Datum Standard heute, Konto zuletzt benutzt.
+- Hinweise aus eigenen Buchungen, ohne KI (Erkennung, Ausreißer, Abstimmhilfe, Monatsabschluss)
+- Belege per Kamera oder „Teilen“, Bilder beim Hochladen verkleinern
+- Backup bei jedem Speichern (letzte 30 Stände), Export CSV, Sicherungsdatei wahlweise mit Passwort
+- App-Login: Pflicht-Passwort für alle Geräte (über Drive abgeglichen), je Gerät Passkey möglich
+- Dark- und Hell-Modus, Schriftgröße je Gerät; schlichtes, modernes Design
 
 ## Nicht im Umfang (nicht von selbst einbauen)
 Mehrbenutzer, andere Währungen, Bankimport, KI-Funktionen,
 Inflation/Prozentsteigerungen.
-
-## Etappen
-1. Grundgerüst, Design, Dark/Hell, Stammdaten (Konten, Kategorien)
-2. Buchungen erfassen, Monatsansicht pro Konto, Umbuchungen,
-   Anfangssalden und Kontoabstimmung
-3. Tab "Alle Buchungen" mit Filtern und Analyse
-4. Budgets, wiederkehrende Buchungen, Kennzahlen oben, Budgethinweise
-   (zuletzt, mit Testdaten prüfen)
-5. Annahmen-Tab und Zeitleiste bis 2050, Projekte (statt Szenario-Schalter)
-6. Google Drive: Datensync mit Konfliktabfrage, Belege, Backup, Export
