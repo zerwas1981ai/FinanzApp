@@ -277,19 +277,31 @@ export function wiederkehrendJeMonat(liste, heute) {
  * D219: jahrCent = alle Zahlungen aufs Jahr gerechnet; monatCent = nur die Zahlungen mit monatlicher Zahlweise
  * (vierteljährliche, halbjährliche und jährliche werden NICHT auf Monate verteilt, sie stecken nur im Jahreswert).
  * monatlich: ob es überhaupt eine monatliche Zahlung gibt.
+ * D220: schnittMonatCent = Jahr ÷ 12 (für die Zeile, auch bei Jahresverträgen); zahlweise = gemeinsames Intervall
+ * aller Zahlungen ('monatlich' | 'vierteljaehrlich' | 'halbjaehrlich' | 'jaehrlich') oder 'gemischt' bzw. null (keine);
+ * jeZahlungCent = Betrag je Zahlung bei einheitlicher Zahlweise.
  */
 export function vertragsKosten(vertragId, wiederkehrend, heute) {
   const posten = wiederkehrend.filter((w) => w.vertragId === vertragId && w.aktiv !== false && !(w.ende && w.ende < heute));
   let jahrCent = 0;
   let monatCent = 0;
   let monatlich = false;
+  const intervalle = new Set();
   for (const w of posten) {
     const betrag = (w.art === 'einnahme' ? -1 : 1) * aktuellerBetrag(w, heute);
-    const jeJahr = INTERVALL_JE_JAHR[w.intervall] ?? 12; // unbekannt = monatlich
-    jahrCent += betrag * jeJahr;
-    if (jeJahr === 12) { monatCent += betrag; monatlich = true; }
+    const intervall = INTERVALL_JE_JAHR[w.intervall] ? w.intervall : 'monatlich'; // unbekannt = monatlich
+    intervalle.add(intervall);
+    jahrCent += betrag * INTERVALL_JE_JAHR[intervall];
+    if (intervall === 'monatlich') { monatCent += betrag; monatlich = true; }
   }
-  return { posten, jahrCent, monatCent, monatlich };
+  const zahlweise = intervalle.size === 0 ? null : intervalle.size === 1 ? [...intervalle][0] : 'gemischt';
+  const jeZahlungCent = INTERVALL_JE_JAHR[zahlweise] ? Math.round(jahrCent / INTERVALL_JE_JAHR[zahlweise]) : null;
+  return { posten, jahrCent, monatCent, monatlich, schnittMonatCent: Math.round(jahrCent / 12), zahlweise, jeZahlungCent };
+}
+
+/** D220: Laufende Verträge ohne eingeschaltete wiederkehrende Buchung (eigentlich hat jeder Vertrag eine) */
+export function vertraegeOhneWiederkehrend(vertraege, wiederkehrend, heute) {
+  return vertraege.filter((v) => istAktiv(v, heute) && !vertragsKosten(v.id, wiederkehrend, heute).posten.length);
 }
 
 /** D219: Kosten mehrerer Verträge zusammenzählen – Summe der Einzelwerte, damit alle Summen zusammenpassen */

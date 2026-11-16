@@ -2726,3 +2726,13 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
 - Zwischensumme je Kategorie steht immer da (vorher fehlte sie bei 0 €). Gesamtsumme oben = Summe der einzelnen
   Verträge (vorher Jahr ÷ 12 gerundet, dadurch passte sie nicht zur Summe der Zeilen).
 - Notfall-Übersicht unverändert: dort weiter alle Zahlungen auf den Monat umgerechnet.
+
+### D220 – Verträge: Zahl passend zur Zahlweise hervorgehoben, Hinweis ohne wiederkehrende Buchung
+*Wunsch des Nutzers (ergänzt D219)*
+- Jede Vertragszeile zeigt auch bei nicht monatlicher Zahlweise den Monatswert („Ø … / Monat“ = Jahr ÷ 12).
+- Fett und vorne steht die Zahl passend zur Zahlweise: monatlich → / Monat, vierteljährlich → / Quartal,
+  halbjährlich → / Halbjahr, jährlich → / Jahr; gemischt → / Monat (wenn eine monatliche Zahlung dabei ist), sonst / Jahr.
+  Die übrigen Werte stehen klein dahinter; am Handy nur die fette Zahl.
+- Zwischen- und Gesamtsummen bleiben wie D219 (Monat nur aus monatlichen Zahlungen) – so vom Nutzer gewählt.
+- Laufende Verträge ohne eingeschaltete wiederkehrende Buchung: „⚠ keine wiederkehrende Buchung“ in der Zeile und
+  ein Hinweis unter der Gesamtsumme mit den Namen. Nur Hinweis, nichts wird automatisch angelegt.

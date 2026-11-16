@@ -24,7 +24,9 @@ Details zu Datenmodell, Oberfläche und Rechenlogik (aus CLAUDE.md verschoben). 
 - Vertrag (D148): Name, Empfänger (Pflicht, D150), Kategorie (Hauptkategorie, gruppiert, D194), Vertragsnummer, Beginn, Mindestlaufzeit, Verlängerung,
   Kündigungsfrist (zum Laufzeit-, Monats- oder Quartalsende, D192), Erinnerung, gekündigt zum, Unterlagen; Klammer um Buchungen und wiederkehrende
   Buchungen (Feld „Vertrag“, rückwirkend über die wiederkehrende Buchung). Kosten (D219): / Monat nur aus monatlichen
-  Zahlungen, / Jahr aus allen; Zwischensumme je Kategorie immer, Gesamtsumme = Summe der Verträge
+  Zahlungen, / Jahr aus allen; Zwischensumme je Kategorie immer, Gesamtsumme = Summe der Verträge.
+  Zeile (D220): Betrag passend zur Zahlweise fett (Monat/Quartal/Halbjahr/Jahr), dazu Ø je Monat und Jahr;
+  laufende Verträge ohne wiederkehrende Buchung bekommen einen Hinweis
 - Wiederkehrende Buchung: Intervall (monatlich/vierteljährlich/halbjährlich/jährlich, D197),
   Start, optional Ende, Wertänderungen ab Datum, feste Abweichung je
   Kalendermonat (jedes Jahr, D94), einzelne Monate überspringen oder verschieben;

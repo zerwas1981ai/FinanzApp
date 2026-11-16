@@ -8,7 +8,7 @@ import { formatEuro, formatDatum, formatProzent, heuteIso } from '../format.js';
 import { dialog, frage, toast, eingabe, auswahl, datenGeaendert, klappBereich, geraet, katPunkt } from '../ui.js';
 import { farbenZuordnung } from '../farben.js';
 import {
-  baueVertrag, vertragsStand, vertragsKosten, vertragsUebersicht, kostenSumme, vertragsBuchungen, endeVorschlag,
+  baueVertrag, vertragsStand, vertragsKosten, vertragsUebersicht, kostenSumme, vertraegeOhneWiederkehrend, vertragsBuchungen, endeVorschlag,
   zuordnungsKandidaten, fristText, FRIST_EINHEITEN, KUENDIGUNG_ZUM, vertragsKategorie, nachKategorie, endeNachVerlaengerung, STANDARD_ERINNERUNG_TAGE, vertragVon, aktuellerBetrag, preisVerlauf,
 } from '../vertraege.js';
 import { benenneBelege } from '../relevant.js';
@@ -60,7 +60,13 @@ export function vertraegeBereich(daten) {
         h('span', { class: 'betrag' }, `${formatEuro(-summe.monatCent)} / Monat`),
         h('span', { class: 'betrag stark' }, `${formatEuro(-summe.jahrCent)} / Jahr`)),
       daten.vertraege.length > 0 && h('p', { class: 'hinweis klein gedaempft' },
-        '„/ Monat“ enthält nur Zahlungen mit monatlicher Zahlweise; vierteljährliche, halbjährliche und jährliche Zahlungen stecken nur im Jahreswert.'),
+        'In den Summen enthält „/ Monat“ nur Zahlungen mit monatlicher Zahlweise; vierteljährliche, halbjährliche und jährliche ' +
+        'stecken dort nur im Jahreswert. In den Zeilen ist „Ø … / Monat“ auf den Monat umgerechnet; fett ist der Betrag passend zur Zahlweise.'),
+    // D220: Hinweis auf laufende Verträge ohne wiederkehrende Buchung
+    ...((ohne) => ohne.length ? [h('p', { class: 'hinweis warn-text' },
+      `⚠ ${ohne.length === 1 ? '1 Vertrag hat' : `${ohne.length} Verträge haben`} noch keine wiederkehrende Buchung: ` +
+      `${ohne.map((v) => v.name).sort((a, b) => a.localeCompare(b, 'de')).join(', ')}. Lege eine wiederkehrende Buchung an ` +
+      'oder ordne eine vorhandene über das Feld „Vertrag“ zu.')] : [])(vertraegeOhneWiederkehrend(daten.vertraege, daten.wiederkehrend, heute)),
     // D194: laufende Verträge nach Hauptkategorie gruppiert, je Gruppe eine Zwischenüberschrift mit Summe
     ...vertragsGruppen(laufend, daten, heute),
     beendet.length > 0 && h('details', { class: 'erledigt-liste' },
@@ -89,6 +95,22 @@ function vertragsGruppen(eintraege, daten, heute) {
 export function kostenText(k, { monat = ' / Monat', jahr = ' / Jahr', vz = -1 } = {}) {
   const j = `${formatEuro(vz * k.jahrCent)}${jahr}`;
   return k.monatlich ? `${formatEuro(vz * k.monatCent)}${monat} · ${j}` : j;
+}
+
+const PERIODE = { vierteljaehrlich: 'Quartal', halbjaehrlich: 'Halbjahr' };
+
+/**
+ * D220: Kosten eines Vertrags als Teile [{ text, haupt }]: Betrag je Zahlung (Quartal/Halbjahr), Monat (bei nicht rein
+ * monatlicher Zahlweise als Ø = Jahr ÷ 12) und Jahr. haupt = die zur Zahlweise passende Zahl (wird hervorgehoben).
+ */
+export function kostenTeile(k, vz = -1) {
+  const haupt = k.zahlweise === 'monatlich' ? 'monat' : PERIODE[k.zahlweise] ? 'periode'
+    : k.zahlweise === 'gemischt' && k.monatlich ? 'monat' : 'jahr';
+  const teile = [];
+  if (PERIODE[k.zahlweise]) teile.push({ art: 'periode', text: `${formatEuro(vz * k.jeZahlungCent)} / ${PERIODE[k.zahlweise]}` });
+  teile.push({ art: 'monat', text: `${k.zahlweise === 'monatlich' ? '' : 'Ø '}${formatEuro(vz * k.schnittMonatCent)} / Monat` });
+  teile.push({ art: 'jahr', text: `${formatEuro(vz * k.jahrCent)} / Jahr` });
+  return teile.map((t) => ({ text: t.text, haupt: t.art === haupt }));
 }
 
 /** Eine Zeile je Vertrag – aufklappbar mit allen Angaben, Zahlungen und Unterlagen */
@@ -130,11 +152,16 @@ function vertragZeile({ v, stand }, daten, heute) {
         h('span', { class: 'nur-breit' }, st.text),
         st.warn && h('span', { class: 'nur-schmal' }, `bis ${formatDatum(stand.kuendigenBis).slice(0, 6)}`)),
       // D192: Kosten je Monat und darunter je Jahr
-      // D219: ohne monatliche Zahlung nur der Jahreswert (dann auch am Handy sichtbar)
-      h('span', { class: 'betrag annahme vertrag-kosten' }, ...(!kosten.posten.length ? ['']
-        : kosten.monatlich
-          ? [`${formatEuro(-kosten.monatCent)} / Monat`, h('span', { class: 'vertrag-jahr' }, ` · ${formatEuro(-kosten.jahrCent)} / Jahr`)]
-          : [`${formatEuro(-kosten.jahrCent)} / Jahr`]))),
+      // D220: die zur Zahlweise passende Zahl fett vorne (am Handy nur diese), die anderen klein dahinter;
+      // laufender Vertrag ohne wiederkehrende Buchung: Hinweis statt Betrag
+      kosten.posten.length
+        ? h('span', { class: 'betrag annahme vertrag-kosten' }, ...(() => {
+          const teile = kostenTeile(kosten);
+          const haupt = teile.find((t) => t.haupt);
+          return [h('strong', {}, haupt.text), h('span', { class: 'vertrag-jahr' }, teile.filter((t) => !t.haupt).map((t) => ` · ${t.text}`).join(''))];
+        })())
+        : h('span', { class: 'vertrag-kosten klein' + (stand.status === 'beendet' ? ' gedaempft' : ' warn-text') },
+          stand.status === 'beendet' ? '' : [h('span', { class: 'nur-breit' }, '⚠ keine wiederkehrende Buchung'), h('span', { class: 'nur-schmal' }, '⚠ ohne Buchung')])),
     h('div', { class: 'vertrag-inhalt' }, ...[
       h('div', { class: 'vertrag-angaben' }, ...[
         angabe('Vertragsnummer', v.vertragsnummer),
@@ -142,7 +169,7 @@ function vertragZeile({ v, stand }, daten, heute) {
         angabe('Laufzeit', laufzeit),
         angabe('Kündigungsfrist', fristText(v)),
         angabe('Nächstes Vertragsende', naechstes),
-        angabe('Kosten', kosten.posten.length ? kostenText(kosten, { monat: ' im Monat', jahr: ' im Jahr', vz: 1 }) : 'keine wiederkehrende Buchung zugeordnet'),
+        angabe('Kosten', kosten.posten.length ? kostenTeile(kosten, 1).map((t) => t.text).join(' · ') : 'keine wiederkehrende Buchung zugeordnet'),
         // D166: Preisentwicklung aus den echten Zahlungen je Jahr
         (() => {
           const verlauf = preisVerlauf(buchungen);
@@ -397,7 +424,7 @@ export function kuendigungsBereich(hinweise, daten) {
         `Kündigen bis ${formatDatum(stand.kuendigenBis)} (${rest}), dann endet der Vertrag am ${formatDatum(stand.ende)}. ` +
         `Sonst verlängert er sich um ${v.verlaengerungMonate} ${v.verlaengerungMonate === 1 ? 'Monat' : 'Monate'} bis ${formatDatum(verlaengert)}.`),
       (kosten.posten.length > 0 || v.vertragsnummer) && h('p', { class: 'klein' },
-        [kosten.posten.length && `Kosten ${kostenText(kosten, { monat: ' im Monat', jahr: ' im Jahr', vz: 1 })}`,
+        [kosten.posten.length && `Kosten ${kostenTeile(kosten, 1).map((t) => t.text).join(' · ')}`,
           v.vertragsnummer && `Vertragsnummer ${v.vertragsnummer}`].filter(Boolean).join(' · ')),
       h('div', { class: 'hinweis-aktionen' },
         h('button', {

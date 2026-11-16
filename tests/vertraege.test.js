@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   plusMonate, laufzeitEnde, kuendigungsTag, baueVertrag, vertragsStand, kuendigungsHinweise, vertragVon,
-  vertragsBuchungen, vertragsKosten, vertragsUebersicht, kostenSumme, endeVorschlag, zuordnungsKandidaten, fristText,
+  vertragsBuchungen, vertragsKosten, vertragsUebersicht, kostenSumme, vertraegeOhneWiederkehrend, endeVorschlag, zuordnungsKandidaten, fristText,
   aufStichtag, endeNachVerlaengerung, vertragsKategorie, nachKategorie,
 } from '../js/vertraege.js';
 import { migriereDaten } from '../js/migrationen.js';
@@ -224,4 +224,24 @@ test('D219: Zwischen- und Gesamtsummen passen zusammen', () => {
   assert.equal(gesamt.monatCent, g1.monatCent + g2.monatCent);
   assert.equal(gesamt.jahrCent, g1.jahrCent + g2.jahrCent);
   assert.deepEqual(kostenSumme(['v2'], wk, '2026-11-16').monatlich, false);
+});
+
+test('D220: Zahlweise, Betrag je Zahlung, Ø je Monat und Verträge ohne wiederkehrende Buchung', () => {
+  const heute = '2026-11-16';
+  const wk = [
+    { id: 'm', vertragId: 'vm', art: 'ausgabe', intervall: 'monatlich', stufen: [{ ab: '2026-01-01', betragCent: 1999 }] },
+    { id: 'q', vertragId: 'vq', art: 'ausgabe', intervall: 'vierteljaehrlich', stufen: [{ ab: '2026-01-01', betragCent: 3000 }] },
+    { id: 'j', vertragId: 'vj', art: 'ausgabe', intervall: 'jaehrlich', stufen: [{ ab: '2026-01-01', betragCent: 45000 }] },
+    { id: 'g1', vertragId: 'vg', art: 'ausgabe', intervall: 'monatlich', stufen: [{ ab: '2026-01-01', betragCent: 1000 }] },
+    { id: 'g2', vertragId: 'vg', art: 'ausgabe', intervall: 'jaehrlich', stufen: [{ ab: '2026-01-01', betragCent: 6000 }] },
+    { id: 'aus', vertragId: 'vaus', art: 'ausgabe', intervall: 'monatlich', stufen: [{ ab: '2026-01-01', betragCent: 500 }], aktiv: false },
+  ];
+  const k = (id) => vertragsKosten(id, wk, heute);
+  assert.deepEqual([k('vm').zahlweise, k('vm').jeZahlungCent, k('vm').schnittMonatCent], ['monatlich', 1999, 1999]);
+  assert.deepEqual([k('vq').zahlweise, k('vq').jeZahlungCent, k('vq').schnittMonatCent, k('vq').monatCent], ['vierteljaehrlich', 3000, 1000, 0]);
+  assert.deepEqual([k('vj').zahlweise, k('vj').schnittMonatCent, k('vj').jahrCent], ['jaehrlich', 3750, 45000]);
+  assert.deepEqual([k('vg').zahlweise, k('vg').jeZahlungCent, k('vg').schnittMonatCent, k('vg').monatCent], ['gemischt', null, 1500, 1000]);
+  assert.equal(k('vx').zahlweise, null);
+  const vertraege = [{ id: 'vm', name: 'M' }, { id: 'vaus', name: 'Aus' }, { id: 'vx', name: 'X' }, { id: 'vend', name: 'E', gekuendigtZum: '2026-01-31' }];
+  assert.deepEqual(vertraegeOhneWiederkehrend(vertraege, wk, heute).map((v) => v.id), ['vaus', 'vx'], 'beendete zählen nicht');
 });
