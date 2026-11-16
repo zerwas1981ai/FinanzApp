@@ -2742,3 +2742,8 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
 - Die Beträge in der Vertragszeile stehen immer in derselben Reihenfolge: (Ø) / Monat, ggf. / Quartal bzw. / Halbjahr,
   dann / Jahr. Nur die Hervorhebung (fett) wechselt je nach Zahlweise – so sieht man auf einen Blick, was monatlich
   und was jährlich bezahlt wird. Am Handy weiter nur die fette Zahl.
+
+### D222 – Verträge: hervorgehobene Zahl weniger fett
+*Wunsch des Nutzers (ergänzt D221)*
+- Die zur Zahlweise passende Zahl in der Vertragszeile hat Schriftstärke 700 wie die Überschriften statt 900
+  (vorher machte `<strong>` im schon halbfetten Betrag die Zahl extra fett).
