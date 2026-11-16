@@ -2736,3 +2736,9 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
 - Zwischen- und Gesamtsummen bleiben wie D219 (Monat nur aus monatlichen Zahlungen) – so vom Nutzer gewählt.
 - Laufende Verträge ohne eingeschaltete wiederkehrende Buchung: „⚠ keine wiederkehrende Buchung“ in der Zeile und
   ein Hinweis unter der Gesamtsumme mit den Namen. Nur Hinweis, nichts wird automatisch angelegt.
+
+### D221 – Verträge: feste Reihenfolge Monat · Quartal/Halbjahr · Jahr
+*Wunsch des Nutzers (ändert D220)*
+- Die Beträge in der Vertragszeile stehen immer in derselben Reihenfolge: (Ø) / Monat, ggf. / Quartal bzw. / Halbjahr,
+  dann / Jahr. Nur die Hervorhebung (fett) wechselt je nach Zahlweise – so sieht man auf einen Blick, was monatlich
+  und was jährlich bezahlt wird. Am Handy weiter nur die fette Zahl.

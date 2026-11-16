@@ -106,9 +106,9 @@ const PERIODE = { vierteljaehrlich: 'Quartal', halbjaehrlich: 'Halbjahr' };
 export function kostenTeile(k, vz = -1) {
   const haupt = k.zahlweise === 'monatlich' ? 'monat' : PERIODE[k.zahlweise] ? 'periode'
     : k.zahlweise === 'gemischt' && k.monatlich ? 'monat' : 'jahr';
-  const teile = [];
+  // D221: feste Reihenfolge Monat · Quartal/Halbjahr · Jahr – nur die Hervorhebung wandert
+  const teile = [{ art: 'monat', text: `${k.zahlweise === 'monatlich' ? '' : 'Ø '}${formatEuro(vz * k.schnittMonatCent)} / Monat` }];
   if (PERIODE[k.zahlweise]) teile.push({ art: 'periode', text: `${formatEuro(vz * k.jeZahlungCent)} / ${PERIODE[k.zahlweise]}` });
-  teile.push({ art: 'monat', text: `${k.zahlweise === 'monatlich' ? '' : 'Ø '}${formatEuro(vz * k.schnittMonatCent)} / Monat` });
   teile.push({ art: 'jahr', text: `${formatEuro(vz * k.jahrCent)} / Jahr` });
   return teile.map((t) => ({ text: t.text, haupt: t.art === haupt }));
 }
@@ -152,13 +152,14 @@ function vertragZeile({ v, stand }, daten, heute) {
         h('span', { class: 'nur-breit' }, st.text),
         st.warn && h('span', { class: 'nur-schmal' }, `bis ${formatDatum(stand.kuendigenBis).slice(0, 6)}`)),
       // D192: Kosten je Monat und darunter je Jahr
-      // D220: die zur Zahlweise passende Zahl fett vorne (am Handy nur diese), die anderen klein dahinter;
-      // laufender Vertrag ohne wiederkehrende Buchung: Hinweis statt Betrag
+      // D220/D221: feste Reihenfolge Monat · Quartal/Halbjahr · Jahr; die zur Zahlweise passende Zahl fett
+      // (am Handy nur diese), die anderen klein; laufender Vertrag ohne wiederkehrende Buchung: Hinweis statt Betrag
       kosten.posten.length
         ? h('span', { class: 'betrag annahme vertrag-kosten' }, ...(() => {
           const teile = kostenTeile(kosten);
-          const haupt = teile.find((t) => t.haupt);
-          return [h('strong', {}, haupt.text), h('span', { class: 'vertrag-jahr' }, teile.filter((t) => !t.haupt).map((t) => ` · ${t.text}`).join(''))];
+          const hi = teile.findIndex((t) => t.haupt);
+          return teile.map((t, i) => i === hi ? h('strong', {}, t.text)
+            : h('span', { class: 'vertrag-jahr' }, i < hi ? `${t.text} · ` : ` · ${t.text}`));
         })())
         : h('span', { class: 'vertrag-kosten klein' + (stand.status === 'beendet' ? ' gedaempft' : ' warn-text') },
           stand.status === 'beendet' ? '' : [h('span', { class: 'nur-breit' }, '⚠ keine wiederkehrende Buchung'), h('span', { class: 'nur-schmal' }, '⚠ ohne Buchung')])),
