@@ -2752,3 +2752,12 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
 *Wunsch des Nutzers (ändert D222)*
 - Die zur Zahlweise passende Zahl in der Vertragszeile sieht aus wie die Gesamtsumme oben: gleiche Schrift,
   halbfett (600), nicht kursiv. Die Nebenwerte bleiben klein und kursiv; die Größe ist unverändert.
+
+### D224 – Vertrag direkt aus einer wiederkehrenden Buchung anlegen
+*Wunsch des Nutzers*
+- Im Dialog einer gespeicherten wiederkehrenden Buchung ohne Vertrag gibt es unter dem Feld „Vertrag“ den Knopf
+  „Vertrag daraus anlegen …“. Er öffnet „Neuer Vertrag“ mit Empfänger und Hauptkategorie (aus der Unterkategorie)
+  vorausgefüllt; Name, Beginn, Laufzeit und Fristen trägt der Nutzer selbst ein (Name und Beginn bewusst nicht übernommen).
+- Erst beim Speichern entsteht der Vertrag; die wiederkehrende Buchung wird dann sofort mit ihm verbunden
+  (Zahlweise und Betrag kommen wie immer aus der Buchung). Der Buchungsdialog bleibt offen und zeigt den neuen Vertrag.
+- Der Knopf verschwindet, sobald im Feld „Vertrag“ ein vorhandener Vertrag gewählt ist.

@@ -205,8 +205,11 @@ function vertragZeile({ v, stand }, daten, heute) {
 
 /* =========================== Dialog =========================== */
 
-/** Vertrag anlegen/bearbeiten. vorgaben: z. B. { gekuendigtZum } aus der Erinnerung */
-export function vertragDialog(v, daten, vorgaben = {}) {
+/**
+ * Vertrag anlegen/bearbeiten. vorgaben: z. B. { gekuendigtZum } aus der Erinnerung oder { anbieter, kategorieId }
+ * aus einer wiederkehrenden Buchung (D224). nachAnlegen(neu): wird nach dem Speichern eines NEUEN Vertrags aufgerufen.
+ */
+export function vertragDialog(v, daten, vorgaben = {}, { nachAnlegen } = {}) {
   const w = { ...(v ?? {}), ...vorgaben };
   const name = eingabe({ label: 'Name', value: w.name ?? '', maxlength: 60, placeholder: 'z. B. Handy, Strom, Kfz-Versicherung', autofocus: !v });
   // D150: Empfänger wie in der Buchungsmaske (mit Vorschlägen aus den Buchungen), hier Pflicht
@@ -314,6 +317,7 @@ export function vertragDialog(v, daten, vorgaben = {}) {
       }, { vertraege: daten.vertraege, alt: v });
       await db.speichere('vertraege', neu);
       await unterlagen.uebernehme();
+      if (!v) await nachAnlegen?.(neu); // D224: z. B. die wiederkehrende Buchung gleich verbinden
       // Kündigung neu eingetragen: zugeordnete wiederkehrende Buchungen zum Vertragsende beenden? (nur mit Zustimmung)
       if (neu.gekuendigtZum && neu.gekuendigtZum !== v?.gekuendigtZum) {
         const betroffen = endeVorschlag(neu.id, neu.gekuendigtZum, daten.wiederkehrend).filter((x) => x.start <= neu.gekuendigtZum);

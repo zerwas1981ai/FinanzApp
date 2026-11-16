@@ -12,7 +12,7 @@ import { betragAm, terminBetrag, naechsterTermin, plusMonate, monatsende, annahm
 import { artWahl, fuelleKategorien, projektFeld, oeffneBuchungsdialog, partnerFeld, budgetZuordnungFeld, vertragFeld } from './buchung-dialog.js';
 import { VERTEILUNGEN, istJaehrlich } from '../jahresbudget.js';
 import { kuendigungsHinweise, wiederkehrendJeMonat, aktuellerBetrag } from '../vertraege.js';
-import { vertraegeBereich } from './vertraege.js';
+import { vertraegeBereich, vertragDialog } from './vertraege.js';
 
 const nachName = (a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base' });
 const INTERVALL_TEXT = { monatlich: 'monatlich', vierteljaehrlich: 'vierteljährlich', halbjaehrlich: 'halbjährlich', jaehrlich: 'jährlich' };
@@ -446,6 +446,39 @@ export function wiederkehrendDialog(w, daten, vorgaben = {}) {
   const gegenkonto = auswahl({ label: 'Auf Konto', optionen: kontoOptionen, wert: v.gegenkontoId ?? waehlbar.find((k) => k.id !== konto.select.value)?.id });
   const budgetFeld = budgetZuordnungFeld(kategorien, v.budgetKategorieId ?? null); // D98
   const vertrag = vertragFeld(daten.vertraege, v.vertragId ?? null); // D148
+  // D224: gespeicherte wiederkehrende Buchung ohne Vertrag → „Vertrag daraus anlegen“ (Empfänger und
+  // Hauptkategorie vorausgefüllt); der neue Vertrag wird sofort mit dieser Buchung verbunden.
+  let neuerVertragId = null;
+  const vertragAnlegenFeld = w && !w.vertragId ? h('div', { class: 'feld' }) : null;
+  const zeigeVertragAnlegen = () => {
+    if (!vertragAnlegenFeld) return;
+    vertragAnlegenFeld.hidden = Boolean(vertrag?.select.value) && !neuerVertragId;
+    vertragAnlegenFeld.replaceChildren(neuerVertragId
+      ? h('p', { class: 'feld-hilfe' }, `Mit dem neuen Vertrag „${daten.vertraege.find((x) => x.id === neuerVertragId)?.name ?? ''}“ verbunden.`)
+      : h('button', {
+        type: 'button', class: 'knopf knopf-klein',
+        onclick: () => {
+          const k = kategorien.find((x) => x.id === kategorie.select.value);
+          vertragDialog(null, daten, {
+            anbieter: partner.input.value.trim(),
+            kategorieId: art === 'umbuchung' || !k ? null : (k.elternId ?? k.id),
+          }, {
+            nachAnlegen: async (neu) => {
+              await db.speichere('wiederkehrend', { ...w, vertragId: neu.id, geaendertAm: new Date().toISOString() });
+              neuerVertragId = neu.id;
+              daten.vertraege = [...daten.vertraege, neu];
+              if (vertrag) {
+                vertrag.select.append(h('option', { value: neu.id }, `${neu.name} · ${neu.anbieter}`));
+                vertrag.select.value = neu.id;
+              }
+              zeigeVertragAnlegen();
+            },
+          });
+        },
+      }, 'Vertrag daraus anlegen …'));
+  };
+  vertrag?.select.addEventListener('change', zeigeVertragAnlegen);
+  zeigeVertragAnlegen();
   const intervall = auswahl({
     label: 'Intervall',
     optionen: Object.entries(INTERVALL_TEXT).map(([wert, text]) => ({ wert, text: text[0].toUpperCase() + text.slice(1) })),
@@ -508,7 +541,7 @@ export function wiederkehrendDialog(w, daten, vorgaben = {}) {
     titel: w ? 'Wiederkehrende Buchung bearbeiten' : (vorgaben.titel ?? 'Neue wiederkehrende Buchung'),
     inhalt: [
       artKnoepfe, stufen.feld, kalender.feld, partner.feld, kategorie.feld, konto.feld, gegenkonto.feld, budgetFeld.feld,
-      intervall.feld, monatsletzterFeld, h('div', { class: 'feld-paar' }, start.feld, ende.feld), notiz.feld, vertrag?.feld, ausnahmenListe,
+      intervall.feld, monatsletzterFeld, h('div', { class: 'feld-paar' }, start.feld, ende.feld), notiz.feld, vertrag?.feld, vertragAnlegenFeld, ausnahmenListe,
     ].filter(Boolean),
     zusatz: w && {
       text: 'Löschen',
@@ -542,7 +575,7 @@ export function wiederkehrendDialog(w, daten, vorgaben = {}) {
         stufen: stufen.werte(),
         kalenderMonate: kalender.werte(),
         partner: partner.input.value,
-        vertragId: vertrag ? vertrag.select.value : undefined,
+        vertragId: vertrag ? vertrag.select.value : (neuerVertragId ?? undefined), // D224: auch ohne Auswahlfeld
       }, { konten, kategorien, alt: w });
       await db.speichere('wiederkehrend', { ...datensatz, ausnahmen });
       toast(w ? 'Gespeichert' : 'Wiederkehrende Buchung angelegt');
