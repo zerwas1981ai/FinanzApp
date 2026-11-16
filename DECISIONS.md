@@ -2717,3 +2717,12 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
   standen die Überschriften nicht über den Werten.
 - Übersicht: „Ausgaben bis heute … · Vormonat bis 15.10.: … (+18 %)“ steht immer in einer Zeile, ohne Orange/Grün.
   Am Handy verkürzt zu „Bis heute … · Vormonat: … (+18 %)“; das Datum steht im Tooltip.
+
+### D219 – Vertragskosten: Monat nur aus monatlichen Zahlungen, Summen passen zusammen
+*Wunsch des Nutzers (ändert D192/D194/D197)*
+- „/ Monat“ enthält nur Zahlungen mit monatlicher Zahlweise. Vierteljährliche, halbjährliche und jährliche Zahlungen
+  werden nicht mehr auf Monate verteilt, sie stecken nur im Jahreswert („/ Jahr“ = alle Zahlungen aufs Jahr gerechnet).
+  Ein Vertrag ohne monatliche Zahlung zeigt nur den Jahreswert (auch am Handy).
+- Zwischensumme je Kategorie steht immer da (vorher fehlte sie bei 0 €). Gesamtsumme oben = Summe der einzelnen
+  Verträge (vorher Jahr ÷ 12 gerundet, dadurch passte sie nicht zur Summe der Zeilen).
+- Notfall-Übersicht unverändert: dort weiter alle Zahlungen auf den Monat umgerechnet.

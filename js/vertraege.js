@@ -274,21 +274,36 @@ export function wiederkehrendJeMonat(liste, heute) {
  * Laufende Kosten eines Vertrags aus seinen wiederkehrenden Buchungen (eingeschaltet, nicht beendet).
  * Ausgaben und Umbuchungen zählen als Kosten, Einnahmen (z. B. Erstattung) mindern sie.
  * Feste Abweichungen einzelner Kalendermonate (D94) bleiben unberücksichtigt.
+ * D219: jahrCent = alle Zahlungen aufs Jahr gerechnet; monatCent = nur die Zahlungen mit monatlicher Zahlweise
+ * (vierteljährliche, halbjährliche und jährliche werden NICHT auf Monate verteilt, sie stecken nur im Jahreswert).
+ * monatlich: ob es überhaupt eine monatliche Zahlung gibt.
  */
 export function vertragsKosten(vertragId, wiederkehrend, heute) {
   const posten = wiederkehrend.filter((w) => w.vertragId === vertragId && w.aktiv !== false && !(w.ende && w.ende < heute));
-  const jahrCent = posten.reduce((s, w) => {
-    const betrag = aktuellerBetrag(w, heute) * (INTERVALL_JE_JAHR[w.intervall] ?? 12);
-    return s + (w.art === 'einnahme' ? -betrag : betrag);
-  }, 0);
-  return { posten, jahrCent, monatCent: Math.round(jahrCent / 12) };
+  let jahrCent = 0;
+  let monatCent = 0;
+  let monatlich = false;
+  for (const w of posten) {
+    const betrag = (w.art === 'einnahme' ? -1 : 1) * aktuellerBetrag(w, heute);
+    const jeJahr = INTERVALL_JE_JAHR[w.intervall] ?? 12; // unbekannt = monatlich
+    jahrCent += betrag * jeJahr;
+    if (jeJahr === 12) { monatCent += betrag; monatlich = true; }
+  }
+  return { posten, jahrCent, monatCent, monatlich };
+}
+
+/** D219: Kosten mehrerer Verträge zusammenzählen – Summe der Einzelwerte, damit alle Summen zusammenpassen */
+export function kostenSumme(vertragIds, wiederkehrend, heute) {
+  return vertragIds.reduce((s, id) => {
+    const k = vertragsKosten(id, wiederkehrend, heute);
+    return { jahrCent: s.jahrCent + k.jahrCent, monatCent: s.monatCent + k.monatCent, monatlich: s.monatlich || k.monatlich };
+  }, { jahrCent: 0, monatCent: 0, monatlich: false });
 }
 
 /** Summe aller laufenden Verträge (nicht beendet) für die Übersicht oben im Bereich */
 export function vertragsUebersicht(vertraege, wiederkehrend, heute) {
   const laufend = vertraege.filter((v) => istAktiv(v, heute));
-  const jahrCent = laufend.reduce((s, v) => s + vertragsKosten(v.id, wiederkehrend, heute).jahrCent, 0);
-  return { anzahl: laufend.length, jahrCent, monatCent: Math.round(jahrCent / 12) };
+  return { anzahl: laufend.length, ...kostenSumme(laufend.map((v) => v.id), wiederkehrend, heute) };
 }
 
 /** Bei Kündigung: wiederkehrende Buchungen, die über das Vertragsende hinaus laufen würden */

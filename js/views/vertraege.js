@@ -8,7 +8,7 @@ import { formatEuro, formatDatum, formatProzent, heuteIso } from '../format.js';
 import { dialog, frage, toast, eingabe, auswahl, datenGeaendert, klappBereich, geraet, katPunkt } from '../ui.js';
 import { farbenZuordnung } from '../farben.js';
 import {
-  baueVertrag, vertragsStand, vertragsKosten, vertragsUebersicht, vertragsBuchungen, endeVorschlag,
+  baueVertrag, vertragsStand, vertragsKosten, vertragsUebersicht, kostenSumme, vertragsBuchungen, endeVorschlag,
   zuordnungsKandidaten, fristText, FRIST_EINHEITEN, KUENDIGUNG_ZUM, vertragsKategorie, nachKategorie, endeNachVerlaengerung, STANDARD_ERINNERUNG_TAGE, vertragVon, aktuellerBetrag, preisVerlauf,
 } from '../vertraege.js';
 import { benenneBelege } from '../relevant.js';
@@ -56,8 +56,11 @@ export function vertraegeBereich(daten) {
       ? h('p', { class: 'leer' }, 'Noch keine Verträge.')
       : h('div', { class: 'vertrag-summe' },
         h('span', { class: 'klein' }, summe.anzahl === 1 ? '1 laufender Vertrag' : `${summe.anzahl} laufende Verträge`),
+        // D219: Monat = nur monatliche Zahlungen, Jahr = alle Zahlungen
         h('span', { class: 'betrag' }, `${formatEuro(-summe.monatCent)} / Monat`),
         h('span', { class: 'betrag stark' }, `${formatEuro(-summe.jahrCent)} / Jahr`)),
+      daten.vertraege.length > 0 && h('p', { class: 'hinweis klein gedaempft' },
+        '„/ Monat“ enthält nur Zahlungen mit monatlicher Zahlweise; vierteljährliche, halbjährliche und jährliche Zahlungen stecken nur im Jahreswert.'),
     // D194: laufende Verträge nach Hauptkategorie gruppiert, je Gruppe eine Zwischenüberschrift mit Summe
     ...vertragsGruppen(laufend, daten, heute),
     beendet.length > 0 && h('details', { class: 'erledigt-liste' },
@@ -71,14 +74,21 @@ function vertragsGruppen(eintraege, daten, heute) {
   if (!eintraege.length) return [];
   const farben = farbenZuordnung(daten.kategorien);
   return nachKategorie(eintraege, daten.wiederkehrend, daten.kategorien).map(({ kategorie, eintraege: liste }) => {
-    const jahr = liste.reduce((s, x) => s + vertragsKosten(x.v.id, daten.wiederkehrend, heute).jahrCent, 0);
+    // D219: Zwischensumme immer zeigen (auch 0 €); Summe der einzelnen Verträge
+    const summe = kostenSumme(liste.map((x) => x.v.id), daten.wiederkehrend, heute);
     return h('div', { class: 'vertrag-gruppe' },
       h('div', { class: 'tag-kopf vertrag-gruppe-kopf' },
         h('span', {}, kategorie && katPunkt(farben.get(kategorie.id)?.hex), kategorie?.name ?? 'Ohne Kategorie',
           h('span', { class: 'gedaempft' }, ` · ${liste.length}`)),
-        jahr !== 0 && h('span', { class: 'tag-stand' }, `${formatEuro(-Math.round(jahr / 12))} / Monat · ${formatEuro(-jahr)} / Jahr`)),
+        h('span', { class: 'tag-stand' }, kostenText(summe))),
       h('ul', { class: 'vertrag-liste' }, liste.map((x) => h('li', {}, vertragZeile(x, daten, heute)))));
   });
+}
+
+/** D219: „x / Monat · y / Jahr“ – den Monatswert nur, wenn es monatliche Zahlungen gibt */
+export function kostenText(k, { monat = ' / Monat', jahr = ' / Jahr', vz = -1 } = {}) {
+  const j = `${formatEuro(vz * k.jahrCent)}${jahr}`;
+  return k.monatlich ? `${formatEuro(vz * k.monatCent)}${monat} · ${j}` : j;
 }
 
 /** Eine Zeile je Vertrag – aufklappbar mit allen Angaben, Zahlungen und Unterlagen */
@@ -120,9 +130,11 @@ function vertragZeile({ v, stand }, daten, heute) {
         h('span', { class: 'nur-breit' }, st.text),
         st.warn && h('span', { class: 'nur-schmal' }, `bis ${formatDatum(stand.kuendigenBis).slice(0, 6)}`)),
       // D192: Kosten je Monat und darunter je Jahr
-      h('span', { class: 'betrag annahme vertrag-kosten' }, ...(kosten.posten.length
-        ? [`${formatEuro(-kosten.monatCent)} / Monat`, h('span', { class: 'vertrag-jahr' }, ` · ${formatEuro(-kosten.jahrCent)} / Jahr`)]
-        : ['']))),
+      // D219: ohne monatliche Zahlung nur der Jahreswert (dann auch am Handy sichtbar)
+      h('span', { class: 'betrag annahme vertrag-kosten' }, ...(!kosten.posten.length ? ['']
+        : kosten.monatlich
+          ? [`${formatEuro(-kosten.monatCent)} / Monat`, h('span', { class: 'vertrag-jahr' }, ` · ${formatEuro(-kosten.jahrCent)} / Jahr`)]
+          : [`${formatEuro(-kosten.jahrCent)} / Jahr`]))),
     h('div', { class: 'vertrag-inhalt' }, ...[
       h('div', { class: 'vertrag-angaben' }, ...[
         angabe('Vertragsnummer', v.vertragsnummer),
@@ -130,7 +142,7 @@ function vertragZeile({ v, stand }, daten, heute) {
         angabe('Laufzeit', laufzeit),
         angabe('Kündigungsfrist', fristText(v)),
         angabe('Nächstes Vertragsende', naechstes),
-        angabe('Kosten', kosten.posten.length ? `${formatEuro(kosten.monatCent)} im Monat · ${formatEuro(kosten.jahrCent)} im Jahr` : 'keine wiederkehrende Buchung zugeordnet'),
+        angabe('Kosten', kosten.posten.length ? kostenText(kosten, { monat: ' im Monat', jahr: ' im Jahr', vz: 1 }) : 'keine wiederkehrende Buchung zugeordnet'),
         // D166: Preisentwicklung aus den echten Zahlungen je Jahr
         (() => {
           const verlauf = preisVerlauf(buchungen);
@@ -385,7 +397,7 @@ export function kuendigungsBereich(hinweise, daten) {
         `Kündigen bis ${formatDatum(stand.kuendigenBis)} (${rest}), dann endet der Vertrag am ${formatDatum(stand.ende)}. ` +
         `Sonst verlängert er sich um ${v.verlaengerungMonate} ${v.verlaengerungMonate === 1 ? 'Monat' : 'Monate'} bis ${formatDatum(verlaengert)}.`),
       (kosten.posten.length > 0 || v.vertragsnummer) && h('p', { class: 'klein' },
-        [kosten.posten.length && `Kosten ${formatEuro(kosten.monatCent)} im Monat (${formatEuro(kosten.jahrCent)} im Jahr)`,
+        [kosten.posten.length && `Kosten ${kostenText(kosten, { monat: ' im Monat', jahr: ' im Jahr', vz: 1 })}`,
           v.vertragsnummer && `Vertragsnummer ${v.vertragsnummer}`].filter(Boolean).join(' · ')),
       h('div', { class: 'hinweis-aktionen' },
         h('button', {

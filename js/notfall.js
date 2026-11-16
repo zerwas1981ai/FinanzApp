@@ -28,7 +28,8 @@ export function notfallDaten({ konten = [], buchungen = [], abstimmungen = [], v
           : stand.status === 'laeuft-aus' ? `endet ${stand.ende}` : 'jederzeit kündbar';
       return {
         name: v.name, empfaenger: v.anbieter ?? '', vertragsnummer: v.vertragsnummer ?? '',
-        monatCent: kosten.posten.length ? kosten.monatCent : null, frist: fristText(v), ende, notiz: v.notiz ?? '',
+        // D219: in der Notfall-Übersicht weiter alle Zahlungen auf den Monat umgerechnet
+        monatCent: kosten.posten.length ? Math.round(kosten.jahrCent / 12) : null, frist: fristText(v), ende, notiz: v.notiz ?? '',
       };
     });
 

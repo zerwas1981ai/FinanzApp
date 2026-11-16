@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   plusMonate, laufzeitEnde, kuendigungsTag, baueVertrag, vertragsStand, kuendigungsHinweise, vertragVon,
-  vertragsBuchungen, vertragsKosten, vertragsUebersicht, endeVorschlag, zuordnungsKandidaten, fristText,
+  vertragsBuchungen, vertragsKosten, vertragsUebersicht, kostenSumme, endeVorschlag, zuordnungsKandidaten, fristText,
   aufStichtag, endeNachVerlaengerung, vertragsKategorie, nachKategorie,
 } from '../js/vertraege.js';
 import { migriereDaten } from '../js/migrationen.js';
@@ -100,10 +100,15 @@ test('Zuordnung rückwirkend über die wiederkehrende Buchung, Kosten je Monat/J
   const k = vertragsKosten('v1', wk, '2026-11-12');
   assert.deepEqual(k.posten.map((w) => w.id), ['w1', 'w2'], 'ausgeschaltete und beendete zählen nicht');
   assert.equal(k.jahrCent, 3999 * 12 + 1200);
-  assert.equal(k.monatCent, Math.round((3999 * 12 + 1200) / 12));
+  assert.equal(k.monatCent, 3999, 'D219: Monat nur aus monatlichen Zahlungen, die jährliche steckt nur im Jahr');
+  assert.equal(k.monatlich, true);
+  const k2 = vertragsKosten('v2', wk, '2026-11-12');
+  assert.deepEqual([k2.jahrCent, k2.monatCent, k2.monatlich], [12000, 0, false], 'nur vierteljährlich: kein Monatswert');
   const u = vertragsUebersicht([basis, { id: 'v2', name: 'B', fristAnzahl: 1, fristEinheit: 'monate' }, { id: 'v3', name: 'C', gekuendigtZum: '2026-01-31' }], wk, '2026-11-12');
   assert.equal(u.anzahl, 2, 'beendete zählen nicht');
   assert.equal(u.jahrCent, 3999 * 12 + 1200 + 3000 * 4);
+  assert.equal(u.monatCent, 3999, 'Gesamt = Summe der Monatswerte der Verträge');
+  assert.equal(u.monatlich, true);
   // Kündigung: Vorschlag, wiederkehrende zu beenden
   assert.deepEqual(endeVorschlag('v1', '2026-12-31', wk).map((w) => w.id), ['w1', 'w2', 'w3']);
   // Zuordnen: Kandidaten nach Suchbegriff, ohne schon zugeordnete
@@ -200,5 +205,23 @@ test('D197: Vertragskosten bei halbjährlicher Zahlung', () => {
   const wk = [{ id: 'h', vertragId: 'v', art: 'ausgabe', intervall: 'halbjaehrlich', stufen: [{ ab: '2026-01-01', betragCent: 30000 }] }];
   const k = vertragsKosten('v', wk, '2026-11-14');
   assert.equal(k.jahrCent, 60000);
-  assert.equal(k.monatCent, 5000);
+  assert.equal(k.monatCent, 0, 'D219: halbjährlich wird nicht auf Monate verteilt');
+  assert.equal(k.monatlich, false);
+});
+
+test('D219: Zwischen- und Gesamtsummen passen zusammen', () => {
+  const wk = [
+    { id: 'a', vertragId: 'v1', art: 'ausgabe', intervall: 'monatlich', stufen: [{ ab: '2026-01-01', betragCent: 1999 }] },
+    { id: 'b', vertragId: 'v2', art: 'ausgabe', intervall: 'jaehrlich', stufen: [{ ab: '2026-01-01', betragCent: 45000 }] },
+    { id: 'c', vertragId: 'v3', art: 'ausgabe', intervall: 'monatlich', stufen: [{ ab: '2026-01-01', betragCent: 1001 }] },
+    { id: 'd', vertragId: 'v3', art: 'einnahme', intervall: 'monatlich', stufen: [{ ab: '2026-01-01', betragCent: 1 }] },
+  ];
+  const g1 = kostenSumme(['v1', 'v2'], wk, '2026-11-16');
+  const g2 = kostenSumme(['v3'], wk, '2026-11-16');
+  const gesamt = vertragsUebersicht([{ id: 'v1' }, { id: 'v2' }, { id: 'v3' }], wk, '2026-11-16');
+  assert.deepEqual([g1.monatCent, g1.jahrCent], [1999, 1999 * 12 + 45000]);
+  assert.deepEqual([g2.monatCent, g2.jahrCent], [1000, 12000]);
+  assert.equal(gesamt.monatCent, g1.monatCent + g2.monatCent);
+  assert.equal(gesamt.jahrCent, g1.jahrCent + g2.jahrCent);
+  assert.deepEqual(kostenSumme(['v2'], wk, '2026-11-16').monatlich, false);
 });
