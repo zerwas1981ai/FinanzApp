@@ -1715,7 +1715,8 @@ html[data-schrift="gross"] { font-size: 103.125%; }
 
 /* D192: Vertragskosten je Jahr klein unter dem Monatsbetrag */
 .vertrag-kosten .vertrag-jahr { font-size: .85em; opacity: .8; } /* D196: in derselben Zeile */
-.vertrag-kosten strong { font-weight: 700; } /* D222: hervorgehobene Zahl so kräftig wie die Überschrift, nicht extra fett */
+/* D223: die geltende Zahl wie die Gesamtsumme (halbfett, nicht kursiv); die Nebenwerte bleiben klein und kursiv */
+.vertrag-kosten strong { font-weight: 600; font-style: normal; }
 
 /* D194: Verträge nach Kategorie gruppiert */
 /* D195: Trennstrich zwischen den Kategorien statt zwischen den einzelnen Verträgen */

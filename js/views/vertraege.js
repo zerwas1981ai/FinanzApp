@@ -61,7 +61,7 @@ export function vertraegeBereich(daten) {
         h('span', { class: 'betrag stark' }, `${formatEuro(-summe.jahrCent)} / Jahr`)),
       daten.vertraege.length > 0 && h('p', { class: 'hinweis klein gedaempft' },
         'In den Summen enthält „/ Monat“ nur Zahlungen mit monatlicher Zahlweise; vierteljährliche, halbjährliche und jährliche ' +
-        'stecken dort nur im Jahreswert. In den Zeilen ist „Ø … / Monat“ auf den Monat umgerechnet; fett ist der Betrag passend zur Zahlweise.'),
+        'stecken dort nur im Jahreswert. In den Zeilen ist „Ø … / Monat“ auf den Monat umgerechnet; groß steht der Betrag passend zur Zahlweise.'),
     // D220: Hinweis auf laufende Verträge ohne wiederkehrende Buchung
     ...((ohne) => ohne.length ? [h('p', { class: 'hinweis warn-text' },
       `⚠ ${ohne.length === 1 ? '1 Vertrag hat' : `${ohne.length} Verträge haben`} noch keine wiederkehrende Buchung: ` +

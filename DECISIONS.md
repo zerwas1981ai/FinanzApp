@@ -2747,3 +2747,8 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
 *Wunsch des Nutzers (ergänzt D221)*
 - Die zur Zahlweise passende Zahl in der Vertragszeile hat Schriftstärke 700 wie die Überschriften statt 900
   (vorher machte `<strong>` im schon halbfetten Betrag die Zahl extra fett).
+
+### D223 – Verträge: geltende Zahl wie die Gesamtsumme
+*Wunsch des Nutzers (ändert D222)*
+- Die zur Zahlweise passende Zahl in der Vertragszeile sieht aus wie die Gesamtsumme oben: gleiche Schrift,
+  halbfett (600), nicht kursiv. Die Nebenwerte bleiben klein und kursiv; die Größe ist unverändert.
