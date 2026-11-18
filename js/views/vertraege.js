@@ -122,8 +122,8 @@ function vertragZeile({ v, stand }, daten, heute) {
   const kat = new Map(daten.kategorien.map((k) => [k.id, k]));
 
   const angabe = (titel, wert) => wert && h('div', { class: 'vertrag-angabe' }, h('span', { class: 'klein gedaempft' }, titel), h('span', {}, wert));
-  const laufzeit = v.mindestlaufzeitMonate
-    ? `${v.mindestlaufzeitMonate} Monate` + (v.verlaengerungMonate ? `, dann je ${v.verlaengerungMonate} ${v.verlaengerungMonate === 1 ? 'Monat' : 'Monate'} länger` : ', endet danach von selbst')
+  const laufzeit = v.mindestlaufzeitMonate || v.laufzeitBis
+    ? (v.laufzeitBis ? `bis ${formatDatum(v.laufzeitBis)}` : `${v.mindestlaufzeitMonate} Monate`) + (v.verlaengerungMonate ? `, dann je ${v.verlaengerungMonate} ${v.verlaengerungMonate === 1 ? 'Monat' : 'Monate'} länger` : ', endet danach von selbst')
     : 'keine Mindestlaufzeit';
   const naechstes = stand.status === 'laufend'
     ? `${formatDatum(stand.ende)} – kündigen bis ${formatDatum(stand.kuendigenBis)} (${stand.tageBisFrist === 0 ? 'heute' : stand.tageBisFrist === 1 ? 'noch 1 Tag' : `noch ${stand.tageBisFrist} Tage`})`
@@ -232,7 +232,21 @@ export function vertragDialog(v, daten, vorgaben = {}, { nachAnlegen } = {}) {
     hilfe: 'Nur zur eigenen Zuordnung – bitte keine Passwörter oder Zugangsdaten eintragen.',
   });
   const beginn = eingabe({ label: 'Vertragsbeginn', type: 'date', value: w.beginn ?? '' });
+  // D225: Laufzeit wahlweise als Mindestlaufzeit (Monate) oder als Enddatum
+  const laufzeitArt = auswahl({
+    label: 'Laufzeit als',
+    optionen: [{ wert: 'monate', text: 'Mindestlaufzeit' }, { wert: 'datum', text: 'Enddatum' }],
+    wert: w.laufzeitBis ? 'datum' : 'monate',
+  });
   const mindest = eingabe({ label: 'Mindestlaufzeit (Monate)', inputmode: 'numeric', value: w.mindestlaufzeitMonate ?? '', placeholder: 'z. B. 24' });
+  const bis = eingabe({ label: 'Ende der Laufzeit', type: 'date', value: w.laufzeitBis ?? '' });
+  const laufzeitUmschalten = () => {
+    const datum = laufzeitArt.select.value === 'datum';
+    mindest.feld.hidden = datum;
+    bis.feld.hidden = !datum;
+  };
+  laufzeitArt.select.addEventListener('change', laufzeitUmschalten);
+  laufzeitUmschalten();
   const verl = eingabe({
     label: 'Verlängerung um (Monate)', inputmode: 'numeric', value: w.verlaengerungMonate ?? (v ? '' : '12'), placeholder: 'z. B. 12',
   });
@@ -262,10 +276,12 @@ export function vertragDialog(v, daten, vorgaben = {}, { nachAnlegen } = {}) {
     titel: v ? 'Vertrag bearbeiten' : 'Neuer Vertrag',
     inhalt: [
       name.feld, anbieter.feld, kategorie.feld, nummer.feld,
-      h('div', { class: 'feld-paar' }, beginn.feld, mindest.feld),
+      h('div', { class: 'feld-paar' }, beginn.feld, laufzeitArt.feld),
+      h('div', { class: 'feld-paar' }, mindest.feld, bis.feld, verl.feld),
       h('p', { class: 'feld-hilfe' }, 'Handy und Internet laufen nach der Mindestlaufzeit meist monatlich weiter (Verlängerung 1, Frist 1 Monat). ' +
-        'Verlängerung 0 = endet von selbst. Ohne Mindestlaufzeit ist der Vertrag jederzeit mit der Frist kündbar.'),
-      h('div', { class: 'feld-paar' }, verl.feld, erinnerung.feld),
+        'Verlängerung 0 = endet von selbst. Ohne Mindestlaufzeit bzw. Enddatum ist der Vertrag jederzeit mit der Frist kündbar. ' +
+        'Mit Enddatum zählt die Verlängerung ab dem Tag danach.'),
+      erinnerung.feld,
       h('div', { class: 'feld-paar' }, fristAnzahl.feld, fristEinheit.feld),
       zumWahl.feld,
       h('p', { class: 'feld-hilfe' }, 'Üblich: Fitnessstudio „4 Wochen zum Monatsende“, Miete „3 Monate zum Monatsende“, ' +
@@ -305,7 +321,8 @@ export function vertragDialog(v, daten, vorgaben = {}, { nachAnlegen } = {}) {
         vertragsnummer: nummer.input.value,
         kategorieId: kategorie.select.value,
         beginn: beginn.input.value,
-        mindestlaufzeitMonate: mindest.input.value,
+        mindestlaufzeitMonate: laufzeitArt.select.value === 'monate' ? mindest.input.value : '',
+        laufzeitBis: laufzeitArt.select.value === 'datum' ? bis.input.value : '',
         verlaengerungMonate: verl.input.value,
         fristAnzahl: fristAnzahl.input.value,
         fristEinheit: fristEinheit.select.value,

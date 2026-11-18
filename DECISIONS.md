@@ -2761,3 +2761,12 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
 - Erst beim Speichern entsteht der Vertrag; die wiederkehrende Buchung wird dann sofort mit ihm verbunden
   (Zahlweise und Betrag kommen wie immer aus der Buchung). Der Buchungsdialog bleibt offen und zeigt den neuen Vertrag.
 - Der Knopf verschwindet, sobald im Feld „Vertrag“ ein vorhandener Vertrag gewählt ist.
+
+### D225 – Verträge: Laufzeit als Mindestlaufzeit oder als Enddatum
+*Wunsch des Nutzers*
+- Im Vertragsdialog steht neben „Vertragsbeginn“ die Auswahl „Laufzeit als“: „Mindestlaufzeit“ (Monate,
+  wie bisher) oder „Enddatum“ (Feld „Ende der Laufzeit“). Je nach Wahl erscheint das Zahlen- oder das Datumsfeld.
+- Neues optionales Feld `laufzeitBis` (fehlt = null, keine Migration nötig). Gespeichert wird nur die gewählte Angabe;
+  mit Enddatum ist `mindestlaufzeitMonate` leer. Ein Beginn ist dafür nicht nötig; liegt das Ende vor dem Beginn → Fehler.
+- Rechnung: erstes Vertragsende = Enddatum (ggf. auf Monats-/Quartalsende geschoben, D192); Verlängerungen zählen ab
+  dem Tag danach. In der Vertragszeile steht „Laufzeit: bis TT.MM.JJJJ …“.

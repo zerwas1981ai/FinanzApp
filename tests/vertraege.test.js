@@ -245,3 +245,27 @@ test('D220: Zahlweise, Betrag je Zahlung, Ø je Monat und Verträge ohne wiederk
   const vertraege = [{ id: 'vm', name: 'M' }, { id: 'vaus', name: 'Aus' }, { id: 'vx', name: 'X' }, { id: 'vend', name: 'E', gekuendigtZum: '2026-01-31' }];
   assert.deepEqual(vertraegeOhneWiederkehrend(vertraege, wk, heute).map((v) => v.id), ['vaus', 'vx'], 'beendete zählen nicht');
 });
+
+test('D225: Laufzeit als Enddatum statt Mindestlaufzeit', () => {
+  // Bauen: Datum hat Vorrang, Mindestlaufzeit wird dann leer; Beginn ist nicht nötig
+  const v = baueVertrag({ name: 'Strom (Test)', anbieter: 'Stadtwerke Muster', laufzeitBis: '2027-06-30', mindestlaufzeitMonate: '24',
+    verlaengerungMonate: '12', fristAnzahl: '3', fristEinheit: 'monate' }, { jetzt: 'T' });
+  assert.equal(v.laufzeitBis, '2027-06-30');
+  assert.equal(v.mindestlaufzeitMonate, null);
+  assert.throws(() => baueVertrag({ name: 'X', anbieter: 'A', beginn: '2026-01-01', laufzeitBis: '2025-12-31' }), /vor dem Vertragsbeginn/);
+  assert.equal(baueVertrag({ name: 'X', anbieter: 'A' }).laufzeitBis, null);
+
+  // Stand: erstes Ende = Enddatum, danach je 12 Monate länger
+  const s1 = vertragsStand(v, '2026-11-18');
+  assert.equal(s1.status, 'laufend');
+  assert.equal(s1.ende, '2027-06-30');
+  assert.equal(s1.kuendigenBis, '2027-03-31');
+  const s2 = vertragsStand(v, '2027-04-01');
+  assert.equal(s2.ende, '2028-06-30');
+  // Ende mitten im Monat, Verlängerung 1 Monat
+  const m = { id: 'm', laufzeitBis: '2027-03-14', verlaengerungMonate: 1, fristAnzahl: null, fristEinheit: 'monate' };
+  assert.equal(vertragsStand(m, '2027-03-15').ende, '2027-04-14');
+  // Ohne Verlängerung: läuft aus bzw. ist beendet
+  assert.equal(vertragsStand({ ...v, verlaengerungMonate: 0 }, '2026-11-18').status, 'laeuft-aus');
+  assert.equal(vertragsStand({ ...v, verlaengerungMonate: 0 }, '2027-07-01').status, 'beendet');
+});

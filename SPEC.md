@@ -21,7 +21,7 @@ Details zu Datenmodell, Oberfläche und Rechenlogik (aus CLAUDE.md verschoben). 
 - Budget: pro Hauptkategorie und Konto, monatlich, jährlich (in Tranchen, D90) oder einmalig (D85);
   je Kategorie und Konto entweder Monats- oder Jahresbudget
 - Monatsnotiz (D165): ein Satz je Monat
-- Vertrag (D148): Name, Empfänger (Pflicht, D150), Kategorie (Hauptkategorie, gruppiert, D194), Vertragsnummer, Beginn, Mindestlaufzeit, Verlängerung,
+- Vertrag (D148): Name, Empfänger (Pflicht, D150), Kategorie (Hauptkategorie, gruppiert, D194), Vertragsnummer, Beginn, Mindestlaufzeit oder Ende der Laufzeit (Datum, D225), Verlängerung,
   Kündigungsfrist (zum Laufzeit-, Monats- oder Quartalsende, D192), Erinnerung, gekündigt zum, Unterlagen; Klammer um Buchungen und wiederkehrende
   Buchungen (Feld „Vertrag“, rückwirkend über die wiederkehrende Buchung). Kosten (D219): / Monat nur aus monatlichen
   Zahlungen, / Jahr aus allen; Zwischensumme je Kategorie immer, Gesamtsumme = Summe der Verträge.

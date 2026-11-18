@@ -4,6 +4,7 @@
 // Datensatz Vertrag (Datenversion 18), Sammlung "vertraege":
 // { id, name, anbieter (= Empfänger wie bei Buchungen, Pflicht ab D150), vertragsnummer, beginn "JJJJ-MM-TT"|null,
 //   mindestlaufzeitMonate (Zahl|null; null/0 = keine Mindestlaufzeit, jederzeit kündbar),
+//   laufzeitBis "JJJJ-MM-TT"|null (D225: Ende der ersten Laufzeit als Datum statt Mindestlaufzeit; fehlt = null),
 //   verlaengerungMonate (Zahl|null; 0/null = verlängert sich nicht, endet nach der Mindestlaufzeit),
 //   fristAnzahl (Zahl|null), fristEinheit: 'tage'|'wochen'|'monate',
 //   kategorieId (D194): Hauptkategorie für die Gruppierung | null (dann aus der zugeordneten wiederkehrenden Buchung),
@@ -104,7 +105,9 @@ export function baueVertrag(eingabe, { vertraege = [], alt = null, jetzt = new D
   if (!anbieter) throw new Error('Bitte den Empfänger eingeben, z. B. „Telefon AG“.');
 
   const beginn = datumOderNull(eingabe.beginn, 'Beginn');
-  const mindestlaufzeitMonate = ganzeZahl(eingabe.mindestlaufzeitMonate, 'Mindestlaufzeit');
+  // D225: Laufzeit entweder als Mindestlaufzeit (Monate) oder als Enddatum – das Datum hat Vorrang
+  const laufzeitBis = datumOderNull(eingabe.laufzeitBis, 'Ende der Laufzeit');
+  const mindestlaufzeitMonate = laufzeitBis ? null : ganzeZahl(eingabe.mindestlaufzeitMonate, 'Mindestlaufzeit');
   const verlaengerungMonate = ganzeZahl(eingabe.verlaengerungMonate, 'Verlängerung');
   const fristAnzahl = ganzeZahl(eingabe.fristAnzahl, 'Kündigungsfrist', { max: 365 });
   const fristEinheit = FRIST_EINHEITEN[eingabe.fristEinheit] ? eingabe.fristEinheit : 'monate';
@@ -112,6 +115,7 @@ export function baueVertrag(eingabe, { vertraege = [], alt = null, jetzt = new D
   const erinnerungTage = ganzeZahl(eingabe.erinnerungTage, 'Erinnerung', { max: 365 }) ?? STANDARD_ERINNERUNG_TAGE;
   const gekuendigtZum = datumOderNull(eingabe.gekuendigtZum, 'Gekündigt zum');
   if (mindestlaufzeitMonate && !beginn) throw new Error('Für die Mindestlaufzeit bitte auch den Vertragsbeginn eintragen.');
+  if (laufzeitBis && beginn && laufzeitBis < beginn) throw new Error('Das Ende der Laufzeit liegt vor dem Vertragsbeginn.');
   if (gekuendigtZum && beginn && gekuendigtZum < beginn) throw new Error('„Gekündigt zum“ liegt vor dem Vertragsbeginn.');
 
   return {
@@ -123,6 +127,7 @@ export function baueVertrag(eingabe, { vertraege = [], alt = null, jetzt = new D
     kategorieId: eingabe.kategorieId === undefined ? alt?.kategorieId ?? null : eingabe.kategorieId || null,
     beginn,
     mindestlaufzeitMonate,
+    laufzeitBis,
     verlaengerungMonate,
     fristAnzahl,
     fristEinheit,
@@ -152,7 +157,7 @@ export function vertragsStand(v, heute) {
     return { status: v.gekuendigtZum < heute ? 'beendet' : 'gekuendigt', ende: v.gekuendigtZum, kuendigenBis: null, erinnern: false };
   }
   const zum = v.kuendigungZum ?? 'laufzeit'; // D192
-  if (!v.beginn || !v.mindestlaufzeitMonate) {
+  if (!v.laufzeitBis && (!v.beginn || !v.mindestlaufzeitMonate)) {
     // Ohne Mindestlaufzeit: jederzeit mit der Frist kündbar – frühestes Ende, wenn heute gekündigt wird
     if (zum !== 'laufzeit') {
       // D192: nur zum Monats-/Quartalsende – das erste Ende, für das die Frist heute noch reicht
@@ -163,8 +168,10 @@ export function vertragsStand(v, heute) {
     const ende = v.fristAnzahl ? (v.fristEinheit === 'monate' ? plusMonate(heute, v.fristAnzahl) : plusTage(heute, v.fristAnzahl * (v.fristEinheit === 'wochen' ? 7 : 1))) : heute;
     return { status: 'unbefristet', ende, kuendigenBis: null, erinnern: false };
   }
-  let monate = v.mindestlaufzeitMonate;
-  let ende = aufStichtag(laufzeitEnde(v.beginn, monate), zum);
+  // D225: mit Enddatum zählen die Verlängerungen ab dem Tag danach (laufzeitEnde(start, 0) = laufzeitBis)
+  const start = v.laufzeitBis ? plusTage(v.laufzeitBis, 1) : v.beginn;
+  let monate = v.laufzeitBis ? 0 : v.mindestlaufzeitMonate;
+  let ende = aufStichtag(laufzeitEnde(start, monate), zum);
   let kb = kuendigungsTag(ende, v.fristAnzahl, v.fristEinheit);
   if (!v.verlaengerungMonate) {
     // Verlängert sich nicht: endet von selbst
@@ -173,7 +180,7 @@ export function vertragsStand(v, heute) {
   // Frist verpasst → der Vertrag hat sich verlängert; nächste Laufzeit prüfen
   for (let i = 0; kb < heute && i < 2000; i++) {
     monate += v.verlaengerungMonate;
-    ende = aufStichtag(laufzeitEnde(v.beginn, monate), zum);
+    ende = aufStichtag(laufzeitEnde(start, monate), zum);
     kb = kuendigungsTag(ende, v.fristAnzahl, v.fristEinheit);
   }
   const vorlauf = v.erinnerungTage ?? STANDARD_ERINNERUNG_TAGE;
