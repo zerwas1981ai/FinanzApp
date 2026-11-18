@@ -340,7 +340,8 @@ function wiederkehrendBereich(daten) {
       h('button', { type: 'button', class: 'knopf knopf-primaer', onclick: () => wiederkehrendDialog(null, daten) }, '+ Wiederkehrend')),
     h('p', { class: 'hinweis erklaerung' },
       'Fällige Termine erscheinen in der Übersicht. Erst wenn du dort auf „Buchen“ tippst, entsteht eine echte Buchung. ' +
-      'Die Summen rechnen vierteljährliche, halbjährliche und jährliche Zahlungen auf den Monat um; ausgeschaltete, beendete und Umbuchungen zählen nicht.'),
+      'Die Summen rechnen vierteljährliche, halbjährliche und jährliche Zahlungen auf den Monat um; ausgeschaltete, beendete und Umbuchungen zählen nicht. ' +
+      '📄 = einem Vertrag zugeordnet, ○ = kein Vertrag.'),
     // D201: feste Kosten und Einnahmen je Monat insgesamt
     sortiert.length > 0 && (() => {
       const s = wiederkehrendJeMonat(wiederkehrend, heute);
@@ -404,6 +405,12 @@ function wiederkehrendZeile(w, daten, heute, kat, kontoName) {
     h('button', {
       type: 'button', class: 'buchung zeile-1' + (beendet ? ' archiviert' : ''), title: `${titel} · ${details}`, onclick: () => wiederkehrendDialog(w, daten),
     },
+    // D226: vorne ein Zeichen, ob ein Vertrag zugeordnet ist (📄 mit, ○ ohne)
+    (() => {
+      const vertragName = w.vertragId && (daten.vertraege ?? []).find((x) => x.id === w.vertragId)?.name;
+      const text = vertragName ? `Vertrag: ${vertragName}` : 'Kein Vertrag zugeordnet';
+      return h('span', { class: 'vertrag-zeichen' + (vertragName ? '' : ' ohne'), title: text, 'aria-label': text }, vertragName ? '📄' : '○');
+    })(),
     h('span', { class: 'buchung-text' },
       h('span', { class: 'buchung-titel' },
         h('span', { class: 'nur-breit' }, titel), h('span', { class: 'nur-schmal' }, handyTitel),

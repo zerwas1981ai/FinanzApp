@@ -27,7 +27,7 @@ Details zu Datenmodell, Oberfläche und Rechenlogik (aus CLAUDE.md verschoben). 
   Zahlungen, / Jahr aus allen; Zwischensumme je Kategorie immer, Gesamtsumme = Summe der Verträge.
   Zeile (D220/D221): immer Monat · Quartal/Halbjahr · Jahr in dieser Reihenfolge, der Wert passend zur Zahlweise groß und gerade (wie die Gesamtsumme);
   laufende Verträge ohne wiederkehrende Buchung bekommen einen Hinweis.
-  Aus einer wiederkehrenden Buchung ohne Vertrag: „Vertrag daraus anlegen …“ (Empfänger + Hauptkategorie vorausgefüllt, D224)
+  Aus einer wiederkehrenden Buchung ohne Vertrag: „Vertrag daraus anlegen …“ (Empfänger + Hauptkategorie vorausgefüllt, D224); in der Liste der wiederkehrenden Buchungen zeigt vorne 📄 (mit Vertrag) bzw. ○ (ohne) an, ob ein Vertrag zugeordnet ist (D226)
 - Wiederkehrende Buchung: Intervall (monatlich/vierteljährlich/halbjährlich/jährlich, D197),
   Start, optional Ende, Wertänderungen ab Datum, feste Abweichung je
   Kalendermonat (jedes Jahr, D94), einzelne Monate überspringen oder verschieben;

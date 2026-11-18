@@ -2770,3 +2770,9 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
   mit Enddatum ist `mindestlaufzeitMonate` leer. Ein Beginn ist dafür nicht nötig; liegt das Ende vor dem Beginn → Fehler.
 - Rechnung: erstes Vertragsende = Enddatum (ggf. auf Monats-/Quartalsende geschoben, D192); Verlängerungen zählen ab
   dem Tag danach. In der Vertragszeile steht „Laufzeit: bis TT.MM.JJJJ …“.
+
+### D226 – Wiederkehrende Buchungen: Zeichen für Vertrag
+*Wunsch des Nutzers*
+- In der Liste der wiederkehrenden Buchungen steht vorne in jeder Zeile (rechts neben dem Ein/Aus-Häkchen für die
+  Prognose, das bleibt) ein Zeichen: 📄 = einem Vertrag zugeordnet (Tipp/Maus zeigt den Vertragsnamen), ○ = kein Vertrag.
+- Die Erklärung über der Liste nennt beide Zeichen. Nur Anzeige, nichts wird automatisch zugeordnet.

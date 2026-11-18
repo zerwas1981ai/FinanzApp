@@ -8,7 +8,7 @@ Oberfläche auf Deutsch, Währung Euro, deutsches Datums- und Zahlenformat.
 
 ## Aktueller Stand
 - Alle Grundfunktionen sind fertig und online (GitHub Pages); seitdem Verbesserungsrunden auf Wunsch.
-- Letzte Entscheidung: D225, Cache-Version in sw.js: finanzapp-v126, Datenmodell-Version 24.
+- Letzte Entscheidung: D226, Cache-Version in sw.js: finanzapp-v127, Datenmodell-Version 24.
 - 192 Tests mit `npm test`, alle grün.
 - Offen: Wischen in Buchungslisten (D211) am echten Handy prüfen.
 

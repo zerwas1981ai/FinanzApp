@@ -1067,6 +1067,9 @@ details[open] > .zl-zeile > .zl-name::before { transform: rotate(90deg); }
 .annahme-schalter { display: grid; place-items: center; width: 32px; height: 32px; flex: none; cursor: pointer; }
 .annahme-schalter input { width: 18px; height: 18px; accent-color: var(--akzent); cursor: pointer; }
 .annahme-zeile.aus .buchung { opacity: .5; }
+/* D226: Zeichen vorne in der Zeile einer wiederkehrenden Buchung – Vertrag zugeordnet oder nicht */
+.vertrag-zeichen { flex: none; width: 1.4em; text-align: center; }
+.vertrag-zeichen.ohne { color: var(--text-2); }
 .marke-projekt { background: var(--akzent-leicht); color: var(--akzent); }
 .erledigt-liste > summary { cursor: pointer; color: var(--akzent); font-size: .9rem; padding: 6px 0; }
 
