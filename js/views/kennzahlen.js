@@ -107,13 +107,17 @@ export function erwartetBereich(kd, daten) {
     // (Reihenfolge bleibt nach Fälligkeitsdatum)
     const titelHandy = w.art === 'umbuchung' ? zuordnung : (w.partner || titel);
     return h('li', { class: w.art === 'umbuchung' ? 'ub-ausblendbar' : null },
-      h('button', { type: 'button', class: 'buchung geplant einzeilig', onclick: () => terminDialog(t, titel) },
+      // D227: gekoppelte Umbuchung → Dialog der Ausgabe (beide werden zusammen gebucht)
+      h('button', { type: 'button', class: 'buchung geplant einzeilig', onclick: () => (w.gekoppelt
+        ? terminDialog({ ...t, wiederkehrend: w.gekoppelt }, annahmeTitel(w.gekoppelt, daten.kategorien))
+        : terminDialog(t, titel)) },
         h('span', { class: 'buchung-text' },
           h('span', { class: 'buchung-titel' },
             h('span', { class: 'datum-klein nur-breit' }, formatTag(t.datum)),
             h('span', { class: 'nur-breit' }, titel),
             h('span', { class: 'nur-schmal', title: titelHandy }, titelHandy),
             t.quelle === 'geplant' && h('span', { class: 'marke' }, 'einmalig'),
+            w.gekoppelt && h('span', { class: 'marke' }, 'gekoppelt'),
             status && h('span', { class: 'marke' + (t.ueberfaellig ? ' marke-warn' : '') }, status)),
           h('span', { class: 'buchung-unter nur-breit' }, zuordnung + (t.verschoben ? ` · verschoben vom ${formatDatum(t.termin)}` : ''))),
         h('span', { class: 'betrag annahme' + (t.wirkung > 0 ? ' plus' : '') }, mitVorzeichen(t.wirkung))));

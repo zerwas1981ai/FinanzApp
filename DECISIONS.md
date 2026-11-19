@@ -2776,3 +2776,19 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
 - In der Liste der wiederkehrenden Buchungen steht vorne in jeder Zeile (rechts neben dem Ein/Aus-Häkchen für die
   Prognose, das bleibt) ein Zeichen: 📄 = einem Vertrag zugeordnet (Tipp/Maus zeigt den Vertragsnamen), ○ = kein Vertrag.
 - Die Erklärung über der Liste nennt beide Zeichen. Nur Anzeige, nichts wird automatisch zugeordnet.
+
+### D227 – Gekoppelte wiederkehrende Umbuchung
+*Wunsch des Nutzers (ergänzt D216)*
+- Wiederkehrende **Ausgaben** haben das Feld „Gekoppelte Umbuchung von Konto (optional)“ (`umbuchungVonKontoId`,
+  fehlt = null, keine Migration). Beispiel: Abo über PayPal, Umbuchung vom Girokonto. In der Liste steht
+  „gekoppelte Umbuchung von …“ in der Zeile.
+- Beim Buchen eines Termins zeigt der Buchungsdialog das Häkchen „Gekoppelte Umbuchung von „…“ mitbuchen“ (vorgewählt,
+  abwählbar). Technisch wie der Ausgleich (D216): Umbuchung in gleicher Höhe und mit gleichem Datum, `ausgleichFuer`,
+  Notiz „Umbuchung für <Empfänger>“, Budget-Zuordnung der Hauptkategorie; folgt der Ausgabe beim Ändern/Löschen.
+- Für solche Buchungen entfällt der allgemeine Ausgleich (D216) – sonst wäre es doppelt. Wiederkehrende Ausgaben ohne
+  Kopplung und normale Ausgaben werden weiter wie bisher ausgeglichen (so vom Nutzer gewählt).
+- Prognose: `nurWirksam` ergänzt je gekoppelter Ausgabe eine abgeleitete wiederkehrende Umbuchung (gleiche Termine,
+  Stufen, Ausnahmen), die nie gespeichert wird. Sie ist erledigt, sobald der Termin der Ausgabe gebucht ist.
+  In „Noch erwartet“ trägt sie die Marke „gekoppelt“ und öffnet den Termin der Ausgabe; einzeln buchbar ist sie nicht
+  (Fällig-Liste, Abstimmhilfe und Monatsabschluss lassen sie weg).
+- Die Kopplung stellt der Nutzer je wiederkehrender Buchung selbst ein (echte Daten werden nicht automatisch geändert).

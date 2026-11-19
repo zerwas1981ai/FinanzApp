@@ -197,6 +197,14 @@ export function baueWiederkehrend(eingabe, { konten, kategorien, alt = null, jet
     kategorieId = unter.id;
   }
 
+  // D227: gekoppelte Umbuchung (nur Ausgaben) – undefined = unverändert, '' oder null = keine
+  let umbuchungVonKontoId = eingabe.umbuchungVonKontoId === undefined ? alt?.umbuchungVonKontoId ?? null : eingabe.umbuchungVonKontoId || null;
+  if (eingabe.art !== 'ausgabe') umbuchungVonKontoId = null;
+  if (umbuchungVonKontoId) {
+    if (!konten.some((k) => k.id === umbuchungVonKontoId)) throw new Error('Bitte das Konto für die Umbuchung wählen.');
+    if (umbuchungVonKontoId === eingabe.kontoId) throw new Error('Die Umbuchung braucht ein anderes Konto als die Buchung.');
+  }
+
   // "Immer am Monatsletzten": Start wird auf den letzten Tag seines Monats gesetzt
   const monatsletzter = Boolean(eingabe.monatsletzter);
   const start = monatsletzter ? monatsende(eingabe.start) : eingabe.start;
@@ -225,6 +233,7 @@ export function baueWiederkehrend(eingabe, { konten, kategorien, alt = null, jet
     aktiv: eingabe.aktiv ?? alt?.aktiv ?? true,
     // Vertrag (Datenversion 18, D148): undefined = unverändert, '' oder null = keiner
     vertragId: eingabe.vertragId === undefined ? alt?.vertragId ?? null : eingabe.vertragId || null,
+    umbuchungVonKontoId, // D227
     erstelltAm: alt?.erstelltAm ?? jetzt,
     geaendertAm: jetzt,
     ...(alt?.testdaten ? { testdaten: true } : {}),

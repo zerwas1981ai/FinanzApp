@@ -393,6 +393,7 @@ function wiederkehrendZeile(w, daten, heute, kat, kontoName) {
     w.monatsletzter && 'zum Monatsletzten',
     naechster ? `nächster Termin ${formatDatum(naechster.datum)}` : 'keine weiteren Termine',
     zuordnung,
+    w.art === 'ausgabe' && w.umbuchungVonKontoId && `gekoppelte Umbuchung von ${kontoName.get(w.umbuchungVonKontoId) ?? '?'}`, // D227
   ].filter(Boolean).join(' · ');
   const cent = naechster?.betragCent ?? terminBetrag(w, heute);
   // D94: feste Abweichungen je Kalendermonat
@@ -452,6 +453,14 @@ export function wiederkehrendDialog(w, daten, vorgaben = {}) {
   const konto = auswahl({ label: 'Konto', optionen: kontoOptionen, wert: v.kontoId ?? waehlbar[0].id });
   const gegenkonto = auswahl({ label: 'Auf Konto', optionen: kontoOptionen, wert: v.gegenkontoId ?? waehlbar.find((k) => k.id !== konto.select.value)?.id });
   const budgetFeld = budgetZuordnungFeld(kategorien, v.budgetKategorieId ?? null); // D98
+  // D227: gekoppelte Umbuchung – nur bei Ausgaben; beim Buchen eines Termins wird sie mitgebucht
+  const umbuchungVon = auswahl({
+    label: 'Gekoppelte Umbuchung von Konto (optional)',
+    optionen: [{ wert: '', text: 'Keine' }, ...kontoOptionen],
+    wert: v.umbuchungVonKontoId ?? '',
+    hilfe: 'Z. B. Girokonto bei einer Zahlung über PayPal: Beim Buchen eines Termins wird eine Umbuchung in gleicher Höhe ' +
+      'von diesem Konto mitgebucht (Häkchen im Buchungsdialog). Sie steht auch in der Prognose. Der automatische Ausgleich entfällt dann.',
+  });
   const vertrag = vertragFeld(daten.vertraege, v.vertragId ?? null); // D148
   // D224: gespeicherte wiederkehrende Buchung ohne Vertrag → „Vertrag daraus anlegen“ (Empfänger und
   // Hauptkategorie vorausgefüllt); der neue Vertrag wird sofort mit dieser Buchung verbunden.
@@ -541,13 +550,14 @@ export function wiederkehrendDialog(w, daten, vorgaben = {}) {
     budgetFeld.feld.hidden = !istUmbuchung;
     konto.feld.querySelector('label').textContent = istUmbuchung ? 'Von Konto' : 'Konto';
     if (!istUmbuchung) fuelleKategorien(kategorie.select, kategorien, art, v.kategorieId);
+    umbuchungVon.feld.hidden = art !== 'ausgabe'; // D227
   }
   aktualisiere();
 
   dialog({
     titel: w ? 'Wiederkehrende Buchung bearbeiten' : (vorgaben.titel ?? 'Neue wiederkehrende Buchung'),
     inhalt: [
-      artKnoepfe, stufen.feld, kalender.feld, partner.feld, kategorie.feld, konto.feld, gegenkonto.feld, budgetFeld.feld,
+      artKnoepfe, stufen.feld, kalender.feld, partner.feld, kategorie.feld, konto.feld, gegenkonto.feld, budgetFeld.feld, umbuchungVon.feld,
       intervall.feld, monatsletzterFeld, h('div', { class: 'feld-paar' }, start.feld, ende.feld), notiz.feld, vertrag?.feld, vertragAnlegenFeld, ausnahmenListe,
     ].filter(Boolean),
     zusatz: w && {
@@ -583,6 +593,7 @@ export function wiederkehrendDialog(w, daten, vorgaben = {}) {
         kalenderMonate: kalender.werte(),
         partner: partner.input.value,
         vertragId: vertrag ? vertrag.select.value : (neuerVertragId ?? undefined), // D224: auch ohne Auswahlfeld
+        umbuchungVonKontoId: umbuchungVon.select.value, // D227
       }, { konten, kategorien, alt: w });
       await db.speichere('wiederkehrend', { ...datensatz, ausnahmen });
       toast(w ? 'Gespeichert' : 'Wiederkehrende Buchung angelegt');

@@ -13,15 +13,45 @@ export function wirksam(eintrag) {
   return eintrag.aktiv !== false;
 }
 
-/** Kopie der Daten, in der nur die eingeschalteten Annahmen enthalten sind */
+/**
+ * Kopie der Daten, in der nur die eingeschalteten Annahmen enthalten sind –
+ * plus die gekoppelten Umbuchungen (D227) als eigene wiederkehrende Umbuchungen für die Prognose.
+ */
 export function nurWirksam(daten) {
   const filter = (liste) => (liste ?? []).filter(wirksam);
+  const wiederkehrende = filter(daten.wiederkehrende ?? daten.wiederkehrend);
   return {
     ...daten,
     budgets: filter(daten.budgets),
-    wiederkehrende: filter(daten.wiederkehrende ?? daten.wiederkehrend),
+    wiederkehrende: [...wiederkehrende, ...gekoppelteUmbuchungen(wiederkehrende, daten.kategorien)],
     geplant: filter(daten.geplant),
   };
+}
+
+/**
+ * D227: Zu jeder wiederkehrenden Ausgabe mit „Umbuchung von Konto“ eine abgeleitete wiederkehrende Umbuchung
+ * (Von-Konto → Konto der Ausgabe) mit denselben Terminen und Beträgen (Stufen, Ausnahmen, Kalendermonate).
+ * Sie wird nie gespeichert; `gekoppelt` zeigt auf die Ausgabe. Wie beim Ausgleich (D216) trägt sie die
+ * Hauptkategorie als Budget-Zuordnung, die Ausgabe zählt also gegen das Budget auf dem Von-Konto.
+ */
+export function gekoppelteUmbuchungen(wiederkehrende, kategorien = []) {
+  const hauptVon = new Map((kategorien ?? []).map((k) => [k.id, k.elternId ?? null]));
+  return (wiederkehrende ?? [])
+    .filter((w) => w.art === 'ausgabe' && w.umbuchungVonKontoId && w.umbuchungVonKontoId !== w.kontoId && !w.gekoppelt)
+    .map((w) => ({
+      ...w,
+      id: `${w.id}#umbuchung`,
+      art: 'umbuchung',
+      kontoId: w.umbuchungVonKontoId,
+      gegenkontoId: w.kontoId,
+      kategorieId: null,
+      budgetKategorieId: hauptVon.get(w.kategorieId) ?? null,
+      umbuchungVonKontoId: null,
+      partner: '',
+      notiz: `Umbuchung für ${annahmeTitel(w, kategorien)}`,
+      vertragId: null,
+      gekoppelt: w,
+    }));
 }
 
 /**
@@ -214,7 +244,7 @@ export function naechsterTermin(w, ab) {
   return termine(w, ab, plusTage(ab, 800))[0] ?? null;
 }
 
-/** Schlüssel "wiederkehrendId|termin" aller durch Buchungen erledigten Termine */
+/** Schlüssel "wiederkehrendId|termin" aller durch Buchungen erledigten Termine (gekoppelte: über ihre Ausgabe, D227) */
 export function erledigteTermine(buchungen) {
   const s = new Set();
   for (const b of buchungen) {
@@ -239,7 +269,7 @@ export function terminWirkung(w, betragCent, kontoId) {
  * Start in der Vergangenheit alte Termine als offen erscheinen) und nie vor dem
  * Stichtag der beteiligten Konten.
  */
-export function offeneTermine({ wiederkehrende, buchungen, konten, geplant = [] }, heute, bis) {
+export function offeneTermine({ wiederkehrende, buchungen, konten, geplant = [] }, heute, bis, { mitGekoppelten = false } = {}) {
   const erledigt = erledigteTermine(buchungen);
   const stichtag = new Map(konten.map((k) => [k.id, k.stichtag]));
   const vormonatStart = `${plusMonate(heute.slice(0, 7), -1)}-01`;
@@ -260,10 +290,13 @@ export function offeneTermine({ wiederkehrende, buchungen, konten, geplant = [] 
   }
 
   for (const w of wiederkehrende) {
+    // D227: gekoppelte Umbuchungen nur für die Prognose – gebucht werden sie mit ihrer Ausgabe
+    if (w.gekoppelt && !mitGekoppelten) continue;
+    const id = w.gekoppelt?.id ?? w.id;
     const angelegtAb = `${(w.erstelltAm ?? '0000-01').slice(0, 7)}-01`;
     const von = angelegtAb > vormonatStart ? angelegtAb : vormonatStart;
     for (const t of termine(w, von, bis)) {
-      if (erledigt.has(`${w.id}|${t.termin}`)) continue;
+      if (erledigt.has(`${id}|${t.termin}`)) continue;
       if (t.datum < (stichtag.get(w.kontoId) ?? '')) continue;
       if (w.art === 'umbuchung' && t.datum < (stichtag.get(w.gegenkontoId) ?? '')) continue;
       ergebnis.push({ wiederkehrend: w, quelle: 'wiederkehrend', ...t, ueberfaellig: t.datum < heute });
@@ -344,7 +377,7 @@ export function monatsprognose(daten, heute) {
   }
 
   const istJe = ausgabenJeKontoUndKategorie(buchungen, kategorien, monat);
-  const offen = offeneTermine(daten, heute, ende);
+  const offen = offeneTermine(daten, heute, ende, { mitGekoppelten: true }); // D227
   const offenJe = new Map();
   for (const t of offen) {
     if (t.datum < erster) continue;
@@ -583,7 +616,8 @@ export function zeitleiste(daten, heute, bisMonat = LETZTER_MONAT) {
       merke({
         art: w.art, kontoId: w.kontoId, gegenkontoId: w.gegenkontoId, betragCent: t.betragCent, datum: t.datum,
         hauptId: hauptVon(w.kategorieId), unterId: w.kategorieId ?? null, text: annahmeTitel(w, kategorien), quelle: 'wiederkehrend', budgetKategorieId: w.budgetKategorieId ?? null,
-        ref: { wiederkehrend: w, termin: t.termin, einzelBetrag: t.einzelBetrag, verschoben: t.verschoben },
+        // D227: gekoppelte Umbuchung → Änderungen gelten für ihre Ausgabe
+        ref: { wiederkehrend: w.gekoppelt ?? w, termin: t.termin, einzelBetrag: t.einzelBetrag, verschoben: t.verschoben },
       });
     }
   }
@@ -782,7 +816,7 @@ export function erwarteteAusgaben(daten, heute, bisMonat) {
   for (const b of buchungen) {
     if (istAktiv(b) && b.datum <= bis) dazu(b, b.datum, zaehltCent(b)); // D214
   }
-  for (const t of offeneTermine({ ...daten, wiederkehrende, geplant }, heute, ende)) {
+  for (const t of offeneTermine({ ...daten, wiederkehrende, geplant }, heute, ende, { mitGekoppelten: true })) { // D227
     if (t.datum < `${monat}-01`) continue;
     dazu(t.wiederkehrend, t.datum, t.betragCent);
   }

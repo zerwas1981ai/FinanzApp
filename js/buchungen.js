@@ -251,7 +251,7 @@ export function ausgleichAnpassen(ausgabe, einstellung, alle, { konten, kategori
   const hauptId = kategorien.find((k) => k.id === ausgabe.kategorieId)?.elternId ?? null;
   return baueBuchungen({
     art: 'umbuchung', betragCent: ausgabe.betragCent, datum: ausgabe.datum, kontoId: einstellung.vonKontoId, gegenkontoId: einstellung.kontoId,
-    notiz: ['Ausgleich', ausgabe.partner].filter(Boolean).join(' '), status: ausgabe.status, ausgleichFuer: ausgabe.id,
+    notiz: [einstellung.notiz ?? 'Ausgleich', ausgabe.partner].filter(Boolean).join(' '), status: ausgabe.status, ausgleichFuer: ausgabe.id,
     budgetKategorieId: zaehltGegenBudget ? hauptId : null,
   }, { konten, bestehende: alt, jetzt });
 }

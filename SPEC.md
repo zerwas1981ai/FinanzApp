@@ -18,6 +18,7 @@ Details zu Datenmodell, Oberfläche und Rechenlogik (aus CLAUDE.md verschoben). 
   Rückzahlungen zählen nicht als Ausgabe/Einnahme und nicht gegen Budgets, nur im Kontostand.
 - Aufrunden (D215): Ausgaben vom gewählten Konto bekommen eine Umbuchung bis zum vollen Euro aufs gewählte Sparkonto.
 - Ausgleich (D216): Ausgaben auf z. B. PayPal bekommen eine Umbuchung in gleicher Höhe vom Girokonto (mit Budget-Zuordnung).
+- Gekoppelte Umbuchung (D227): wiederkehrende Ausgabe mit „Gekoppelte Umbuchung von Konto“ → beim Buchen eines Termins Umbuchung in gleicher Höhe von dort (Häkchen, vorgewählt; ersetzt den Ausgleich D216), in der Prognose als abgeleitete Umbuchung (nie gespeichert).
 - Budget: pro Hauptkategorie und Konto, monatlich, jährlich (in Tranchen, D90) oder einmalig (D85);
   je Kategorie und Konto entweder Monats- oder Jahresbudget
 - Monatsnotiz (D165): ein Satz je Monat

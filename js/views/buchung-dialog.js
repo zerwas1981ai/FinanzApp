@@ -36,7 +36,13 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
   // Bei Umbuchungen ist die "ab"-Hälfte maßgeblich (Von-Konto)
   const ref = gruppe.find((b) => b.richtung === 'ab') ?? buchung;
   const aufrunden = await db.hole('einstellungen', 'aufrunden'); // D215
-  const ausgleich = await db.hole('einstellungen', 'ausgleich'); // D216
+  // D227: Buchung aus einer wiederkehrenden Ausgabe mit gekoppelter Umbuchung → statt des allgemeinen
+  // Ausgleichs (D216) die gekoppelte Umbuchung vom gewählten Konto (gleiche Technik, eigenes Von-Konto)
+  const quelleW = wiederkehrendListe.find((w) => w.id === (ref?.wiederkehrendId ?? vorgaben.wiederkehrendId));
+  const gekoppelt = quelleW?.art === 'ausgabe' && quelleW.umbuchungVonKontoId && quelleW.umbuchungVonKontoId !== quelleW.kontoId;
+  const ausgleich = gekoppelt
+    ? { id: 'gekoppelt', aktiv: true, kontoId: quelleW.kontoId, vonKontoId: quelleW.umbuchungVonKontoId, notiz: 'Umbuchung für' }
+    : await db.hole('einstellungen', 'ausgleich'); // D216
 
   const waehlbareKonten = sortiereKonten(konten
     .filter((k) => !k.archiviert || gruppe.some((b) => b.kontoId === k.id)));
@@ -173,7 +179,9 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
     try { cent = liesBetrag() ?? 0; } catch { /* egal */ }
     const gilt = art === 'ausgabe' && ausgleichGilt(ausgleich, konto.select.value);
     ausgleichFeld.hidden = !gilt;
-    ausgleichText.textContent = gilt ? `Von „${ausgleichVonName}“ ausgleichen${cent > 0 ? `: ${formatEuro(cent)}` : ''} (Umbuchung, zählt gegen das Budget dort)` : '';
+    ausgleichText.textContent = !gilt ? '' : gekoppelt
+      ? `Gekoppelte Umbuchung von „${ausgleichVonName}“ mitbuchen${cent > 0 ? `: ${formatEuro(cent)}` : ''} (zählt gegen das Budget dort)`
+      : `Von „${ausgleichVonName}“ ausgleichen${cent > 0 ? `: ${formatEuro(cent)}` : ''} (Umbuchung, zählt gegen das Budget dort)`;
   };
 
   // D214: Auslage (Ausgabe: bekomme ich zurück) bzw. Rückzahlung (Einnahme: für welche Auslage)
