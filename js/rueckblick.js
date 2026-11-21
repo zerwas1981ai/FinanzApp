@@ -52,6 +52,47 @@ function kategorieZeilen(perioden, kategorien) {
   }).sort((a, b) => b.werte.at(-1) - a.werte.at(-1) || b.werte.at(-2) - a.werte.at(-2) || a.name.localeCompare(b.name, 'de'));
 }
 
+/**
+ * D242: Durchschnitt je Monat über die `anzahl` Monate VOR `monat` (der gewählte Monat zählt nicht mit, damit er fair
+ * verglichen wird). Monate vor der ersten erfassten Buchung zählen nicht – sonst sähe „noch nichts erfasst“ wie 0 € aus.
+ * Ergebnis: { monate, einnahmen, ausgaben, saldo, sparquote, jeHaupt } (gerundete Cent) oder null ohne Vormonate.
+ */
+export function schnittVormonate(buchungen, kategorien, monat, heute, anzahl = 6) {
+  const erste = buchungen.filter((b) => zaehlt(b, heute)).reduce((min, b) => (b.datum < min ? b.datum : min), heute).slice(0, 7);
+  const schluessel = Array.from({ length: anzahl }, (_, i) => plusMonat(monat, i - anzahl)).filter((s) => s >= erste);
+  if (!schluessel.length) return null;
+  const n = schluessel.length;
+  const letzter = plusMonat(monat, -1);
+  const summen = periodenSummen(buchungen, kategorien, `${schluessel[0]}-01`, monatsletzter(Number(letzter.slice(0, 4)), Number(letzter.slice(5, 7))), heute);
+  const einnahmen = Math.round(summen.einnahmen / n);
+  const ausgaben = Math.round(summen.ausgaben / n);
+  return {
+    monate: n, einnahmen, ausgaben, saldo: einnahmen - ausgaben, sparquote: sparquote(einnahmen, ausgaben),
+    jeHaupt: new Map([...summen.jeHaupt].map(([id, cent]) => [id, Math.round(cent / n)])),
+  };
+}
+
+/** D242: Pfeil, ob ein Wert über (▲), unter (▼) oder etwa auf (→, weniger als 1 €) dem Durchschnitt liegt */
+export function trendPfeil(wert, schnitt) {
+  if (schnitt == null) return null;
+  const d = wert - schnitt;
+  if (Math.abs(d) < 100) return '→';
+  return d > 0 ? '▲' : '▼';
+}
+
+/**
+ * D242: Ausgaben einer Hauptkategorie in einem oder mehreren Zeiträumen ([[von, bis], …]) – gleiche Zählregel wie
+ * der Rückblick (ohne Papierkorb, Umbuchungen, offene Auslagen; nur bis heute). Neueste zuerst.
+ */
+export function kategorieBuchungen(buchungen, kategorien, hauptId, zeitraeume, heute) {
+  const kat = new Map(kategorien.map((k) => [k.id, k]));
+  const hauptVon = (b) => { const u = kat.get(b.kategorieId); return u?.elternId ?? u?.id ?? 'unbekannt'; };
+  return buchungen
+    .filter((b) => zaehlt(b, heute) && b.art === 'ausgabe' && hauptVon(b) === hauptId
+      && zeitraeume.some(([von, bis]) => b.datum >= von && b.datum <= bis))
+    .sort((a, b) => b.datum.localeCompare(a.datum) || b.betragCent - a.betragCent);
+}
+
 /** Die größten Ausgaben eines Zeitraums */
 function groesste(buchungen, von, bis, heute, anzahl) {
   return buchungen
@@ -62,10 +103,11 @@ function groesste(buchungen, von, bis, heute, anzahl) {
 
 /**
  * Monatsrückblick für 'JJJJ-MM' mit den beiden Vormonaten (älteste zuerst).
+ * D241: anzahl = 6 → „6 Monate“: der Monat und die 5 davor; größte Ausgaben dann über alle 6 Monate (10 Stück).
  * Der laufende Monat zählt nur bis heute (laufend = true).
  */
-export function monatsRueckblick(buchungen, kategorien, monat, heute) {
-  const schluessel = [plusMonat(monat, -2), plusMonat(monat, -1), monat];
+export function monatsRueckblick(buchungen, kategorien, monat, heute, anzahl = 3) {
+  const schluessel = Array.from({ length: anzahl }, (_, i) => plusMonat(monat, i - anzahl + 1));
   const perioden = schluessel.map((s) => {
     const j = Number(s.slice(0, 4));
     const m = Number(s.slice(5, 7));
@@ -73,14 +115,16 @@ export function monatsRueckblick(buchungen, kategorien, monat, heute) {
     return { schluessel: s, ...periodenSummen(buchungen, kategorien, `${s}-01`, bis < heute ? bis : heute, heute) };
   });
   const letzte = perioden.at(-1);
+  const sechs = anzahl === 6;
   return {
-    art: 'monat',
-    titel: `Monatsrückblick ${monatLang(monat)}`,
+    art: sechs ? 'sechs' : 'monat',
+    titel: sechs ? `Rückblick 6 Monate bis ${monatLang(monat)}` : `Monatsrückblick ${monatLang(monat)}`,
     laufend: heute.slice(0, 7) === monat,
     spalten: schluessel.map(monatKurz),
     perioden,
     kategorien: kategorieZeilen(perioden, kategorien),
-    groesste: groesste(buchungen, letzte.von, letzte.bis, heute, 5),
+    groesste: sechs ? groesste(buchungen, perioden[0].von, letzte.bis, heute, 10) : groesste(buchungen, letzte.von, letzte.bis, heute, 5),
+    schnitt: schnittVormonate(buchungen, kategorien, monat, heute), // D242
   };
 }
 

@@ -1,8 +1,9 @@
-// Tests zu D156/D240 (Monats- und Jahresrückblick) – nur erfundene Testdaten
+// Tests zu D156/D240/D241/D242 (Monats-, 6-Monats- und Jahresrückblick, Ø und Buchungen je Kategorie) – nur erfundene Testdaten
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { monatsRueckblick, jahresRueckblick, waehlbareZeitraeume, plusMonat } from '../js/rueckblick.js';
+import { monatsRueckblick, jahresRueckblick, waehlbareZeitraeume, plusMonat, schnittVormonate, trendPfeil, kategorieBuchungen } from '../js/rueckblick.js';
 import { monatKurz } from '../js/format.js';
+import { dateiTeil, buchungenAlsCsv } from '../js/export.js';
 
 const kategorien = [
   { id: 'h1', name: 'Wohnen' }, { id: 'u1', name: 'Miete', elternId: 'h1' },
@@ -59,3 +60,52 @@ test('D156: Jahresrückblick – laufendes Jahr gegen Vorjahr bis zum gleichen T
   assert.deepEqual(w.jahre, [2026, 2025]);
 });
 
+test('D241: Rückblick über 6 Monate', () => {
+  const rb = monatsRueckblick(buchungen, kategorien, '2026-10', '2026-11-12', 6);
+  assert.equal(rb.art, 'sechs');
+  assert.equal(rb.titel, 'Rückblick 6 Monate bis Oktober 2026');
+  assert.deepEqual(rb.spalten, ['Mai 26', 'Jun 26', 'Jul 26', 'Aug 26', 'Sep 26', 'Okt 26']);
+  assert.deepEqual(rb.perioden.map((p) => p.ausgaben), [0, 0, 0, 115000, 125000, 120000]);
+  assert.deepEqual(rb.kategorien.map((k) => k.werte.length), [6, 6]);
+  assert.deepEqual(rb.groesste.map((x) => x.id), ['8', '5', '2', '6', '9', '3'], 'größte Ausgaben über alle 6 Monate, bei gleichem Betrag neueste zuerst');
+  assert.equal(monatsRueckblick(buchungen, kategorien, '2026-10', '2026-11-12').art, 'monat', 'Standard bleibt 3 Monate');
+});
+
+test('D242: Ø der 6 Monate vor dem gewählten Monat', () => {
+  const sn = schnittVormonate(buchungen, kategorien, '2026-10', '2026-11-12');
+  assert.equal(sn.monate, 6, 'April bis September');
+  assert.deepEqual([sn.einnahmen, sn.ausgaben, sn.saldo], [100000, 40000, 60000]);
+  assert.equal(sn.sparquote, 0.6);
+  assert.deepEqual([sn.jeHaupt.get('h1'), sn.jeHaupt.get('h2')], [31667, 8333]);
+  // Monate vor der ersten Buchung (Oktober 2025) zählen nicht
+  const anfang = schnittVormonate(buchungen, kategorien, '2026-01', '2026-11-12');
+  assert.equal(anfang.monate, 3, 'Oktober bis Dezember 2025');
+  assert.equal(anfang.ausgaben, 46667);
+  assert.equal(schnittVormonate(buchungen.filter((x) => x.datum >= '2026-08'), kategorien, '2026-08', '2026-11-12'), null);
+  assert.equal(monatsRueckblick(buchungen, kategorien, '2026-10', '2026-11-12').schnitt.ausgaben, 40000);
+});
+
+test('D242: Pfeil gegenüber dem Ø', () => {
+  assert.equal(trendPfeil(120000, 40000), '▲');
+  assert.equal(trendPfeil(0, 500), '▼');
+  assert.equal(trendPfeil(100, 150), '→', 'weniger als 1 € Unterschied');
+  assert.equal(trendPfeil(100, null), null);
+});
+
+test('D242: Buchungen einer Kategorie in einem oder mehreren Zeiträumen', () => {
+  const alle = kategorieBuchungen(buchungen, kategorien, 'h2', [['2026-08-01', '2026-10-31']], '2026-11-12');
+  assert.deepEqual(alle.map((x) => x.id), ['9', '6', '3'], 'Papierkorb fehlt, neueste zuerst');
+  const zwei = kategorieBuchungen(buchungen, kategorien, 'h2', [['2025-12-01', '2025-12-31'], ['2026-09-01', '2026-09-30']], '2026-11-12');
+  assert.deepEqual(zwei.map((x) => x.id), ['6', '14']);
+  assert.deepEqual(kategorieBuchungen(buchungen, kategorien, 'h2', [['2026-10-01', '2026-10-31']], '2026-10-10'), [], 'nur bis heute');
+});
+
+test('D243: Dateiname und CSV der angezeigten Buchungen', () => {
+  assert.equal(dateiTeil('Lebensmittel · Mai 26 – Okt 26'), 'lebensmittel-mai-26-okt-26');
+  assert.equal(dateiTeil('Bäckerei & Café · Mär 26'), 'baeckerei-caf-maer-26');
+  assert.equal(dateiTeil('· –'), 'auswahl');
+  const liste = kategorieBuchungen(buchungen, kategorien, 'h2', [['2026-08-01', '2026-10-31']], '2026-11-12');
+  const csv = buchungenAlsCsv(liste, { konten: [], kategorien }).replace(/^\uFEFF/, '').trim().split('\r\n');
+  assert.equal(csv.length, 4, 'Kopf + 3 Buchungen');
+  assert.match(csv[1], /^10\.08\.2026;/, 'älteste zuerst');
+});

@@ -1495,7 +1495,8 @@ body:not(.umbuchungen-sichtbar) .ub-ausblendbar { display: none; }
   .druck-relevant th:nth-child(5) { width: 12%; } .druck-relevant th:nth-child(6) { width: 12%; }
   .druck-relevant th:nth-child(7) { width: 11%; text-align: right; }
   /* D156: Rückblick im Druck */
-  .druck-rueckblick table { table-layout: auto; margin-bottom: 6pt; }
+  .druck-rueckblick table { table-layout: fixed; min-width: 0 !important; margin-bottom: 6pt; } /* D241: Spalten untereinander */
+  .druck-buchungen th:nth-child(1) { width: 15%; } .druck-buchungen th:nth-child(6) { width: 15%; } /* D243 */
   .druck-rueckblick th.zahl { text-align: right; }
   .druck-rueckblick h3 { font-size: 11pt; margin: 12pt 0 4pt; }
   .druck-rueckblick .kat-punkt { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -1645,14 +1646,16 @@ body:not(.umbuchungen-sichtbar) .ub-ausblendbar { display: none; }
 /* D156/D240: Rückblick (Umschalter im Tab Auswertungen) */
 .rb-wahl { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .rb-wahl .segmente { margin: 0; }
+.rb-wahl .segment { white-space: nowrap; } /* D241: „6 Monate“ in einer Zeile */
 .rb-wahl .rb-drucken { margin-left: auto; }
 .rb-notiz:empty { display: none; }
 .rb-wahl select { min-width: 160px; }
 .rb-titel { font-size: .95rem; margin: 16px 0 6px; }
 .rb-tabelle-rahmen { overflow-x: auto; }
-.rb-tabelle { width: 100%; border-collapse: collapse; font-size: .9rem; }
+.rb-tabelle { width: 100%; border-collapse: collapse; font-size: .9rem; table-layout: fixed; } /* D241: feste Spalten */
+.rb-tabelle th:first-child, .rb-tabelle td:first-child { width: 9rem; }
 .rb-tabelle th { font-size: .75rem; font-weight: 600; color: var(--text-2); text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--rand); }
-.rb-tabelle td { padding: 6px; border-bottom: 1px solid var(--rand); white-space: nowrap; }
+.rb-tabelle td { padding: 6px; border-bottom: 1px solid var(--rand); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rb-tabelle td:first-child { white-space: normal; }
 .rb-tabelle .zahl { text-align: right; font-variant-numeric: tabular-nums; }
 .rb-tabelle .rb-summe td { font-weight: 600; }
@@ -1660,6 +1663,17 @@ body:not(.umbuchungen-sichtbar) .ub-ausblendbar { display: none; }
 .rb-groesste li { display: grid; grid-template-columns: 84px minmax(0, 1fr) auto; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--rand); font-size: .9rem; }
 .rb-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rb-datum { color: var(--text-2); }
+.rb-dialog { width: min(640px, calc(100vw - 24px)); max-width: none; }
+.rb-werkzeuge { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 8px; } /* D243 */
+/* D242: Kategorie und Beträge im Rückblick antippbar, Pfeil gegenüber dem Ø */
+.rb-klick { all: unset; cursor: pointer; border-radius: var(--radius-mini); max-width: 100%; }
+.rb-klick:hover { text-decoration: underline; text-decoration-color: var(--text-2); }
+.rb-klick:focus-visible { outline: 2px solid var(--akzent); outline-offset: 1px; }
+.rb-pfeil { font-size: .8em; }
+.rb-buchungen li { display: block; padding: 0; }
+.rb-buchung { all: unset; box-sizing: border-box; cursor: pointer; width: 100%; display: grid; grid-template-columns: 84px minmax(0, 1fr) auto; gap: 8px; padding: 6px 0; }
+.rb-buchung:hover .rb-text { text-decoration: underline; }
+.rb-buchung:focus-visible { outline: 2px solid var(--akzent); }
 @media (max-width: 767px) {
   .rb-tabelle { font-size: .82rem; }
   .rb-tabelle td, .rb-tabelle th { padding: 5px 4px; }

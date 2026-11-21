@@ -92,3 +92,9 @@ export function relevantAlsCsv(zeilen, { konten, kategorien }) {
 
 /** Dateiname mit Datum, z. B. "finanzen-buchungen-2026-11-06.csv" */
 export const exportName = (teil, heute) => `finanzen-${teil}-${heute}.csv`;
+
+/** D243: Teil des Dateinamens aus dem Dialogtitel, z. B. „Lebensmittel · Mai 26 – Okt 26“ → „lebensmittel-mai-26-okt-26“ */
+export function dateiTeil(titel) {
+  return titel.toLocaleLowerCase('de').replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss')
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'auswahl';
+}

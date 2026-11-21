@@ -12,7 +12,7 @@ Wird eine Entscheidung geändert, den alten Eintrag nicht löschen, sondern als
 Kurzer Wegweiser, weil viele spätere Einträge frühere aufheben. Maßgeblich bleibt der jeweils letzte Eintrag.
 Bei jeder neuen D-Nummer hier mitpflegen; der Test `tests/wegweiser.test.js` prüft die Stand-Zeile (D236).
 
-**Stand:** D240 · Datenmodell 27 · DB-Struktur 13 · Cache finanzapp-v138
+**Stand:** D243 · Datenmodell 27 · DB-Struktur 13 · Cache finanzapp-v141
 
 **Wieder ausgebaut – nicht mehr im Code:**
 - Szenarien „Was wäre wenn“ → ersetzt durch Projekte (D51)
@@ -30,7 +30,7 @@ Bei jeder neuen D-Nummer hier mitpflegen; der Test `tests/wegweiser.test.js` pr�
 
 **Aufbau der Oberfläche:**
 - Seitenüberschriften gibt es nicht mehr sichtbar; in der Übersicht steht „Übersicht“ im Kennzahlen-Kasten (D160, D164)
-- Haupt-Tab **Auswertungen** (bis D240 „Alle Buchungen“, intern weiter `buchungen`): Liste · Analyse · Rückblick · Belege (D179, D191, D240); Analyse mit „Drucken / PDF“ (D237); Rückblick wieder wie D156, jetzt als Umschalter statt Dialog (D240)
+- Haupt-Tab **Auswertungen** (bis D240 „Alle Buchungen“, intern weiter `buchungen`): Liste · Analyse · Rückblick · Belege (D179, D191, D240); Analyse mit „Drucken / PDF“ (D237); Rückblick wieder wie D156, jetzt als Umschalter statt Dialog (D240), mit Monat · 6 Monate · Jahr und Spalten untereinander (D241), Ø der 6 Vormonate mit Pfeil und Buchungen per Antippen (D242), diese drucken oder als CSV (D243)
 - Projekte: Umschalter Projekte · Relevante Ausgaben (D153, D161, D191)
 - Annahmen: Umschalter Budgets · Wiederkehrende · Verträge · Energie · Geplante (D160, D191, D193, D233)
 - Die Untertabs (Projekte, Annahmen, Stammdaten) bleiben beim Scrollen oben fixiert (D193)
@@ -2951,3 +2951,36 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
 - Der Haupt-Tab „Alle Buchungen“ heißt jetzt **„Auswertungen“** (Navigation, Seitentitel, Hinweistexte). Intern bleiben
   der Tab-Schlüssel `buchungen` und die Datei `js/views/alle-buchungen.js`, damit gemerkte Ansichten und Links weiter gehen.
 - `monatKurz`/`monatLang` bleiben in `format.js`; `js/rueckblick.js` nutzt sie von dort. Tests in `tests/rueckblick.test.js`.
+
+## D241 – Rückblick: Spalten untereinander, Zeitraum „6 Monate“
+*Wunsch des Nutzers, 21.11.2026*
+- Die Tabellen „Einnahmen und Ausgaben“, „Ausgaben je Kategorie“ (und „Monate“ beim Jahr) haben feste Spalten:
+  Namensspalte 9rem, Zahlenspalten gleich breit (`table-layout: fixed`). So stehen die Werte genau untereinander.
+  Mindestbreite je nach Spaltenzahl (9rem + 6,5rem je Zahlenspalte); am Handy wischt man die Tabelle seitlich.
+  Lange Kategorienamen brechen um. Gilt auch in der Druckansicht.
+- Neuer Umschalter **Monat · 6 Monate · Jahr**. „6 Monate“: der gewählte Monat („bis Oktober 2026“) und die 5 Monate
+  davor nebeneinander, Δ zum Vormonat; „Größte Ausgaben der 6 Monate“ (10 Stück). `monatsRueckblick(…, anzahl = 6)`.
+- Dabei behoben: Die Veränderung der Sparquote zeigte bei kleinen Änderungen „-0 Pkt.“ in Orange; jetzt wird erst
+  gerundet, 0 steht grau ohne Vorzeichen.
+
+## D242 – Rückblick: Ø der 6 Vormonate mit Pfeil, Buchungen per Antippen
+*Wunsch des Nutzers, 22.11.2026*
+- Bei **Monat** und **6 Monate** steht vor „Δ Vormonat“ die Spalte **„Ø 6 Mon.“** – in beiden Tabellen, damit die
+  Spalten untereinander bleiben. Ø = Durchschnitt je Monat der 6 Monate **vor** dem gewählten (rechten) Monat; der
+  gewählte Monat zählt nicht mit, damit der Vergleich fair ist. Monate vor der ersten erfassten Buchung zählen nicht
+  (dann z. B. „Ø 3 Mon.“). Sparquote im Ø = aus Ø-Einnahmen und Ø-Ausgaben. Beim Jahr gibt es keinen Ø.
+- **Pfeil** hinter dem Wert des rechten Monats bei „Ausgaben“ und bei jeder Kategorie: ▲ über dem Ø (orange),
+  ▼ unter dem Ø (grün), → weniger als 1 € Unterschied (grau). Tooltip nennt den Ø. Läuft der Monat noch, zählt er nur
+  bis heute (Hinweis oben).
+- **Antippen** (nur am Bildschirm, nicht im Druck): der Kategoriename zeigt die Ausgaben dieser Hauptkategorie in allen
+  gezeigten Zeiträumen (Monat: 3 Monate, 6 Monate: 6, Jahr: beide Jahre), ein Betrag nur die des jeweiligen Monats bzw.
+  Jahres. Liste im Dialog mit Anzahl und Summe, neueste zuerst; eine Buchung antippen öffnet sie (Archiv: nur lesen).
+  Gleiche Zählregel wie der Rückblick (`kategorieBuchungen`, `schnittVormonate`, `trendPfeil` in `js/rueckblick.js`).
+
+## D243 – Buchungen aus dem Rückblick drucken oder als CSV
+*Wunsch des Nutzers, 22.11.2026*
+- Im Dialog mit den Buchungen einer Kategorie (D242) stehen oben **„Drucken / PDF“** und **„Als CSV (Excel)“**.
+- Drucken: Überschrift = Dialogtitel (Kategorie und Zeitraum), Stand, Anzahl und Summe; Tabelle Datum · Empfänger ·
+  Unterkategorie · Konto · Notiz · Betrag, älteste zuerst, Summenzeile. PDF über „Als PDF speichern“ im Druckdialog.
+- CSV: dasselbe Format wie „Als CSV (Excel)“ in der Liste (`buchungenAlsCsv`), Dateiname z. B.
+  `finanzen-lebensmittel-mai-26-okt-26-2026-11-22.csv` (`dateiTeil` in `js/export.js`).
