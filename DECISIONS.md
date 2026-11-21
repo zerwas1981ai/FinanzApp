@@ -2805,3 +2805,14 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
   Mehrere Konten derselben Bank haben dieselbe Farbe, der Name im Etikett unterscheidet sie (z. B. „N26 Giro“).
 - Schrift: Weiß, solange der Kontrast mindestens 3 : 1 ist (halbfett), sonst fast Schwarz (`schriftAuf`).
 - Reine Texte bleiben Text: Auswahllisten, Dialogtitel, Meldungen, CSV-Export, Prognose-Texte.
+
+### D229 – Etwas eckiger, Auswahl weiß bzw. dunkelgrau
+- Rundungen in festen Stufen (Variablen in `css/style.css`): `--radius-gross` 12 px (Dialoge, Plus-Knopf),
+  `--radius` 8 px (Karten/Bereiche), `--radius-klein` 6 px (Knöpfe, Felder, Untertabs, Hinweise, Meldung),
+  `--radius-mini` 4 px (Marken, Konto-Etiketten, Balken, Farbfelder). Keine „Pillen“ (999px) mehr; Kopf-Knöpfe
+  und Plus-Knopf nicht mehr kreisrund. Außen ist immer etwas runder als innen, damit Rahmen ineinander passen.
+- Auswahl (gewählter Haupttab am PC, Untertabs, Kontoauswahl, Zeitraum, Liste/Analyse, Umschalter im Buchungsdialog,
+  sortierte Spalte, gewählte Optionen/Filter, gewählte Spalte/Kategorie in der Analyse): eigene Farbe `--auswahl` –
+  Dunkelmodus Weißton (#e7e9ec, Schrift dunkel), Hellmodus dunkles Grau (#3c4048, Schrift weiß).
+  Am Handy bleibt die untere Leiste ohne Fläche, der gewählte Tab ist kräftig/fett.
+- Blau (`--akzent`) bleibt für Aktionen: Hauptknöpfe (Speichern, + Konto), Plus-Knopf, Links, Häkchen.

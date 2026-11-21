@@ -22,8 +22,14 @@
   --einnahme: #1e7d45;
   --ausgabe: #b3261e;
   --schatten: 0 1px 2px rgba(16, 24, 40, .05), 0 1px 3px rgba(16, 24, 40, .07);
-  --radius: 14px;
-  --radius-klein: 9px;
+  /* D229: Rundungen in festen Stufen – außen etwas runder als innen, damit Rahmen ineinander passen */
+  --radius-gross: 12px; /* Dialoge, runder Plus-Knopf */
+  --radius: 8px;        /* Karten/Bereiche */
+  --radius-klein: 6px;  /* Knöpfe, Felder, Untertabs, Hinweise */
+  --radius-mini: 4px;   /* kleine Teile in Knöpfen/Zeilen: Marken, Etiketten, Balken */
+  /* D229: Farbe der Auswahl (gewählter Untertab, Konto, Zeitraum …) – hell: dunkles Grau */
+  --auswahl: #3c4048;
+  --auf-auswahl: #ffffff;
   --nav-hoehe: 64px;
 }
 
@@ -46,6 +52,9 @@
   --einnahme: #5fcf8a;
   --ausgabe: #f07167;
   --schatten: none;
+  /* D229: Auswahl im Dunkelmodus: Weißton */
+  --auswahl: #e7e9ec;
+  --auf-auswahl: #0e1013;
 }
 
 * { box-sizing: border-box; }
@@ -116,14 +125,14 @@ svg { stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; 
 
 .nav a svg { width: 20px; height: 20px; flex: none; }
 .nav a:hover { color: var(--text); background: var(--flaeche-2); }
-.nav a[aria-current="page"] { color: var(--akzent); background: var(--akzent-leicht); }
+.nav a[aria-current="page"] { color: var(--auf-auswahl); background: var(--auswahl); } /* D229 */
 
 .icon-knopf {
   display: grid;
   place-items: center;
   width: 36px;
   height: 36px;
-  border-radius: 50%;
+  border-radius: var(--radius-klein);
   border: 1px solid var(--rand);
   background: var(--flaeche);
   color: var(--text);
@@ -171,7 +180,7 @@ svg { stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; 
     white-space: normal; /* 5 Tabs: "Alle Buchungen" darf umbrechen */
   }
   .nav a svg { width: 22px; height: 22px; }
-  .nav a[aria-current="page"] { background: transparent; }
+  .nav a[aria-current="page"] { background: transparent; color: var(--text); font-weight: 700; } /* D229: am Handy ohne Fläche */
 }
 
 /* ---------- Inhalt ---------- */
@@ -233,7 +242,7 @@ main {
   display: inline-block;
   margin-left: 8px;
   padding: 1px 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-mini);
   background: var(--flaeche-2);
   color: var(--text-2);
   font-size: .75rem;
@@ -401,7 +410,7 @@ main {
 
 .dialog {
   border: none;
-  border-radius: 18px;
+  border-radius: var(--radius-gross);
   padding: 0;
   width: min(480px, calc(100vw - 24px));
   max-height: calc(100dvh - 24px);
@@ -447,8 +456,8 @@ fieldset.feld { border: none; padding: 0; margin: 0 0 14px; }
   border-radius: var(--radius-klein);
   cursor: pointer;
 }
-.option:has(input:checked) { border-color: var(--akzent); background: var(--akzent-leicht); }
-.option input { accent-color: var(--akzent); }
+.option:has(input:checked) { border-color: var(--auswahl); background: var(--flaeche-2); }
+.option input { accent-color: var(--auswahl); }
 
 /* ---------- Meldung unten ---------- */
 
@@ -460,7 +469,7 @@ fieldset.feld { border: none; padding: 0; margin: 0 0 14px; }
   background: var(--text);
   color: var(--bg);
   padding: 10px 18px;
-  border-radius: 999px;
+  border-radius: var(--radius-klein);
   font-size: .9rem;
   font-weight: 500;
   opacity: 0;
@@ -499,7 +508,7 @@ fieldset.feld { border: none; padding: 0; margin: 0 0 14px; }
   z-index: 15;
   width: 58px;
   height: 58px;
-  border-radius: 50%;
+  border-radius: var(--radius-gross);
   border: none;
   background: var(--akzent);
   color: var(--auf-akzent);
@@ -527,7 +536,7 @@ fieldset.feld { border: none; padding: 0; margin: 0 0 14px; }
   flex: 1;
   min-height: 38px;
   border: none;
-  border-radius: 7px;
+  border-radius: var(--radius-mini);
   background: transparent;
   color: var(--text-2);
   font: inherit;
@@ -535,8 +544,7 @@ fieldset.feld { border: none; padding: 0; margin: 0 0 14px; }
   font-size: .9rem;
   cursor: pointer;
 }
-.segment[aria-pressed="true"] { background: var(--flaeche); color: var(--text); box-shadow: var(--schatten); }
-:root[data-theme="dunkel"] .segment[aria-pressed="true"] { background: var(--rand); }
+.segment[aria-pressed="true"] { background: var(--auswahl); color: var(--auf-auswahl); } /* D229 */
 
 .feld .eingabe-betrag { font-size: 1.4rem; font-weight: 600; font-variant-numeric: tabular-nums; }
 .feld[hidden] { display: none; }
@@ -548,7 +556,7 @@ fieldset.feld { border: none; padding: 0; margin: 0 0 14px; }
   border: 1px solid var(--rand);
   background: var(--flaeche);
   color: var(--text);
-  border-radius: 999px;
+  border-radius: var(--radius-klein);
   padding: 5px 12px;
   font: inherit;
   font-size: .9rem;
@@ -556,7 +564,7 @@ fieldset.feld { border: none; padding: 0; margin: 0 0 14px; }
   cursor: pointer;
   white-space: nowrap;
 }
-.chip[aria-pressed="true"] { background: var(--akzent); border-color: transparent; color: var(--auf-akzent); }
+.chip[aria-pressed="true"] { background: var(--auswahl); border-color: var(--auswahl); color: var(--auf-auswahl); } /* D229 */
 
 .konto-kopf { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .abstimm-info { margin-top: 4px; }
@@ -754,14 +762,14 @@ button.ka-zeile:hover { background: var(--akzent-leicht); }
 /* D130: laufender Monat ohne Rahmen – nur die Beschriftung fett und unterstrichen */
 .spalte.aktuell .spalte-label { text-decoration: underline; text-underline-offset: 3px; }
 .spalte.klickbar { cursor: pointer; }
-.spalte.gewaehlt .balken-paar { background: var(--akzent-leicht); }
-.spalte.gewaehlt .spalte-label { color: var(--akzent); font-weight: 700; }
+.spalte.gewaehlt .balken-paar { background: var(--flaeche-2); box-shadow: inset 0 0 0 1px var(--auswahl); } /* D229 */
+.spalte.gewaehlt .spalte-label { color: var(--text); font-weight: 700; }
 .spalte {
   flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  border-radius: 6px;
+  border-radius: var(--radius-mini);
   outline: none;
   cursor: default;
 }
@@ -774,7 +782,7 @@ button.ka-zeile:hover { background: var(--akzent-leicht); }
   align-items: flex-end;
   justify-content: center;
   gap: 2px;
-  border-radius: 6px 6px 0 0;
+  border-radius: var(--radius-mini) var(--radius-mini) 0 0;
 }
 .balken { width: min(14px, 40%); border-radius: 4px 4px 0 0; min-height: 0; }
 .balken.einnahme { background: var(--serie-einnahme); }
@@ -790,8 +798,8 @@ button.ka-zeile:hover { background: var(--akzent-leicht); }
 .spalte.aktuell .spalte-label { color: var(--text); font-weight: 600; }
 .spalte.zukunft .spalte-label { font-style: italic; }
 /* D126: aktive Filter farbig */
-.mehrfach.aktiv > .mehrfach-knopf { border-color: var(--akzent); background: var(--akzent-leicht); color: var(--akzent); font-weight: 600; }
-.filter input.aktiv { border-color: var(--akzent); background: var(--akzent-leicht); }
+.mehrfach.aktiv > .mehrfach-knopf { border-color: var(--auswahl); background: var(--flaeche-2); color: var(--text); font-weight: 600; }
+.filter input.aktiv { border-color: var(--auswahl); background: var(--flaeche-2); }
 .balken-paar.mit-vorjahr { gap: 1px; }
 .balken-paar.mit-vorjahr > .balken { width: min(10px, 40%); }
 .balken-paar.mit-vorjahr > .balken.vorjahr { margin-right: 2px; }
@@ -875,12 +883,12 @@ p.erklaerung { margin-top: 0; }
 .kat-zeile.ebene-1.kat-zeile-knopf:hover .kat-zeile-name { color: var(--akzent); }
 .kat-klapp {
   display: inline-grid; place-items: center; width: 22px; height: 22px; margin-right: 6px; padding: 0; vertical-align: middle;
-  border: 1px solid var(--rand); border-radius: 5px; background: var(--flaeche); color: var(--text); font: inherit; font-size: .95rem; line-height: 1; cursor: pointer;
+  border: 1px solid var(--rand); border-radius: var(--radius-mini); background: var(--flaeche); color: var(--text); font: inherit; font-size: .95rem; line-height: 1; cursor: pointer;
 }
 .kat-klapp:hover { border-color: var(--akzent); color: var(--akzent); }
 /* D129: gewählte (gefilterte) Kategorie hervorheben */
-.kat-zeile.gewaehlt { background: var(--akzent-leicht); }
-.kat-zeile.gewaehlt .kat-zeile-name { color: var(--akzent); font-weight: 700; }
+.kat-zeile.gewaehlt { background: var(--flaeche-2); box-shadow: inset 3px 0 0 var(--auswahl); } /* D229 */
+.kat-zeile.gewaehlt .kat-zeile-name { color: var(--text); font-weight: 700; }
 .kat-zeile.ebene-2 .kat-zeile-name { padding-left: 28px; }
 /* D125: Spaltenköpfe, Zusatzzeile (Budget, Vorperiode) */
 .kat-kopf { white-space: nowrap; font-size: .72rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--text-2); padding-top: 0; }
@@ -939,12 +947,12 @@ p.erklaerung { margin-top: 0; }
 
 .meter {
   height: 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-mini);
   background: var(--flaeche-2);
   overflow: hidden;
   margin: 5px 0 3px;
 }
-.meter > span { display: block; height: 100%; border-radius: 999px; background: var(--akzent); }
+.meter > span { display: block; height: 100%; border-radius: 0; background: var(--akzent); }
 .meter.ueber > span { background: var(--warnung); }
 
 .marke-warn { background: var(--warnung-leicht); color: var(--warnung); }
@@ -1029,7 +1037,7 @@ p.erklaerung { margin-top: 0; }
 .zl-kopf span:not(:first-child), .zl-wert { text-align: right; }
 .zukunft details > summary { list-style: none; cursor: pointer; }
 .zukunft details > summary::-webkit-details-marker { display: none; }
-.zl-zeile { padding: 6px; border-bottom: 1px solid var(--rand); border-radius: 6px; }
+.zl-zeile { padding: 6px; border-bottom: 1px solid var(--rand); border-radius: var(--radius-mini); }
 .zl-zeile:hover { background: var(--flaeche-2); }
 .zl-name { font-weight: 500; }
 .zl-name::before { content: "▸"; display: inline-block; width: 1em; color: var(--text-2); transition: transform .15s; }
@@ -1125,7 +1133,7 @@ details[open] > .zl-zeile > .zl-name::before { transform: rotate(90deg); }
   height: 1.3em;
   margin-left: 6px;
   padding: 0 4px;
-  border-radius: 999px;
+  border-radius: var(--radius-mini);
   background: var(--warnung-leicht);
   color: var(--warnung);
   font-size: .75rem;
@@ -1197,7 +1205,7 @@ details[open] > .zl-zeile > .zl-name::before { transform: rotate(90deg); }
    ========================================================= */
 .sync-knopf {
   display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px;
-  border-radius: 18px; border: 1px solid var(--rand); background: var(--flaeche); color: var(--text-2);
+  border-radius: var(--radius-klein); border: 1px solid var(--rand); background: var(--flaeche); color: var(--text-2);
   font: inherit; font-size: .85rem; cursor: pointer;
 }
 .sync-knopf:hover { background: var(--flaeche-2); }
@@ -1212,8 +1220,8 @@ details[open] > .zl-zeile > .zl-name::before { transform: rotate(90deg); }
 
 .wahl-karte { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; border: 1px solid var(--rand); border-radius: var(--radius-klein); margin-top: 6px; cursor: pointer; }
 .wahl-karte > span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.wahl-karte input { margin-top: 3px; accent-color: var(--akzent); }
-.wahl-karte:has(input:checked) { border-color: var(--akzent); background: var(--akzent-leicht); }
+.wahl-karte input { margin-top: 3px; accent-color: var(--auswahl); }
+.wahl-karte:has(input:checked) { border-color: var(--auswahl); background: var(--flaeche-2); }
 .konflikt { border: 0; padding: 0; margin: 12px 0 0; }
 .konflikt legend { font-weight: 600; font-size: .9rem; }
 
@@ -1278,7 +1286,7 @@ body.gesperrt .kopf, body.gesperrt main, body.gesperrt .fab, body.gesperrt #neue
   max-height: 320px; overflow-y: auto; padding: 6px; border: 1px solid var(--rand); border-radius: var(--radius-klein);
   background: var(--flaeche); box-shadow: 0 8px 24px rgba(0, 0, 0, .18);
 }
-.mehrfach-option { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px; cursor: pointer; color: var(--text); font-size: .95rem; }
+.mehrfach-option { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: var(--radius-mini); cursor: pointer; color: var(--text); font-size: .95rem; }
 .mehrfach-option:hover { background: var(--flaeche-2); }
 .mehrfach-option input { width: 18px; height: 18px; flex: none; accent-color: var(--akzent); cursor: pointer; }
 .mehrfach-option.gruppe { font-weight: 600; margin-top: 4px; }
@@ -1288,7 +1296,7 @@ body.gesperrt .kopf, body.gesperrt main, body.gesperrt .fab, body.gesperrt #neue
 .mehrfach-gruppe-zeile { display: flex; align-items: center; gap: 4px; }
 .mehrfach-gruppe-zeile > .mehrfach-option { flex: 1; min-width: 0; }
 .mehrfach-klapp {
-  flex: none; width: 32px; height: 32px; margin-top: 4px; border: 1px solid var(--rand); border-radius: 6px;
+  flex: none; width: 32px; height: 32px; margin-top: 4px; border: 1px solid var(--rand); border-radius: var(--radius-mini);
   background: var(--flaeche); color: var(--text); font: inherit; font-size: 1.1rem; line-height: 1; cursor: pointer;
 }
 .mehrfach-klapp:hover { border-color: var(--akzent); color: var(--akzent); }
@@ -1318,7 +1326,7 @@ body.gesperrt .kopf, body.gesperrt main, body.gesperrt .fab, body.gesperrt #neue
   font: inherit; font-size: .75rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--text-2); text-align: left;
 }
 .btab-sort:hover { color: var(--text); }
-.btab-sort.erste { color: var(--akzent); }
+.btab-sort.erste { color: var(--text); font-weight: 700; } /* D229: sortierte Spalte wie die Auswahl */
 .btab-sort-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .btab-pfeil { font-size: .9rem; line-height: 1; }
 .btab-sort.btab-betrag { justify-content: flex-end; }
@@ -1355,10 +1363,10 @@ body.gesperrt .kopf, body.gesperrt main, body.gesperrt .fab, body.gesperrt #neue
 @media (max-width: 767px) {
   .btab-kopf { position: static; display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 0 8px; border-bottom: 1px solid var(--rand); }
   .btab-sort {
-    flex: none; padding: 5px 10px; border: 1px solid var(--rand); border-radius: 999px;
+    flex: none; padding: 5px 10px; border: 1px solid var(--rand); border-radius: var(--radius-klein);
     text-transform: none; letter-spacing: 0; font-size: .82rem;
   }
-  .btab-sort.erste { border-color: var(--akzent); background: var(--akzent-leicht); }
+  .btab-sort.erste { border-color: var(--auswahl); background: var(--auswahl); color: var(--auf-auswahl); }
   .btab-sort.btab-betrag { justify-content: flex-start; }
   .nur-breit { display: none; }
   .nur-schmal { display: inline; }
@@ -1415,7 +1423,7 @@ body.gesperrt .kopf, body.gesperrt main, body.gesperrt .fab, body.gesperrt #neue
 .relevant-beleg.ohne { color: var(--text-2); opacity: .6; }
 .beleg-knopf {
   display: inline-flex; align-items: center; justify-content: center; gap: 2px; min-width: 40px; min-height: 36px;
-  padding: 2px 6px; border: 1px solid var(--rand); border-radius: 8px; background: var(--flaeche); color: var(--text);
+  padding: 2px 6px; border: 1px solid var(--rand); border-radius: var(--radius-mini); background: var(--flaeche); color: var(--text);
   font: inherit; font-size: .95rem; cursor: pointer;
 }
 .beleg-knopf:hover { border-color: var(--akzent); background: var(--akzent-leicht); }
@@ -1465,7 +1473,7 @@ body:not(.umbuchungen-sichtbar) .ub-ausblendbar { display: none; }
 /* Übersicht am PC: Tageszeilen mit Tagesstand in der Tabelle (D79) */
 .btab-konto .btab-tag .tag-kopf { padding: 7px 8px; }
 /* D82: Tageszeile leicht getönt, damit sie sich von den Buchungen abhebt */
-.btab-konto .btab-tag { background: var(--flaeche-2); border-radius: 6px; margin-top: 6px; }
+.btab-konto .btab-tag { background: var(--flaeche-2); border-radius: var(--radius-mini); margin-top: 6px; }
 .btab-konto .btab-liste > li.btab-tag { border-top: none; }
 .btab-konto .btab-tag .tag-kopf, .btab-konto .btab-tag .tag-stand { color: var(--text); font-weight: 600; }
 .btab-konto .btab-liste > li:nth-child(even) .btab-zeile { background: none; }
@@ -1522,7 +1530,7 @@ body:not(.umbuchungen-sichtbar) .ub-ausblendbar { display: none; }
 .such-liste li + li { border-top: 1px solid var(--rand); }
 .such-treffer {
   display: flex; align-items: center; gap: 12px; width: 100%; padding: 8px 4px; border: 0; background: none;
-  color: inherit; font: inherit; text-align: left; cursor: pointer; border-radius: 6px;
+  color: inherit; font: inherit; text-align: left; cursor: pointer; border-radius: var(--radius-mini);
 }
 .such-treffer:hover, .such-treffer:focus-visible { background: var(--flaeche-2); }
 .such-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
@@ -1548,7 +1556,7 @@ body:not(.umbuchungen-sichtbar) .ub-ausblendbar { display: none; }
 .vertrag > summary::-webkit-details-marker { display: none; }
 .vertrag-kopf {
   display: grid; grid-template-columns: 14px minmax(0, 1fr) auto auto; align-items: center; gap: 10px;
-  padding: 10px 4px; border-radius: 6px;
+  padding: 10px 4px; border-radius: var(--radius-mini);
 }
 .vertrag-kopf::before { content: '▸'; color: var(--text-2); font-size: .8rem; }
 .vertrag[open] > .vertrag-kopf::before { content: '▾'; }
@@ -1593,17 +1601,17 @@ body:not(.umbuchungen-sichtbar) .ub-ausblendbar { display: none; }
 /* D228: Kontoname als farbiges Etikett (Konto-Farbe aus den Stammdaten) */
 .konto-etikett {
   display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  vertical-align: middle; line-height: 1.35; padding: 1px 8px; border-radius: 6px;
+  vertical-align: middle; line-height: 1.35; padding: 1px 8px; border-radius: var(--radius-mini);
   background: var(--konto-farbe); color: var(--konto-schrift); font-weight: 600; font-size: .85em;
   box-shadow: inset 0 0 0 1px rgba(127, 127, 127, .35); /* Weiß/Schwarz auf jedem Hintergrund sichtbar */
 }
 .budget-gruppe > .tag-kopf .konto-etikett { font-size: .82rem; text-transform: none; letter-spacing: 0; padding: 2px 9px; } /* Konto als Gruppenüberschrift */
 .konto-vorschau { margin-left: 6px; }
 @media print { .konto-etikett { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
-.chip[aria-pressed="true"] .konto-etikett { box-shadow: 0 0 0 1.5px var(--auf-akzent); }
+.chip[aria-pressed="true"] .konto-etikett { box-shadow: 0 0 0 1.5px var(--auf-auswahl); }
 .konto-farben { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
 .konto-farb-wahl {
-  border: 2px solid transparent; border-radius: 6px; padding: 3px 9px; font: inherit; font-size: .85rem; font-weight: 600;
+  border: 2px solid transparent; border-radius: var(--radius-mini); padding: 3px 9px; font: inherit; font-size: .85rem; font-weight: 600;
   cursor: pointer; background: var(--konto-farbe, var(--flaeche-2)); color: var(--konto-schrift, var(--text));
   box-shadow: inset 0 0 0 1px rgba(127, 127, 127, .35);
 }
@@ -1616,7 +1624,7 @@ body:not(.umbuchungen-sichtbar) .ub-ausblendbar { display: none; }
 .farb-raster.farb-grau { grid-template-columns: repeat(12, minmax(0, 1fr)); margin-bottom: 10px; }
 .farb-wahl { box-shadow: inset 0 0 0 1px rgba(127, 127, 127, .45); }
 .farb-wahl {
-  width: 100%; aspect-ratio: 1; border-radius: 50%; border: 2px solid transparent; background: var(--kat-farbe);
+  width: 100%; aspect-ratio: 1; border-radius: var(--radius-mini); border: 2px solid transparent; background: var(--kat-farbe);
   cursor: pointer; color: #fff; font: 600 .75rem/1 system-ui, sans-serif; padding: 0;
 }
 .farb-wahl.farb-auto { width: 28px; flex: none; }
@@ -1702,7 +1710,7 @@ body:not(.umbuchungen-sichtbar) .ub-ausblendbar { display: none; }
 /* D176: Meldung mit Knopf (z. B. „Rückgängig“) */
 .toast.mit-aktion { pointer-events: auto; display: flex; align-items: center; gap: 12px; padding-right: 8px; }
 .toast-aktion {
-  border: 0; border-radius: 999px; padding: 6px 12px; cursor: pointer; font: inherit; font-weight: 700;
+  border: 0; border-radius: var(--radius-mini); padding: 6px 12px; cursor: pointer; font: inherit; font-weight: 700;
   background: var(--bg); color: var(--text);
 }
 
@@ -1720,7 +1728,7 @@ html[data-schrift="gross"] { font-size: 103.125%; }
 .beleg-uebersicht > li + li { border-top: 1px solid var(--rand); }
 .beleg-zeile {
   flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; padding: 8px 4px; border: 0; background: none;
-  color: inherit; font: inherit; text-align: left; cursor: pointer; border-radius: 6px;
+  color: inherit; font: inherit; text-align: left; cursor: pointer; border-radius: var(--radius-mini);
 }
 .beleg-zeile:hover { background: var(--flaeche-2); }
 .beleg-text { display: flex; flex-direction: column; min-width: 0; }
@@ -1794,7 +1802,7 @@ html[data-schrift="gross"] { font-size: 103.125%; }
 
 /* D207: Getrennt lassen, manuell zusammenfassen */
 .empf-aktionen { display: flex; flex-wrap: wrap; gap: 6px; }
-.empf-auswahl { list-style: none; margin: 8px 0; padding: 0; max-height: 40vh; overflow-y: auto; border: 1px solid var(--rand); border-radius: 8px; }
+.empf-auswahl { list-style: none; margin: 8px 0; padding: 0; max-height: 40vh; overflow-y: auto; border: 1px solid var(--rand); border-radius: var(--radius-mini); }
 .empf-auswahl li { padding: 6px 10px; }
 .empf-auswahl li + li { border-top: 1px solid var(--rand); }
 
