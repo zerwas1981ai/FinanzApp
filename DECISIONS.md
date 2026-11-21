@@ -12,7 +12,7 @@ Wird eine Entscheidung geändert, den alten Eintrag nicht löschen, sondern als
 Kurzer Wegweiser, weil viele spätere Einträge frühere aufheben. Maßgeblich bleibt der jeweils letzte Eintrag.
 Bei jeder neuen D-Nummer hier mitpflegen; der Test `tests/wegweiser.test.js` prüft die Stand-Zeile (D236).
 
-**Stand:** D239 · Datenmodell 27 · DB-Struktur 13 · Cache finanzapp-v137
+**Stand:** D240 · Datenmodell 27 · DB-Struktur 13 · Cache finanzapp-v138
 
 **Wieder ausgebaut – nicht mehr im Code:**
 - Szenarien „Was wäre wenn“ → ersetzt durch Projekte (D51)
@@ -25,12 +25,12 @@ Bei jeder neuen D-Nummer hier mitpflegen; der Test `tests/wegweiser.test.js` pr�
 - Abstimm-Erinnerung nach 10 Tagen (D145 → D236), dafür gibt es den Monatsabschluss (D206)
 - Notfall-Mappe (D168 → D236) und Preisentwicklung im Vertrag (D166 → D236)
 - Logos (Bank, Empfänger) dauerhaft nicht – Konten haben stattdessen Farben (D228, D236)
-- Rückblick (D156 → D237): Einnahmen/Ausgaben/Saldo/Sparquote und Drucken stecken jetzt in der Analyse
+- Bereich „Einnahmen und Ausgaben“ in der Analyse (D237 → D240), der Rückblick zeigt das besser
 - Eigener Hinweis „Zählerstände ablesen“ (D233 → D238) und Archiv-Erinnerung (D185 → D239)
 
 **Aufbau der Oberfläche:**
 - Seitenüberschriften gibt es nicht mehr sichtbar; in der Übersicht steht „Übersicht“ im Kennzahlen-Kasten (D160, D164)
-- Alle Buchungen: Liste · Analyse · Belege (D179, D191); Analyse mit Einnahmen und Ausgaben gegen die Vorperiode und „Drucken / PDF“ (D237)
+- Haupt-Tab **Auswertungen** (bis D240 „Alle Buchungen“, intern weiter `buchungen`): Liste · Analyse · Rückblick · Belege (D179, D191, D240); Analyse mit „Drucken / PDF“ (D237); Rückblick wieder wie D156, jetzt als Umschalter statt Dialog (D240)
 - Projekte: Umschalter Projekte · Relevante Ausgaben (D153, D161, D191)
 - Annahmen: Umschalter Budgets · Wiederkehrende · Verträge · Energie · Geplante (D160, D191, D193, D233)
 - Die Untertabs (Projekte, Annahmen, Stammdaten) bleiben beim Scrollen oben fixiert (D193)
@@ -2939,3 +2939,15 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
 - Haken und „Als erledigt markieren“ liegen in `einstellungen` ('jahreswechsel': erledigt, haken je Jahr) und werden über
   Drive abgeglichen; neue optionale Einstellung, darum keine neue Datenmodell-Version.
 - Die Archiv-Erinnerung (D185) mit „In 30 Tagen erinnern“ entfällt; archiviert wird weiter unter Daten & Sicherheit.
+
+## D240 – Rückblick zurück als Umschalter, Tab heißt „Auswertungen“
+*Wunsch des Nutzers, 21.11.2026 (nimmt den Ausbau aus D237 zurück)*
+- Der Rückblick aus D156 ist wieder da – unverändert im Inhalt (Monat mit den beiden Vormonaten bzw. Jahr gegen Vorjahr,
+  Kategorien, Monate, größte Ausgaben, Monatsnotiz ✎, „Drucken / PDF“), aber **nicht mehr als Dialog**, sondern als
+  eigener Umschalter: **Liste · Analyse · Rückblick · Belege**. Die Filter oben gelten für den Rückblick nicht (Hinweis darunter).
+- Der Bereich „Einnahmen und Ausgaben“ oben in der Analyse (D237) ist wieder ausgebaut: Der Rückblick zeigt dieselben
+  Zahlen, und zwar mit dem besseren Vergleich (drei Monate bzw. Vorjahr). `bilanz()` entfällt. „Drucken / PDF“ in der
+  Analyse bleibt.
+- Der Haupt-Tab „Alle Buchungen“ heißt jetzt **„Auswertungen“** (Navigation, Seitentitel, Hinweistexte). Intern bleiben
+  der Tab-Schlüssel `buchungen` und die Datei `js/views/alle-buchungen.js`, damit gemerkte Ansichten und Links weiter gehen.
+- `monatKurz`/`monatLang` bleiben in `format.js`; `js/rueckblick.js` nutzt sie von dort. Tests in `tests/rueckblick.test.js`.

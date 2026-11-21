@@ -15,7 +15,7 @@ import { oeffneSuche } from './views/suche.js';
 
 const TABS = {
   uebersicht: { titel: 'Übersicht', zeige: zeigeUebersicht },
-  buchungen: { titel: 'Alle Buchungen', zeige: zeigeBuchungen },
+  buchungen: { titel: 'Auswertungen', zeige: zeigeBuchungen }, // D240: vorher „Alle Buchungen“
   projekte: { titel: 'Projekte', zeige: zeigeProjekte },
   annahmen: { titel: 'Annahmen', zeige: zeigeAnnahmen },
   stammdaten: { titel: 'Stammdaten', zeige: zeigeStammdaten },

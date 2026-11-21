@@ -3,7 +3,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { zaehltCent, auslageWirkungCent, monatsuebersicht, kontostand, ausgabenVergleich } from '../js/rechnen.js';
 import { auslagenUebersicht, passendeAuslagen, auslageAbschliessen, auslageWiederOeffnen, auslageTitel } from '../js/auslagen.js';
-import { summen, summenJeKategorie, bilanz } from '../js/auswertung.js';
+import { summen, summenJeKategorie } from '../js/auswertung.js';
+import { periodenSummen } from '../js/rueckblick.js';
 import { ausgabenJeKontoUndKategorie, budgetSchluessel } from '../js/prognose.js';
 import { baueBuchungen, aufrundungCent, aufrundenGilt, aufrundungAnpassen, aufrundungenVon, ausgleichGilt, ausgleichAnpassen, ausgleicheVon } from '../js/buchungen.js';
 import { migriereDaten } from '../js/migrationen.js';
@@ -64,8 +65,8 @@ test('D214: Auswertungen, Rückblick und Vormonatsvergleich ohne Auslagen', () =
   const s = summen(eintraege);
   assert.deepEqual([s.ausgaben, s.einnahmen, s.anzahl, s.anzahlAuslagen], [5000, 0, 1, 3]);
   assert.deepEqual(summenJeKategorie(eintraege, kategorien, 'ausgabe').map((k) => [k.id, k.summe]), [['leb', 5000]]);
-  const p = bilanz(eintraege);
-  assert.deepEqual([p.einnahmen, p.ausgaben, p.sparquote], [0, 5000, null]);
+  const p = periodenSummen(daten(), kategorien, '2026-03-01', '2026-03-31', '2026-03-31');
+  assert.deepEqual([p.einnahmen, p.ausgaben], [0, 5000]);
   assert.equal(ausgabenVergleich(konto, daten(), '2026-03-31').jetzt, 5000);
 });
 

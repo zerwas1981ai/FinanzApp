@@ -457,7 +457,7 @@ function verschiebenDialog(u, haupt, kategorien, neu) {
       ziel.feld,
       h('p', { class: 'hinweis' },
         `${betroffen} mit dieser Unterkategorie zählen danach zur neuen Hauptkategorie – auch rückwirkend ` +
-        'in „Alle Buchungen“, bei den Budgets und den Budgethinweisen. Die Buchungen selbst bleiben unverändert.'),
+        'in „Auswertungen“, bei den Budgets und den Budgethinweisen. Die Buchungen selbst bleiben unverändert.'),
     ],
     speichernText: 'Verschieben',
     onSpeichern: async () => {

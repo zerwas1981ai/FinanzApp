@@ -71,7 +71,7 @@ export async function relevantBereich(daten) {
       'anhakst. Belege liegen in Google Drive zusätzlich im Ordner „Relevante Ausgaben“.'),
     fehlend.length > 0 && h('p', { class: 'hinweis warn-text' },
       `Archivierte Jahre ${fehlend.join(', ')} sind auf diesem Gerät noch nicht geladen – markierte Buchungen daraus fehlen. ` +
-      'Unter „Alle Buchungen“ lassen sie sich aus Google Drive laden.'),
+      'Unter „Auswertungen“ lassen sie sich aus Google Drive laden.'),
     gruppenWahl,
     alleZeilen.length === 0
       ? h('p', { class: 'leer' }, 'Noch keine relevanten Ausgaben.')

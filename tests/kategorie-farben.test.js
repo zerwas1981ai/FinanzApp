@@ -41,21 +41,6 @@ test('D159: 80 Farben, automatische Wahl passend zum Namen, Einnahmen ohne Farbe
   assert.equal(paletteEintrag('rot-dunkel').schluessel, 'rot-5');
 });
 
-const kategorien = [
-  { id: 'h1', name: 'Wohnen' }, { id: 'u1', name: 'Miete', elternId: 'h1' },
-  { id: 'h2', name: 'Lebensmittel' }, { id: 'u2', name: 'Supermarkt', elternId: 'h2' },
-  { id: 'e1', name: 'Einkommen' }, { id: 'eu', name: 'Gehalt', elternId: 'e1' },
-];
-const b = (id, datum, art, cent, kat, extra = {}) => ({ id, datum, art, betragCent: cent, kategorieId: kat, ...extra });
-const buchungen = [
-  b('1', '2026-08-01', 'einnahme', 300000, 'eu'), b('2', '2026-08-03', 'ausgabe', 95000, 'u1'), b('3', '2026-08-10', 'ausgabe', 20000, 'u2'),
-  b('4', '2026-09-01', 'einnahme', 300000, 'eu'), b('5', '2026-09-03', 'ausgabe', 95000, 'u1'), b('6', '2026-09-12', 'ausgabe', 30000, 'u2'),
-  b('7', '2026-10-01', 'einnahme', 320000, 'eu'), b('8', '2026-10-03', 'ausgabe', 95000, 'u1'), b('9', '2026-10-15', 'ausgabe', 25000, 'u2'),
-  b('10', '2026-10-20', 'ausgabe', 99900, 'u2', { geloeschtAm: 'X' }),
-  b('11', '2026-10-21', 'umbuchung', 50000, null, { richtung: 'ab' }),
-  b('12', '2025-10-05', 'ausgabe', 90000, 'u1'), b('13', '2025-10-01', 'einnahme', 280000, 'eu'), b('14', '2025-12-20', 'ausgabe', 50000, 'u2'),
-];
-
 test('D158: Migration auf 20 entfernt die Sparziele wieder', () => {
   const { daten } = migriereDaten({ version: 19, vertraege: [], sparziele: [{ id: 'z' }] }, undefined, 20);
   assert.equal(daten.sparziele, undefined);

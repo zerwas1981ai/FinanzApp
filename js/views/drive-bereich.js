@@ -203,7 +203,7 @@ export function exportBereich() {
     h('h2', { id: 'titel-export' }, 'Export'),
     h('p', { class: 'hinweis erklaerung' },
       'Alle Buchungen (ohne Papierkorb) als CSV-Datei, die Excel direkt öffnet. Eine gefilterte Liste ' +
-      'exportierst du unter „Alle Buchungen“. Zusätzlich lässt sich der komplette Datenstand als Datei (JSON) sichern ' +
+      'exportierst du unter „Auswertungen“. Zusätzlich lässt sich der komplette Datenstand als Datei (JSON) sichern ' +
       'und daraus wiederherstellen – unabhängig von Google Drive, z. B. als Kopie auf dem PC oder einem USB-Stick.'),
     h('div', { class: 'knopfreihe' },
       h('button', {
@@ -337,7 +337,7 @@ export async function archivBereich(neu) {
       'auslöst – nie automatisch. Ebenso holst du ein Jahr nur von Hand zurück. ' +
       'Die Konten starten danach am 1. Januar mit dem Kontostand vom 31. Dezember – die Kontostände ändern sich nicht.'),
     h('p', { class: 'hinweis erklaerung' },
-      'Unter „Alle Buchungen“ bleiben archivierte Jahre in Liste, Filtern, Analyse und Durchschnitten enthalten ' +
+      'Unter „Auswertungen“ bleiben archivierte Jahre in Liste, Filtern, Analyse und Durchschnitten enthalten ' +
       '(gekennzeichnet mit „Archiv“, nur lesen). Nur die Budgethinweise der Übersicht schauen auf die letzten Monate ' +
       'außerhalb des Archivs – deshalb am besten erst im Frühjahr archivieren.'),
     sortiert.length > 0 && h('ul', { class: 'liste' }, sortiert.map((a) => h('li', { class: 'zeile' },

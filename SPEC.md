@@ -66,7 +66,7 @@ Details zu Datenmodell, Oberfläche und Rechenlogik (aus CLAUDE.md verschoben). 
      immer sichtbar (komprimiert, aufklappbar), Folgejahre bis 2050 einzeln
      ein- und ausblendbar. Zukunftswerte optisch klar als Annahme
      gekennzeichnet (z. B. kursiv oder schraffiert).
-2. Alle Buchungen (Umschalter Liste · Analyse · Belege, D191): über alle Konten filtern, sortieren, analysieren (Analyse mit Einnahmen/Ausgaben/Saldo/Sparquote gegen die Vorperiode und „Drucken / PDF“, D237); nur gebuchte
+2. Auswertungen (bis D240 „Alle Buchungen“; Umschalter Liste · Analyse · Rückblick · Belege, D191/D240): über alle Konten filtern, sortieren, analysieren (Analyse mit „Drucken / PDF“, D237; Monats-/Jahresrückblick als eigener Umschalter, D156/D240); nur gebuchte
    Buchungen bis heute (D120/D121); Filter "ohne Beleg" vorerst entfallen (D123)
 3. Projekte (Umschalter Projekte · Relevante Ausgaben · Auslagen, D153/D191/D214): Einmalausgaben (echte und geplante Buchungen) einem Projekt
    zuordnen, z. B. Umbau oder Urlaub; Gesamtkosten mit optionalem Rahmen.
