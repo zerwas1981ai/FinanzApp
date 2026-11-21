@@ -12,7 +12,7 @@ Wird eine Entscheidung geändert, den alten Eintrag nicht löschen, sondern als
 Kurzer Wegweiser, weil viele spätere Einträge frühere aufheben. Maßgeblich bleibt der jeweils letzte Eintrag.
 Bei jeder neuen D-Nummer hier mitpflegen; der Test `tests/wegweiser.test.js` prüft die Stand-Zeile (D236).
 
-**Stand:** D243 · Datenmodell 27 · DB-Struktur 13 · Cache finanzapp-v141
+**Stand:** D244 · Datenmodell 27 · DB-Struktur 13 · Cache finanzapp-v142
 
 **Wieder ausgebaut – nicht mehr im Code:**
 - Szenarien „Was wäre wenn“ → ersetzt durch Projekte (D51)
@@ -30,7 +30,7 @@ Bei jeder neuen D-Nummer hier mitpflegen; der Test `tests/wegweiser.test.js` pr�
 
 **Aufbau der Oberfläche:**
 - Seitenüberschriften gibt es nicht mehr sichtbar; in der Übersicht steht „Übersicht“ im Kennzahlen-Kasten (D160, D164)
-- Haupt-Tab **Auswertungen** (bis D240 „Alle Buchungen“, intern weiter `buchungen`): Liste · Analyse · Rückblick · Belege (D179, D191, D240); Analyse mit „Drucken / PDF“ (D237); Rückblick wieder wie D156, jetzt als Umschalter statt Dialog (D240), mit Monat · 6 Monate · Jahr und Spalten untereinander (D241), Ø der 6 Vormonate mit Pfeil und Buchungen per Antippen (D242), diese drucken oder als CSV (D243)
+- Haupt-Tab **Auswertungen** (bis D240 „Alle Buchungen“, intern weiter `buchungen`): Liste · Analyse · Rückblick · Belege (D179, D191, D240); Analyse mit „Drucken / PDF“ (D237); Rückblick wieder wie D156, jetzt als Umschalter statt Dialog (D240), mit 6 Monate · Jahr (D241, „Monat“ mit D244 ausgebaut) und Spalten untereinander (D241), Ø der 6 Vormonate mit Pfeil und Buchungen per Antippen (D242), diese drucken oder als CSV (D243)
 - Projekte: Umschalter Projekte · Relevante Ausgaben (D153, D161, D191)
 - Annahmen: Umschalter Budgets · Wiederkehrende · Verträge · Energie · Geplante (D160, D191, D193, D233)
 - Die Untertabs (Projekte, Annahmen, Stammdaten) bleiben beim Scrollen oben fixiert (D193)
@@ -2984,3 +2984,9 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
   Unterkategorie · Konto · Notiz · Betrag, älteste zuerst, Summenzeile. PDF über „Als PDF speichern“ im Druckdialog.
 - CSV: dasselbe Format wie „Als CSV (Excel)“ in der Liste (`buchungenAlsCsv`), Dateiname z. B.
   `finanzen-lebensmittel-mai-26-okt-26-2026-11-22.csv` (`dateiTeil` in `js/export.js`).
+
+## D244 – Rückblick ohne Umschalter „Monat“
+*Wunsch des Nutzers, 22.11.2026*
+- Im Rückblick gibt es nur noch **6 Monate · Jahr**; „6 Monate“ ist der Standard. Der Monatsvergleich (gewählter Monat
+  mit 2 Vormonaten) entfällt in der Ansicht. `monatsRueckblick` rechnet weiter mit beliebig vielen Monaten (Tests).
+- Das ✎ für die Monatsnotiz steht jetzt bei „6 Monate“ und gilt für den gewählten (rechten) Monat.

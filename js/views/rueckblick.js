@@ -13,7 +13,7 @@ import { zaehltCent } from '../rechnen.js';
 import * as db from '../db.js';
 import { notizKnopf, notizListe } from './monatsnotiz.js';
 
-const zustand = { art: 'monat', monat: null, jahr: null }; // solange die App offen ist
+const zustand = { art: 'sechs', monat: null, jahr: null }; // solange die App offen ist; D244: nur noch 'sechs' | 'jahr'
 
 const mitVorzeichen = (cent) => (cent > 0 ? '+' : '') + formatEuro(cent);
 const quoteText = (q) => (q == null ? '–' : formatProzent(q));
@@ -38,7 +38,7 @@ export function rueckblickInhalt(rb, daten, notizen = [], beiKlick = null) {
   const farben = farbenZuordnung(daten.kategorien);
   const kat = new Map(daten.kategorien.map((k) => [k.id, k]));
   const p = rb.perioden;
-  const monatsweise = rb.art !== 'jahr'; // 'monat' oder 'sechs' (D241)
+  const monatsweise = rb.art !== 'jahr'; // 'sechs' (D241; der Umschalter „Monat“ ist mit D244 ausgebaut)
   const vergleich = monatsweise ? 'zum Vormonat' : 'zum Vorjahr';
   const diffKopf = monatsweise ? 'Δ Vormonat' : 'Δ Vorjahr';
   const [vorher, jetzt] = p.slice(-2);
@@ -143,11 +143,11 @@ export async function rueckblickBereich(daten) {
   const wahlFeld = h('select', { 'aria-label': 'Zeitraum' });
   const notizPlatz = h('span', { class: 'rb-notiz' });
   const berechne = () => (zustand.art !== 'jahr'
-    ? monatsRueckblick(daten.buchungen, daten.kategorien, zustand.monat, heute, zustand.art === 'sechs' ? 6 : 3)
+    ? monatsRueckblick(daten.buchungen, daten.kategorien, zustand.monat, heute, 6)
     : jahresRueckblick(daten.buchungen, daten.kategorien, zustand.jahr, heute));
 
   const artKnoepfe = h('div', { class: 'segmente', role: 'group', 'aria-label': 'Rückblick' },
-    [['monat', 'Monat'], ['sechs', '6 Monate'], ['jahr', 'Jahr']].map(([wert, text]) => h('button', { // D241: 6 Monate
+    [['sechs', '6 Monate'], ['jahr', 'Jahr']].map(([wert, text]) => h('button', { // D241: 6 Monate; D244: ohne „Monat“
       type: 'button', class: 'segment', 'aria-pressed': String(zustand.art === wert),
       onclick: (e) => {
         zustand.art = wert;
@@ -158,12 +158,13 @@ export async function rueckblickBereich(daten) {
 
   function zeichne() {
     const liste = zustand.art !== 'jahr'
-      ? monate.map((m) => ({ wert: m, text: (zustand.art === 'sechs' ? 'bis ' : '') + monatLang(m) }))
+      ? monate.map((m) => ({ wert: m, text: `bis ${monatLang(m)}` }))
       : jahre.map((j) => ({ wert: String(j), text: String(j) }));
     wahlFeld.replaceChildren(...liste.map((o) => h('option', { value: o.wert }, o.text)));
     wahlFeld.value = String(zustand.art !== 'jahr' ? zustand.monat : zustand.jahr);
     // D165: ✎ für die Notiz des gewählten Monats
-    notizPlatz.replaceChildren(zustand.art === 'monat'
+    // D244: ✎ jetzt bei „6 Monate“ für den gewählten (rechten) Monat
+    notizPlatz.replaceChildren(zustand.art === 'sechs'
       ? notizKnopf(zustand.monat, notizen, async () => { notizen = await db.alle('monatsnotizen'); zeichne(); })
       : '');
     inhalt.replaceChildren(...rueckblickInhalt(berechne(), daten, notizen, (k, zeitraeume, titel) => buchungenDialog(daten, k, zeitraeume, titel)));
