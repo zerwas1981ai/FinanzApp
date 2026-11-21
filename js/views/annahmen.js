@@ -6,7 +6,7 @@ import { h } from '../dom.js';
 import { sortiereKonten } from '../konten.js';
 import * as db from '../db.js';
 import { formatEuro, formatDatum, formatMonat, centZuEingabe, parseEuro, heuteIso } from '../format.js';
-import { dialog, frage, toast, eingabe, auswahl, datenGeaendert, bereichsWahl, kurzLang } from '../ui.js';
+import { dialog, frage, toast, eingabe, auswahl, datenGeaendert, bereichsWahl, kurzLang, kontoEtikett, verbinde, alsText } from '../ui.js';
 import { baueBudget, baueWiederkehrend, baueGeplant, geplantErledigt, haeufigstesKonto, mitAusnahme } from '../annahmen.js';
 import { betragAm, terminBetrag, naechsterTermin, plusMonate, monatsende, annahmeTitel, budgetVorschlag } from '../prognose.js';
 import { artWahl, fuelleKategorien, projektFeld, oeffneBuchungsdialog, partnerFeld, budgetZuordnungFeld, vertragFeld } from './buchung-dialog.js';
@@ -78,7 +78,7 @@ function budgetBereich(daten) {
   const { budgets, kategorien, konten } = daten;
   const monat = heuteIso().slice(0, 7);
   const kat = new Map(kategorien.map((k) => [k.id, k]));
-  const kontoName = new Map(konten.map((k) => [k.id, k.name]));
+  const kontoName = new Map(konten.map((k) => [k.id, k]));
   // D86/D91: nach Konten gruppiert (eigene Konten-Reihenfolge), darin nach Art, dann alphabetisch nach Kategorie
   const nachKategorie = (a, b) =>
     (kat.get(a.kategorieId)?.name ?? '').localeCompare(kat.get(b.kategorieId)?.name ?? '', 'de')
@@ -143,7 +143,7 @@ function budgetBereich(daten) {
       : gruppen.map((g) => {
         const liste = imKonto(g);
         return h('div', { class: 'budget-gruppe' },
-          h('div', { class: 'tag-kopf' }, h('span', {}, g.name)),
+          h('div', { class: 'tag-kopf' }, h('span', {}, g.id ? kontoEtikett(kontoName.get(g.id)) : g.name)),
           // D91: innerhalb des Kontos nach Art – monatlich, jährlich, einmalig
           Object.keys(TYP_RANG).map((art) => {
             const teil = liste.filter((b) => (b.typ ?? 'wiederkehrend') === art);
@@ -325,7 +325,7 @@ function wiederkehrendBereich(daten) {
   const { wiederkehrend, kategorien, konten } = daten;
   const heute = heuteIso();
   const kat = new Map(kategorien.map((k) => [k.id, k]));
-  const kontoName = new Map(konten.map((k) => [k.id, k.name]));
+  const kontoName = new Map(konten.map((k) => [k.id, k]));
   const reihenfolge = { einnahme: 0, ausgabe: 1, umbuchung: 2 };
   const sortiert = [...wiederkehrend].sort((a, b) => reihenfolge[a.art] - reihenfolge[b.art]
     || annahmeTitel(a, kategorien).localeCompare(annahmeTitel(b, kategorien), 'de', { sensitivity: 'base' }));
@@ -359,7 +359,7 @@ function wiederkehrendBereich(daten) {
         const jeMonat = wiederkehrendJeMonat(liste, heute);
         const netto = jeMonat.einnahmen - jeMonat.ausgaben;
         return h('div', { class: 'budget-gruppe' },
-          h('div', { class: 'tag-kopf' }, h('span', {}, g.name),
+          h('div', { class: 'tag-kopf' }, h('span', {}, g.id ? kontoEtikett(kontoName.get(g.id)) : g.name),
             (jeMonat.einnahmen || jeMonat.ausgaben) ? h('span', { class: 'tag-stand' }, `${netto > 0 ? '+' : ''}${formatEuro(netto)} / Monat`) : null),
           Object.keys(INTERVALL_UEBERSCHRIFT).map((iv) => {
             const teil = liste.filter((w) => (INTERVALL_UEBERSCHRIFT[w.intervall] ? w.intervall : 'monatlich') === iv);
@@ -382,29 +382,30 @@ function wiederkehrendZeile(w, daten, heute, kat, kontoName) {
   const titel = annahmeTitel(w, kategorien); // D96: Empfänger/Absender · Notiz
   let zuordnung;
   // Konto steht in der Gruppenüberschrift (D97)
-  if (w.art === 'umbuchung') zuordnung = `→ ${kontoName.get(w.gegenkontoId) ?? '?'}`;
+  const etikett = (id) => kontoEtikett(kontoName.get(id)); // D228
+  if (w.art === 'umbuchung') zuordnung = () => ['→ ', etikett(w.gegenkontoId)];
   else {
     const unter = kat.get(w.kategorieId);
     // Empfänger/Absender steht schon im Titel
     zuordnung = `${kat.get(unter?.elternId)?.name ?? '?'} › ${unter?.name ?? '?'}`;
   }
   // Das Intervall steht in der Zwischenüberschrift (D97)
-  const info = [
+  const info = () => [
     w.monatsletzter && 'zum Monatsletzten',
     naechster ? `nächster Termin ${formatDatum(naechster.datum)}` : 'keine weiteren Termine',
-    zuordnung,
-    w.art === 'ausgabe' && w.umbuchungVonKontoId && `gekoppelte Umbuchung von ${kontoName.get(w.umbuchungVonKontoId) ?? '?'}`, // D227
-  ].filter(Boolean).join(' · ');
+    typeof zuordnung === 'function' ? zuordnung() : zuordnung,
+    w.art === 'ausgabe' && w.umbuchungVonKontoId && ['gekoppelte Umbuchung von ', etikett(w.umbuchungVonKontoId)], // D227
+  ];
   const cent = naechster?.betragCent ?? terminBetrag(w, heute);
   // D94: feste Abweichungen je Kalendermonat
   const abweichend = (w.kalenderMonate ?? []).map((k) => `jeden ${MONATSNAMEN[k.monat - 1]}: ${formatEuro(k.betragCent)}`).join(' · ');
   const text = w.art === 'umbuchung' ? formatEuro(cent) : (w.art === 'einnahme' ? '+' : '') + formatEuro(w.art === 'ausgabe' ? -cent : cent);
   // D138: eine Zeile – am PC Titel · nächster Termin · Kategorie · Abweichungen, am Handy der Empfänger/Absender
-  const details = [info, abweichend].filter(Boolean).join(' · ');
-  const handyTitel = w.art === 'umbuchung' ? zuordnung : (w.partner?.trim() || titel);
+  const details = () => verbinde([...info(), abweichend]);
+  const handyTitel = w.art === 'umbuchung' ? zuordnung() : (w.partner?.trim() || titel);
   return zeileMitSchalter(w, 'wiederkehrend',
     h('button', {
-      type: 'button', class: 'buchung zeile-1' + (beendet ? ' archiviert' : ''), title: `${titel} · ${details}`, onclick: () => wiederkehrendDialog(w, daten),
+      type: 'button', class: 'buchung zeile-1' + (beendet ? ' archiviert' : ''), title: `${titel} · ${alsText(details())}`, onclick: () => wiederkehrendDialog(w, daten),
     },
     // D226: vorne ein Zeichen, ob ein Vertrag zugeordnet ist (📄 mit, ○ ohne)
     (() => {
@@ -416,7 +417,7 @@ function wiederkehrendZeile(w, daten, heute, kat, kontoName) {
       h('span', { class: 'buchung-titel' },
         h('span', { class: 'nur-breit' }, titel), h('span', { class: 'nur-schmal' }, handyTitel),
         beendet && h('span', { class: 'marke' }, 'beendet')),
-      h('span', { class: 'zeile-info nur-breit' }, details)),
+      h('span', { class: 'zeile-info nur-breit' }, details())),
     h('span', { class: 'betrag ' + (w.art === 'einnahme' ? 'plus' : w.art === 'umbuchung' ? 'gedaempft' : '') }, text)));
 }
 
@@ -608,7 +609,7 @@ function geplantBereich(daten) {
   const { geplant, kategorien, konten, buchungen } = daten;
   const heute = heuteIso();
   const kat = new Map(kategorien.map((k) => [k.id, k]));
-  const kontoName = new Map(konten.map((k) => [k.id, k.name]));
+  const kontoName = new Map(konten.map((k) => [k.id, k]));
   const mitStatus = geplant.map((g) => ({ g, erledigt: geplantErledigt(g, buchungen) }));
   // Sichtbar: offene ab heute. Erledigte und alles mit Datum vor heute ist eingeklappt (D53) –
   // noch nicht gebuchte vergangene stehen weiter beim Konto unter „Noch erwartet“.
@@ -616,9 +617,10 @@ function geplantBereich(daten) {
   const erledigt = mitStatus.filter((x) => x.erledigt || x.g.datum < heute).sort((a, b) => b.g.datum.localeCompare(a.g.datum));
 
   const zeile = ({ g, erledigt: e }) => {
-    const zuordnung = g.art === 'umbuchung'
-      ? `${kontoName.get(g.kontoId) ?? '?'} → ${kontoName.get(g.gegenkontoId) ?? '?'}`
-      : [kontoName.get(g.kontoId) ?? '?', g.partner, `${kat.get(kat.get(g.kategorieId)?.elternId)?.name ?? '?'} › ${kat.get(g.kategorieId)?.name ?? '?'}`].filter(Boolean).join(' · ');
+    // D228: Konten als Etikett
+    const zuordnung = () => (g.art === 'umbuchung'
+      ? [kontoEtikett(kontoName.get(g.kontoId)), ' → ', kontoEtikett(kontoName.get(g.gegenkontoId))]
+      : verbinde([kontoEtikett(kontoName.get(g.kontoId)), g.partner, `${kat.get(kat.get(g.kategorieId)?.elternId)?.name ?? '?'} › ${kat.get(g.kategorieId)?.name ?? '?'}`]));
     let status = null;
     if (e && e !== true) status = h('span', { class: 'marke' }, `erledigt: gebucht am ${formatDatum(e.datum)}`);
     else if (e) status = h('span', { class: 'marke' }, 'erledigt');
@@ -627,12 +629,12 @@ function geplantBereich(daten) {
     return zeileMitSchalter(g, 'geplant',
       // D138/D139: eine Zeile – am PC Bezeichnung · Datum · Zuordnung, am Handy nur die Bezeichnung
       h('button', {
-        type: 'button', class: 'buchung zeile-1' + (e ? ' archiviert' : ''), title: `${g.bezeichnung} · ${formatDatum(g.datum)} · ${zuordnung}`,
+        type: 'button', class: 'buchung zeile-1' + (e ? ' archiviert' : ''), title: `${g.bezeichnung} · ${formatDatum(g.datum)} · ${alsText(zuordnung())}`,
         onclick: () => geplantDialog(g, daten),
       },
         h('span', { class: 'buchung-text' },
           h('span', { class: 'buchung-titel' }, g.bezeichnung, status, projektMarke(g, daten.projekte)),
-          h('span', { class: 'zeile-info nur-breit' }, `${formatDatum(g.datum)} · ${zuordnung}`)),
+          h('span', { class: 'zeile-info nur-breit' }, `${formatDatum(g.datum)} · `, zuordnung())),
         h('span', { class: 'betrag ' + (e ? '' : 'annahme ') + (g.art === 'einnahme' ? 'plus' : g.art === 'umbuchung' ? 'gedaempft' : '') }, text)));
   };
 

@@ -9,7 +9,7 @@ import {
   isoMonatsanfang, naechsterMonat, vorigerMonat, istGueltigesDatum,
 } from '../format.js';
 import { monatsuebersicht, kontostand, vorgemerktBis, wirkungCent, ausgabenVergleich } from '../rechnen.js';
-import { dialog, eingabe, hinweis, toast, geraet, datenGeaendert, klappBereich, katPunkt, merkeScroll, wischGeste, auslageMarke } from '../ui.js';
+import { dialog, eingabe, hinweis, toast, geraet, datenGeaendert, klappBereich, katPunkt, kontoEtikett, merkeScroll, wischGeste, auslageMarke } from '../ui.js';
 import { farbenZuordnung, farbeVon } from '../farben.js';
 import { oeffneBuchungsdialog } from './buchung-dialog.js';
 import { kuendigungsBereich } from './vertraege.js';
@@ -243,7 +243,7 @@ function kontenAufstellung(konten, zl, heute, waehle) {
     const kd = p.jeKonto.get(k.id);
     const min = k.mindestsaldoCent;
     return h('button', { type: 'button', class: 'ka-zeile', title: `${k.name} öffnen`, onclick: () => waehle(k.id) },
-      h('span', { class: 'ka-name' }, k.name),
+      h('span', { class: 'ka-name' }, kontoEtikett(k)),
       wert(kd?.heute ?? null, false, min),
       wert(kd?.prognose ?? null, true, min),
       wert(prognoseJahresende(zl, heute, k.id), true, min));
@@ -275,7 +275,7 @@ function kontoAuswahl(konten, aktiv, faelligJeKonto, beiWahl) {
         'aria-label': anzahl ? `${k.name}, ${anzahl} fällige Buchung${anzahl === 1 ? '' : 'en'}` : k.name,
         title: anzahl ? `${anzahl} fällige Buchung${anzahl === 1 ? '' : 'en'}` : null,
         onclick: () => beiWahl(k.id),
-      }, k.name, anzahl > 0 && h('span', { class: 'chip-zahl', 'aria-hidden': 'true' }, String(anzahl)));
+      }, kontoEtikett(k), anzahl > 0 && h('span', { class: 'chip-zahl', 'aria-hidden': 'true' }, String(anzahl)));
     })), 'konto-wahl'); // D171: Scrollposition bleiben lassen
 }
 
@@ -458,7 +458,7 @@ function buchungsliste(m, konto, konten, kategorien) {
       h('p', { class: 'hinweis' }, 'Mit dem runden „+“-Knopf unten rechts erfasst du eine Buchung.'));
   }
   const katName = new Map(kategorien.map((k) => [k.id, k]));
-  const kontoName = new Map(konten.map((k) => [k.id, k.name]));
+  const kontoName = new Map(konten.map((k) => [k.id, k]));
   const istUmbuchung = (b) => b.art === 'umbuchung';
 
   // Neueste zuerst: Tage absteigend, innerhalb eines Tages die zuletzt erfasste oben.
@@ -534,8 +534,8 @@ function kontoTabelle(auswahl, tagesKopf, katName, kontoName) {
     let katText;
     if (b.art === 'umbuchung') {
       partner = 'Umbuchung';
-      katText = `${b.richtung === 'ab' ? '→' : '←'} ${kontoName.get(b.gegenkontoId) ?? '?'}`
-        + (b.richtung === 'ab' && b.budgetKategorieId ? ` · Budget ${katName.get(b.budgetKategorieId)?.name ?? '?'}` : ''); // D98
+      katText = [`${b.richtung === 'ab' ? '→' : '←'} `, kontoEtikett(kontoName.get(b.gegenkontoId)),
+        b.richtung === 'ab' && b.budgetKategorieId && ` · Budget ${katName.get(b.budgetKategorieId)?.name ?? '?'}`]; // D98, D228
     } else {
       const unter = katName.get(b.kategorieId);
       partner = b.partner ?? '';
@@ -549,7 +549,7 @@ function kontoTabelle(auswahl, tagesKopf, katName, kontoName) {
           ungewoehnlichMarke(b), auslageMarke(b)), // D214
         h('span', { class: 'btab-unter' },
           h('span', { class: 'btab-zelle btab-datum' }, formatDatum(b.datum)),
-          h('span', { class: 'btab-zelle btab-kategorie', title: katText }, b.art !== 'umbuchung' && katPunkt(farbeVon(b.kategorieId, katName, farben)), katText),
+          h('span', { class: 'btab-zelle btab-kategorie', title: Array.isArray(katText) ? null : katText }, b.art !== 'umbuchung' && katPunkt(farbeVon(b.kategorieId, katName, farben)), katText),
           h('span', { class: 'btab-zelle btab-notiz', title: b.notiz || null }, b.notiz ?? '')),
         h('span', { class: 'btab-zelle btab-betrag betrag ' + (b.art === 'umbuchung' ? 'gedaempft' : wirkung > 0 ? 'plus' : '') },
           (wirkung > 0 ? '+' : '') + formatEuro(wirkung))));
@@ -569,9 +569,9 @@ function buchungsZeile(b, katName, kontoName, farben = farbenZuordnung([...katNa
   // Am Handy eine Zeile ohne Kategorie (D75/D76): Empfänger/Absender, sonst Notiz, sonst die Art
   let titelHandy;
   if (b.art === 'umbuchung') {
-    titel = b.richtung === 'ab' ? `Umbuchung → ${kontoName.get(b.gegenkontoId) ?? '?'}` : `Umbuchung ← ${kontoName.get(b.gegenkontoId) ?? '?'}`;
+    titel = [b.richtung === 'ab' ? 'Umbuchung → ' : 'Umbuchung ← ', kontoEtikett(kontoName.get(b.gegenkontoId))]; // D228
     unterzeile = [b.richtung === 'ab' && b.budgetKategorieId && `Budget ${katName.get(b.budgetKategorieId)?.name ?? '?'}`, b.notiz].filter(Boolean).join(' · '); // D98
-    titelHandy = titel;
+    titelHandy = [b.richtung === 'ab' ? 'Umbuchung → ' : 'Umbuchung ← ', kontoEtikett(kontoName.get(b.gegenkontoId))];
   } else {
     const unter = katName.get(b.kategorieId);
     const haupt = unter && katName.get(unter.elternId);
@@ -587,7 +587,7 @@ function buchungsZeile(b, katName, kontoName, farben = farbenZuordnung([...katNa
       h('span', { class: 'buchung-text' },
         h('span', { class: 'buchung-titel' },
           b.art !== 'umbuchung' && katPunkt(farbeVon(b.kategorieId, katName, farben), katName.get(katName.get(b.kategorieId)?.elternId)?.name), // D155
-          h('span', { class: 'nur-breit' }, titel), h('span', { class: 'nur-schmal', title: titelHandy }, titelHandy),
+          h('span', { class: 'nur-breit' }, titel), h('span', { class: 'nur-schmal', title: typeof titelHandy === 'string' ? titelHandy : null }, titelHandy),
           b.status === 'vorgemerkt' && h('span', { class: 'marke marke-vorgemerkt' }, 'vorgemerkt'),
           ungewoehnlichMarke(b), auslageMarke(b)), // D214
         unterzeile && h('span', { class: 'buchung-unter nur-breit' }, unterzeile)),

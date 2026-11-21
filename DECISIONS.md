@@ -2792,3 +2792,16 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
   In „Noch erwartet“ trägt sie die Marke „gekoppelt“ und öffnet den Termin der Ausgabe; einzeln buchbar ist sie nicht
   (Fällig-Liste, Abstimmhilfe und Monatsabschluss lassen sie weg).
 - Die Kopplung stellt der Nutzer je wiederkehrender Buchung selbst ein (echte Daten werden nicht automatisch geändert).
+
+### D228 – Konto-Farben: Kontoname als farbiges Etikett
+- Statt Bank-Logos (zu aufwendig, Markenrechte, Dark-/Hell-Modus) kann jedes Konto eine Farbe bekommen
+  (Stammdaten › Konto bearbeiten › Farbe). Feld `farbe` am Konto: Schlüssel einer Bankfarbe (`bank-dkb`, `bank-n26`,
+  `bank-paypal`, `bank-sparkasse`) oder der Palette (D159); `null` = keine Farbe, der Name steht wie bisher als Text.
+  Datenmodell-Version 25 (Migration setzt `farbe: null`).
+- Die Bankfarben sind an die Hausfarben angelehnt (ungefähr, nicht offiziell geprüft) und jederzeit änderbar.
+- Mit Farbe steht der Kontoname überall, wo er sichtbar ist, in einem leicht abgerundeten, gefüllten Etikett
+  (`kontoEtikett` in `js/ui.js`): Konto-Aufstellung, Kontoauswahl, Buchungslisten, Umbuchungen, Budgets, wiederkehrende
+  und geplante Buchungen, Noch erwartet, Budgethinweis, Auslagen, Projekte, Verträge, Belege, Papierkorb.
+  Mehrere Konten derselben Bank haben dieselbe Farbe, der Name im Etikett unterscheidet sie (z. B. „N26 Giro“).
+- Schrift: Weiß, solange der Kontrast mindestens 3 : 1 ist (halbfett), sonst fast Schwarz (`schriftAuf`).
+- Reine Texte bleiben Text: Auswahllisten, Dialogtitel, Meldungen, CSV-Export, Prognose-Texte.

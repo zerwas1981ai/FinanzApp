@@ -187,3 +187,39 @@ export function farbeVon(kategorieId, katNachId, zuordnung) {
   if (!k) return null;
   return zuordnung.get(k.elternId ?? k.id)?.hex ?? null;
 }
+
+/**
+ * D228: Konto-Farben. Ein Konto kann eine Farbe haben (Feld „farbe“: Schlüssel einer Bankfarbe oder der PALETTE,
+ * fehlt/null = keine Farbe, der Name steht dann wie bisher als Text). Mit Farbe steht der Kontoname in einem
+ * abgerundeten, farbig gefüllten Etikett. Die Bankfarben sind an die Hausfarben angelehnt (ungefähr).
+ */
+export const BANK_FARBEN = [
+  { schluessel: 'bank-dkb', name: 'DKB (Blau)', hex: '#148dea' },
+  { schluessel: 'bank-n26', name: 'N26 (Türkis)', hex: '#36a18b' },
+  { schluessel: 'bank-paypal', name: 'PayPal (Dunkelblau)', hex: '#003087' },
+  { schluessel: 'bank-sparkasse', name: 'Sparkasse (Rot)', hex: '#ff0000' },
+];
+const BANK_NACH_SCHLUESSEL = new Map(BANK_FARBEN.map((b) => [b.schluessel, b]));
+
+/** Relative Helligkeit nach WCAG (0 = schwarz … 1 = weiß) */
+function helligkeit(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  const kanal = (c) => { const s = c / 255; return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4; };
+  return 0.2126 * kanal((n >> 16) & 255) + 0.7152 * kanal((n >> 8) & 255) + 0.0722 * kanal(n & 255);
+}
+
+/**
+ * Schriftfarbe auf dieser Hintergrundfarbe: Weiß, solange der Kontrast mindestens 3 : 1 ist (reicht für die
+ * halbfette Etikett-Schrift und entspricht dem Auftritt der Banken), sonst fast Schwarz.
+ */
+export function schriftAuf(hex) {
+  return 1.05 / (helligkeit(hex) + 0.05) >= 3 ? '#ffffff' : '#1a1d23';
+}
+
+/** Farbe eines Kontos: { schluessel, name, hex, schrift } oder null (keine Farbe gewählt / unbekannt) */
+export function kontoFarbe(konto) {
+  const s = konto?.farbe;
+  if (!s) return null;
+  const p = BANK_NACH_SCHLUESSEL.get(s) ?? paletteEintrag(s);
+  return p ? { schluessel: p.schluessel, name: p.name, hex: p.hex, schrift: schriftAuf(p.hex) } : null;
+}

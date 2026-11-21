@@ -5,7 +5,7 @@
 import { h } from '../dom.js';
 import * as db from '../db.js';
 import { formatEuro, formatDatum, parseEuro, centZuEingabe, heuteIso } from '../format.js';
-import { dialog, toast, eingabe, auswahl, optionsGruppe, datenGeaendert, herunterladen, merkeScroll } from '../ui.js';
+import { dialog, toast, eingabe, auswahl, optionsGruppe, datenGeaendert, herunterladen, merkeScroll, kontoEtikett } from '../ui.js';
 import { relevantAlsCsv } from '../export.js';
 import {
   baueRelevant, relevanteZeilen, gruppenListe, filtereGruppe, nachJahren, OHNE_GRUPPE, benenneBelege,
@@ -124,7 +124,7 @@ function listenDialog(zeilen, jahre, daten) {
 /** Druckansicht: eigener Bereich, der nur beim Drucken sichtbar ist (CSS @media print) */
 function drucke(zeilen, jahr, daten) {
   const kat = new Map(daten.kategorien.map((k) => [k.id, k]));
-  const kontoName = new Map(daten.konten.map((k) => [k.id, k.name]));
+  const kontoNach = new Map(daten.konten.map((k) => [k.id, k]));
   const gruppenText = ansicht.gruppe ? ` · Gruppe ${ansicht.gruppe === OHNE_GRUPPE ? '„Ohne Gruppe“' : `„${ansicht.gruppe}“`}` : '';
   const jahresBlock = (j) => h('section', { class: 'druck-jahr' },
     h('h2', {}, String(j.jahr)),
@@ -137,7 +137,7 @@ function drucke(zeilen, jahr, daten) {
           h('td', {}, z.partner || '–'),
           h('td', {}, unter ? [kat.get(unter.elternId)?.name, unter.name].filter(Boolean).join(' › ') : ''),
           h('td', {}, z.notiz),
-          h('td', {}, z.quelle === 'buchung' ? kontoName.get(z.kontoId) ?? 'Buchung' : 'Eigener Eintrag'),
+          h('td', {}, z.quelle === 'buchung' ? kontoEtikett(kontoNach.get(z.kontoId), { ersatz: 'Buchung' }) : 'Eigener Eintrag'),
           h('td', {}, (z.belege ?? []).map((b) => b.name).join(', ')),
           h('td', { class: 'zahl' }, formatEuro(z.betragCent)));
       })),
@@ -160,7 +160,7 @@ function drucke(zeilen, jahr, daten) {
  *  Ganz rechts eine eigene Spalte "Beleg": antippen öffnet den Beleg direkt (D101). */
 function tabelle(zeilen, daten) {
   const kat = new Map(daten.kategorien.map((k) => [k.id, k]));
-  const kontoName = new Map(daten.konten.map((k) => [k.id, k.name]));
+  const kontoNach = new Map(daten.konten.map((k) => [k.id, k]));
   const kopf = h('div', { class: 'btab-kopf', role: 'row', 'aria-hidden': 'true' },
     [['datum', 'Datum'], ['partner', 'Empfänger'], ['kategorie', 'Kategorie'], ['notiz', 'Notiz'], ['betrag', 'Betrag'], ['beleg', 'Beleg']]
       .map(([feld, text]) => h('span', { class: `btab-sort btab-fest btab-${feld}` }, text)));
@@ -182,7 +182,9 @@ function tabelle(zeilen, daten) {
         z.partner
           ? h('span', { class: 'btab-partner-name' }, z.partner)
           : [h('span', { class: 'nur-breit gedaempft' }, '–'), h('span', { class: 'nur-schmal btab-partner-name' }, unter?.name ?? z.notiz ?? 'Ausgabe')],
-        z.quelle === 'buchung' && h('span', { class: 'marke marke-projekt', title: 'Echte Buchung von diesem Konto' }, kontoName.get(z.kontoId) ?? 'Buchung'),
+        z.quelle === 'buchung' && (kontoNach.get(z.kontoId)?.farbe // D228: mit Konto-Farbe als Etikett, sonst wie bisher
+          ? h('span', { class: 'marke-konto', title: 'Echte Buchung von diesem Konto' }, kontoEtikett(kontoNach.get(z.kontoId)))
+          : h('span', { class: 'marke marke-projekt', title: 'Echte Buchung von diesem Konto' }, kontoNach.get(z.kontoId)?.name ?? 'Buchung')),
         z.archivJahr && h('span', { class: 'marke' }, 'Archiv')),
       h('span', { class: 'btab-unter' },
         h('span', { class: 'btab-zelle btab-datum' }, formatDatum(z.datum)),

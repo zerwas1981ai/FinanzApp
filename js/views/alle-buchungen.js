@@ -3,7 +3,7 @@
 import { h } from '../dom.js';
 import * as db from '../db.js';
 import { formatEuro, formatEuroRund, formatProzent, formatDatum, formatMonat, heuteIso, parseEuro } from '../format.js';
-import { herunterladen, toast, katPunkt, merkeScroll, auslageMarke } from '../ui.js';
+import { herunterladen, toast, katPunkt, kontoEtikett, merkeScroll, auslageMarke } from '../ui.js';
 import { farbenZuordnung, farbeVon } from '../farben.js';
 import { oeffneRueckblick } from './rueckblick.js';
 import { ungewoehnlicheBuchungen } from '../erkennung.js';
@@ -546,7 +546,7 @@ function liste(eintraege, daten, neu) {
   // Wer im Filter "Art" Umbuchungen ausdrücklich wählt, sieht sie auch am Handy sofort (D77)
   const umbuchungGefiltert = zustand.filter.arten.includes('umbuchung');
   const kat = new Map(daten.kategorien.map((k) => [k.id, k]));
-  const kontoName = new Map(daten.konten.map((k) => [k.id, k.name]));
+  const kontoNach = new Map(daten.konten.map((k) => [k.id, k]));
 
   if (sortiert.length === 0) {
     return h('section', { class: 'bereich' }, h('p', { class: 'leer' }, 'Keine Buchungen passen zu diesen Filtern.'));
@@ -591,8 +591,9 @@ function liste(eintraege, daten, neu) {
       const von = b.richtung === 'ab' ? b.kontoId : b.gegenkontoId;
       const auf = b.richtung === 'ab' ? b.gegenkontoId : b.kontoId;
       partnerText = 'Umbuchung';
-      katText = `${kontoName.get(von) ?? '?'} → ${kontoName.get(auf) ?? '?'}`
-        + (b.budgetKategorieId ? ` · Budget ${kat.get(b.budgetKategorieId)?.name ?? '?'}` : ''); // D98
+      // D228: Konten als Etikett – als Funktion, weil derselbe Inhalt an zwei Stellen steht (PC-Spalte, Handy-Titel)
+      katText = () => [kontoEtikett(kontoNach.get(von)), ' → ', kontoEtikett(kontoNach.get(auf)),
+        b.budgetKategorieId && ` · Budget ${kat.get(b.budgetKategorieId)?.name ?? '?'}`]; // D98
     } else {
       const unter = kat.get(b.kategorieId);
       partnerText = b.partner?.trim() ?? '';
@@ -603,7 +604,7 @@ function liste(eintraege, daten, neu) {
       ? formatEuro(b.betragCent)
       : (wirkung > 0 ? '+' : '') + formatEuro(wirkung);
     const klasse = b.art === 'umbuchung' ? 'gedaempft' : wirkung > 0 ? 'plus' : '';
-    const unterName = b.art === 'umbuchung' ? katText : kat.get(b.kategorieId)?.name ?? 'Unbekannte Kategorie';
+    const unterName = b.art === 'umbuchung' ? katText() : kat.get(b.kategorieId)?.name ?? 'Unbekannte Kategorie';
     // Am Handy Umbuchungen standardmäßig ausgeblendet (D77) – außer sie sind ausdrücklich gefiltert
     return h('li', { role: 'row', class: b.art === 'umbuchung' && !umbuchungGefiltert ? 'ub-ausblendbar' : null, 'data-bid': b.id }, // D211
       h('button', {
@@ -623,8 +624,9 @@ function liste(eintraege, daten, neu) {
         b.archivJahr && h('span', { class: 'marke' }, 'Archiv')),
       h('span', { class: 'btab-unter' },
         h('span', { class: 'btab-zelle btab-datum' }, formatDatum(b.datum)),
-        h('span', { class: 'btab-zelle btab-kategorie', title: katText }, b.art !== 'umbuchung' && katPunkt(farbeVon(b.kategorieId, kat, farben)), katText),
-        h('span', { class: 'btab-zelle btab-konto' }, b.art === 'umbuchung' ? '' : kontoName.get(b.kontoId) ?? ''),
+        h('span', { class: 'btab-zelle btab-kategorie', title: typeof katText === 'string' ? katText : null },
+          b.art !== 'umbuchung' && katPunkt(farbeVon(b.kategorieId, kat, farben)), typeof katText === 'function' ? katText() : katText),
+        h('span', { class: 'btab-zelle btab-konto' }, b.art === 'umbuchung' ? '' : kontoNach.has(b.kontoId) && kontoEtikett(kontoNach.get(b.kontoId))),
         h('span', { class: 'btab-zelle btab-notiz', title: b.notiz || null }, b.notiz ?? '')),
       h('span', { class: `btab-zelle btab-betrag betrag ${klasse}` }, betragText)));
   };

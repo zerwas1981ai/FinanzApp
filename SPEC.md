@@ -3,7 +3,7 @@
 Details zu Datenmodell, Oberfläche und Rechenlogik (aus CLAUDE.md verschoben). Begründungen stehen in DECISIONS.md unter der jeweiligen D-Nummer.
 
 ## Datenmodell
-- Konto: Name, Anfangssaldo, Stichtag, Mindestsaldo, Reihenfolge (per ▲/▼, D84)
+- Konto: Name, Anfangssaldo, Stichtag, Mindestsaldo, Reihenfolge (per ▲/▼, D84), Farbe (optional, D228: Kontoname dann als farbiges Etikett)
 - Kategorie: Hauptkategorie mit Unterkategorien (Startsatz vorbelegt, in den
   Stammdaten anpassbar; Unterkategorien zwischen Hauptkategorien gleicher Art
   verschiebbar, D93; Unterkategorien zusammenführbar, D210)

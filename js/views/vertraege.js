@@ -5,7 +5,7 @@
 import { h } from '../dom.js';
 import * as db from '../db.js';
 import { formatEuro, formatDatum, formatProzent, heuteIso } from '../format.js';
-import { dialog, frage, toast, eingabe, auswahl, datenGeaendert, klappBereich, geraet, katPunkt } from '../ui.js';
+import { dialog, frage, toast, eingabe, auswahl, datenGeaendert, klappBereich, geraet, katPunkt, kontoEtikett, verbinde, alsText } from '../ui.js';
 import { farbenZuordnung } from '../farben.js';
 import {
   baueVertrag, vertragsStand, vertragsKosten, vertragsUebersicht, kostenSumme, vertraegeOhneWiederkehrend, vertragsBuchungen, endeVorschlag,
@@ -118,7 +118,7 @@ function vertragZeile({ v, stand }, daten, heute) {
   const kosten = vertragsKosten(v.id, daten.wiederkehrend, heute);
   const buchungen = vertragsBuchungen(v.id, daten.buchungen, daten.wiederkehrend);
   const st = standText(stand);
-  const kontoName = new Map(daten.konten.map((k) => [k.id, k.name]));
+  const kontoNach = new Map(daten.konten.map((k) => [k.id, k]));
   const kat = new Map(daten.kategorien.map((k) => [k.id, k]));
 
   const angabe = (titel, wert) => wert && h('div', { class: 'vertrag-angabe' }, h('span', { class: 'klein gedaempft' }, titel), h('span', {}, wert));
@@ -134,13 +134,13 @@ function vertragZeile({ v, stand }, daten, heute) {
   const wkZeile = (w) => h('li', {},
     h('button', { type: 'button', class: 'buchung zeile-1', onclick: () => wiederkehrendDialog(w, daten) },
       h('span', { class: 'buchung-text' }, h('span', { class: 'buchung-titel' },
-        [w.partner || w.notiz || kat.get(w.kategorieId)?.name || 'Wiederkehrend', INTERVALL[w.intervall], kontoName.get(w.kontoId)].filter(Boolean).join(' · '))),
+        verbinde([w.partner || w.notiz || kat.get(w.kategorieId)?.name || 'Wiederkehrend', INTERVALL[w.intervall], kontoNach.has(w.kontoId) && kontoEtikett(kontoNach.get(w.kontoId))]))),
       h('span', { class: 'betrag annahme' + (w.art === 'einnahme' ? ' plus' : '') }, formatEuro((w.art === 'einnahme' ? 1 : -1) * aktuellerBetrag(w, heute)))));
   const buchungZeile = (b) => h('li', {},
     h('button', { type: 'button', class: 'buchung zeile-1', onclick: () => oeffneBuchungsdialog(b) },
       h('span', { class: 'buchung-text' }, h('span', { class: 'buchung-titel' },
         h('span', { class: 'datum-klein' }, formatDatum(b.datum)),
-        [b.partner || kat.get(b.kategorieId)?.name || (b.art === 'umbuchung' ? 'Umbuchung' : 'Buchung'), kontoName.get(b.kontoId)].filter(Boolean).join(' · '))),
+        verbinde([b.partner || kat.get(b.kategorieId)?.name || (b.art === 'umbuchung' ? 'Umbuchung' : 'Buchung'), kontoNach.has(b.kontoId) && kontoEtikett(kontoNach.get(b.kontoId))]))),
       h('span', { class: 'betrag' + (wirkungCent(b) > 0 ? ' plus' : '') }, formatEuro(wirkungCent(b)))));
 
   const MAX_BUCHUNGEN = 6;
@@ -364,7 +364,7 @@ export function vertragDialog(v, daten, vorgaben = {}, { nachAnlegen } = {}) {
 /** Vorhandene Buchungen nachträglich zuordnen: Liste nach Suchbegriff (Empfänger), per Häkchen auswählen */
 export function zuordnenDialog(v, daten) {
   const MAX = 100;
-  const kontoName = new Map(daten.konten.map((k) => [k.id, k.name]));
+  const kontoNach = new Map(daten.konten.map((k) => [k.id, k]));
   const vertragName = new Map(daten.vertraege.map((x) => [x.id, x.name]));
   const wkNachId = new Map(daten.wiederkehrend.map((w) => [w.id, w]));
   const gewaehlt = new Set();
@@ -379,11 +379,11 @@ export function zuordnenDialog(v, daten) {
       const anderer = vertragVon(b, wkNachId);
       const cb = h('input', { type: 'checkbox', checked: gewaehlt.has(b.id) });
       cb.addEventListener('change', () => { if (cb.checked) gewaehlt.add(b.id); else gewaehlt.delete(b.id); zeichne(); });
-      const titel = [b.partner || (b.art === 'umbuchung' ? 'Umbuchung' : 'Buchung'), b.notiz, kontoName.get(b.kontoId)].filter(Boolean).join(' · ')
-        + (anderer ? ` (bisher: ${vertragName.get(anderer) ?? 'anderer Vertrag'})` : '');
+      const titel = [...verbinde([b.partner || (b.art === 'umbuchung' ? 'Umbuchung' : 'Buchung'), b.notiz,
+        kontoNach.has(b.kontoId) && kontoEtikett(kontoNach.get(b.kontoId))]), anderer && ` (bisher: ${vertragName.get(anderer) ?? 'anderer Vertrag'})`];
       return h('li', {}, h('label', { class: 'vormerk-zeile' }, cb,
         h('span', { class: 'vormerk-datum' }, formatDatum(b.datum)),
-        h('span', { class: 'vormerk-titel', title: titel }, titel),
+        h('span', { class: 'vormerk-titel', title: alsText(titel) }, titel),
         h('span', { class: 'betrag' + (wirkungCent(b) > 0 ? ' plus' : '') }, formatEuro(wirkungCent(b)))));
     }));
     if (!kandidaten.length) liste.replaceChildren(h('li', { class: 'leer' }, 'Keine passenden Buchungen.'));

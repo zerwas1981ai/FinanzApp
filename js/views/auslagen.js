@@ -5,7 +5,7 @@
 import { h } from '../dom.js';
 import * as db from '../db.js';
 import { formatEuro, formatDatum } from '../format.js';
-import { frage, toast, datenGeaendert } from '../ui.js';
+import { frage, toast, datenGeaendert, kontoEtikett, verbinde } from '../ui.js';
 import { auslagenUebersicht, auslageTitel, auslageAbschliessen, auslageWiederOeffnen } from '../auslagen.js';
 import { oeffneBuchungsdialog } from './buchung-dialog.js';
 
@@ -15,7 +15,7 @@ export function auslagenBereich(daten) {
   const offen = liste.filter((a) => a.status === 'offen');
   const erledigt = liste.filter((a) => a.status !== 'offen');
   const summeOffen = offen.reduce((s, a) => s + a.offenCent, 0);
-  const kontoName = new Map(daten.konten.map((k) => [k.id, k.name]));
+  const kontoNach = new Map(daten.konten.map((k) => [k.id, k]));
 
   const abschliessen = async (a) => {
     const rest = a.buchung.betragCent - a.zurueckCent;
@@ -47,7 +47,7 @@ export function auslagenBereich(daten) {
         h('span', { class: 'buchung-text' },
           h('span', { class: 'buchung-titel' }, h('span', { class: 'datum-klein' }, formatDatum(b.datum)), auslageTitel(b)),
           h('span', { class: 'buchung-unter' },
-            [kontoName.get(b.kontoId) ?? '?', b.auslage.fuer && b.partner, b.notiz, stand].filter(Boolean).join(' · '))),
+            verbinde([kontoEtikett(kontoNach.get(b.kontoId)), b.auslage.fuer && b.partner, b.notiz, stand]))), // D228
         h('span', { class: 'betrag' + (a.status === 'offen' ? ' stark' : ' gedaempft') },
           a.status === 'offen' ? formatEuro(a.offenCent) : formatEuro(b.betragCent))),
       a.status === 'offen' && h('button', {

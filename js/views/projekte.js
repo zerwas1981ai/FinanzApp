@@ -5,7 +5,7 @@
 import { h } from '../dom.js';
 import * as db from '../db.js';
 import { formatEuro, formatDatum, centZuEingabe, parseEuro, heuteIso } from '../format.js';
-import { dialog, frage, toast, eingabe, datenGeaendert, bereichsWahl, kurzLang } from '../ui.js';
+import { dialog, frage, toast, eingabe, datenGeaendert, bereichsWahl, kurzLang, kontoEtikett, verbinde } from '../ui.js';
 import { baueProjekt, projektZahlen } from '../annahmen.js';
 import { oeffneBuchungsdialog } from './buchung-dialog.js';
 import { geplantDialog } from './annahmen.js';
@@ -72,7 +72,7 @@ const offeneProjekte = new Set(); // aufgeklappte Projekte, solange die App offe
 function projektKarte(p, daten, heute) {
   const z = projektZahlen(p, daten, heute);
   const kat = new Map(daten.kategorien.map((k) => [k.id, k]));
-  const kontoName = new Map(daten.konten.map((k) => [k.id, k.name]));
+  const kontoNach = new Map(daten.konten.map((k) => [k.id, k]));
   const katText = (id) => `${kat.get(kat.get(id)?.elternId)?.name ?? '?'} › ${kat.get(id)?.name ?? '?'}`;
   // Kosten als Betrag: Ausgabe −, Einnahme (z. B. Zuschuss) +
   const betragText = (kosten) => (kosten < 0 ? '+' : '') + formatEuro(-kosten);
@@ -86,7 +86,7 @@ function projektKarte(p, daten, heute) {
         h('span', { class: 'buchung-titel' },
           h('span', { class: 'datum-klein' }, formatDatum(g.datum)), g.bezeichnung,
           alt && h('span', { class: 'marke marke-warn' }, 'überfällig')),
-        h('span', { class: 'buchung-unter' }, [kontoName.get(g.kontoId) ?? '?', g.partner, katText(g.kategorieId)].filter(Boolean).join(' · '))),
+        h('span', { class: 'buchung-unter' }, verbinde([kontoEtikett(kontoNach.get(g.kontoId)), g.partner, katText(g.kategorieId)]))),
       h('span', { class: 'betrag annahme' + (kostenCent < 0 ? ' plus' : '') }, betragText(kostenCent))));
 
   const istZeile = ({ buchung: b, kostenCent, planCent }) => {
@@ -98,8 +98,8 @@ function projektKarte(p, daten, heute) {
             h('span', { class: 'datum-klein' }, formatDatum(b.datum)), b.notiz || kat.get(b.kategorieId)?.name || '?',
             b.status === 'vorgemerkt' && h('span', { class: 'marke marke-vorgemerkt' }, 'vorgemerkt')),
           h('span', { class: 'buchung-unter' },
-            [kontoName.get(b.kontoId) ?? '?', b.partner, katText(b.kategorieId)].filter(Boolean).join(' · ') +
-            (planCent != null ? (abweichung ? ` · geplant waren ${formatEuro(planCent)}` : ' · wie geplant') : ''))),
+            verbinde([kontoEtikett(kontoNach.get(b.kontoId)), b.partner, katText(b.kategorieId),
+              planCent != null && (abweichung ? `geplant waren ${formatEuro(planCent)}` : 'wie geplant')]))),
         h('span', { class: 'betrag' + (kostenCent < 0 ? ' plus' : '') }, betragText(kostenCent))));
   };
 

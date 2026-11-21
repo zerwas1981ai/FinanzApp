@@ -1,6 +1,7 @@
 // Wiederverwendbare Bausteine der Oberfläche: Dialog, Rückfrage, Meldung, Formularfelder.
 
 import { h } from './dom.js';
+import { kontoFarbe } from './farben.js';
 
 let feldZaehler = 0;
 let toastTimer = null;
@@ -324,6 +325,34 @@ export function auslageMarke(b) {
 /** D155: kleiner Farbpunkt einer Kategorie (hex oder null = kein Punkt) */
 export function katPunkt(hex, titel = null) {
   return hex ? h('span', { class: 'kat-punkt', style: `--kat-farbe:${hex}`, title: titel, 'aria-hidden': 'true' }) : null;
+}
+
+/**
+ * D228: Kontoname als Etikett – mit Konto-Farbe ein abgerundeter, farbig gefüllter Rahmen, ohne Farbe nur der Text.
+ * konto = Konto-Objekt (oder undefined → ersatz), text = abweichender Text (Standard: Kontoname).
+ */
+export function kontoEtikett(konto, { text = null, ersatz = '?' } = {}) {
+  const name = text ?? konto?.name ?? ersatz;
+  const f = kontoFarbe(konto);
+  return f
+    ? h('span', { class: 'konto-etikett', style: `--konto-farbe:${f.hex};--konto-schrift:${f.schrift}` }, name)
+    : h('span', { class: 'konto-text' }, name);
+}
+
+/** D228: Teile (Texte oder Elemente) mit „ · “ verbinden; leere Teile fallen weg */
+export function verbinde(teile, trenner = ' · ') {
+  const ergebnis = [];
+  for (const t of teile) {
+    if (t === null || t === undefined || t === false || t === '' || (Array.isArray(t) && !t.length)) continue;
+    if (ergebnis.length) ergebnis.push(trenner);
+    ergebnis.push(t);
+  }
+  return ergebnis;
+}
+
+/** D228: reiner Text eines Inhalts (Text, Element oder Liste davon) – z. B. für title-Attribute */
+export function alsText(inhalt) {
+  return [inhalt].flat(Infinity).map((x) => (x instanceof Node ? x.textContent : x ?? '')).join('');
 }
 
 /** Ein-/Aus-Schalter (Checkbox mit Text) */

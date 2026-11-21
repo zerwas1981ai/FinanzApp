@@ -6,7 +6,7 @@
 import { h } from '../dom.js';
 import * as db from '../db.js';
 import { formatEuro, formatDatum, formatMonat, formatProzent, formatTag, heuteIso, istGueltigesDatum } from '../format.js';
-import { dialog, eingabe, toast, datenGeaendert, auswahl, klappBereich, katPunkt } from '../ui.js';
+import { dialog, eingabe, toast, datenGeaendert, auswahl, klappBereich, katPunkt, kontoEtikett } from '../ui.js';
 import { plusMonate, plusTage, annahmeTitel, budgetBuchungen, budgetHauptVon } from '../prognose.js';
 import { farbenZuordnung } from '../farben.js';
 import { budgetMitVorschlag, merkeHinweis } from '../annahmen.js';
@@ -92,20 +92,24 @@ export function erwartetBereich(kd, daten) {
   if (!kd || (kd.termine.length === 0 && kd.budgets.length === 0)) return null;
   const heute = heuteIso();
   const kat = new Map(daten.kategorien.map((k) => [k.id, k]));
-  const kontoName = new Map(daten.konten.map((k) => [k.id, k.name]));
+  const kontoNach = new Map(daten.konten.map((k) => [k.id, k]));
   const farben = farbenZuordnung(daten.kategorien); // D177: Budgetbalken in der Farbe der Kategorie
 
   const terminZeilen = kd.termine.map((t) => {
     const w = t.wiederkehrend;
     const titel = annahmeTitel(w, daten.kategorien); // D96
+    // D228: Gegenkonto als Etikett (als Funktion, weil es am PC und am Handy steht)
+    const umbuchungText = () => (t.wirkung < 0
+      ? ['Umbuchung → ', kontoEtikett(kontoNach.get(w.gegenkontoId))]
+      : ['Umbuchung ← ', kontoEtikett(kontoNach.get(w.kontoId))]);
     const zuordnung = w.art === 'umbuchung'
-      ? (t.wirkung < 0 ? `Umbuchung → ${kontoName.get(w.gegenkontoId) ?? '?'}` : `Umbuchung ← ${kontoName.get(w.kontoId) ?? '?'}`)
+      ? umbuchungText()
       // Empfänger/Absender nur, wenn er nicht schon im Titel steht (D96)
       : (w.partner && !titel.includes(w.partner) ? `${w.partner} · ` : '') + `${kat.get(kat.get(w.kategorieId)?.elternId)?.name ?? '?'} › ${kat.get(w.kategorieId)?.name ?? '?'}`;
     const status = t.datum === heute ? 'heute fällig' : t.ueberfaellig ? 'überfällig' : null;
     // Am Handy eine Zeile (D75/D76): ohne Datum und Kategorie – Empfänger/Absender, sonst die Bezeichnung
     // (Reihenfolge bleibt nach Fälligkeitsdatum)
-    const titelHandy = w.art === 'umbuchung' ? zuordnung : (w.partner || titel);
+    const titelHandy = w.art === 'umbuchung' ? umbuchungText() : (w.partner || titel);
     return h('li', { class: w.art === 'umbuchung' ? 'ub-ausblendbar' : null },
       // D227: gekoppelte Umbuchung → Dialog der Ausgabe (beide werden zusammen gebucht)
       h('button', { type: 'button', class: 'buchung geplant einzeilig', onclick: () => (w.gekoppelt
@@ -115,11 +119,11 @@ export function erwartetBereich(kd, daten) {
           h('span', { class: 'buchung-titel' },
             h('span', { class: 'datum-klein nur-breit' }, formatTag(t.datum)),
             h('span', { class: 'nur-breit' }, titel),
-            h('span', { class: 'nur-schmal', title: titelHandy }, titelHandy),
+            h('span', { class: 'nur-schmal', title: typeof titelHandy === 'string' ? titelHandy : null }, titelHandy),
             t.quelle === 'geplant' && h('span', { class: 'marke' }, 'einmalig'),
             w.gekoppelt && h('span', { class: 'marke' }, 'gekoppelt'),
             status && h('span', { class: 'marke' + (t.ueberfaellig ? ' marke-warn' : '') }, status)),
-          h('span', { class: 'buchung-unter nur-breit' }, zuordnung + (t.verschoben ? ` · verschoben vom ${formatDatum(t.termin)}` : ''))),
+          h('span', { class: 'buchung-unter nur-breit' }, zuordnung, t.verschoben && ` · verschoben vom ${formatDatum(t.termin)}`)),
         h('span', { class: 'betrag annahme' + (t.wirkung > 0 ? ' plus' : '') }, mitVorzeichen(t.wirkung))));
   });
 
@@ -304,7 +308,7 @@ export function hinweisBereich(hinweise, daten) {
 
     const titel = x.kategorie.name + (x.konto ? ` (${x.konto.name})` : '');
     return h('section', { class: 'bereich hinweiskarte', 'aria-label': `Budgethinweis ${titel}` },
-      h('h2', {}, h('span', { class: 'klein' }, 'Budgethinweis · '), titel),
+      h('h2', {}, h('span', { class: 'klein' }, 'Budgethinweis · '), x.kategorie.name, x.konto && [' ', kontoEtikett(x.konto)]),
       h('p', {},
         `${n} Monate in Folge ${x.richtung === 'ueber' ? 'über' : 'unter'} Budget, im Schnitt um ${prozent}: ${verlauf}` +
         (gleichesBudget ? ` bei ${formatEuro(x.zeilen[0].budget)} Budget.` : '.')),

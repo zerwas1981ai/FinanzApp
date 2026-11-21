@@ -3,8 +3,8 @@
 import { h } from '../dom.js';
 import * as db from '../db.js';
 import { formatEuro, formatDatum, parseEuro, centZuEingabe, heuteIso, istGueltigesDatum } from '../format.js';
-import { dialog, frage, toast, eingabe, auswahl, optionsGruppe, knopf, schalter, katPunkt, bereichsWahl, kurzLang, geraet } from '../ui.js';
-import { PALETTE, farbenZuordnung, paletteEintrag } from '../farben.js';
+import { dialog, frage, toast, eingabe, auswahl, optionsGruppe, knopf, schalter, katPunkt, kontoEtikett, bereichsWahl, kurzLang, geraet } from '../ui.js';
+import { PALETTE, BANK_FARBEN, farbenZuordnung, paletteEintrag, kontoFarbe } from '../farben.js';
 import { notfallBereich } from './notfall.js';
 import { empfaengerBereich } from './empfaenger.js';
 import { hatTestdaten, ladeTestdaten, loescheTestdaten } from '../testdaten.js';
@@ -136,7 +136,7 @@ function kontoZeile(k, konten, neu) {
   const mindest = k.mindestsaldoCent == null ? 'keiner' : formatEuro(k.mindestsaldoCent);
   return h('li', { class: 'zeile' + (k.archiviert ? ' archiviert' : '') },
     h('div', {},
-      h('div', { class: 'zeile-titel' }, k.name, k.archiviert && h('span', { class: 'marke' }, 'archiviert')),
+      h('div', { class: 'zeile-titel' }, kontoEtikett(k), k.archiviert && h('span', { class: 'marke' }, 'archiviert')),
       h('div', { class: 'zeile-info' }, `Stichtag ${formatDatum(k.stichtag)} · Mindestsaldo ${mindest}`),
     ),
     h('div', { class: 'zeile-betrag' + (k.anfangssaldoCent < 0 ? ' negativ' : '') },
@@ -195,11 +195,11 @@ function kontoDialog(konto, konten, neu) {
     inputmode: 'decimal',
     hilfe: 'Später warnt die App, wenn der Stand darunter fällt. Leer lassen = keine Warnung.',
   });
-
+  const farbe = kontoFarbFeld(konto, name.input);
 
   dialog({
     titel: konto ? 'Konto bearbeiten' : 'Neues Konto',
-    inhalt: [name.feld, saldo.feld, stichtag.feld, mindest.feld],
+    inhalt: [name.feld, farbe.feld, saldo.feld, stichtag.feld, mindest.feld],
     onSpeichern: async () => {
       const n = name.input.value.trim();
       if (!n) throw new Error('Bitte einen Namen eingeben.');
@@ -227,12 +227,62 @@ function kontoDialog(konto, konten, neu) {
         anfangssaldoCent,
         stichtag: stichtag.input.value,
         mindestsaldoCent,
+        farbe: farbe.wert(),
         geaendertAm: zeit,
       });
       toast(konto ? 'Konto gespeichert' : `Konto „${n}“ angelegt`);
       neu();
     },
   });
+}
+
+/**
+ * D228: Farbe eines Kontos – „Keine“, eine der Bankfarben oder eine Farbe der Palette.
+ * Oben eine Vorschau, wie der Kontoname überall in der App aussieht.
+ */
+function kontoFarbFeld(konto, nameInput) {
+  let farbe = kontoFarbe(konto)?.schluessel ?? '';
+  const vorschau = h('span', { class: 'konto-vorschau' });
+  const zeigeVorschau = () => {
+    vorschau.replaceChildren(kontoEtikett({ name: nameInput.value.trim() || 'Kontoname', farbe }));
+  };
+  const alleKnoepfe = [];
+  const waehle = (k, wert) => {
+    farbe = wert;
+    alleKnoepfe.forEach((b) => b.setAttribute('aria-pressed', String(b === k)));
+    zeigeVorschau();
+  };
+  const merke = (k) => { alleKnoepfe.push(k); return k; };
+  const textKnopf = (wert, text) => {
+    const f = kontoFarbe({ farbe: wert });
+    const k = h('button', {
+      type: 'button', class: 'konto-farb-wahl', 'aria-pressed': String(farbe === wert),
+      style: f ? `--konto-farbe:${f.hex};--konto-schrift:${f.schrift}` : null,
+      onclick: () => waehle(k, wert),
+    }, text);
+    return merke(k);
+  };
+  const farbKnopf = (p) => {
+    const k = h('button', {
+      type: 'button', class: 'farb-wahl', style: `--kat-farbe:${p.hex}`, title: p.name, 'aria-label': p.name,
+      'aria-pressed': String(farbe === p.schluessel), onclick: () => waehle(k, p.schluessel),
+    });
+    return merke(k);
+  };
+  nameInput.addEventListener('input', zeigeVorschau);
+  zeigeVorschau();
+  const feld = h('div', { class: 'feld' },
+    h('span', { class: 'feld-label' }, 'Farbe ', vorschau),
+    h('div', { class: 'konto-farben', role: 'group', 'aria-label': 'Keine oder Bankfarbe' },
+      textKnopf('', 'Keine'), BANK_FARBEN.map((b) => textKnopf(b.schluessel, b.name))),
+    h('details', { class: 'weitere-angaben', open: !!farbe && !farbe.startsWith('bank-') },
+      h('summary', {}, 'Andere Farbe'),
+      h('div', { class: 'farb-raster farb-grau', role: 'group', 'aria-label': 'Weiß, Grau, Schwarz' },
+        PALETTE.filter((p) => p.grau).map(farbKnopf)),
+      h('div', { class: 'farb-raster', role: 'group', 'aria-label': 'Farbe' },
+        PALETTE.filter((p) => !p.grau).map(farbKnopf))),
+    h('small', { class: 'feld-hilfe' }, 'Der Kontoname erscheint überall in dieser Farbe. „Keine“ = wie bisher als Text.'));
+  return { feld, wert: () => farbe || null };
 }
 
 async function kontoLoeschen(k, neu) {
@@ -636,7 +686,7 @@ function papierkorbBereich(konten, kategorien, neu) {
   const geloescht = buchungen
     .filter((b) => b.geloeschtAm && b.richtung !== 'zu')
     .sort((a, b) => b.geloeschtAm.localeCompare(a.geloeschtAm));
-  const kontoName = new Map(konten.map((k) => [k.id, k.name]));
+  const kontoNach = new Map(konten.map((k) => [k.id, k]));
   const kat = new Map(kategorien.map((k) => [k.id, k]));
 
   const relevantWeg = relevantListe
@@ -645,9 +695,10 @@ function papierkorbBereich(konten, kategorien, neu) {
   const anzahl = geloescht.length + relevantWeg.length;
 
   const beschreibung = (b) => {
-    if (b.art === 'umbuchung') return `Umbuchung ${kontoName.get(b.kontoId) ?? '?'} → ${kontoName.get(b.gegenkontoId) ?? '?'}`;
+    // D228: Konten als Etikett
+    if (b.art === 'umbuchung') return ['Umbuchung ', kontoEtikett(kontoNach.get(b.kontoId)), ' → ', kontoEtikett(kontoNach.get(b.gegenkontoId))];
     const unter = kat.get(b.kategorieId);
-    return `${unter?.name ?? 'Unbekannte Kategorie'} · ${kontoName.get(b.kontoId) ?? '?'}`;
+    return [`${unter?.name ?? 'Unbekannte Kategorie'} · `, kontoEtikett(kontoNach.get(b.kontoId))];
   };
 
   return h('section', { class: 'bereich', 'aria-labelledby': 'titel-papierkorb' },

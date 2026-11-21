@@ -23,7 +23,7 @@
 import { neueKategorie, INVESTITIONEN_UNTER, BARGELD_UNTER } from './startdaten.js';
 import { startReihenfolge } from './konten.js';
 
-export const DATENMODELL_VERSION = 24;
+export const DATENMODELL_VERSION = 25;
 
 /** Standard-Schwellen für Budgethinweise (in den Stammdaten änderbar) */
 export const STANDARD_EINSTELLUNGEN = Object.freeze({ id: 'hinweise', monate: 3, prozent: 10 });
@@ -288,6 +288,15 @@ export const MIGRATIONEN = [
         b.aufrundungFuer ??= null;
         b.ausgleichFuer ??= null;
       }
+      return daten;
+    },
+  },
+  {
+    nach: 25,
+    beschreibung: 'Konto-Farben (D228): Konten bekommen ein Feld "farbe" (null oder Schlüssel einer Bank- bzw. Palettenfarbe). '
+      + 'Alte App-Versionen lesen diesen Stand nicht mehr.',
+    migriere(daten) {
+      for (const k of daten.konten ?? []) k.farbe ??= null;
       return daten;
     },
   },
