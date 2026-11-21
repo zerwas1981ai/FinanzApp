@@ -29,6 +29,14 @@ Details zu Datenmodell, Oberfläche und Rechenlogik (aus CLAUDE.md verschoben). 
   Zeile (D220/D221): immer Monat · Quartal/Halbjahr · Jahr in dieser Reihenfolge, der Wert passend zur Zahlweise groß und gerade (wie die Gesamtsumme);
   laufende Verträge ohne wiederkehrende Buchung bekommen einen Hinweis.
   Aus einer wiederkehrenden Buchung ohne Vertrag: „Vertrag daraus anlegen …“ (Empfänger + Hauptkategorie vorausgefüllt, D224); in der Liste der wiederkehrenden Buchungen zeigt vorne 📄 (mit Vertrag) bzw. ○ (ohne) an, ob ein Vertrag zugeordnet ist (D226)
+- Zähler (D233, Annahmen → Energie): Strom oder Gas (Gas in m³ mit Brennwert × Zustandszahl oder direkt in kWh), Vertrag,
+  Ende des Abrechnungsjahres (Tag/Monat), Preise ab Datum (Arbeitspreis ct/kWh, Grundpreis €/Monat), Zählerstände,
+  optional Vorjahresverbrauch und „bisher gezahlt bis“. Hochrechnung aufs Abrechnungsjahr: Strom gleichmäßig, Gas nach
+  Gradtagszahlen (Promille je Monat 170/150/130/80/40/13⅓/13⅓/13⅓/30/80/120/160). Gezahlt = Ausgaben des Vertrags im
+  Zeitraum (ohne geplante Nachzahlung); noch erwartet = offene Termine der wiederkehrenden Ausgabe des Vertrags.
+  Vorschläge (Abschlag bis zur Abrechnung, Abschlag fürs neue Jahr = Kosten ÷ 12, auf volle Euro aufgerundet) werden
+  erst nach Klick übernommen (neue Betragsstufe bzw. geplante Einmalbuchung). Hinweis „Zählerstände ablesen“ in der
+  Übersicht vom Monatsletzten bis zum 5. des Folgemonats (je Monat wegklickbar, nur dieses Gerät).
 - Wiederkehrende Buchung: Intervall (monatlich/vierteljährlich/halbjährlich/jährlich, D197),
   Start, optional Ende, Wertänderungen ab Datum, feste Abweichung je
   Kalendermonat (jedes Jahr, D94), einzelne Monate überspringen oder verschieben;

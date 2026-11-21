@@ -27,6 +27,8 @@ import { wiederkehrendVorschlaege, archivErinnerung, ungewoehnlicheBuchungen, pr
 import { abstimmVorschlaege } from '../abstimmhilfe.js';
 import { buchungenWischbar } from './wisch-buchung.js';
 import { naechstesArchivJahr } from '../archiv.js';
+import { ablesungsHinweis } from '../energie.js';
+import { ablesungsHinweisBereich } from './energie.js';
 
 const ALLE = '__alle'; // gemerkte Auswahl "Alle Konten"
 
@@ -47,7 +49,7 @@ let abstimmDaten = null;
 const mitWischen = new WeakSet();
 
 export async function zeigeUebersicht(container) {
-  const namen = ['konten', 'kategorien', 'buchungen', 'abstimmungen', 'budgets', 'wiederkehrend', 'hinweise', 'einstellungen', 'geplant', 'projekte', 'vertraege', 'monatsnotizen', 'relevant'];
+  const namen = ['konten', 'kategorien', 'buchungen', 'abstimmungen', 'budgets', 'wiederkehrend', 'hinweise', 'einstellungen', 'geplant', 'projekte', 'vertraege', 'monatsnotizen', 'relevant', 'zaehler'];
   const werte = await Promise.all(namen.map((s) => db.alle(s)));
   const alleDaten = Object.fromEntries(namen.map((n, i) => [n, werte[i]]));
   // Nur eingeschaltete Annahmen (Ein/Aus-Häkchen) zählen in Prognose und Zeitleiste
@@ -88,6 +90,7 @@ export async function zeigeUebersicht(container) {
     kennzahlenBereich(prognose, alleDaten, heute, warnungen, prognoseJahresende(zl, heute)),
     hinweisBereich(hinweise, daten),
     kuendigungsBereich(kuendigungsHinweise(alleDaten.vertraege, heute), alleDaten), // D148
+    ablesungsHinweisBereich(ablesungsHinweis(alleDaten.zaehler, heute, geraet.lies('zaehler-hinweis-weg')), alleDaten), // D233
     // D182: erkannte wiederkehrende Zahlungen; D185: Archiv-Erinnerung
     erkanntBereich(wiederkehrendVorschlaege(alleDaten.buchungen, alleDaten.wiederkehrend, abgelehnteVorschlaege(alleDaten.einstellungen), heute), alleDaten),
     preisBereich(preisAenderungen(alleDaten.wiederkehrend, alleDaten.buchungen, heute, abgelehntePreise(alleDaten.einstellungen)), alleDaten), // D203

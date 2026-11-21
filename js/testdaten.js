@@ -14,7 +14,8 @@ import { neueKategorie } from './startdaten.js';
 import { baueBuchungen } from './buchungen.js';
 import { heuteIso } from './format.js';
 import { plusMonate, monatsende } from './prognose.js';
-import { plusMonate as plusMonateIso } from './vertraege.js';
+import { plusMonate as plusMonateIso, plusTage } from './vertraege.js';
+import { zeitraum, gewicht } from './energie.js';
 
 const SAMMLUNGEN_MIT_TESTDATEN = ['konten', 'kategorien', 'buchungen', 'budgets', 'wiederkehrend', 'geplant', 'projekte', 'relevant', 'vertraege'];
 
@@ -123,6 +124,32 @@ export async function ladeTestdaten() {
   if (wk.streaming) wk.streaming.vertragId = vertraege.streaming.id;
   if (wk.kfz) wk.kfz.vertragId = vertraege.kfz.id;
   await db.speichere('wiederkehrend', Object.values(wk));
+
+  /* ---------- Zähler für den Abschlagsrechner (D233, erfunden) ---------- */
+  // Zählerstände an jedem Monatsletzten seit Beginn des Abrechnungsjahres; Gas nach Gradtagszahlen verteilt
+  const zaehlerStaende = (endeMmTt, start, jahresMenge, art) => {
+    const z = { abrechnungsEnde: endeMmTt };
+    const zr = zeitraum(z, heute);
+    const liste = [{ datum: plusTage(zr.start, -1), stand: start }];
+    let stand = start;
+    for (let d = plusTage(zr.start, -1); ;) {
+      const naechster = plusTage(plusMonateIso(plusTage(d, 1), 1), -1);
+      if (naechster >= heute) break;
+      stand += jahresMenge * gewicht(art, d, naechster) / 1000;
+      liste.push({ datum: naechster, stand: Math.round(stand * 10) / 10 });
+      d = naechster;
+    }
+    return liste;
+  };
+  const zaehlerBasis = { zaehlernummer: '', vorjahrKwh: null, gezahltManuell: null, geplantId: null, aktiv: true, notiz: '', erstelltAm: jetzt, geaendertAm: jetzt, testdaten: true };
+  await db.speichere('zaehler', [
+    { ...zaehlerBasis, id: crypto.randomUUID(), name: 'Strom (Test)', art: 'strom', einheit: 'kwh', vertragId: vertraege.strom.id, abrechnungsEnde: '03-31',
+      preise: [{ ab: `${jahr - 1}-04-01`, arbeitCt: 31.5, grundCent: 1290 }], brennwert: null, zustandszahl: null, vorjahrKwh: 2900,
+      ablesungen: zaehlerStaende('03-31', 48210, 3100, 'strom') },
+    { ...zaehlerBasis, id: crypto.randomUUID(), name: 'Gas (Test)', art: 'gas', einheit: 'm3', vertragId: null, abrechnungsEnde: '05-31',
+      preise: [{ ab: `${jahr - 1}-06-01`, arbeitCt: 10.9, grundCent: 1450 }], brennwert: 11.2, zustandszahl: 0.9563,
+      ablesungen: zaehlerStaende('05-31', 9120, 1250, 'gas') },
+  ]);
 
   /* ---------- Buchungen ---------- */
   const vorlagen = [
@@ -331,6 +358,7 @@ export async function loescheTestdaten() {
     if (betroffen.length) await db.speichere(name, betroffen.map((x) => ({ ...x, projektId: null })));
   }
   await db.loesche('hinweise', hinweisWeg.map((x) => x.id));
+  await db.loesche('zaehler', (await db.alle('zaehler')).filter((z) => z.testdaten).map((z) => z.id)); // D233
   await db.loesche('konten', [...kontoIds]);
   await db.loesche('kategorien', [...katIds]);
   return {

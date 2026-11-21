@@ -1851,3 +1851,8 @@ li.wisch-aktiv.wisch-bereit::before { opacity: 1; }
 .knopf.auslage-vorschlag[hidden] { display: none; }
 /* D215/D216: Häkchen Aufrunden/Ausgleich – [hidden] muss gegen .schalter gewinnen */
 .aufrunden-feld[hidden] { display: none; }
+
+/* D233: Energie – Preiszeile im Zählerdialog (gilt ab · Arbeitspreis · Grundpreis · ✕) */
+.stufe.stufe-preis { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr) 40px; }
+.energie .tabelle td:last-child { width: 1%; }
+.energie .tabelle .knopf-klein { padding: 2px 8px; }

@@ -6,13 +6,15 @@ import { h } from '../dom.js';
 import { sortiereKonten } from '../konten.js';
 import * as db from '../db.js';
 import { formatEuro, formatDatum, formatMonat, centZuEingabe, parseEuro, heuteIso } from '../format.js';
-import { dialog, frage, toast, eingabe, auswahl, datenGeaendert, bereichsWahl, kurzLang, kontoEtikett, verbinde, alsText } from '../ui.js';
+import { dialog, frage, toast, eingabe, auswahl, datenGeaendert, bereichsWahl, kurzLang, kontoEtikett, verbinde, alsText, geraet } from '../ui.js';
 import { baueBudget, baueWiederkehrend, baueGeplant, geplantErledigt, haeufigstesKonto, mitAusnahme } from '../annahmen.js';
 import { betragAm, terminBetrag, naechsterTermin, plusMonate, monatsende, annahmeTitel, budgetVorschlag } from '../prognose.js';
 import { artWahl, fuelleKategorien, projektFeld, oeffneBuchungsdialog, partnerFeld, budgetZuordnungFeld, vertragFeld } from './buchung-dialog.js';
 import { VERTEILUNGEN, istJaehrlich } from '../jahresbudget.js';
 import { kuendigungsHinweise, wiederkehrendJeMonat, aktuellerBetrag } from '../vertraege.js';
 import { vertraegeBereich, vertragDialog } from './vertraege.js';
+import { energieBereich } from './energie.js';
+import { ablesungsHinweis } from '../energie.js';
 
 const nachName = (a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base' });
 const INTERVALL_TEXT = { monatlich: 'monatlich', vierteljaehrlich: 'vierteljährlich', halbjaehrlich: 'halbjährlich', jaehrlich: 'jährlich' };
@@ -25,22 +27,24 @@ const ART_UEBERSCHRIFT = { wiederkehrend: 'Monatlich', jaehrlich: 'Jährlich', e
 const QUARTALSENDE = ['31.03.', '30.06.', '30.09.', '31.12.'];
 
 export async function zeigeAnnahmen(container) {
-  const namen = ['konten', 'kategorien', 'buchungen', 'budgets', 'wiederkehrend', 'geplant', 'projekte', 'vertraege'];
+  const namen = ['konten', 'kategorien', 'buchungen', 'budgets', 'wiederkehrend', 'geplant', 'projekte', 'vertraege', 'zaehler'];
   const werte = await Promise.all(namen.map((n) => db.alle(n)));
   const daten = Object.fromEntries(namen.map((n, i) => [n, werte[i]]));
 
   // D160: Umschalter Budgets · Wiederkehrende · Geplante statt alles untereinander; Wahl merkt sich das Gerät
   // D191: Verträge als letzter Umschalter (vorher im Tab Projekte); Zahl = anstehende Kündigungsfristen
   const fristen = kuendigungsHinweise(daten.vertraege, heuteIso()).length;
+  // D233: Energie neben Verträgen; Zahl = Zähler, die am Monatsende noch abgelesen werden wollen
+  const ablesen = ablesungsHinweis(daten.zaehler, heuteIso(), geraet.lies('zaehler-hinweis-weg'))?.zaehler.length ?? 0;
   const wahl = bereichsWahl('ansicht-annahmen', [
     ['budgets', 'Budgets'], ['wiederkehrend', kurzLang('Wiederkehrende Buchungen', 'Wiederkehrend')],
-    ['vertraege', 'Verträge', fristen], ['geplant', kurzLang('Geplante Einmalbuchungen', 'Geplant')], // D193: Verträge vor Geplant
+    ['vertraege', 'Verträge', fristen], ['energie', 'Energie', ablesen], ['geplant', kurzLang('Geplante Einmalbuchungen', 'Geplant')], // D193: Verträge vor Geplant
   ]);
-  const bereich = { budgets: budgetBereich, wiederkehrend: wiederkehrendBereich, geplant: geplantBereich, vertraege: vertraegeBereich }[wahl.aktuell](daten);
+  const bereich = { budgets: budgetBereich, wiederkehrend: wiederkehrendBereich, geplant: geplantBereich, vertraege: vertraegeBereich, energie: energieBereich }[wahl.aktuell](daten);
   container.replaceChildren(
     h('h1', { class: 'seitentitel unsichtbar' }, 'Annahmen'),
     wahl.leiste(() => zeigeAnnahmen(container), { info: true }),
-    wahl.aktuell === 'vertraege' ? '' : h('p', { class: 'hinweis erklaerung' }, // D191: bei Verträgen eigene Erklärung
+    ['vertraege', 'energie'].includes(wahl.aktuell) ? '' : h('p', { class: 'hinweis erklaerung' }, // D191: bei Verträgen eigene Erklärung
       'Hier legst du fest, womit die App für die Zukunft rechnet. Alles sind feste Beträge – ' +
       'keine Prozent-Steigerungen. Nichts davon wird automatisch gebucht. Mit dem Häkchen links ' +
       'schaltest du einen Posten für die Prognose ein oder aus, ohne ihn zu löschen.'),
@@ -666,12 +670,12 @@ export function geplantDialog(g, daten, vorgaben = {}) {
     toast('Bitte zuerst unter Stammdaten ein Konto anlegen.');
     return;
   }
-  let art = g?.art ?? 'ausgabe';
+  let art = g?.art ?? vorgaben.art ?? 'ausgabe'; // D233: Vorgaben auch für Art, Kategorie, Empfänger (Abschlagsrechner)
   const erledigt = g ? geplantErledigt(g, buchungen) : false;
 
   const artKnoepfe = artWahl(null, art, (neu) => { art = neu; aktualisiere(); });
   const bezeichnung = eingabe({ label: 'Bezeichnung', value: g?.bezeichnung ?? vorgaben.bezeichnung ?? '', maxlength: 60, placeholder: 'z. B. Autoreparatur', autofocus: true });
-  const partner = partnerFeld(buchungen, g?.partner ?? '', art);
+  const partner = partnerFeld(buchungen, g?.partner ?? vorgaben.partner ?? '', art);
   const betrag = eingabe({ label: 'Betrag in €', inputmode: 'decimal', placeholder: '0,00', value: g ? centZuEingabe(g.betragCent) : (vorgaben.betragCent ? centZuEingabe(vorgaben.betragCent) : ''), class: 'eingabe-betrag' });
   const kategorie = auswahl({ label: 'Kategorie', optionen: [] });
   const kontoOptionen = waehlbar.map((k) => ({ wert: k.id, text: k.name }));
@@ -689,7 +693,7 @@ export function geplantDialog(g, daten, vorgaben = {}) {
     gegenkonto.feld.hidden = !istUmbuchung;
     budgetFeld.feld.hidden = !istUmbuchung;
     konto.feld.querySelector('label').textContent = istUmbuchung ? 'Von Konto' : 'Konto';
-    if (!istUmbuchung) fuelleKategorien(kategorie.select, kategorien, art, g?.kategorieId);
+    if (!istUmbuchung) fuelleKategorien(kategorie.select, kategorien, art, g?.kategorieId ?? vorgaben.kategorieId);
   }
   aktualisiere();
 
@@ -763,6 +767,7 @@ export function geplantDialog(g, daten, vorgaben = {}) {
         partner: partner.input.value,
       }, { konten, kategorien, alt: g });
       await db.speichere('geplant', datensatz);
+      await vorgaben.nachSpeichern?.(datensatz); // D233
       toast(g ? 'Gespeichert' : 'Geplante Einmalbuchung angelegt');
       datenGeaendert();
     },

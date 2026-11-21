@@ -2835,3 +2835,25 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
 ### D232 – Auswahl wieder blau
 - Die Auswahlfarbe aus D229 (Weißton/dunkles Grau) ist zurückgenommen: Alle gewählten Zustände sehen wieder aus wie
   vor D229 (Blau, `--akzent`). Die eckigeren Rundungen aus D229 bleiben.
+
+### D233 – Abschlagsrechner für Strom und Gas (Annahmen → Energie)
+- Neuer Umschalter „Energie“ zwischen Verträgen und Geplant; neue Sammlung `zaehler` (Datenversion 26, IndexedDB-Struktur 13).
+  Rechenlogik in `js/energie.js`, Ansicht in `js/views/energie.js`.
+- Je Zähler: Strom oder Gas; Gas wahlweise in m³ (kWh = m³ × Brennwert × Zustandszahl von der Rechnung) oder kWh.
+  Jeder Zähler hat sein eigenes Abrechnungsende (z. B. 31.03. bzw. 31.05.), Preise gelten ab Datum (nur feste Beträge).
+- Hochrechnung aus den Zählerständen: von der letzten Ablesung am/vor Beginn des Abrechnungsjahres bis zur neuesten.
+  Strom gleichmäßig je Tag (Entscheidung des Nutzers, auch mit Laden des Firmen-PKW: es zählt der Gesamtverbrauch am
+  Zähler, die Erstattung läuft getrennt). Gas nach der Gradtagszahlen-Verteilung (VDI, Promille je Monat, Summe 1000).
+  Ohne zwei Zählerstände: Vorjahresverbrauch als Ersatz. Unter 60 Tagen Messung: Hinweis „noch ungenau“.
+- Unterjähriger Start: Anfangsstand laut letzter Abrechnung beim Anlegen; Abschläge vor der App als „bisher gezahlt
+  bis …“ (Buchungen bis zu diesem Tag zählen dann nicht doppelt).
+- Gezahlt = Ausgaben des verknüpften Vertrags im Zeitraum (ohne Papierkorb, ohne Buchungen zu einer geplanten
+  Einmalbuchung); noch erwartet = offene Termine der wiederkehrenden Ausgabe des Vertrags nach der letzten Zahlung.
+  Ergebnis = Kosten − gezahlt − noch erwartet (Nachzahlung bzw. Guthaben).
+- Vorschläge, auf volle Euro aufgerundet: Abschlag bis zur Abrechnung = (Kosten − gezahlt) ÷ offene Termine;
+  neues Abrechnungsjahr = Kosten ÷ 12. „Abschlag übernehmen“ legt eine Betragsstufe ab dem gewählten Termin an;
+  „In die Prognose“ öffnet die geplante Einmalbuchung vorbefüllt (Datum: 45 Tage nach Abrechnungsende) und merkt
+  sie am Zähler (`geplantId`). Gespeichert wird beides erst nach Klick.
+- Erinnerung: Eine echte Handy-Benachrichtigung zu fester Zeit geht ohne eigenen Server nicht. Stattdessen Hinweis
+  oben in der Übersicht vom Monatsletzten bis zum 5. des Folgemonats für eingeschaltete Zähler ohne Ablesung ab
+  3 Tage vor dem Monatsletzten; „Diesen Monat nicht“ merkt sich das Gerät. Zahl am Umschalter „Energie“.

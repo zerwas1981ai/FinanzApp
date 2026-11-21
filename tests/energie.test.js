@@ -1,0 +1,186 @@
+// Tests zu D233 (Abschlagsrechner Strom und Gas) – nur erfundene Testdaten
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import {
+  GAS_PROMILLE, parseZahl, gewicht, zeitraum, folgeZeitraum, faktor, verbrauch, preisAm, kosten, abschlagsRechnung,
+  ablesungsHinweis, baueZaehler, mitAblesung, ohneAblesung, ablesungsVerlauf, mitNeuemAbschlag, abschlagBuchung,
+} from '../js/energie.js';
+import { migriereDaten, DATENMODELL_VERSION } from '../js/migrationen.js';
+
+const nah = (a, b, eps = 0.01) => assert.ok(Math.abs(a - b) < eps, `${a} ≠ ${b}`);
+
+const strom = {
+  id: 'z1', name: 'Strom (Test)', art: 'strom', einheit: 'kwh', vertragId: 'v1', abrechnungsEnde: '03-31',
+  preise: [{ ab: '2026-04-01', arbeitCt: 30, grundCent: 1000 }],
+  ablesungen: [{ datum: '2026-03-31', stand: 10000 }, { datum: '2026-10-31', stand: 11400 }],
+};
+const gas = {
+  id: 'z2', name: 'Gas (Test)', art: 'gas', einheit: 'm3', brennwert: 11, zustandszahl: 0.95, abrechnungsEnde: '05-31',
+  preise: [{ ab: '2025-06-01', arbeitCt: 10, grundCent: 1500 }],
+  ablesungen: [{ datum: '2026-05-31', stand: 1000 }, { datum: '2026-10-31', stand: 1100 }],
+};
+
+test('Gradtagszahlen ergeben zusammen 1000 Promille; Strom gleichmäßig', () => {
+  nah(GAS_PROMILLE.reduce((s, x) => s + x, 0), 1000);
+  nah(gewicht('gas', '2026-05-31', '2027-05-31'), 1000);
+  nah(gewicht('strom', '2026-03-31', '2027-03-31'), 1000);
+  nah(gewicht('gas', '2026-05-31', '2026-10-31'), 150, 0.001); // Juni–August je 13⅓, September 30, Oktober 80
+});
+
+test('Kommazahlen deutsch lesen', () => {
+  assert.equal(parseZahl('12.345,6', 'Stand'), 12345.6);
+  assert.equal(parseZahl('0,9563', 'Zustandszahl'), 0.9563);
+  assert.equal(parseZahl('32.45', 'Preis'), 32.45);
+  assert.equal(parseZahl('  ', 'Stand'), null);
+  assert.throws(() => parseZahl('12a', 'Stand'), /Stand: bitte eine Zahl/);
+});
+
+test('Abrechnungszeitraum je Zähler, auch unterjährig gestartet', () => {
+  assert.deepEqual(zeitraum(strom, '2026-11-21'), { start: '2026-04-01', ende: '2027-03-31' });
+  assert.deepEqual(zeitraum(strom, '2027-03-31'), { start: '2026-04-01', ende: '2027-03-31' });
+  assert.deepEqual(zeitraum(strom, '2027-04-01'), { start: '2027-04-01', ende: '2028-03-31' });
+  assert.deepEqual(zeitraum(gas, '2026-11-21'), { start: '2026-06-01', ende: '2027-05-31' });
+  assert.deepEqual(folgeZeitraum({ start: '2026-04-01', ende: '2027-03-31' }), { start: '2027-04-01', ende: '2028-03-31' });
+  assert.deepEqual(zeitraum({ abrechnungsEnde: '02-29' }, '2026-11-21'), { start: '2026-03-01', ende: '2027-02-28' });
+});
+
+test('Gas in m³: Umrechnung und Hochrechnung nach Gradtagszahlen', () => {
+  nah(faktor(gas), 10.45);
+  assert.equal(faktor({ ...gas, einheit: 'kwh' }), 1);
+  const v = verbrauch(gas, zeitraum(gas, '2026-11-21'), '2026-11-21');
+  assert.equal(v.quelle, 'ablesung');
+  nah(v.kwh, 1045);
+  nah(v.rate, 1045 / 150, 0.0001);
+  // Juni bis Oktober sind nur 15 % des Jahres – hochgerechnet ≈ 6967 kWh, nicht linear ≈ 2490 kWh
+  const k = kosten(gas, v.rate, '2026-05-31', '2027-05-31');
+  nah(k.kwh, 6966.67, 0.1);
+  nah(k.cent, Math.round(6966.67 * 10 + 12 * 1500), 2);
+});
+
+test('Ersatz: Vorjahresverbrauch, solange Ablesungen fehlen', () => {
+  const ohne = { ...strom, ablesungen: [{ datum: '2026-11-20', stand: 5 }], vorjahrKwh: 2500 };
+  const v = verbrauch(ohne, zeitraum(ohne, '2026-11-21'), '2026-11-21');
+  assert.equal(v.quelle, 'vorjahr');
+  nah(kosten(ohne, v.rate, '2026-03-31', '2027-03-31').kwh, 2500);
+  assert.equal(verbrauch({ ...ohne, vorjahrKwh: null }, zeitraum(ohne, '2026-11-21'), '2026-11-21'), null);
+  // kurze Messung = ungenau
+  const kurz = { ...strom, ablesungen: [{ datum: '2026-11-01', stand: 1 }, { datum: '2026-11-20', stand: 120 }] };
+  assert.equal(verbrauch(kurz, zeitraum(kurz, '2026-11-21'), '2026-11-21').ungenau, true);
+});
+
+test('Preise gelten ab Datum, auch mitten im Zeitraum', () => {
+  const preise = [{ ab: '2026-04-01', arbeitCt: 30, grundCent: 1000 }, { ab: '2027-01-01', arbeitCt: 40, grundCent: 1200 }];
+  assert.equal(preisAm(preise, '2026-12-31').arbeitCt, 30);
+  assert.equal(preisAm(preise, '2027-01-01').arbeitCt, 40);
+  assert.equal(preisAm(preise, '2020-01-01').arbeitCt, 30, 'vor dem ersten Preis: der erste');
+  // 1000 kWh im Jahr gleichmäßig: 275 Tage zu 30 ct, 90 Tage zu 40 ct
+  const k = kosten({ art: 'strom', preise }, 1, '2026-03-31', '2027-03-31');
+  nah(k.cent, Math.round(1000 * 275 / 365 * 30 + 1000 * 90 / 365 * 40 + 9 * 1000 + 3 * 1200), 2);
+});
+
+test('Abschlagsrechnung: echte Zahlungen, offene Termine, Guthaben und Vorschlag', () => {
+  const wk = { id: 'w1', art: 'ausgabe', vertragId: 'v1', aktiv: true, intervall: 'monatlich', start: '2026-04-15', stufen: [{ ab: '2026-04-15', betragCent: 7000 }], ausnahmen: [] };
+  const monate = ['04', '05', '06', '07', '08', '09', '10', '11'];
+  const buchungen = monate.map((m, i) => ({ id: `b${i}`, art: 'ausgabe', datum: `2026-${m}-15`, betragCent: 7000, wiederkehrendId: 'w1', faelligAm: `2026-${m}-15` }));
+  buchungen.push({ id: 'alt', art: 'ausgabe', datum: '2026-03-15', betragCent: 7000, wiederkehrendId: 'w1', faelligAm: '2026-03-15' }); // voriger Zeitraum
+  buchungen.push({ id: 'pk', art: 'ausgabe', datum: '2026-11-16', betragCent: 9999, vertragId: 'v1', geloeschtAm: 'x' }); // Papierkorb
+  const r = abschlagsRechnung(strom, { wiederkehrend: [wk], buchungen }, '2026-11-21');
+  assert.equal(r.fehlt, null);
+  assert.equal(r.gezahltCent, 56000);
+  assert.equal(r.offen.length, 4, 'Dezember bis März');
+  assert.equal(r.offenCent, 28000);
+  const jahresKwh = 1400 / 214 * 365;
+  nah(r.jahresKwh, jahresKwh, 0.5);
+  nah(r.jahresCent, Math.round(jahresKwh * 30 + 12 * 1000), 3);
+  assert.equal(r.saldoCent, r.jahresCent - 56000 - 28000);
+  assert.ok(r.saldoCent < 0, 'leichtes Guthaben');
+  assert.equal(r.vorschlagCent, Math.ceil((r.jahresCent - 56000) / 4 / 100) * 100);
+  assert.equal(r.folge.vorschlagCent % 100, 0, 'auf volle Euro');
+  assert.equal(abschlagBuchung(strom, [wk]).id, 'w1');
+});
+
+test('Abschlagsrechnung: bisher gezahlt von Hand ersetzt Buchungen bis zu diesem Tag', () => {
+  const wk = { id: 'w1', art: 'ausgabe', vertragId: 'v1', aktiv: true, intervall: 'monatlich', start: '2026-04-15', stufen: [{ ab: '2026-04-15', betragCent: 7000 }], ausnahmen: [] };
+  const buchungen = [{ id: 'b1', art: 'ausgabe', datum: '2026-11-15', betragCent: 7000, wiederkehrendId: 'w1', faelligAm: '2026-11-15' },
+    { id: 'b0', art: 'ausgabe', datum: '2026-10-15', betragCent: 7000, vertragId: 'v1' }];
+  const z = { ...strom, gezahltManuell: { bis: '2026-10-31', cent: 49000 } };
+  const r = abschlagsRechnung(z, { wiederkehrend: [wk], buchungen }, '2026-11-21');
+  assert.equal(r.gezahltCent, 56000, 'Oktober-Buchung steckt schon in der Summe von Hand');
+  assert.equal(r.offen.length, 4, 'nicht gebuchte Termine vor der Summe zählen nicht als offen');
+  // Summe aus dem vorigen Zeitraum zählt nicht
+  const alt = abschlagsRechnung({ ...strom, gezahltManuell: { bis: '2026-02-28', cent: 49000 } }, { wiederkehrend: [wk], buchungen }, '2026-11-21');
+  assert.equal(alt.gezahltCent, 14000);
+});
+
+test('Abschlagsrechnung: ohne Preise oder Ablesungen nur Hinweis; ohne Abschlag-Buchung Vorschlag nach Monaten', () => {
+  assert.equal(abschlagsRechnung({ ...strom, preise: [] }, { wiederkehrend: [], buchungen: [] }, '2026-11-21').fehlt, 'preis');
+  assert.equal(abschlagsRechnung({ ...strom, ablesungen: [] }, { wiederkehrend: [], buchungen: [] }, '2026-11-21').fehlt, 'ablesung');
+  const r = abschlagsRechnung({ ...strom, vertragId: null }, { wiederkehrend: [], buchungen: [] }, '2026-11-21');
+  assert.equal(r.saldoCent, null);
+  assert.equal(r.restMonate, 4);
+  assert.equal(r.vorschlagCent, Math.ceil(r.jahresCent / 4 / 100) * 100);
+});
+
+test('Hinweis am Monatsletzten bis 5 Tage danach, bis abgelesen oder weggeklickt', () => {
+  const z = [{ ...strom, ablesungen: [{ datum: '2026-10-31', stand: 1 }] }, { ...gas, ablesungen: [] }];
+  assert.equal(ablesungsHinweis(z, '2026-11-29'), null);
+  assert.equal(ablesungsHinweis(z, '2026-11-30').zaehler.length, 2);
+  assert.equal(ablesungsHinweis(z, '2026-11-30').stichtag, '2026-11-30');
+  const dez = ablesungsHinweis(z, '2026-12-03');
+  assert.equal(dez.stichtag, '2026-11-30');
+  assert.equal(ablesungsHinweis(z, '2026-12-06'), null);
+  assert.equal(ablesungsHinweis(z, '2026-12-03', '2026-11-30'), null, 'weggeklickt');
+  // Oktober: Strom am 31.10. abgelesen, Gas nicht
+  assert.deepEqual(ablesungsHinweis(z, '2026-11-02').zaehler.map((x) => x.id), ['z2']);
+  assert.equal(ablesungsHinweis([{ ...gas, aktiv: false }], '2026-11-30'), null);
+  assert.equal(ablesungsHinweis(z, '2027-02-28').stichtag, '2027-02-28');
+});
+
+test('Zähler bauen: Prüfungen', () => {
+  const ein = { name: ' Gas Haus ', art: 'gas', einheit: 'm3', abrechnungsEnde: '05-31', brennwert: 11.2, zustandszahl: 0.95, preise: [{ ab: '2026-06-01', arbeitCt: 9.5, grundCent: 1200 }] };
+  const z = baueZaehler(ein, { jetzt: 'T' });
+  assert.equal(z.name, 'Gas Haus');
+  assert.equal(z.einheit, 'm3');
+  assert.deepEqual(z.ablesungen, []);
+  assert.equal(baueZaehler({ ...ein, art: 'strom' }).einheit, 'kwh', 'Strom immer kWh');
+  assert.equal(baueZaehler({ ...ein, einheit: 'kwh' }).brennwert, null);
+  assert.throws(() => baueZaehler({ ...ein, name: '' }), /Namen/);
+  assert.throws(() => baueZaehler(ein, { zaehler: [z] }), /gibt es schon/);
+  assert.throws(() => baueZaehler({ ...ein, brennwert: null }), /Brennwert/);
+  assert.throws(() => baueZaehler({ ...ein, abrechnungsEnde: '13-01' }), /Abrechnungsjahres/);
+  assert.throws(() => baueZaehler({ ...ein, preise: [{ ab: '2026-06-01', arbeitCt: 0, grundCent: 0 }] }), /Arbeitspreis/);
+  // Bearbeiten: Ablesungen und Verknüpfung zur geplanten Buchung bleiben
+  const mit = { ...z, ablesungen: [{ datum: '2026-06-01', stand: 5 }], geplantId: 'g1' };
+  const neu = baueZaehler({ ...ein, name: 'Gas' }, { zaehler: [z], alt: mit });
+  assert.equal(neu.id, z.id);
+  assert.equal(neu.geplantId, 'g1');
+  assert.equal(neu.ablesungen.length, 1);
+});
+
+test('Ablesungen: ergänzen, ersetzen, nicht rückwärts, Verlauf', () => {
+  let z = mitAblesung({ ...strom, ablesungen: [] }, { datum: '2026-10-31', stand: 11400 });
+  z = mitAblesung(z, { datum: '2026-03-31', stand: 10000 });
+  assert.deepEqual(z.ablesungen.map((a) => a.datum), ['2026-03-31', '2026-10-31']);
+  assert.throws(() => mitAblesung(z, { datum: '2026-11-30', stand: 11000 }), /nur vorwärts/);
+  assert.throws(() => mitAblesung(z, { datum: '2026-06-30', stand: 12000 }), /größer als/);
+  z = mitAblesung(z, { datum: '2026-10-31', stand: 11500 });
+  assert.equal(z.ablesungen.length, 2, 'gleiches Datum ersetzt');
+  const verlauf = ablesungsVerlauf(z);
+  assert.equal(verlauf[0].kwh, 1500);
+  assert.equal(verlauf[0].tage, 214);
+  assert.equal(ohneAblesung(z, '2026-03-31').ablesungen.length, 1);
+});
+
+test('Neuer Abschlag als Stufe der wiederkehrenden Buchung', () => {
+  const wk = { id: 'w1', start: '2026-04-15', stufen: [{ ab: '2026-04-15', betragCent: 7000 }] };
+  const neu = mitNeuemAbschlag(wk, '2026-12-15', 7500, 'T');
+  assert.deepEqual(neu.stufen, [{ ab: '2026-04-15', betragCent: 7000 }, { ab: '2026-12-15', betragCent: 7500 }]);
+  assert.deepEqual(mitNeuemAbschlag(neu, '2026-12-15', 8000).stufen.at(-1), { ab: '2026-12-15', betragCent: 8000 });
+  assert.throws(() => mitNeuemAbschlag(wk, '2026-01-01', 7500), /vor dem Start/);
+});
+
+test('Migration auf Datenversion 26: Sammlung „zaehler“', () => {
+  assert.equal(DATENMODELL_VERSION, 26);
+  const { daten } = migriereDaten({ version: 25, konten: [] });
+  assert.deepEqual(daten.zaehler, []);
+});

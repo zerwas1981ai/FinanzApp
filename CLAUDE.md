@@ -8,8 +8,8 @@ Oberfläche auf Deutsch, Währung Euro, deutsches Datums- und Zahlenformat.
 
 ## Aktueller Stand
 - Alle Grundfunktionen sind fertig und online (GitHub Pages); seitdem Verbesserungsrunden auf Wunsch.
-- Letzte Entscheidung: D232, Cache-Version in sw.js: finanzapp-v132, Datenmodell-Version 25.
-- 199 Tests mit `npm test`, alle grün.
+- Letzte Entscheidung: D233, Cache-Version in sw.js: finanzapp-v133, Datenmodell-Version 26.
+- 213 Tests mit `npm test`, alle grün.
 - Offen: Wischen in Buchungslisten (D211) am echten Handy prüfen.
 
 ## Arbeitsweise (wichtig)
@@ -50,6 +50,7 @@ Oberfläche auf Deutsch, Währung Euro, deutsches Datums- und Zahlenformat.
 - `js/annahmen.js`, `js/jahresbudget.js` – Budgets, wiederkehrende und geplante Buchungen bauen
 - `js/sync/` – Google-Drive-Abgleich mit Konfliktabfrage
 - `js/erkennung.js`, `js/abstimmhilfe.js`, `js/abschluss.js` – Hinweise ohne KI
+- `js/energie.js` – Abschlagsrechner Strom/Gas (D233), Ansicht `js/views/energie.js`
 - `js/auslagen.js` – Auslagen und Rückzahlungen (D214); Aufrunden und Ausgleich stecken in `js/buchungen.js` (D215/D216)
 - `js/ui.js`, `js/dom.js` – Dialoge, Umschalter, Meldungen, `h()`-Helfer
 - `js/views/*.js` – Ansicht je Tab/Bereich (uebersicht, alle-buchungen, annahmen, stammdaten …)
