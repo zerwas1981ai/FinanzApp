@@ -27,9 +27,6 @@
   --radius: 8px;        /* Karten/Bereiche */
   --radius-klein: 6px;  /* Knöpfe, Felder, Untertabs, Hinweise */
   --radius-mini: 4px;   /* kleine Teile in Knöpfen/Zeilen: Marken, Etiketten, Balken */
-  /* D229: Farbe der Auswahl (gewählter Untertab, Konto, Zeitraum …) – hell: dunkles Grau */
-  --auswahl: #3c4048;
-  --auf-auswahl: #ffffff;
   --nav-hoehe: 64px;
 }
 
@@ -52,9 +49,6 @@
   --einnahme: #5fcf8a;
   --ausgabe: #f07167;
   --schatten: none;
-  /* D229: Auswahl im Dunkelmodus: Weißton */
-  --auswahl: #e7e9ec;
-  --auf-auswahl: #0e1013;
 }
 
 * { box-sizing: border-box; }
@@ -125,7 +119,7 @@ svg { stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; 
 
 .nav a svg { width: 20px; height: 20px; flex: none; }
 .nav a:hover { color: var(--text); background: var(--flaeche-2); }
-.nav a[aria-current="page"] { color: var(--auf-auswahl); background: var(--auswahl); } /* D229 */
+.nav a[aria-current="page"] { color: var(--akzent); background: var(--akzent-leicht); }
 
 .icon-knopf {
   display: grid;
@@ -180,7 +174,7 @@ svg { stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; 
     white-space: normal; /* 5 Tabs: "Alle Buchungen" darf umbrechen */
   }
   .nav a svg { width: 22px; height: 22px; }
-  .nav a[aria-current="page"] { background: transparent; color: var(--text); font-weight: 700; } /* D229: am Handy ohne Fläche */
+  .nav a[aria-current="page"] { background: transparent; }
 }
 
 /* ---------- Inhalt ---------- */
@@ -456,8 +450,8 @@ fieldset.feld { border: none; padding: 0; margin: 0 0 14px; }
   border-radius: var(--radius-klein);
   cursor: pointer;
 }
-.option:has(input:checked) { border-color: var(--auswahl); background: var(--flaeche-2); }
-.option input { accent-color: var(--auswahl); }
+.option:has(input:checked) { border-color: var(--akzent); background: var(--akzent-leicht); }
+.option input { accent-color: var(--akzent); }
 
 /* ---------- Meldung unten ---------- */
 
@@ -544,7 +538,8 @@ fieldset.feld { border: none; padding: 0; margin: 0 0 14px; }
   font-size: .9rem;
   cursor: pointer;
 }
-.segment[aria-pressed="true"] { background: var(--auswahl); color: var(--auf-auswahl); } /* D229 */
+.segment[aria-pressed="true"] { background: var(--flaeche); color: var(--text); box-shadow: var(--schatten); }
+:root[data-theme="dunkel"] .segment[aria-pressed="true"] { background: var(--rand); }
 
 .feld .eingabe-betrag { font-size: 1.4rem; font-weight: 600; font-variant-numeric: tabular-nums; }
 .feld[hidden] { display: none; }
@@ -564,7 +559,7 @@ fieldset.feld { border: none; padding: 0; margin: 0 0 14px; }
   cursor: pointer;
   white-space: nowrap;
 }
-.chip[aria-pressed="true"] { background: var(--auswahl); border-color: var(--auswahl); color: var(--auf-auswahl); } /* D229 */
+.chip[aria-pressed="true"] { background: var(--akzent); border-color: transparent; color: var(--auf-akzent); }
 
 .konto-kopf { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .abstimm-info { margin-top: 4px; }
@@ -762,8 +757,8 @@ button.ka-zeile:hover { background: var(--akzent-leicht); }
 /* D130: laufender Monat ohne Rahmen – nur die Beschriftung fett und unterstrichen */
 .spalte.aktuell .spalte-label { text-decoration: underline; text-underline-offset: 3px; }
 .spalte.klickbar { cursor: pointer; }
-.spalte.gewaehlt .balken-paar { background: var(--flaeche-2); box-shadow: inset 0 0 0 1px var(--auswahl); } /* D229 */
-.spalte.gewaehlt .spalte-label { color: var(--text); font-weight: 700; }
+.spalte.gewaehlt .balken-paar { background: var(--akzent-leicht); }
+.spalte.gewaehlt .spalte-label { color: var(--akzent); font-weight: 700; }
 .spalte {
   flex: 1;
   display: flex;
@@ -798,8 +793,8 @@ button.ka-zeile:hover { background: var(--akzent-leicht); }
 .spalte.aktuell .spalte-label { color: var(--text); font-weight: 600; }
 .spalte.zukunft .spalte-label { font-style: italic; }
 /* D126: aktive Filter farbig */
-.mehrfach.aktiv > .mehrfach-knopf { border-color: var(--auswahl); background: var(--flaeche-2); color: var(--text); font-weight: 600; }
-.filter input.aktiv { border-color: var(--auswahl); background: var(--flaeche-2); }
+.mehrfach.aktiv > .mehrfach-knopf { border-color: var(--akzent); background: var(--akzent-leicht); color: var(--akzent); font-weight: 600; }
+.filter input.aktiv { border-color: var(--akzent); background: var(--akzent-leicht); }
 .balken-paar.mit-vorjahr { gap: 1px; }
 .balken-paar.mit-vorjahr > .balken { width: min(10px, 40%); }
 .balken-paar.mit-vorjahr > .balken.vorjahr { margin-right: 2px; }
@@ -887,8 +882,8 @@ p.erklaerung { margin-top: 0; }
 }
 .kat-klapp:hover { border-color: var(--akzent); color: var(--akzent); }
 /* D129: gewählte (gefilterte) Kategorie hervorheben */
-.kat-zeile.gewaehlt { background: var(--flaeche-2); box-shadow: inset 3px 0 0 var(--auswahl); } /* D229 */
-.kat-zeile.gewaehlt .kat-zeile-name { color: var(--text); font-weight: 700; }
+.kat-zeile.gewaehlt { background: var(--akzent-leicht); }
+.kat-zeile.gewaehlt .kat-zeile-name { color: var(--akzent); font-weight: 700; }
 .kat-zeile.ebene-2 .kat-zeile-name { padding-left: 28px; }
 /* D125: Spaltenköpfe, Zusatzzeile (Budget, Vorperiode) */
 .kat-kopf { white-space: nowrap; font-size: .72rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--text-2); padding-top: 0; }
@@ -1220,8 +1215,8 @@ details[open] > .zl-zeile > .zl-name::before { transform: rotate(90deg); }
 
 .wahl-karte { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; border: 1px solid var(--rand); border-radius: var(--radius-klein); margin-top: 6px; cursor: pointer; }
 .wahl-karte > span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.wahl-karte input { margin-top: 3px; accent-color: var(--auswahl); }
-.wahl-karte:has(input:checked) { border-color: var(--auswahl); background: var(--flaeche-2); }
+.wahl-karte input { margin-top: 3px; accent-color: var(--akzent); }
+.wahl-karte:has(input:checked) { border-color: var(--akzent); background: var(--akzent-leicht); }
 .konflikt { border: 0; padding: 0; margin: 12px 0 0; }
 .konflikt legend { font-weight: 600; font-size: .9rem; }
 
@@ -1326,7 +1321,7 @@ body.gesperrt .kopf, body.gesperrt main, body.gesperrt .fab, body.gesperrt #neue
   font: inherit; font-size: .75rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--text-2); text-align: left;
 }
 .btab-sort:hover { color: var(--text); }
-.btab-sort.erste { color: var(--text); font-weight: 700; } /* D229: sortierte Spalte wie die Auswahl */
+.btab-sort.erste { color: var(--akzent); }
 .btab-sort-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .btab-pfeil { font-size: .9rem; line-height: 1; }
 .btab-sort.btab-betrag { justify-content: flex-end; }
@@ -1348,7 +1343,7 @@ body.gesperrt .kopf, body.gesperrt main, body.gesperrt .fab, body.gesperrt #neue
 .buchung-titel .marke.marke-vorgemerkt,
 .btab-partner .marke.marke-vorgemerkt { background: transparent; color: var(--text-2); border: 1px solid var(--rand); font-weight: 400; }
 .btab-kategorie { grid-column: 3; grid-row: 1; }
-.btab-konto { grid-column: 4; grid-row: 1; color: var(--text-2); }
+.btab-zelle.btab-konto { grid-column: 4; grid-row: 1; color: var(--text-2); }
 .btab-notiz { grid-column: 5; grid-row: 1; color: var(--text-2); }
 .btab-betrag { grid-column: 6; grid-row: 1; text-align: right; font-variant-numeric: tabular-nums; }
 .btab-zeile.umbuchung .btab-partner { color: var(--text-2); font-style: italic; }
@@ -1366,7 +1361,7 @@ body.gesperrt .kopf, body.gesperrt main, body.gesperrt .fab, body.gesperrt #neue
     flex: none; padding: 5px 10px; border: 1px solid var(--rand); border-radius: var(--radius-klein);
     text-transform: none; letter-spacing: 0; font-size: .82rem;
   }
-  .btab-sort.erste { border-color: var(--auswahl); background: var(--auswahl); color: var(--auf-auswahl); }
+  .btab-sort.erste { border-color: var(--akzent); background: var(--akzent-leicht); }
   .btab-sort.btab-betrag { justify-content: flex-start; }
   .nur-breit { display: none; }
   .nur-schmal { display: inline; }
@@ -1460,7 +1455,7 @@ body:not(.umbuchungen-sichtbar) .ub-ausblendbar { display: none; }
 /* Übersicht am PC: Buchungen als Tabelle mit Stand-Spalte (D78) */
 .nur-handy { display: none; }
 /* D80: ohne Spalte "Stand" – der Tagesstand steht in der Tageszeile rechts unter "Betrag" */
-.btab-konto { --btab-spalten: 92px 14px minmax(0, 1.4fr) minmax(0, 1.6fr) minmax(0, 1.4fr) 120px; margin-top: 4px; }
+.btab.btab-konto { --btab-spalten: 92px 14px minmax(0, 1.4fr) minmax(0, 1.6fr) minmax(0, 1.4fr) 120px; margin-top: 4px; } /* D231: nur die Tabelle, nicht die Spalte „Konto“ (gleicher Klassenname) */
 .btab-konto .btab-partner { grid-column: 3; }
 .btab-konto .btab-kategorie { grid-column: 4; }
 .btab-konto .btab-notiz { grid-column: 5; }
@@ -1608,7 +1603,7 @@ body:not(.umbuchungen-sichtbar) .ub-ausblendbar { display: none; }
 .budget-gruppe > .tag-kopf .konto-etikett { font-size: .82rem; text-transform: none; letter-spacing: 0; padding: 3px 7px; } /* Konto als Gruppenüberschrift */
 .konto-vorschau { margin-left: 6px; }
 @media print { .konto-etikett { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
-.chip[aria-pressed="true"] .konto-etikett { box-shadow: 0 0 0 1.5px var(--auf-auswahl); }
+.chip[aria-pressed="true"] .konto-etikett { box-shadow: 0 0 0 1.5px var(--auf-akzent); }
 .chip:has(> .konto-etikett) { padding-left: 5px; padding-right: 5px; } /* D230: Rahmen um das Etikett ringsum gleich (wie oben/unten) */
 .konto-farben { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
 .konto-farb-wahl {
@@ -1617,6 +1612,17 @@ body:not(.umbuchungen-sichtbar) .ub-ausblendbar { display: none; }
   box-shadow: inset 0 0 0 1px rgba(127, 127, 127, .35);
 }
 .konto-farb-wahl[aria-pressed="true"] { border-color: var(--flaeche); box-shadow: 0 0 0 2px var(--text); }
+/* D231: Schrift im Etikett genau mittig. Normal reserviert die Schrift über den Großbuchstaben mehr Platz als
+   unter der Grundlinie (Windows: ca. 7 zu 5 px) – die Schrift wirkt dann zu tief. text-box schneidet diesen Platz
+   ab (oben bis Großbuchstaben, unten bis Grundlinie), danach sorgt der Innenabstand ringsum für gleiche Ränder.
+   Ausrichtung in der Zeile: Mitte des Etiketts auf Mitte der Großbuchstaben daneben (statt Mitte der
+   Kleinbuchstaben – dann wirkt es nach unten verschoben). Wegen overflow (für „…“) liegt die Grundlinie eines
+   Etiketts an seiner Unterkante, daher die Rechnung: 0,06em = halbe Großbuchstabenhöhe daneben minus eigene. */
+@supports (text-box: trim-both cap alphabetic) {
+  .konto-etikett { text-box: trim-both cap alphabetic; padding: 5px 6px; vertical-align: calc(.06em - 5px); }
+  .budget-gruppe > .tag-kopf .konto-etikett { padding: 6px 8px; }
+  .konto-farb-wahl { text-box: trim-both cap alphabetic; padding: 8px 8px; }
+}
 
 /* D158: 36 Farben als Raster – 12 Farbtöne nebeneinander, Zeilen hell / mittel / dunkel */
 .farb-auto-zeile { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }

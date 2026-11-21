@@ -2821,3 +2821,17 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
 - Etikett: Innenabstand 2 px oben/unten, 6 px links/rechts (vorher 1 px / 8 px), damit der sichtbare Abstand um die
   Schrift ringsum etwa gleich ist; als Gruppenüberschrift 3 px / 7 px; Farbknöpfe im Konto-Dialog 4 px / 7 px.
 - Kontoauswahl: Knöpfe mit Etikett haben links/rechts denselben Abstand wie oben/unten (5 px statt 12 px).
+
+### D231 – Konto-Etiketten: Schrift mittig, Etikett auf Höhe der Zeile
+- Die Schrift reserviert über den Großbuchstaben mehr Platz als unter der Grundlinie (Windows ca. 7 zu 5 px), dadurch
+  wirkte sie im Etikett zu tief. Jetzt `text-box: trim-both cap alphabetic` (nur wo der Browser es kann, sonst wie
+  bisher) und ringsum gleicher Innenabstand (5 px oben/unten, 6 px seitlich; Gruppenüberschrift 6/8 px, Farbknöpfe 8 px).
+- In der Zeile: Mitte des Etiketts auf Mitte der Großbuchstaben daneben (`vertical-align: calc(.06em - 5px)`, weil
+  ein Etikett mit „…“-Kürzung seine Grundlinie an der Unterkante hat). Gemessen: Abweichung unter 0,3 px.
+- Fehler behoben: Die Klasse `btab-konto` war doppelt belegt (Tabelle auf der Kontoseite und Spalte „Konto“ in Alle
+  Buchungen); 4 px Abstand der Tabelle schoben die Spalte 2 px nach unten. Regeln jetzt `.btab.btab-konto` bzw.
+  `.btab-zelle.btab-konto`.
+
+### D232 – Auswahl wieder blau
+- Die Auswahlfarbe aus D229 (Weißton/dunkles Grau) ist zurückgenommen: Alle gewählten Zustände sehen wieder aus wie
+  vor D229 (Blau, `--akzent`). Die eckigeren Rundungen aus D229 bleiben.
