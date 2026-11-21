@@ -2816,3 +2816,8 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
   Dunkelmodus Weißton (#e7e9ec, Schrift dunkel), Hellmodus dunkles Grau (#3c4048, Schrift weiß).
   Am Handy bleibt die untere Leiste ohne Fläche, der gewählte Tab ist kräftig/fett.
 - Blau (`--akzent`) bleibt für Aktionen: Hauptknöpfe (Speichern, + Konto), Plus-Knopf, Links, Häkchen.
+
+### D230 – Konto-Etiketten: Abstände ringsum ausgeglichen
+- Etikett: Innenabstand 2 px oben/unten, 6 px links/rechts (vorher 1 px / 8 px), damit der sichtbare Abstand um die
+  Schrift ringsum etwa gleich ist; als Gruppenüberschrift 3 px / 7 px; Farbknöpfe im Konto-Dialog 4 px / 7 px.
+- Kontoauswahl: Knöpfe mit Etikett haben links/rechts denselben Abstand wie oben/unten (5 px statt 12 px).
