@@ -213,3 +213,27 @@ test('D234: Zählerwechsel mitten im Abrechnungsjahr', () => {
   // ohne neue Nummer bleibt die alte am Zähler
   assert.equal(g.zaehlernummer, gas.zaehlernummer);
 });
+
+test('D235: Ergebnis je Ablesung zeigt, ob der Verbrauch zu- oder abnimmt', async () => {
+  const { ergebnisVerlauf } = await import('../js/energie.js');
+  const wk = { id: 'w1', art: 'ausgabe', vertragId: 'v1', aktiv: true, intervall: 'monatlich', start: '2026-04-15', stufen: [{ ab: '2026-04-15', betragCent: 7000 }], ausnahmen: [] };
+  const buchungen = ['04', '05', '06', '07', '08', '09', '10'].map((m, i) => ({ id: `b${i}`, art: 'ausgabe', datum: `2026-${m}-15`, betragCent: 7000, wiederkehrendId: 'w1', faelligAm: `2026-${m}-15` }));
+  // gleichmäßig 6 kWh/Tag bis Ende Juli, danach 9 kWh/Tag
+  const z = { ...strom, ablesungen: [
+    { datum: '2026-03-31', stand: 10000 }, { datum: '2026-05-31', stand: 10366 }, { datum: '2026-07-31', stand: 10732 }, { datum: '2026-09-30', stand: 11281 },
+  ] };
+  const v = ergebnisVerlauf(z, { wiederkehrend: [wk], buchungen });
+  assert.equal(v.has('2026-03-31'), false, 'erste Ablesung: noch nichts zu rechnen');
+  assert.equal(v.get('2026-05-31').trend, null);
+  nah(v.get('2026-07-31').trend, 0, 2);
+  assert.ok(v.get('2026-09-30').trend > 0, 'höherer Verbrauch → teurer');
+  // Rechnung am 31.05.: gezahlt nur April und Mai, die übrigen 10 Termine noch offen
+  const mai = abschlagsRechnung({ ...z, ablesungen: z.ablesungen.slice(0, 2) }, { wiederkehrend: [wk], buchungen }, '2026-05-31');
+  assert.equal(mai.gezahltCent, 14000);
+  assert.equal(mai.offen.length, 10);
+  assert.equal(v.get('2026-05-31').saldoCent, mai.saldoCent);
+  // ohne Abschlag-Buchung: Trend der Jahreskosten
+  const ohne = ergebnisVerlauf({ ...z, vertragId: null }, { wiederkehrend: [], buchungen: [] });
+  assert.equal(ohne.get('2026-09-30').saldoCent, null);
+  assert.ok(ohne.get('2026-09-30').trend > 0);
+});

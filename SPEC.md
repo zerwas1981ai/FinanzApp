@@ -32,7 +32,9 @@ Details zu Datenmodell, Oberfläche und Rechenlogik (aus CLAUDE.md verschoben). 
 - Zähler (D233, Annahmen → Energie): Strom oder Gas (Gas in m³ mit Brennwert × Zustandszahl oder direkt in kWh), Vertrag,
   Ende des Abrechnungsjahres (Tag/Monat), Preise ab Datum (Arbeitspreis ct/kWh, Grundpreis €/Monat), Zählerstände,
   optional Vorjahresverbrauch und „bisher gezahlt bis“. Zählerwechsel (D234): Ablesung mit Endstand des alten und
-  Anfangsstand des neuen Zählers; der Verbrauch läuft über den Wechsel hinweg weiter. Hochrechnung aufs Abrechnungsjahr: Strom gleichmäßig, Gas nach
+  Anfangsstand des neuen Zählers; der Verbrauch läuft über den Wechsel hinweg weiter.
+  Tabelle der Zählerstände (D235): je Ablesung das damalige Ergebnis (Nachzahlung/Guthaben, ohne Abschlag-Buchung die
+  Jahreskosten) mit Pfeil ▲ teurer / ▼ günstiger / → gleich gegenüber der vorigen Ablesung im selben Abrechnungsjahr. Hochrechnung aufs Abrechnungsjahr: Strom gleichmäßig, Gas nach
   Gradtagszahlen (Promille je Monat 170/150/130/80/40/13⅓/13⅓/13⅓/30/80/120/160). Gezahlt = Ausgaben des Vertrags im
   Zeitraum (ohne geplante Nachzahlung); noch erwartet = offene Termine der wiederkehrenden Ausgabe des Vertrags.
   Vorschläge (Abschlag bis zur Abrechnung, Abschlag fürs neue Jahr = Kosten ÷ 12, auf volle Euro aufgerundet) werden

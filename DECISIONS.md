@@ -2867,3 +2867,12 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
   neu (`schritt()` in `js/energie.js`). So laufen Hochrechnung, Nachzahlung und Vorschlag übers ganze Abrechnungsjahr
   weiter, auch bei mehreren Wechseln. Ein kleinerer Stand ohne Häkchen wird weiter abgelehnt, mit Hinweis auf den Wechsel.
 - In der Liste: „🔄 Wechsel: alt … → neu …“.
+
+### D235 – Ergebnis je Zählerstand mit Trendpfeil
+- Neue Spalte „Ergebnis zur Abrechnung“ in der Tabelle der Zählerstände: Nachzahlung bzw. Guthaben, so wie die App am
+  Tag dieser Ablesung gerechnet hätte (nur Ablesungen und Buchungen bis dahin). Ohne Abschlag-Buchung: „Kosten / Jahr“.
+- Abschläge nach dem heutigen Plan (Betragsstufen der wiederkehrenden Buchung): Ein übernommener neuer Abschlag
+  verändert also auch die früheren Zeilen. So unterscheiden sich die Zeilen nur durch den Verbrauch, und der Pfeil zeigt
+  ehrlich, ob der Verbrauch teurer (▲, ab 1 €) oder günstiger (▼) wird; → = etwa gleich. Vergleich nur innerhalb
+  desselben Abrechnungsjahres. Nichts davon wird gespeichert, alles wird beim Öffnen berechnet (`ergebnisVerlauf`).
+- `abschlagsRechnung` zählt erledigte Termine nur aus Buchungen bis zum Stichtag (nötig für die Rückrechnung).

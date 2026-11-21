@@ -12,7 +12,7 @@ import { naechsterTermin } from '../prognose.js';
 import { geplantErledigt } from '../annahmen.js';
 import {
   ART_TEXT, parseZahl, zahlText, zeitraum, abschlagsRechnung, baueZaehler, mitAblesung, ohneAblesung, ablesungsVerlauf,
-  mitNeuemAbschlag, faktor,
+  mitNeuemAbschlag, faktor, ergebnisVerlauf,
 } from '../energie.js';
 import { geplantDialog } from './annahmen.js';
 
@@ -24,6 +24,22 @@ const ctText = (x) => `${zahlText(x, 4)} ct`;
 const nachName = (a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base' });
 /** Vorschlag weicht kaum vom aktuellen Abschlag ab? (bis 2 €) */
 const kaumAnders = (a, b) => Math.abs(a - b) <= 200;
+
+/**
+ * D235: Ergebnis einer Ablesung für die Tabelle – Nachzahlung/Guthaben (ohne Abschlag-Buchung: Jahreskosten) und ein
+ * Pfeil gegenüber der vorigen Ablesung: ▲ teurer, ▼ günstiger, → etwa gleich (unter 1 €).
+ */
+function ergebnisZelle(e) {
+  if (!e) return '–';
+  const wert = e.saldoCent == null ? formatEuro(e.jahresCent)
+    : Math.abs(e.saldoCent) < 100 ? '± 0 €' : e.saldoCent > 0 ? `Nachz. ${formatEuro(e.saldoCent)}` : `Guth. ${formatEuro(-e.saldoCent)}`;
+  const klasse = e.saldoCent == null ? '' : e.saldoCent >= 100 ? 'negativ' : e.saldoCent <= -100 ? 'plus' : '';
+  if (e.trend == null) return h('span', { class: klasse }, wert);
+  const [pfeil, pk, text] = e.trend >= 100 ? ['▲', 'negativ', `${formatEuro(e.trend)} teurer`]
+    : e.trend <= -100 ? ['▼', 'plus', `${formatEuro(-e.trend)} günstiger`] : ['→', 'gedaempft', 'etwa gleich'];
+  return h('span', { title: `${text} als bei der vorigen Ablesung` },
+    h('span', { class: klasse }, wert), ' ', h('span', { class: pk, 'aria-label': text }, pfeil));
+}
 
 /** Ergebnis als Text: „≈ 36 € Nachzahlung“ / „≈ 4 € Guthaben“ */
 function saldoText(cent) {
@@ -117,11 +133,14 @@ function zaehlerZeile(z, daten, heute) {
 
   // Zählerstände mit Verbrauch dazwischen
   const verlauf = new Map(ablesungsVerlauf(z).map((x) => [x.bis, x]));
+  const ergebnisse = ergebnisVerlauf(z, daten); // D235
   const ablesungen = [...(z.ablesungen ?? [])].sort((a, b) => b.datum.localeCompare(a.datum));
   inhalt.push(h('div', { class: 'tag-kopf' }, h('span', {}, `Zählerstände (${ablesungen.length})`)));
   inhalt.push(ablesungen.length
     ? h('div', { class: 'tabelle-rahmen' }, h('table', { class: 'tabelle' },
-      h('thead', {}, h('tr', {}, h('th', {}, 'Datum'), h('th', {}, `Stand (${einheitText(z)})`), h('th', {}, 'Verbrauch'), h('th', {}, 'je Tag'), h('th', {}, ''))),
+      h('thead', {}, h('tr', {}, h('th', {}, 'Datum'), h('th', {}, `Stand (${einheitText(z)})`), h('th', {}, 'Verbrauch'), h('th', {}, 'je Tag'),
+        h('th', { title: 'So hätte die App am Tag der Ablesung gerechnet – ▲ teurer, ▼ günstiger als bei der vorigen Ablesung' },
+          r.abschlag ? 'Ergebnis zur Abrechnung' : 'Kosten / Jahr'), h('th', {}, ''))),
       h('tbody', {}, ablesungen.slice(0, 13).map((a) => {
         const x = verlauf.get(a.datum);
         return h('tr', {},
@@ -133,6 +152,7 @@ function zaehlerZeile(z, daten, heute) {
             : zahlText(a.stand, 3)),
           h('td', {}, x ? kwhText(x.kwh) : '–'),
           h('td', {}, x?.kwhJeTag != null ? `${zahlText(x.kwhJeTag, 1)} kWh` : '–'),
+          h('td', {}, ergebnisZelle(ergebnisse.get(a.datum))),
           h('td', {}, h('button', {
             type: 'button', class: 'knopf knopf-klein', 'aria-label': `Zählerstand vom ${formatDatum(a.datum)} löschen`,
             onclick: async () => {

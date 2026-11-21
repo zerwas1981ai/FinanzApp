@@ -176,7 +176,8 @@ export function abschlagsRechnung(z, daten, heute) {
   // Noch erwartet: offene Termine der Abschlag-Buchung bis zum Ende des Zeitraums, nach der letzten Zahlung
   let offen = [];
   if (abschlag) {
-    const erledigt = erledigteTermine(daten.buchungen ?? []);
+    // nur Buchungen bis „heute“ – so lässt sich auch ein früherer Stichtag nachrechnen (D235)
+    const erledigt = erledigteTermine((daten.buchungen ?? []).filter((b) => b.datum <= heute));
     const letzte = [manuell?.bis, ...gezahlt.map((b) => b.datum)].filter(Boolean).sort().at(-1) ?? '';
     offen = termine(abschlag, zr.start, zr.ende).filter((t) => !erledigt.has(`${abschlag.id}|${t.termin}`) && t.datum > letzte);
   }
@@ -200,6 +201,26 @@ export function abschlagsRechnung(z, daten, heute) {
     vorschlagCent: restMonate > 0 ? aufEuro((jahr.cent - gezahltCent) / restMonate) : null,
     folge: { zr: fz, kwh: folge.kwh, cent: folge.cent, vorschlagCent: aufEuro(folge.cent / 12) },
   };
+}
+
+/**
+ * D235: Ergebnis je Ablesung – so, als wäre am Tag der Ablesung gerechnet worden (nur Ablesungen und Buchungen bis
+ * dahin, Abschläge nach dem heutigen Plan). Zeigt, ob der Verbrauch zu- oder abnimmt.
+ * Ergebnis: Map datum → { saldoCent, jahresCent, jahresKwh, ende, trend } – trend: Veränderung des Saldos (bzw. ohne
+ * Abschlag-Buchung der Jahreskosten) gegenüber der vorigen Ablesung im selben Abrechnungsjahr (> 0 = teurer), sonst null.
+ */
+export function ergebnisVerlauf(z, daten) {
+  const ergebnis = new Map();
+  let vorher = null;
+  for (const a of sortiert(z.ablesungen)) {
+    const r = abschlagsRechnung({ ...z, ablesungen: (z.ablesungen ?? []).filter((x) => x.datum <= a.datum) }, daten, a.datum);
+    if (r.fehlt || r.v?.quelle !== 'ablesung') { vorher = null; continue; }
+    const wert = r.saldoCent ?? r.jahresCent;
+    const trend = vorher && vorher.ende === r.zr.ende ? wert - vorher.wert : null;
+    ergebnis.set(a.datum, { saldoCent: r.saldoCent, jahresCent: r.jahresCent, jahresKwh: r.jahresKwh, ende: r.zr.ende, trend });
+    vorher = { wert, ende: r.zr.ende };
+  }
+  return ergebnis;
 }
 
 /* ---------- Hinweis am Monatsletzten ---------- */
