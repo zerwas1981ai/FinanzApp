@@ -24,8 +24,6 @@ import { termine, erledigteTermine, tageImMonat } from './prognose.js';
 /** Anteil am Jahresverbrauch je Monat in Promille (Januar … Dezember), Summe 1000 */
 export const GAS_PROMILLE = [170, 150, 130, 80, 40, 40 / 3, 40 / 3, 40 / 3, 30, 80, 120, 160];
 export const ART_TEXT = { strom: 'Strom', gas: 'Gas' };
-/** Bis wie viele Tage nach dem Monatsletzten der Hinweis „Zählerstände erfassen“ erscheint */
-export const HINWEIS_TAGE_DANACH = 5;
 
 const pad = (n) => String(n).padStart(2, '0');
 const jahrVon = (iso) => Number(iso.slice(0, 4));
@@ -223,22 +221,16 @@ export function ergebnisVerlauf(z, daten) {
   return ergebnis;
 }
 
-/* ---------- Hinweis am Monatsletzten ---------- */
+/* ---------- Zählerstände im Monatsabschluss (D238) ---------- */
 
 /**
- * Am Monatsletzten und bis HINWEIS_TAGE_DANACH Tage danach: Zähler ohne Ablesung seit 3 Tagen vor dem Monatsletzten.
- * weg: Monatsletzter, für den der Hinweis weggeklickt wurde. Ergebnis { stichtag, zaehler } oder null.
+ * D238 (ersetzt den eigenen Hinweis aus D233): Zähler, für die zum Ende von `monat` ('JJJJ-MM') noch kein Stand
+ * erfasst ist. Es zählt jede Ablesung ab 3 Tage vor dem Monatsletzten; ausgeschaltete Zähler zählen nicht.
  */
-export function ablesungsHinweis(zaehler, heute, weg = null) {
-  const tag = Number(heute.slice(8, 10));
-  const letzter = tageImMonat(jahrVon(heute), Number(heute.slice(5, 7)));
-  let stichtag = null;
-  if (tag === letzter) stichtag = heute;
-  else if (tag <= HINWEIS_TAGE_DANACH) stichtag = plusTage(`${heute.slice(0, 8)}01`, -1);
-  if (!stichtag || stichtag === weg) return null;
-  const ab = plusTage(stichtag, -3);
-  const offen = (zaehler ?? []).filter((z) => z.aktiv !== false && !(z.ablesungen ?? []).some((a) => a.datum >= ab));
-  return offen.length ? { stichtag, zaehler: offen } : null;
+export function offeneAblesungen(zaehler, monat) {
+  const letzter = `${monat}-${String(tageImMonat(jahrVon(monat), Number(monat.slice(5, 7)))).padStart(2, '0')}`;
+  const ab = plusTage(letzter, -3);
+  return (zaehler ?? []).filter((z) => z.aktiv !== false && !(z.ablesungen ?? []).some((a) => a.datum >= ab));
 }
 
 /* ---------- Bauen und Ändern ---------- */

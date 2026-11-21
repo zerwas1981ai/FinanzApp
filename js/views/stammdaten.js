@@ -5,7 +5,6 @@ import * as db from '../db.js';
 import { formatEuro, formatDatum, parseEuro, centZuEingabe, heuteIso, istGueltigesDatum } from '../format.js';
 import { dialog, frage, toast, eingabe, auswahl, optionsGruppe, knopf, schalter, katPunkt, kontoEtikett, bereichsWahl, kurzLang, geraet } from '../ui.js';
 import { PALETTE, BANK_FARBEN, farbenZuordnung, paletteEintrag, kontoFarbe } from '../farben.js';
-import { notfallBereich } from './notfall.js';
 import { empfaengerBereich } from './empfaenger.js';
 import { hatTestdaten, ladeTestdaten, loescheTestdaten } from '../testdaten.js';
 import { neueKategorie } from '../startdaten.js';
@@ -78,14 +77,13 @@ export async function zeigeStammdaten(container) {
   // filter(Boolean): ausgeblendete Bereiche (false) weglassen – sonst stünde "false" als Text da
   // D160: Umschalter statt alles untereinander (ersetzt die Klappbereiche aus D154); Wahl merkt sich das Gerät
   const papierkorbAnzahl = alleBuchungen.filter((b) => b.geloeschtAm).length + relevant.filter((r) => r.geloeschtAm).length;
-  // D180: nur noch sechs Umschalter – selten Gebrauchtes ist zusammengefasst
+  // D180/D236: sechs Umschalter – selten Gebrauchtes ist zusammengefasst
   const mehrere = async (...teile) => h('div', { class: 'stamm-gruppe' }, ...(await Promise.all(teile.map((t) => t()))).filter(Boolean));
   const bereiche = [
     ['konten', 'Konten', () => kontenBereich(konten, neu)],
     ['kategorien', 'Kategorien', () => kategorienBereich(kategorien, neu)],
     ['empfaenger', 'Empfänger', () => empfaengerBereich(neu)], // D205
     ['daten', kurzLang('Daten & Sicherheit', 'Daten'), () => mehrere(() => driveBereich(neu), () => sperreBereich(neu), () => exportBereich(), () => archivBereich(neu))],
-    ['notfall', 'Notfall-Mappe', () => notfallBereich()], // D168
     // Testdaten nur beim Entwickeln am PC (localhost), nicht in der veröffentlichten App (D66)
     IST_ENTWICKLUNG && ['testdaten', 'Testdaten', () => testdatenBereich(konten, kategorien, neu)],
     // D140: auf Wunsch ausgeblendet – zum Wiedereinblenden auf true setzen (die Funktion bleibt im Code)

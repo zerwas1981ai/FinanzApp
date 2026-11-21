@@ -149,19 +149,6 @@ export function kategorieAusNotiz(notiz, buchungen, art) {
   return rang[0][0];
 }
 
-/* ======================= D185: Archiv-Erinnerung ======================= */
-
-/**
- * Erinnerung „Jahr X ist abgeschlossen – archivieren?“ – sobald es ein archivierbares Jahr gibt
- * (archiv.naechstesArchivJahr) und die Erinnerung nicht bis zu einem späteren Tag zurückgestellt ist.
- * naechstes: Ergebnis von naechstesArchivJahr; spaeterBis: 'JJJJ-MM-TT' | null.
- */
-export function archivErinnerung(naechstes, heute, spaeterBis = null) {
-  if (!naechstes || naechstes.anzahl === 0) return null;
-  if (spaeterBis && spaeterBis >= heute) return null;
-  return naechstes;
-}
-
 /* ======================= D203: Preisänderung bei wiederkehrenden Buchungen ======================= */
 
 /** Gleicher Betrag (höchstens 1 % oder 1 Cent Unterschied) */

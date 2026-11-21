@@ -192,26 +192,6 @@ export async function schreibeDatenstand(daten) {
   vergiss('*');
 }
 
-/**
- * Die komplette Datenbank dieses Geräts löschen ("PIN vergessen", D67).
- * Danach muss die Seite neu geladen werden.
- */
-export async function datenbankLoeschen() {
-  vergiss('*'); // D213
-  if (dbVersprechen) {
-    const db = await dbVersprechen;
-    db.onversionchange = null;
-    db.close();
-    dbVersprechen = null;
-  }
-  await new Promise((resolve, reject) => {
-    const anfrage = indexedDB.deleteDatabase(DB_NAME);
-    anfrage.onsuccess = () => resolve();
-    anfrage.onerror = () => reject(anfrage.error);
-    anfrage.onblocked = () => reject(new Error('Bitte die App in allen anderen Tabs schließen und erneut versuchen.'));
-  });
-}
-
 /** Ein frischer Datenstand: nur der Kategorie-Startsatz und die Standard-Einstellungen */
 export function leererStand() {
   const daten = { version: DATENMODELL_VERSION };

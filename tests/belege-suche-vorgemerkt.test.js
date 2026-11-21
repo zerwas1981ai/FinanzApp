@@ -3,7 +3,6 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { benenneBelege } from '../js/relevant.js';
 import { relevantAlsCsv } from '../js/export.js';
-import { tageZwischen, abstimmungFaellig } from '../js/konten.js';
 import { suche, suchWoerter } from '../js/suche.js';
 import { vorgemerkteVonKonto, alsGebuchtMarkieren } from '../js/buchungen.js';
 
@@ -23,15 +22,6 @@ test('D144: Relevante Ausgaben als CSV mit Summenzeile, älteste zuerst', () => 
   assert.equal(z[1], '03.05.2012;;;;4500,00;Einbauküche;;Eigener Eintrag;');
   assert.equal(z[2], '20.10.2026;Möbel Muster;Wohnen;Möbel;950,00;Sofa;Haus;Giro (Test);2026-10-20 Sofa.pdf');
   assert.equal(z[3], 'Summe;;;;5450,00;;;;');
-});
-
-test('D145: Abstimmung nach mehr als 10 Tagen fällig', () => {
-  assert.equal(tageZwischen('2026-11-01', '2026-11-11'), 10);
-  assert.equal(tageZwischen('2026-02-25', '2026-03-03'), 6);
-  assert.equal(tageZwischen('2026-03-20', '2026-04-01'), 12, 'Zeitumstellung stört nicht');
-  assert.equal(abstimmungFaellig('2026-11-01', '2026-11-11'), false, 'genau 10 Tage: noch nicht');
-  assert.equal(abstimmungFaellig('2026-11-01', '2026-11-12'), true);
-  assert.equal(abstimmungFaellig(undefined, '2026-11-12'), true, 'nie abgestimmt');
 });
 
 test('D146: Suche über alle Bereiche, alle Wörter müssen passen', () => {

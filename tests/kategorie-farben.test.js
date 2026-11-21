@@ -1,8 +1,8 @@
-// Tests zu D155/D156 (Kategorie-Farben, Rückblick) und D158 – nur erfundene Testdaten
+// Tests zu D155/D159 (Kategorie-Farben), D158 und D237 – nur erfundene Testdaten
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { PALETTE, farbenZuordnung, farbeVon, paletteEintrag, namensFarbe } from '../js/farben.js';
-import { monatsRueckblick, jahresRueckblick, waehlbareZeitraeume, plusMonat, monatKurz } from '../js/rueckblick.js';
+import { monatKurz, monatLang } from '../js/format.js';
 import { migriereDaten } from '../js/migrationen.js';
 
 test('D159: 80 Farben, automatische Wahl passend zum Namen, Einnahmen ohne Farbe', () => {
@@ -56,48 +56,13 @@ const buchungen = [
   b('12', '2025-10-05', 'ausgabe', 90000, 'u1'), b('13', '2025-10-01', 'einnahme', 280000, 'eu'), b('14', '2025-12-20', 'ausgabe', 50000, 'u2'),
 ];
 
-test('D156: Monatsrückblick mit den beiden Vormonaten', () => {
-  const rb = monatsRueckblick(buchungen, kategorien, '2026-10', '2026-11-12');
-  assert.deepEqual(rb.spalten, ['Aug 26', 'Sep 26', 'Okt 26']);
-  assert.deepEqual(rb.perioden.map((p) => p.ausgaben), [115000, 125000, 120000], 'Papierkorb und Umbuchung zählen nicht');
-  assert.deepEqual(rb.perioden.map((p) => p.einnahmen), [300000, 300000, 320000]);
-  assert.equal(rb.perioden[2].saldo, 200000);
-  assert.equal(rb.perioden[2].sparquote, 200000 / 320000);
-  assert.equal(rb.laufend, false);
-  assert.deepEqual(rb.kategorien.map((k) => [k.name, k.werte, k.differenz]), [
-    ['Wohnen', [95000, 95000, 95000], 0],
-    ['Lebensmittel', [20000, 30000, 25000], -5000],
-  ]);
-  assert.deepEqual(rb.groesste.map((x) => x.id), ['8', '9']);
-  // laufender Monat: nur bis heute
-  const lfd = monatsRueckblick([...buchungen, b('20', '2026-11-20', 'ausgabe', 1000, 'u2')], kategorien, '2026-11', '2026-11-12');
-  assert.equal(lfd.laufend, true);
-  assert.equal(lfd.perioden[2].ausgaben, 0, 'Buchung nach heute zählt nicht');
-  assert.equal(plusMonat('2026-01', -2), '2025-11');
-  assert.equal(monatKurz('2026-03'), 'Mär 26');
-});
-
-test('D156: Jahresrückblick – laufendes Jahr gegen Vorjahr bis zum gleichen Tag', () => {
-  const rb = jahresRueckblick(buchungen, kategorien, 2026, '2026-11-12');
-  assert.equal(rb.laufend, true);
-  assert.equal(rb.vorjahrBis, '2025-11-12');
-  assert.deepEqual(rb.spalten, ['2025', '2026']);
-  assert.equal(rb.perioden[0].ausgaben, 90000, 'Dezember 2025 zählt im Vergleich nicht');
-  assert.equal(rb.perioden[1].ausgaben, 360000);
-  assert.equal(rb.monate.length, 11, 'Januar bis November');
-  assert.equal(rb.monate[9].saldo, 200000);
-  const vj = jahresRueckblick(buchungen, kategorien, 2025, '2026-11-12');
-  assert.equal(vj.laufend, false);
-  assert.equal(vj.perioden[1].ausgaben, 140000);
-  assert.equal(vj.monate.length, 12);
-  const w = waehlbareZeitraeume(buchungen, '2026-11-12');
-  assert.equal(w.monate[0], '2026-11');
-  assert.equal(w.monate.at(-1), '2025-10');
-  assert.deepEqual(w.jahre, [2026, 2025]);
-});
-
 test('D158: Migration auf 20 entfernt die Sparziele wieder', () => {
   const { daten } = migriereDaten({ version: 19, vertraege: [], sparziele: [{ id: 'z' }] }, undefined, 20);
   assert.equal(daten.sparziele, undefined);
   assert.equal(daten.version, 20);
+});
+
+test('D237: Monatsnamen kurz und lang', () => {
+  assert.equal(monatKurz('2026-03'), 'Mär 26');
+  assert.equal(monatLang('2026-12'), 'Dezember 2026');
 });

@@ -104,6 +104,11 @@ export function vorigerMonat(jahr, monat) {
 const MONATE = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
 const WOCHENTAGE = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
 
+/** 'JJJJ-MM' als „Okt 26“ bzw. „Oktober 2026“ (vorher in rueckblick.js) */
+const MONATE_KURZ = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
+export const monatKurz = (schluessel) => `${MONATE_KURZ[Number(schluessel.slice(5, 7)) - 1]} ${schluessel.slice(2, 4)}`;
+export const monatLang = (schluessel) => `${MONATE[Number(schluessel.slice(5, 7)) - 1]} ${schluessel.slice(0, 4)}`;
+
 /** (2026, 11) → "November 2026" */
 export function formatMonat(jahr, monat) {
   return `${MONATE[monat - 1]} ${jahr}`;

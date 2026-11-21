@@ -6,7 +6,7 @@
 import { h } from '../dom.js';
 import * as db from '../db.js';
 import { formatEuro, formatDatum, heuteIso, parseEuro, centZuEingabe } from '../format.js';
-import { dialog, frage, toast, eingabe, auswahl, datenGeaendert, klappBereich, geraet, verbinde } from '../ui.js';
+import { dialog, frage, toast, eingabe, auswahl, datenGeaendert, verbinde } from '../ui.js';
 import { plusTage } from '../vertraege.js';
 import { naechsterTermin } from '../prognose.js';
 import { geplantErledigt } from '../annahmen.js';
@@ -17,7 +17,6 @@ import {
 import { geplantDialog } from './annahmen.js';
 
 const offen = new Set(); // aufgeklappte Zähler, solange die App offen ist
-let hinweisOffen = false;
 const einheitText = (z) => (z.einheit === 'm3' ? 'm³' : 'kWh');
 const kwhText = (x) => `${zahlText(Math.round(x))} kWh`;
 const ctText = (x) => `${zahlText(x, 4)} ct`;
@@ -462,30 +461,4 @@ export function zaehlerDialog(z, daten) {
       datenGeaendert();
     },
   });
-}
-
-/* =========================== Hinweis in der Übersicht =========================== */
-
-/** Am Monatsletzten (bis 5 Tage danach): „Zählerstände erfassen“ – hinweis aus ablesungsHinweis() */
-export function ablesungsHinweisBereich(hinweis, daten) {
-  if (!hinweis) return null;
-  const monat = new Date(`${hinweis.stichtag}T12:00:00`).toLocaleDateString('de-DE', { month: 'long' });
-  const namen = hinweis.zaehler.map((z) => z.name).join(', ');
-  return klappBereich({
-    klasse: 'hinweise-klapp',
-    titel: `Zählerstände · Ende ${monat} ablesen`,
-    offen: hinweisOffen,
-    beiWechsel: (o) => { hinweisOffen = o; },
-  }, h('section', { class: 'bereich hinweiskarte', 'aria-label': 'Zählerstände erfassen' },
-    h('p', {}, `Monatsende – Zeit, die Zähler abzulesen: ${namen}. Je mehr Zählerstände, desto genauer der Abschlagsvorschlag unter Annahmen → Energie.`),
-    h('div', { class: 'hinweis-aktionen' },
-      h('button', { type: 'button', class: 'knopf knopf-primaer', onclick: () => ablesungDialog({ ...daten, zaehler: hinweis.zaehler }) }, 'Erfassen …'),
-      h('button', {
-        type: 'button', class: 'knopf',
-        onclick: () => {
-          geraet.schreib('zaehler-hinweis-weg', hinweis.stichtag);
-          toast('Erinnerung wieder zum nächsten Monatsende');
-          datenGeaendert();
-        },
-      }, 'Diesen Monat nicht'))));
 }

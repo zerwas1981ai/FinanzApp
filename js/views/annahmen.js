@@ -6,7 +6,7 @@ import { h } from '../dom.js';
 import { sortiereKonten } from '../konten.js';
 import * as db from '../db.js';
 import { formatEuro, formatDatum, formatMonat, centZuEingabe, parseEuro, heuteIso } from '../format.js';
-import { dialog, frage, toast, eingabe, auswahl, datenGeaendert, bereichsWahl, kurzLang, kontoEtikett, verbinde, alsText, geraet } from '../ui.js';
+import { dialog, frage, toast, eingabe, auswahl, datenGeaendert, bereichsWahl, kurzLang, kontoEtikett, verbinde, alsText } from '../ui.js';
 import { baueBudget, baueWiederkehrend, baueGeplant, geplantErledigt, haeufigstesKonto, mitAusnahme } from '../annahmen.js';
 import { betragAm, terminBetrag, naechsterTermin, plusMonate, monatsende, annahmeTitel, budgetVorschlag } from '../prognose.js';
 import { artWahl, fuelleKategorien, projektFeld, oeffneBuchungsdialog, partnerFeld, budgetZuordnungFeld, vertragFeld } from './buchung-dialog.js';
@@ -14,7 +14,8 @@ import { VERTEILUNGEN, istJaehrlich } from '../jahresbudget.js';
 import { kuendigungsHinweise, wiederkehrendJeMonat, aktuellerBetrag } from '../vertraege.js';
 import { vertraegeBereich, vertragDialog } from './vertraege.js';
 import { energieBereich } from './energie.js';
-import { ablesungsHinweis } from '../energie.js';
+import { offeneAblesungen } from '../energie.js';
+import { abschlussMonat } from '../abschluss.js';
 
 const nachName = (a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base' });
 const INTERVALL_TEXT = { monatlich: 'monatlich', vierteljaehrlich: 'vierteljährlich', halbjaehrlich: 'halbjährlich', jaehrlich: 'jährlich' };
@@ -34,8 +35,10 @@ export async function zeigeAnnahmen(container) {
   // D160: Umschalter Budgets · Wiederkehrende · Geplante statt alles untereinander; Wahl merkt sich das Gerät
   // D191: Verträge als letzter Umschalter (vorher im Tab Projekte); Zahl = anstehende Kündigungsfristen
   const fristen = kuendigungsHinweise(daten.vertraege, heuteIso()).length;
-  // D233: Energie neben Verträgen; Zahl = Zähler, die am Monatsende noch abgelesen werden wollen
-  const ablesen = ablesungsHinweis(daten.zaehler, heuteIso(), geraet.lies('zaehler-hinweis-weg'))?.zaehler.length ?? 0;
+  // D233: Energie neben Verträgen; Zahl = Zähler, die zum Monatsende noch abgelesen werden wollen
+  // (D238: solange der Monatsabschluss läuft – vom Monatsletzten bis zum 10.)
+  const abMonat = abschlussMonat(heuteIso());
+  const ablesen = abMonat ? offeneAblesungen(daten.zaehler, abMonat).length : 0;
   const wahl = bereichsWahl('ansicht-annahmen', [
     ['budgets', 'Budgets'], ['wiederkehrend', kurzLang('Wiederkehrende Buchungen', 'Wiederkehrend')],
     ['vertraege', 'Verträge', fristen], ['energie', 'Energie', ablesen], ['geplant', kurzLang('Geplante Einmalbuchungen', 'Geplant')], // D193: Verträge vor Geplant

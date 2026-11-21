@@ -312,6 +312,15 @@ export function sparquote(einnahmen, ausgaben) {
 }
 
 /**
+ * D237: Einnahmen, Ausgaben, Saldo und Sparquote einer Auswahl (übernommen aus dem Rückblick, D156).
+ * Umbuchungen, offene Auslagen und Rückzahlungen zählen nicht (wie `summen`, D214).
+ */
+export function bilanz(eintraege) {
+  const { einnahmen, ausgaben, saldo } = summen(eintraege);
+  return { einnahmen, ausgaben, saldo, sparquote: sparquote(einnahmen, ausgaben) };
+}
+
+/**
  * Vorjahreswerte zu jedem Monat (D107): gleicher Monat ein Jahr früher, mit denselben Filtern
  * außer dem Zeitraum (eintraegeOhneZeitraum). Monate vor der ersten erfassten Buchung → null,
  * damit „noch nichts erfasst“ nicht wie „0 €“ aussieht.

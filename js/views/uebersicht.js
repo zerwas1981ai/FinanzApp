@@ -16,19 +16,18 @@ import { kuendigungsBereich } from './vertraege.js';
 import { notizKnopf, notizZeile } from './monatsnotiz.js';
 import { kuendigungsHinweise } from '../vertraege.js';
 import { vorgemerkteVonKonto, alsGebuchtMarkieren } from '../buchungen.js';
-import { sortiereKonten, abstimmungFaellig, tageZwischen, ABSTIMM_ERINNERUNG_TAGE } from '../konten.js';
+import { sortiereKonten } from '../konten.js';
 import { faelligListe, budgetHinweise, zeitleiste, nurWirksam, mindestsaldoWarnungen, LETZTER_MONAT, prognoseJahresende, offeneTermine, terminWirkung, annahmeTitel } from '../prognose.js';
 import { umbuchungKnopf, kennzahlenBereich, erwartetBereich, hinweisBereich, buchungsVorgaben } from './kennzahlen.js';
 import { zeitleisteBereich, postenListe } from './zeitleiste.js';
 import { oeffnePostenDialog } from './posten-dialog.js';
-import { erkanntBereich, archivHinweis, abgelehnteVorschlaege, hochMarke, preisBereich, abgelehntePreise, abschlussBereich, erledigteAbschluesse } from './erkennung.js';
+import { erkanntBereich, jahreswechselBereich, abgelehnteVorschlaege, hochMarke, preisBereich, abgelehntePreise, abschlussBereich, erledigteAbschluesse } from './erkennung.js';
 import { abschlussMonat, abschlussPruefung } from '../abschluss.js';
-import { wiederkehrendVorschlaege, archivErinnerung, ungewoehnlicheBuchungen, preisAenderungen } from '../erkennung.js';
+import { wiederkehrendVorschlaege, ungewoehnlicheBuchungen, preisAenderungen } from '../erkennung.js';
+import { jahreswechselJahr, jahreswechselPruefung, jahreswechselStand } from '../jahreswechsel.js';
 import { abstimmVorschlaege } from '../abstimmhilfe.js';
 import { buchungenWischbar } from './wisch-buchung.js';
-import { naechstesArchivJahr } from '../archiv.js';
-import { ablesungsHinweis } from '../energie.js';
-import { ablesungsHinweisBereich } from './energie.js';
+import { ablesungDialog } from './energie.js';
 
 const ALLE = '__alle'; // gemerkte Auswahl "Alle Konten"
 
@@ -90,17 +89,25 @@ export async function zeigeUebersicht(container) {
     kennzahlenBereich(prognose, alleDaten, heute, warnungen, prognoseJahresende(zl, heute)),
     hinweisBereich(hinweise, daten),
     kuendigungsBereich(kuendigungsHinweise(alleDaten.vertraege, heute), alleDaten), // D148
-    ablesungsHinweisBereich(ablesungsHinweis(alleDaten.zaehler, heute, geraet.lies('zaehler-hinweis-weg')), alleDaten), // D233
-    // D182: erkannte wiederkehrende Zahlungen; D185: Archiv-Erinnerung
+    // D182: erkannte wiederkehrende Zahlungen
     erkanntBereich(wiederkehrendVorschlaege(alleDaten.buchungen, alleDaten.wiederkehrend, abgelehnteVorschlaege(alleDaten.einstellungen), heute), alleDaten),
     preisBereich(preisAenderungen(alleDaten.wiederkehrend, alleDaten.buchungen, heute, abgelehntePreise(alleDaten.einstellungen)), alleDaten), // D203
-    // D206: Monatsabschluss des Vormonats (1. bis 10.), solange nicht alles erledigt oder abgehakt ist
+    // D206: Monatsabschluss des Vormonats (1. bis 10.), solange nicht alles erledigt oder abgehakt ist;
+    // D238: schon am Monatsletzten, mit dem Punkt Zählerstände (ersetzt den eigenen Hinweis aus D233)
     (() => {
       const am = abschlussMonat(heute);
       if (!am || erledigteAbschluesse(alleDaten.einstellungen).includes(am)) return null;
-      return abschlussBereich(am, abschlussPruefung(alleDaten, offeneTermine(daten, heute, `${am}-31`), am));
+      return abschlussBereich(am, abschlussPruefung(alleDaten, offeneTermine(daten, heute, `${am}-31`), am), {
+        zaehler: { text: 'Erfassen …', beiKlick: (p) => ablesungDialog({ ...alleDaten, zaehler: p.offen }) },
+      });
     })(),
-    archivHinweis(archivErinnerung(naechstesArchivJahr({ buchungen: alleDaten.buchungen }, heute), heute, geraet.lies('archiv-spaeter'))),
+    // D239: Jahreswechsel-Check vom 15.12. bis 31.01. (enthält die Archiv-Erinnerung aus D185)
+    (() => {
+      const jahr = jahreswechselJahr(heute);
+      if (!jahr) return null;
+      const stand = jahreswechselStand(alleDaten.einstellungen, jahr);
+      return stand.erledigt ? null : jahreswechselBereich(jahr, jahreswechselPruefung(alleDaten, jahr, heute, stand.haken));
+    })(),
     // D164: Überschrift „Konten“ entfällt, der Abstand bleibt gleich
     h('div', { class: 'konten-abstand', 'aria-hidden': 'true' }),
   ];
@@ -292,17 +299,15 @@ function kontoKopf(konto, buchungen, abstimmungen, prognoseCent, niedrigsterCent
     .filter((a) => a.kontoId === konto.id)
     .sort((a, b) => b.erstelltAm.localeCompare(a.erstelltAm))[0];
 
-  // D149: Zeile grau wie „Niedrigster erwarteter Stand“; farbig nur der Differenzbetrag
-  // und die Erinnerung „vor N Tagen“ bzw. „Noch nicht abgestimmt“ (D145)
-  const faellig = abstimmungFaellig(letzte?.datum, heute);
-  let abstimmText = [h('span', { class: 'warn-text' }, 'Noch nicht abgestimmt.')];
+  // D149: Zeile grau wie „Niedrigster erwarteter Stand“; farbig nur der Differenzbetrag.
+  // D236: Die 10-Tage-Erinnerung (D145) ist ausgebaut – dafür gibt es den Monatsabschluss.
+  let abstimmText = ['Noch nicht abgestimmt.'];
   if (letzte) {
     // Differenz immer neu berechnen – so sieht man, ob nachgetragene Buchungen sie beheben
     const differenz = letzte.bankstandCent - kontostand(konto, buchungen, letzte.datum);
     abstimmText = [
       `Zuletzt abgestimmt für ${formatDatum(letzte.datum)}: `,
       differenz === 0 ? 'stimmt ✓' : ['Differenz ', h('span', { class: 'warn-text' }, formatEuro(differenz))],
-      faellig && h('span', { class: 'warn-text' }, ` · vor ${tageZwischen(letzte.datum, heute)} Tagen`),
     ];
   }
 
@@ -332,10 +337,7 @@ function kontoKopf(konto, buchungen, abstimmungen, prognoseCent, niedrigsterCent
       h('span', { class: 'annahme' + (niedrigsterCent < 0 ? ' negativ' : '') }, formatEuro(niedrigsterCent)),
       konto.mindestsaldoCent != null && niedrigsterCent < konto.mindestsaldoCent && h('span', { class: 'warn-text' }, ' – unter Mindestsaldo'))
         : h('span'),
-      h('div', {
-        class: 'klein abstimm-info',
-        title: faellig ? `Länger als ${ABSTIMM_ERINNERUNG_TAGE} Tage nicht abgestimmt – mit „Abstimmen“ den Bankstand eintragen.` : null,
-      }, abstimmText)),
+      h('div', { class: 'klein abstimm-info' }, abstimmText)),
   );
 }
 

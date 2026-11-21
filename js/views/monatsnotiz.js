@@ -1,12 +1,12 @@
 // D165: Monatsnotiz – ein Satz je Monat für alle Konten, z. B. „Autoreparatur, deshalb hoch“.
-// Schreiben in der Übersicht (✎ beim Monatsnamen) und im Rückblick; Anzeige auch in der Analyse.
+// Schreiben in der Übersicht (✎ beim Monatsnamen); Anzeige auch in der Analyse.
 // Datensatz (Sammlung "monatsnotizen", Datenversion 21): { id: 'JJJJ-MM', text, erstelltAm, geaendertAm }
 
 import { h } from '../dom.js';
 import * as db from '../db.js';
 import { dialog, eingabe, toast, datenGeaendert } from '../ui.js';
 import { baueMonatsnotiz } from '../monatsnotizen.js';
-import { monatLang, monatKurz } from '../rueckblick.js';
+import { monatLang, monatKurz } from '../format.js';
 
 /** Notizen als Map 'JJJJ-MM' → Text */
 export const notizMap = (notizen = []) => new Map(notizen.filter((n) => n.text).map((n) => [n.id, n.text]));
@@ -29,7 +29,7 @@ export function notizZeile(monat, notizen) {
   return text ? h('p', { class: 'monatsnotiz' }, '✎ ', text) : null;
 }
 
-/** Notizen mehrerer Monate als kurze Liste („Okt 26: …“), z. B. in Rückblick und Analyse */
+/** Notizen mehrerer Monate als kurze Liste („Okt 26: …“), z. B. in der Analyse */
 export function notizListe(monate, notizen, titel = 'Monatsnotizen') {
   const map = notizMap(notizen);
   const mit = monate.filter((m) => map.has(m));
@@ -43,7 +43,7 @@ function notizDialog(monat, alt, nachher) {
   const text = eingabe({
     label: `Notiz für ${monatLang(monat)}`, value: alt?.text ?? '', maxlength: 200, autofocus: true,
     placeholder: 'z. B. Autoreparatur, deshalb hoch',
-    hilfe: 'Ein kurzer Satz für alle Konten. Erscheint in der Übersicht, im Rückblick und in der Analyse. Leer = löschen.',
+    hilfe: 'Ein kurzer Satz für alle Konten. Erscheint in der Übersicht und in der Analyse. Leer = löschen.',
   });
   dialog({
     titel: 'Monatsnotiz',

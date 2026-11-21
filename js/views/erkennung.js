@@ -3,16 +3,16 @@
 
 import { h } from '../dom.js';
 import * as db from '../db.js';
-import { formatEuro, formatDatum, heuteIso } from '../format.js';
+import { formatEuro, formatDatum } from '../format.js';
 import { klappBereich, toast, datenGeaendert, geraet, frage } from '../ui.js';
 import { wiederkehrendDialog } from './annahmen.js';
-import { plusTage } from '../vertraege.js';
 import { mitWertAenderung } from '../erkennung.js';
 import { annahmeTitel } from '../prognose.js';
 import { formatMonat } from '../format.js';
+import { hakenUmschalten, alsErledigt } from '../jahreswechsel.js';
 
 let erkanntOffen = false;
-let archivOffen = false;
+let jahreswechselOffen = false;
 let preisOffen = false;
 let abschlussOffen = false;
 
@@ -96,33 +96,6 @@ export function hochMarke(b, schnitt) {
   }, '↑ hoch');
 }
 
-/** D185: „Jahr X ist abgeschlossen – archivieren?“ mit „Zum Archiv“ und „In 30 Tagen erinnern“ */
-export function archivHinweis(erinnerung) {
-  if (!erinnerung) return null;
-  return klappBereich({
-    klasse: 'hinweise-klapp',
-    titel: `Archiv · ${erinnerung.jahr} ist abgeschlossen`,
-    offen: archivOffen,
-    beiWechsel: (o) => { archivOffen = o; },
-  }, h('section', { class: 'bereich hinweiskarte', 'aria-label': `Archiv ${erinnerung.jahr}` },
-    h('p', {}, `Das Jahr ${erinnerung.jahr} ist vorbei (${erinnerung.anzahl === 1 ? '1 Buchung' : `${erinnerung.anzahl} Buchungen`}). Archivieren hält die App auf Dauer schnell; ` +
-      'die Buchungen bleiben in Google Drive gesichert und lassen sich jederzeit lesen oder zurückholen.'),
-    erinnerung.hindernis && h('p', { class: 'warn-text klein' }, erinnerung.hindernis),
-    h('div', { class: 'hinweis-aktionen' },
-      h('button', {
-        type: 'button', class: 'knopf knopf-primaer',
-        onclick: () => { geraet.schreib('ansicht-stammdaten', 'daten'); location.hash = '#stammdaten'; },
-      }, 'Zum Archiv'),
-      h('button', {
-        type: 'button', class: 'knopf',
-        onclick: () => {
-          geraet.schreib('archiv-spaeter', plusTage(heuteIso(), 30));
-          toast('Erinnerung in 30 Tagen');
-          datenGeaendert();
-        },
-      }, 'In 30 Tagen erinnern'))));
-}
-
 /** D203: „Preisänderung erkannt“ – Betrag einer wiederkehrenden Buchung ab dem nächsten Termin anpassen? */
 export function preisBereich(vorschlaege, daten) {
   if (!vorschlaege.length) return null;
@@ -159,7 +132,8 @@ export function preisBereich(vorschlaege, daten) {
 export const erledigteAbschluesse = (einstellungen = []) => einstellungen.find((e) => e.id === 'abschluss')?.erledigt ?? [];
 
 /** D206: „Monatsabschluss Oktober · 2 von 4 erledigt“ – erscheint vom 1. bis 10., solange etwas offen ist */
-export function abschlussBereich(monat, punkte) {
+/** aktionen (D238): { [punkt-id]: { text, beiKlick(punkt) } } – Knopf hinter einem offenen Punkt */
+export function abschlussBereich(monat, punkte, aktionen = {}) {
   if (!monat || punkte.every((p) => p.ok)) return null;
   const name = formatMonat(Number(monat.slice(0, 4)), Number(monat.slice(5, 7)));
   const fertig = punkte.filter((p) => p.ok).length;
@@ -177,7 +151,50 @@ export function abschlussBereich(monat, punkte) {
   }, h('section', { class: 'bereich hinweiskarte', 'aria-label': `Monatsabschluss ${name}` },
     h('ul', { class: 'abschluss-liste' }, punkte.map((p) => h('li', { class: p.ok ? 'ok' : 'offen' },
       h('span', { class: 'abschluss-haken', 'aria-hidden': 'true' }, p.ok ? '✓' : '○'),
-      h('span', {}, h('strong', {}, p.titel), p.text && h('span', { class: 'klein gedaempft' }, ` – ${p.text}`))))),
+      h('span', {}, h('strong', {}, p.titel), p.text && h('span', { class: 'klein gedaempft' }, ` – ${p.text}`),
+        !p.ok && aktionen[p.id] && [' ', h('button', { type: 'button', class: 'link-knopf klein', onclick: () => aktionen[p.id].beiKlick(p) }, aktionen[p.id].text)])))),
     h('div', { class: 'hinweis-aktionen' },
       h('button', { type: 'button', class: 'knopf', onclick: erledigt }, 'Als erledigt markieren'))));
+}
+
+/**
+ * D239: Jahreswechsel-Check (15.12.–31.01.) wie der Monatsabschluss. Hand-Punkte haben einen Knopf zum Abhaken;
+ * zu den übrigen führt ein Knopf an die passende Stelle. Ersetzt die Archiv-Erinnerung (D185).
+ */
+export function jahreswechselBereich(neuesJahr, punkte) {
+  if (!neuesJahr || punkte.every((p) => p.ok)) return null;
+  const fertig = punkte.filter((p) => p.ok).length;
+  const speichere = async (aendern, meldung) => {
+    await db.speichere('einstellungen', aendern(await db.hole('einstellungen', 'jahreswechsel')));
+    if (meldung) toast(meldung);
+    datenGeaendert();
+  };
+  const gehe = (tab, speicher, ansicht) => { geraet.schreib(speicher, ansicht); location.hash = `#${tab}`; };
+  const ziele = {
+    budgets: ['Zu den Budgets', () => gehe('annahmen', 'ansicht-annahmen', 'budgets')],
+    vertraege: ['Zu den Verträgen', () => gehe('annahmen', 'ansicht-annahmen', 'vertraege')],
+    preise: ['Zu den Wiederkehrenden', () => gehe('annahmen', 'ansicht-annahmen', 'wiederkehrend')],
+    archiv: ['Zum Archiv', () => gehe('stammdaten', 'ansicht-stammdaten', 'daten')],
+    sicherung: ['Zur Sicherung', () => gehe('stammdaten', 'ansicht-stammdaten', 'daten')],
+  };
+  const haken = (p) => (p.hand
+    ? h('button', {
+      type: 'button', class: 'abschluss-haken abschluss-haken-knopf', 'aria-pressed': String(p.ok),
+      title: p.ok ? 'Haken entfernen' : 'Abhaken', 'aria-label': `${p.titel}: ${p.ok ? 'Haken entfernen' : 'abhaken'}`,
+      onclick: () => speichere((alt) => hakenUmschalten(alt, neuesJahr, p.id)),
+    }, p.ok ? '✓' : '○')
+    : h('span', { class: 'abschluss-haken', 'aria-hidden': 'true' }, p.ok ? '✓' : '○'));
+  return klappBereich({
+    klasse: 'hinweise-klapp',
+    titel: `Jahreswechsel ${neuesJahr} · ${fertig} von ${punkte.length} erledigt`,
+    offen: jahreswechselOffen,
+    beiWechsel: (o) => { jahreswechselOffen = o; },
+  }, h('section', { class: 'bereich hinweiskarte', 'aria-label': `Jahreswechsel ${neuesJahr}` },
+    h('ul', { class: 'abschluss-liste' }, punkte.map((p) => h('li', { class: p.ok ? 'ok' : 'offen' },
+      haken(p),
+      h('span', {}, h('strong', {}, p.titel), p.text && !p.ok && h('span', { class: 'klein gedaempft' }, ` – ${p.text}`),
+        !p.ok && ziele[p.id] && [' ', h('button', { type: 'button', class: 'link-knopf klein', onclick: ziele[p.id][1] }, ziele[p.id][0])])))),
+    h('p', { class: 'klein gedaempft' }, '○ bei Preisen und Sicherung antippen zum Abhaken; den Rest prüft die App selbst.'),
+    h('div', { class: 'hinweis-aktionen' },
+      h('button', { type: 'button', class: 'knopf', onclick: () => speichere((alt) => alsErledigt(alt, neuesJahr), `Jahreswechsel ${neuesJahr} erledigt`) }, 'Als erledigt markieren'))));
 }

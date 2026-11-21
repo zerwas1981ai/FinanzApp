@@ -1499,9 +1499,11 @@ body:not(.umbuchungen-sichtbar) .ub-ausblendbar { display: none; }
   .druck-rueckblick th.zahl { text-align: right; }
   .druck-rueckblick h3 { font-size: 11pt; margin: 12pt 0 4pt; }
   .druck-rueckblick .kat-punkt { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .druck-rueckblick .rb-groesste { list-style: none; padding: 0; margin: 0; }
-  .druck-rueckblick .rb-groesste li { display: flex; gap: 8pt; border-bottom: .5pt solid #bbb; padding: 2pt 0; }
-  .druck-rueckblick .rb-text { flex: 1; }
+  /* D237: Analyse drucken – Knöpfe als schlichter Text, Diagramme in Farbe, keine Bildlauf-Rahmen */
+  .druck-analyse button { all: unset; display: inline; }
+  .druck-analyse .bereich { border: none; padding: 0; margin: 0 0 8pt; background: none; box-shadow: none; }
+  .druck-analyse svg, .druck-analyse .kat-balken { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .druck-analyse * { overflow: visible !important; max-height: none !important; }
   .druck-rueckblick .plus, .druck-rueckblick .warn-text, .druck-rueckblick .negativ, .druck-rueckblick .gedaempft { color: #000 !important; }
   #druckbereich td { overflow-wrap: anywhere; }
   #druckbereich th, #druckbereich td { text-align: left; padding: 3pt 4pt; border-bottom: .5pt solid #bbb; vertical-align: top; }
@@ -1637,27 +1639,16 @@ body:not(.umbuchungen-sichtbar) .ub-ausblendbar { display: none; }
 .farb-wahl.farb-auto { width: 28px; flex: none; }
 .farb-wahl[aria-pressed="true"] { border-color: var(--flaeche); box-shadow: 0 0 0 2px var(--text); }
 
-/* D156: Rückblick */
-.rb-dialog { width: min(760px, calc(100vw - 24px)); max-width: none; }
-.rb-wahl { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
-.rb-wahl .segmente { margin: 0; }
-.rb-wahl select { min-width: 160px; }
-.rb-titel { font-size: .95rem; margin: 16px 0 6px; }
-.rb-tabelle-rahmen { overflow-x: auto; }
-.rb-tabelle { width: 100%; border-collapse: collapse; font-size: .9rem; }
-.rb-tabelle th { font-size: .75rem; font-weight: 600; color: var(--text-2); text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--rand); }
-.rb-tabelle td { padding: 6px; border-bottom: 1px solid var(--rand); white-space: nowrap; }
-.rb-tabelle td:first-child { white-space: normal; }
-.rb-tabelle .zahl { text-align: right; font-variant-numeric: tabular-nums; }
-.rb-tabelle .rb-summe td { font-weight: 600; }
-.rb-groesste { list-style: none; margin: 0; padding: 0; }
-.rb-groesste li { display: grid; grid-template-columns: 84px minmax(0, 1fr) auto; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--rand); font-size: .9rem; }
-.rb-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rb-datum { color: var(--text-2); }
+/* D237: Einnahmen und Ausgaben in der Analyse (aus dem Rückblick, D156) */
+.bilanz-rahmen { overflow-x: auto; }
+.bilanz-tabelle { width: 100%; border-collapse: collapse; font-size: .9rem; }
+.bilanz-tabelle th { font-size: .75rem; font-weight: 600; color: var(--text-2); text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--rand); }
+.bilanz-tabelle td { padding: 6px; border-bottom: 1px solid var(--rand); white-space: nowrap; }
+.bilanz-tabelle .zahl { text-align: right; font-variant-numeric: tabular-nums; }
+.bilanz-tabelle .bilanz-summe td { font-weight: 600; }
 @media (max-width: 767px) {
-  .rb-tabelle { font-size: .82rem; }
-  .rb-tabelle td, .rb-tabelle th { padding: 5px 4px; }
-  .rb-groesste li { grid-template-columns: 72px minmax(0, 1fr) auto; }
+  .bilanz-tabelle { font-size: .82rem; }
+  .bilanz-tabelle td, .bilanz-tabelle th { padding: 5px 4px; }
 }
 
 /* D160: Seitentitel nur noch für Bildschirmleser (außer Übersicht); Umschalter-Zeile mit Knopf rechts */
@@ -1698,11 +1689,7 @@ body:not(.umbuchungen-sichtbar) .ub-ausblendbar { display: none; }
 .notiz-liste { margin: 8px 0; padding: 8px 12px; border-radius: var(--radius-klein); background: var(--flaeche-2); }
 .notiz-liste ul { list-style: none; margin: 4px 0 0; padding: 0; font-size: .9rem; }
 .notiz-liste li + li { margin-top: 2px; }
-.rb-notiz:empty { display: none; }
 
-/* D168: Notfall-Mappe */
-.notfall-text { width: 100%; font: inherit; padding: 8px 10px; border-radius: var(--radius-klein); border: 1px solid var(--rand); background: var(--flaeche); color: var(--text); resize: vertical; }
-@media print { .druck-notfall .notfall-hinweise p { margin: 0 0 2pt; } }
 
 /* D170: Budgetbalken – verbraucht (voll) + noch ausstehende wiederkehrende Ausgaben (schraffiert, als Annahme) */
 .meter:has(.meter-ist) { display: flex; }
@@ -1806,6 +1793,9 @@ html[data-schrift="gross"] { font-size: 103.125%; }
 .abschluss-haken { flex: none; width: 1.2em; text-align: center; font-weight: 700; }
 .abschluss-liste li.ok .abschluss-haken { color: var(--einnahme); }
 .abschluss-liste li.offen .abschluss-haken { color: var(--warnung); }
+/* D239: Jahreswechsel – Hand-Punkte zum Antippen */
+.abschluss-haken-knopf { align-self: flex-start; background: none; border: none; padding: 0; font: inherit; font-weight: 700; cursor: pointer; line-height: inherit; color: inherit; }
+.abschluss-haken-knopf:focus-visible { outline: 2px solid var(--akzent); outline-offset: 2px; border-radius: var(--radius-mini); }
 
 /* D207: Getrennt lassen, manuell zusammenfassen */
 .empf-aktionen { display: flex; flex-wrap: wrap; gap: 6px; }

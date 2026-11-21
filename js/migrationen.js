@@ -23,7 +23,7 @@
 import { neueKategorie, INVESTITIONEN_UNTER, BARGELD_UNTER } from './startdaten.js';
 import { startReihenfolge } from './konten.js';
 
-export const DATENMODELL_VERSION = 26;
+export const DATENMODELL_VERSION = 27;
 
 /** Standard-Schwellen für Budgethinweise (in den Stammdaten änderbar) */
 export const STANDARD_EINSTELLUNGEN = Object.freeze({ id: 'hinweise', monate: 3, prozent: 10 });
@@ -305,6 +305,14 @@ export const MIGRATIONEN = [
     beschreibung: 'Abschlagsrechner Strom und Gas (D233): neue Sammlung "zaehler". Alte App-Versionen lesen diesen Stand nicht mehr.',
     migriere(daten) {
       daten.zaehler ??= [];
+      return daten;
+    },
+  },
+  {
+    nach: 27,
+    beschreibung: 'Notfall-Mappe wieder ausgebaut: die Einstellung "notfall" (eigene Hinweise) entfällt (D236).',
+    migriere(daten) {
+      daten.einstellungen = (daten.einstellungen ?? []).filter((e) => e.id !== 'notfall');
       return daten;
     },
   },

@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   GAS_PROMILLE, parseZahl, gewicht, zeitraum, folgeZeitraum, faktor, verbrauch, preisAm, kosten, abschlagsRechnung,
-  ablesungsHinweis, baueZaehler, mitAblesung, ohneAblesung, ablesungsVerlauf, mitNeuemAbschlag, abschlagBuchung,
+  offeneAblesungen, baueZaehler, mitAblesung, ohneAblesung, ablesungsVerlauf, mitNeuemAbschlag, abschlagBuchung,
 } from '../js/energie.js';
 import { migriereDaten, DATENMODELL_VERSION } from '../js/migrationen.js';
 
@@ -121,19 +121,13 @@ test('Abschlagsrechnung: ohne Preise oder Ablesungen nur Hinweis; ohne Abschlag-
   assert.equal(r.vorschlagCent, Math.ceil(r.jahresCent / 4 / 100) * 100);
 });
 
-test('Hinweis am Monatsletzten bis 5 Tage danach, bis abgelesen oder weggeklickt', () => {
-  const z = [{ ...strom, ablesungen: [{ datum: '2026-10-31', stand: 1 }] }, { ...gas, ablesungen: [] }];
-  assert.equal(ablesungsHinweis(z, '2026-11-29'), null);
-  assert.equal(ablesungsHinweis(z, '2026-11-30').zaehler.length, 2);
-  assert.equal(ablesungsHinweis(z, '2026-11-30').stichtag, '2026-11-30');
-  const dez = ablesungsHinweis(z, '2026-12-03');
-  assert.equal(dez.stichtag, '2026-11-30');
-  assert.equal(ablesungsHinweis(z, '2026-12-06'), null);
-  assert.equal(ablesungsHinweis(z, '2026-12-03', '2026-11-30'), null, 'weggeklickt');
-  // Oktober: Strom am 31.10. abgelesen, Gas nicht
-  assert.deepEqual(ablesungsHinweis(z, '2026-11-02').zaehler.map((x) => x.id), ['z2']);
-  assert.equal(ablesungsHinweis([{ ...gas, aktiv: false }], '2026-11-30'), null);
-  assert.equal(ablesungsHinweis(z, '2027-02-28').stichtag, '2027-02-28');
+test('D238: offene Ablesungen zum Monatsende (für den Monatsabschluss)', () => {
+  const z = [{ ...strom, ablesungen: [{ datum: '2026-10-31', stand: 1 }] }, { ...gas, ablesungen: [{ datum: '2026-10-27', stand: 1 }] }];
+  assert.deepEqual(offeneAblesungen(z, '2026-10').map((x) => x.id), ['z2'], 'Strom am Letzten, Gas zu früh');
+  assert.equal(offeneAblesungen(z, '2026-11').length, 2);
+  assert.deepEqual(offeneAblesungen([{ ...strom, ablesungen: [{ datum: '2026-11-03', stand: 2 }] }], '2026-10'), [], 'später nachgetragen zählt');
+  assert.deepEqual(offeneAblesungen([{ ...gas, aktiv: false }], '2026-11'), []);
+  assert.equal(offeneAblesungen([{ ...strom, ablesungen: [{ datum: '2027-02-25', stand: 1 }] }], '2027-02').length, 0, 'Februar: ab 25.02.');
 });
 
 test('Zähler bauen: Prüfungen', () => {
@@ -180,7 +174,7 @@ test('Neuer Abschlag als Stufe der wiederkehrenden Buchung', () => {
 });
 
 test('Migration auf Datenversion 26: Sammlung „zaehler“', () => {
-  assert.equal(DATENMODELL_VERSION, 26);
+  assert.equal(DATENMODELL_VERSION, 27);
   const { daten } = migriereDaten({ version: 25, konten: [] });
   assert.deepEqual(daten.zaehler, []);
 });

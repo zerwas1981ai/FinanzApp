@@ -7,9 +7,12 @@ Wird eine Entscheidung geändert, den alten Eintrag nicht löschen, sondern als
 
 ---
 
-## Was gilt aktuell (Stand 15.11.2026, D216)
+## Was gilt aktuell
 
 Kurzer Wegweiser, weil viele spätere Einträge frühere aufheben. Maßgeblich bleibt der jeweils letzte Eintrag.
+Bei jeder neuen D-Nummer hier mitpflegen; der Test `tests/wegweiser.test.js` prüft die Stand-Zeile (D236).
+
+**Stand:** D239 · Datenmodell 27 · DB-Struktur 13 · Cache finanzapp-v137
 
 **Wieder ausgebaut – nicht mehr im Code:**
 - Szenarien „Was wäre wenn“ → ersetzt durch Projekte (D51)
@@ -19,24 +22,32 @@ Kurzer Wegweiser, weil viele spätere Einträge frühere aufheben. Maßgeblich b
 - Steuer-Paket mit Steuerthema, Liste und Belege-ZIP (D167 → D169)
 - Vorlagen für häufige Buchungen (D104 → D172)
 - Klappbereiche in den Stammdaten (D154 → D160), „Alles löschen und neu beginnen“ ist ausgeblendet (D140)
+- Abstimm-Erinnerung nach 10 Tagen (D145 → D236), dafür gibt es den Monatsabschluss (D206)
+- Notfall-Mappe (D168 → D236) und Preisentwicklung im Vertrag (D166 → D236)
+- Logos (Bank, Empfänger) dauerhaft nicht – Konten haben stattdessen Farben (D228, D236)
+- Rückblick (D156 → D237): Einnahmen/Ausgaben/Saldo/Sparquote und Drucken stecken jetzt in der Analyse
+- Eigener Hinweis „Zählerstände ablesen“ (D233 → D238) und Archiv-Erinnerung (D185 → D239)
 
 **Aufbau der Oberfläche:**
 - Seitenüberschriften gibt es nicht mehr sichtbar; in der Übersicht steht „Übersicht“ im Kennzahlen-Kasten (D160, D164)
-- Alle Buchungen: Liste · Analyse · Belege (D179, D191)
+- Alle Buchungen: Liste · Analyse · Belege (D179, D191); Analyse mit Einnahmen und Ausgaben gegen die Vorperiode und „Drucken / PDF“ (D237)
 - Projekte: Umschalter Projekte · Relevante Ausgaben (D153, D161, D191)
-- Annahmen: Umschalter Budgets · Wiederkehrende · Verträge · Geplante (D160, D191, D193)
+- Annahmen: Umschalter Budgets · Wiederkehrende · Verträge · Energie · Geplante (D160, D191, D193, D233)
 - Die Untertabs (Projekte, Annahmen, Stammdaten) bleiben beim Scrollen oben fixiert (D193)
-- Stammdaten: Umschalter Konten · Kategorien · Empfänger · Daten & Sicherheit · Notfall-Mappe · Papierkorb · Einstellungen (D180, D205)
+- Stammdaten: Umschalter Konten · Kategorien · Empfänger · Daten & Sicherheit · Papierkorb · Einstellungen (D180, D205, D236)
 - Übersicht: Monat per Wischen wechseln (D200); Wolke oben zeigt den letzten Drive-Abgleich (D202)
-- Buchungen wischen: rechts = Papierkorb, links = Kopie (D211); Sicherungsdatei wahlweise mit Passwort (D212)
+- Buchungen wischen: rechts = Papierkorb, links = Kopie (D211, am Handy bestätigt); Sicherungsdatei wahlweise mit Passwort (D212)
 - Auslagen mit Rückzahlung (D214); automatisches Aufrunden auf volle Euro aufs Sparkonto (D215); PayPal-Ausgaben automatisch vom Girokonto ausgleichen (D216)
+- Verträge: Laufzeit als Mindestlaufzeit oder Enddatum, Vertrag aus wiederkehrender Buchung anlegen (D219–D226); gekoppelte wiederkehrende Umbuchung (D227)
+- Konto-Farben: Kontoname als farbiges Etikett (D228–D232)
+- Abschlagsrechner Strom/Gas mit Zählerständen, Zählerwechsel und Trendpfeil (D233–D235)
 - Scrollbare Leisten behalten ihre Position (D171); „+“-Knöpfe überall im blauen Stil (D161)
 
-**Schlaue Hinweise ohne KI:** erkannte wiederkehrende Zahlungen, „↑ hoch“-Marke, Kategorie aus Notiz, Archiv-Erinnerung (D182–D185); Preisänderung, Abstimmhilfe, Monatsabschluss (D203, D204, D206); „↑ hoch“ per Antippen bestätigen (D186); Kategoriefarbe als schmaler Balken (D187). KI bleibt außen vor.
+**Schlaue Hinweise ohne KI:** erkannte wiederkehrende Zahlungen, „↑ hoch“-Marke, Kategorie aus Notiz, Archiv-Erinnerung (D182–D185); Preisänderung, Abstimmhilfe, Monatsabschluss (D203, D204, D206); „↑ hoch“ per Antippen bestätigen (D186); Kategoriefarbe als schmaler Balken (D187); Zählerstände als Punkt im Monatsabschluss, der schon am Monatsletzten erscheint (D238); Jahreswechsel-Check 15.12.–31.01. (D239). KI bleibt außen vor.
 
-**Datenstand:** Datenmodell-Version 24, DB-Struktur 12. Alte Schubladen (werden geleert): szenarien, sparziele, vorlagen.
+**Datenstand:** Alte Schubladen (werden geleert): szenarien, sparziele, vorlagen.
 Sammlungen: konten, kategorien, buchungen, abstimmungen, budgets, wiederkehrend, hinweise, einstellungen, geplant,
-projekte, archive, relevant, vertraege, monatsnotizen.
+projekte, archive, relevant, vertraege, monatsnotizen, zaehler.
 
 ---
 
@@ -2876,3 +2887,55 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
   ehrlich, ob der Verbrauch teurer (▲, ab 1 €) oder günstiger (▼) wird; → = etwa gleich. Vergleich nur innerhalb
   desselben Abrechnungsjahres. Nichts davon wird gespeichert, alles wird beim Öffnen berechnet (`ergebnisVerlauf`).
 - `abschlagsRechnung` zählt erledigte Termine nur aus Buchungen bis zum Stichtag (nötig für die Rückrechnung).
+
+## D236 – Aufräumen: Erinnerung, Notfall-Mappe, Preisentwicklung, Logos; Wegweiser mit Prüftest
+*Wunsch des Nutzers, 21.11.2026*
+- **Abstimm-Erinnerung nach 10 Tagen ausgebaut (ersetzt D145):** „Zuletzt abgestimmt“ wird nicht mehr farbig und zeigt
+  kein „vor N Tagen“ mehr; „Noch nicht abgestimmt.“ steht grau. Ans Abstimmen erinnert der Monatsabschluss (D206).
+- **Notfall-Mappe ausgebaut (ersetzt D168):** Umschalter in den Stammdaten, Dateien `js/notfall.js` und
+  `js/views/notfall.js` entfallen. Datenversion 27 entfernt die Einstellung „notfall“ (eigene Hinweise); ältere Stände
+  liegen weiter in den Sicherungen.
+- **Preisentwicklung im Vertrag ausgebaut (ersetzt D166).** Die Preisänderungs-Erkennung (D203) bleibt.
+- **Logos entfallen dauerhaft** (Bank, Empfänger). Im Code gab es keine; das App-Symbol in der Kopfzeile bleibt.
+- Ungenutzte Funktion `datenbankLoeschen` (db.js) entfernt.
+- Testdateien nach Thema statt nach Runde benannt (z. B. `runde9` → `auslagen-aufrunden-ausgleich`).
+- **Wegweiser mit Prüftest:** „Was gilt aktuell“ hat eine Stand-Zeile (D-Nummer, Datenmodell, DB-Struktur, Cache).
+  `tests/wegweiser.test.js` vergleicht sie – und die Zeile in CLAUDE.md – mit dem Code und prüft, dass `sw.js` alle
+  Programmdateien enthält. Vergisst man das Nachtragen, schlägt `npm test` fehl.
+
+## D237–D239 – Runde 10 (Wunsch des Nutzers, 21.11.2026: K2, E1, E2)
+
+### D237 – Rückblick geht in der Analyse auf (ersetzt D156)
+- Der Knopf „Rückblick“ und sein Dialog entfallen (`js/rueckblick.js`, `js/views/rueckblick.js`). Grund: Analyse,
+  Rückblick und Vormonatsvergleich zeigten teils dieselben Zahlen. Vorperioden-Vergleich, 12-Monats-Trend und
+  größte Ausgaben hatte die Analyse schon.
+- Neu oben in der Analyse: Bereich **„Einnahmen und Ausgaben“** mit Einnahmen, Ausgaben, Saldo und Sparquote im
+  gewählten Zeitraum, daneben Vorperiode und Δ (gleiche Vorperiode wie in der Kategorientabelle, D125; Sparquote in
+  Prozentpunkten). Es gelten alle Filter außer „Art“ (sonst gäbe es keinen Saldo); Umbuchungen, offene Auslagen und
+  Rückzahlungen zählen nicht (`bilanz()` in `js/auswertung.js`).
+- **„Drucken / PDF“** steht in der Analyse rechts neben Liste · Analyse · Belege und druckt Summenkarte und Analyse
+  (Knöpfe als Text, Diagrammfarben erhalten).
+- Die Anzeige „Bis heute … · Vormonat …“ in der Übersicht (D209/D218) bleibt als schneller Blick. Monatsnotizen schreibt
+  man weiter in der Übersicht (✎), angezeigt werden sie in der Analyse. `monatKurz`/`monatLang` liegen jetzt in `format.js`.
+
+### D238 – Zählerstände im Monatsabschluss (ersetzt den Hinweis aus D233)
+- Der Monatsabschluss hat mit eingeschalteten Zählern einen 5. Punkt **„Zählerstände eingetragen“**. Erfüllt, sobald
+  jeder Zähler einen Stand ab 3 Tage vor dem Monatsletzten hat (auch später nachgetragen). Dahinter „Erfassen …“.
+- Damit am Ablesetag erinnert wird, erscheint der Monatsabschluss schon **am Monatsletzten** (für den laufenden Monat),
+  danach wie bisher vom 1. bis 10. für den Vormonat. „Als erledigt markieren“ gilt für den ganzen Monat.
+- Der eigene Hinweis „Zählerstände · Ende … ablesen“ samt „Diesen Monat nicht“ entfällt. Die Zahl am Umschalter
+  „Energie“ zählt die noch offenen Zähler, solange der Monatsabschluss läuft (`offeneAblesungen` in `js/energie.js`).
+
+### D239 – Jahreswechsel-Check (ersetzt die Archiv-Erinnerung aus D185)
+- Vom **15.12. bis 31.01.** oben in der Übersicht „Jahreswechsel JJJJ · x von 5 erledigt“, aufgebaut wie der
+  Monatsabschluss (`js/jahreswechsel.js`, Ansicht in `js/views/erkennung.js`):
+  1. **Budgets für das neue Jahr** – automatisch: Budgets, die im Dezember gelten, im Januar nicht mehr und keinen
+     Nachfolger für dieselbe Kategorie und dasselbe Konto haben.
+  2. **Kündigungsfristen bis Ende März** – automatisch: laufende Verträge, deren Frist bis 31.03. des neuen Jahres abläuft.
+  3. **Preisänderungen ab Januar eingetragen** – von Hand abhaken (○ antippen).
+  4. **Abgeschlossenes Jahr archiviert** – automatisch wie D185 (mit Hinweis auf Papierkorb-Hindernis).
+  5. **Jahres-Sicherungsdatei heruntergeladen** – von Hand abhaken.
+- Zu jedem offenen Punkt ein Knopf an die passende Stelle (Budgets, Verträge, Wiederkehrende, Daten & Sicherheit).
+- Haken und „Als erledigt markieren“ liegen in `einstellungen` ('jahreswechsel': erledigt, haken je Jahr) und werden über
+  Drive abgeglichen; neue optionale Einstellung, darum keine neue Datenmodell-Version.
+- Die Archiv-Erinnerung (D185) mit „In 30 Tagen erinnern“ entfällt; archiviert wird weiter unter Daten & Sicherheit.

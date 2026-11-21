@@ -8,9 +8,8 @@ Oberfläche auf Deutsch, Währung Euro, deutsches Datums- und Zahlenformat.
 
 ## Aktueller Stand
 - Alle Grundfunktionen sind fertig und online (GitHub Pages); seitdem Verbesserungsrunden auf Wunsch.
-- Letzte Entscheidung: D235, Cache-Version in sw.js: finanzapp-v135, Datenmodell-Version 26.
-- 215 Tests mit `npm test`, alle grün.
-- Offen: Wischen in Buchungslisten (D211) am echten Handy prüfen.
+- Letzte Entscheidung: D239, Cache-Version in sw.js: finanzapp-v137, Datenmodell-Version 27.
+- Tests mit `npm test`, alle grün. `tests/wegweiser.test.js` prüft, ob diese Zeile, der Wegweiser in DECISIONS.md und sw.js zum Code passen.
 
 ## Arbeitsweise (wichtig)
 - Nur umsetzen, was der Nutzer verlangt; nichts ungefragt vorbauen.
@@ -22,6 +21,7 @@ Oberfläche auf Deutsch, Währung Euro, deutsches Datums- und Zahlenformat.
 - Bei Unklarheit nachfragen, nicht raten.
 - Details zu Datenmodell, Oberfläche und Rechenlogik stehen in SPEC.md – nur bei Bedarf lesen.
 - DECISIONS.md nur lesen, wenn eine konkrete D-Nummer gebraucht wird (gezielt suchen, nicht ganz lesen).
+- Bei jeder neuen D-Nummer: Eintrag in DECISIONS.md, dort „Was gilt aktuell“ (Stand-Zeile, ggf. Liste) und die Zeile oben mitpflegen.
 
 ## Technik-Rahmen
 - PWA, installierbar auf Android, läuft auch im Browser unter Windows
@@ -59,7 +59,7 @@ Oberfläche auf Deutsch, Währung Euro, deutsches Datums- und Zahlenformat.
 
 ## Komfort und Sicherheit
 - Schnellerfassung: Betrag, Kategorie, fertig. Datum Standard heute, Konto zuletzt benutzt.
-- Hinweise aus eigenen Buchungen, ohne KI (Erkennung, Ausreißer, Abstimmhilfe, Monatsabschluss)
+- Hinweise aus eigenen Buchungen, ohne KI (Erkennung, Ausreißer, Abstimmhilfe, Monatsabschluss, Jahreswechsel)
 - Belege per Kamera oder „Teilen“, Bilder beim Hochladen verkleinern
 - Backup bei jedem Speichern (letzte 30 Stände), Export CSV, Sicherungsdatei wahlweise mit Passwort
 - App-Login: Pflicht-Passwort für alle Geräte (über Drive abgeglichen), je Gerät Passkey möglich

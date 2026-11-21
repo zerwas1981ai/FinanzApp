@@ -4,12 +4,12 @@
 
 import { h } from '../dom.js';
 import * as db from '../db.js';
-import { formatEuro, formatDatum, formatProzent, heuteIso } from '../format.js';
+import { formatEuro, formatDatum, heuteIso } from '../format.js';
 import { dialog, frage, toast, eingabe, auswahl, datenGeaendert, klappBereich, geraet, katPunkt, kontoEtikett, verbinde, alsText } from '../ui.js';
 import { farbenZuordnung } from '../farben.js';
 import {
   baueVertrag, vertragsStand, vertragsKosten, vertragsUebersicht, kostenSumme, vertraegeOhneWiederkehrend, vertragsBuchungen, endeVorschlag,
-  zuordnungsKandidaten, fristText, FRIST_EINHEITEN, KUENDIGUNG_ZUM, vertragsKategorie, nachKategorie, endeNachVerlaengerung, STANDARD_ERINNERUNG_TAGE, vertragVon, aktuellerBetrag, preisVerlauf,
+  zuordnungsKandidaten, fristText, FRIST_EINHEITEN, KUENDIGUNG_ZUM, vertragsKategorie, nachKategorie, endeNachVerlaengerung, STANDARD_ERINNERUNG_TAGE, vertragVon, aktuellerBetrag,
 } from '../vertraege.js';
 import { benenneBelege } from '../relevant.js';
 import { gruppeVon } from '../buchungen.js';
@@ -171,14 +171,6 @@ function vertragZeile({ v, stand }, daten, heute) {
         angabe('Kündigungsfrist', fristText(v)),
         angabe('Nächstes Vertragsende', naechstes),
         angabe('Kosten', kosten.posten.length ? kostenTeile(kosten, 1).map((t) => t.text).join(' · ') : 'keine wiederkehrende Buchung zugeordnet'),
-        // D166: Preisentwicklung aus den echten Zahlungen je Jahr
-        (() => {
-          const verlauf = preisVerlauf(buchungen);
-          if (!verlauf.length) return null;
-          const teile = verlauf.map((x) => `${x.jahr}: Ø ${formatEuro(x.schnittCent)}` +
-            (x.veraenderung == null ? '' : ` (${x.veraenderung >= 0 ? '+' : '−'}${formatProzent(Math.abs(x.veraenderung))})`));
-          return angabe('Preisentwicklung', teile.join(' → ') + (verlauf.length === 1 ? ` je Zahlung (${verlauf[0].anzahl} Zahlungen) – Vergleich ab dem nächsten Jahr` : ' je Zahlung'));
-        })(),
         angabe('Notiz', v.notiz),
       ].filter(Boolean)),
       v.belege?.length > 0 && h('div', { class: 'vertrag-unterlagen' },

@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  wiederkehrendVorschlaege, ungewoehnlichHoch, ungewoehnlicheBuchungen, vorherigeBetraege, notizWoerter, kategorieAusNotiz, archivErinnerung,
+  wiederkehrendVorschlaege, ungewoehnlichHoch, ungewoehnlicheBuchungen, vorherigeBetraege, notizWoerter, kategorieAusNotiz,
 } from '../js/erkennung.js';
 
 const b = (id, datum, betragCent, partner, extra = {}) => ({ id, datum, betragCent, partner, art: 'ausgabe', kontoId: 'giro', kategorieId: 'abo', ...extra });
@@ -84,11 +84,3 @@ test('D184: Kategorie aus der Notiz', () => {
   assert.equal(kategorieAusNotiz('', buchungen, 'ausgabe'), null);
 });
 
-test('D185: Archiv-Erinnerung', () => {
-  const n = { jahr: 2025, anzahl: 120, hindernis: null };
-  assert.equal(archivErinnerung(n, '2026-01-10'), n);
-  assert.equal(archivErinnerung(n, '2026-01-10', '2026-02-09'), null, 'zurückgestellt');
-  assert.equal(archivErinnerung(n, '2026-02-10', '2026-02-09'), n, 'Frist abgelaufen');
-  assert.equal(archivErinnerung(null, '2026-01-10'), null);
-  assert.equal(archivErinnerung({ jahr: 2025, anzahl: 0 }, '2026-01-10'), null);
-});

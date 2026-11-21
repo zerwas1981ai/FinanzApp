@@ -5,7 +5,6 @@ import * as db from '../db.js';
 import { formatEuro, formatEuroRund, formatProzent, formatDatum, formatMonat, heuteIso, parseEuro } from '../format.js';
 import { herunterladen, toast, katPunkt, kontoEtikett, merkeScroll, auslageMarke } from '../ui.js';
 import { farbenZuordnung, farbeVon } from '../farben.js';
-import { oeffneRueckblick } from './rueckblick.js';
 import { ungewoehnlicheBuchungen } from '../erkennung.js';
 import { hochMarke } from './erkennung.js';
 import { belegeBereich } from './belege.js';
@@ -21,7 +20,7 @@ import {
   STANDARD_FILTER, STANDARD_SORTIERUNG, filtere, sortiere, summen, zeitraumFuer,
   monateDerAuswertung, ersterErfassterTag, abgeschlosseneMonate, summenJeKategorie, schoeneObergrenze,
   vorjahrJeMonat,
-  vorperiode, budgetSchnitt, groessteBuchungen, veraenderungProzent,
+  vorperiode, budgetSchnitt, groessteBuchungen, veraenderungProzent, bilanz,
   ausgabenVerlauf,
   OHNE_PARTNER, partnerListe, partnerSchluessel, summenJePartner, sortiereNach,
 } from '../auswertung.js';
@@ -461,8 +460,7 @@ function zeigeErgebnis(ziel, daten) {
   if (zustand.modus === 'belege') {
     const belegDaten = { ...daten, wiederkehrend: daten.wiederkehrende };
     ziel.replaceChildren(
-      h('div', { class: 'modus-zeile' }, modusWahl,
-        h('button', { type: 'button', class: 'knopf knopf-klein', onclick: () => oeffneRueckblick(daten) }, 'Rückblick')),
+      h('div', { class: 'modus-zeile' }, modusWahl),
       belegeBereich(belegDaten, (x) => {
         if (x.quelle === 'buchung') {
           if (x.ref.archivJahr) toast(`Archiv ${x.ref.archivJahr}: nur lesen.`);
@@ -472,15 +470,33 @@ function zeigeErgebnis(ziel, daten) {
       }, { hinweis: 'Die Filter oben gelten für Liste und Analyse, nicht für die Belege.' }));
     return;
   }
+  const karte = summenKarte(s, von, bis && bis < heute ? bis : heute); // D121: angezeigt wird höchstens bis heute
+  const inhalt = zustand.modus === 'liste'
+    ? liste(eintraege, daten, () => zeigeErgebnis(ziel, daten))
+    : analyse(eintraege, daten, heute, () => zeigeErgebnis(ziel, daten));
   ziel.replaceChildren(
-    summenKarte(s, von, bis && bis < heute ? bis : heute), // D121: angezeigt wird höchstens bis heute
-    // D156/D160: „Rückblick“ rechts neben Liste/Analyse (die Seitenüberschrift entfällt)
+    karte,
+    // D237: Der Rückblick ist in der Analyse aufgegangen; dort steht rechts „Drucken / PDF“
     h('div', { class: 'modus-zeile' }, modusWahl,
-      h('button', { type: 'button', class: 'knopf knopf-klein', onclick: () => oeffneRueckblick(daten) }, 'Rückblick')),
-    zustand.modus === 'liste'
-      ? liste(eintraege, daten, () => zeigeErgebnis(ziel, daten))
-      : analyse(eintraege, daten, heute, () => zeigeErgebnis(ziel, daten)),
+      zustand.modus === 'analyse' && h('button', {
+        type: 'button', class: 'knopf knopf-klein', onclick: () => druckeAnalyse(karte, inhalt),
+      }, 'Drucken / PDF')),
+    inhalt,
   );
+}
+
+/** D237: Druckansicht der Analyse (gleiche Druckregeln wie bei den relevanten Ausgaben, D144) */
+function druckeAnalyse(karte, inhalt) {
+  const bereich = h('div', { id: 'druckbereich', class: 'druck-rueckblick druck-analyse' },
+    h('h1', {}, 'Analyse'),
+    h('p', {}, `Stand ${formatDatum(heuteIso())}`),
+    karte.cloneNode(true),
+    inhalt.cloneNode(true));
+  document.getElementById('druckbereich')?.remove();
+  document.body.append(bereich);
+  const weg = () => { bereich.remove(); window.removeEventListener('afterprint', weg); };
+  window.addEventListener('afterprint', weg);
+  window.print();
 }
 
 function summenKarte(s, von, bis) {
@@ -669,6 +685,7 @@ function analyse(eintraege, daten, heute, neu) {
   // D130: Ist bei „Art“ nur Einnahmen oder Umbuchungen gewählt, entfällt das Ausgaben-Diagramm
   const mitAusgaben = !zustand.filter.arten.length || zustand.filter.arten.includes('ausgabe');
   return h('div', {},
+    bilanzBereich(daten, heute, erster), // D237: aus dem Rückblick
     mitAusgaben && verlaufBereich(verlauf, neu, vorjahr),
     // D165: Monatsnotizen der gezeigten Monate
     mitAusgaben && notizListe(verlauf.map((z) => `${z.jahr}-${String(z.monat).padStart(2, '0')}`), daten.monatsnotizen),
@@ -678,6 +695,49 @@ function analyse(eintraege, daten, heute, neu) {
     // D132/D133: die Top-10-Liste nur in der Ansicht „Nach Kategorien“ und ohne Empfänger-Filter
     zustand.analyseGruppe === 'kategorie' && zustand.filter.partner.length === 0 && groessteBereich(eintraege, daten, neu),
   );
+}
+
+/**
+ * D237: Einnahmen, Ausgaben, Saldo und Sparquote im gewählten Zeitraum, verglichen mit der Vorperiode
+ * (aus dem Rückblick, D156). Gilt für alle Filter außer „Art“ – sonst gäbe es keinen Saldo.
+ */
+function bilanzBereich(daten, heute, erster) {
+  const ohneArt = { ...zustand.filter, arten: [] };
+  const jetzt = bilanz(filtere(daten.buchungen, ohneArt, { ...daten, heute }));
+  if (!jetzt.einnahmen && !jetzt.ausgaben) return null;
+  // Vorperiode wie in der Kategorientabelle: nur, wenn dort schon Buchungen erfasst waren
+  const vpRoh = vorperiode(zustand.filter, heute);
+  const vp = vpRoh && erster && vpRoh.bis >= erster ? vpRoh : null;
+  const vorher = vp && bilanz(filtere(daten.buchungen, { ...ohneArt, zeitraum: 'eigen', von: vp.von, bis: vp.bis }, { ...daten, heute }));
+
+  const mitVorzeichen = (cent) => (cent > 0 ? '+' : '') + formatEuro(cent);
+  const quote = (q) => (q == null ? '–' : formatProzent(q));
+  // Ausgaben: mehr ist ungünstig → Plus in Warnfarbe; Einnahmen und Saldo: Plus grün
+  const diff = (wert, gutWennPlus) => h('span', { class: wert === 0 ? 'gedaempft' : (wert > 0) === gutWennPlus ? 'plus' : 'warn-text' }, mitVorzeichen(wert));
+  const quoteDiff = () => {
+    if (jetzt.sparquote == null || vorher.sparquote == null) return '–';
+    const punkte = Math.round((jetzt.sparquote - vorher.sparquote) * 100);
+    return h('span', { class: punkte === 0 ? 'gedaempft' : punkte > 0 ? 'plus' : 'warn-text' }, `${punkte > 0 ? '+' : punkte < 0 ? '−' : ''}${Math.abs(punkte)} Pkt.`);
+  };
+  const zeilen = [
+    ['Einnahmen', formatEuro(jetzt.einnahmen), () => formatEuro(vorher.einnahmen), () => diff(jetzt.einnahmen - vorher.einnahmen, true)],
+    ['Ausgaben', formatEuro(jetzt.ausgaben), () => formatEuro(vorher.ausgaben), () => diff(jetzt.ausgaben - vorher.ausgaben, false)],
+    ['Saldo', h('span', { class: jetzt.saldo < 0 ? 'negativ' : null }, mitVorzeichen(jetzt.saldo)), () => mitVorzeichen(vorher.saldo), () => diff(jetzt.saldo - vorher.saldo, true)],
+    ['Sparquote', quote(jetzt.sparquote), () => quote(vorher.sparquote), quoteDiff],
+  ];
+  const zelle = (inhalt, zahl) => h('td', { class: zahl ? 'zahl' : null }, inhalt);
+  return h('section', { class: 'bereich' },
+    h('h2', {}, 'Einnahmen und Ausgaben'),
+    h('div', { class: 'bilanz-rahmen' },
+      h('table', { class: 'bilanz-tabelle' },
+        h('thead', {}, h('tr', {}, h('th', {}), h('th', { class: 'zahl' }, 'Zeitraum'),
+          vorher && h('th', { class: 'zahl', title: vp.text }, 'Vorperiode'), vorher && h('th', { class: 'zahl' }, 'Δ'))),
+        h('tbody', {}, zeilen.map(([titel, wert, alt, d], i) => h('tr', { class: i === 2 ? 'bilanz-summe' : null },
+          zelle(titel), zelle(wert, true), vorher && zelle(alt(), true), vorher && zelle(d(), true)))))),
+    h('p', { class: 'klein gedaempft' }, [
+      vorher && `Vorperiode: ${vp.text}. `,
+      'Alle Filter außer „Art“ gelten. Umbuchungen, offene Auslagen und Rückzahlungen zählen nicht.',
+    ]));
 }
 
 /**

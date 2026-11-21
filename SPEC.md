@@ -38,8 +38,8 @@ Details zu Datenmodell, Oberfläche und Rechenlogik (aus CLAUDE.md verschoben). 
   Gradtagszahlen (Promille je Monat 170/150/130/80/40/13⅓/13⅓/13⅓/30/80/120/160). Gezahlt = Ausgaben des Vertrags im
   Zeitraum (ohne geplante Nachzahlung); noch erwartet = offene Termine der wiederkehrenden Ausgabe des Vertrags.
   Vorschläge (Abschlag bis zur Abrechnung, Abschlag fürs neue Jahr = Kosten ÷ 12, auf volle Euro aufgerundet) werden
-  erst nach Klick übernommen (neue Betragsstufe bzw. geplante Einmalbuchung). Hinweis „Zählerstände ablesen“ in der
-  Übersicht vom Monatsletzten bis zum 5. des Folgemonats (je Monat wegklickbar, nur dieses Gerät).
+  erst nach Klick übernommen (neue Betragsstufe bzw. geplante Einmalbuchung). Erinnerung „Zählerstände eingetragen“ als
+  Punkt im Monatsabschluss, der dafür schon am Monatsletzten erscheint (D238).
 - Wiederkehrende Buchung: Intervall (monatlich/vierteljährlich/halbjährlich/jährlich, D197),
   Start, optional Ende, Wertänderungen ab Datum, feste Abweichung je
   Kalendermonat (jedes Jahr, D94), einzelne Monate überspringen oder verschieben;
@@ -66,7 +66,7 @@ Details zu Datenmodell, Oberfläche und Rechenlogik (aus CLAUDE.md verschoben). 
      immer sichtbar (komprimiert, aufklappbar), Folgejahre bis 2050 einzeln
      ein- und ausblendbar. Zukunftswerte optisch klar als Annahme
      gekennzeichnet (z. B. kursiv oder schraffiert).
-2. Alle Buchungen (Umschalter Liste · Analyse · Belege, D191): über alle Konten filtern, sortieren, analysieren, Monats-/Jahresrückblick (D156); nur gebuchte
+2. Alle Buchungen (Umschalter Liste · Analyse · Belege, D191): über alle Konten filtern, sortieren, analysieren (Analyse mit Einnahmen/Ausgaben/Saldo/Sparquote gegen die Vorperiode und „Drucken / PDF“, D237); nur gebuchte
    Buchungen bis heute (D120/D121); Filter "ohne Beleg" vorerst entfallen (D123)
 3. Projekte (Umschalter Projekte · Relevante Ausgaben · Auslagen, D153/D191/D214): Einmalausgaben (echte und geplante Buchungen) einem Projekt
    zuordnen, z. B. Umbau oder Urlaub; Gesamtkosten mit optionalem Rahmen.
@@ -76,7 +76,7 @@ Details zu Datenmodell, Oberfläche und Rechenlogik (aus CLAUDE.md verschoben). 
    Einmalbuchungen. Nur absolute Werte, KEINE Prozentsteigerungen oder
    Inflation. Ein/Aus-Schalter je Posten, um ihn für die Prognose
    auszuschalten, ohne etwas zu löschen.
-5. Stammdaten (Umschalter Konten · Kategorien · Empfänger · Daten & Sicherheit · Notfall-Mappe · Papierkorb · Einstellungen, D180/D205)
+5. Stammdaten (Umschalter Konten · Kategorien · Empfänger · Daten & Sicherheit · Papierkorb · Einstellungen, D180/D205/D236)
 
 ## Rechenlogik
 - Zukunftsmonate werden bei jedem Öffnen berechnet, nicht gespeichert.
@@ -106,8 +106,9 @@ Details zu Datenmodell, Oberfläche und Rechenlogik (aus CLAUDE.md verschoben). 
   zuletzt benutzt. „Erfassen & weitere“, Rechnen im Betragsfeld, häufige Kategorien oben (D175). Kurzbefehle am
   App-Symbol (D105), Belege per „Teilen“ an die App schicken (Android, D106).
 - Hinweise aus eigenen Buchungen, ohne KI: wiederkehrende Zahlungen erkennen (D182), ungewöhnlich hohe
-  Ausgaben markieren (D183), Kategorie aus der Notiz vorschlagen (D184), Archiv-Erinnerung (D185),
-  Preisänderung erkennen (D203), Hilfe bei der Kontoabstimmung (D204), Monatsabschluss-Checkliste (D206)
+  Ausgaben markieren (D183), Kategorie aus der Notiz vorschlagen (D184),
+  Preisänderung erkennen (D203), Hilfe bei der Kontoabstimmung (D204), Monatsabschluss-Checkliste (D206, mit Zählerständen D238),
+  Jahreswechsel-Check 15.12.–31.01. mit Budgets, Kündigungsfristen, Preisen, Archiv und Sicherung (D239)
 - Kamera-Button für Belegfoto, Bilder beim Hochladen verkleinern
 - Automatisches Backup bei jedem Speichern (letzte 30 Stände), Export als
   CSV/Excel, kompletter Datenstand als Datei sichern und wiederherstellen (D178), wahlweise mit Passwort verschlüsselt (D212)

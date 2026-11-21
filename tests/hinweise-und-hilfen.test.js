@@ -96,6 +96,10 @@ test('D206: Monatsabschluss-Checkliste', () => {
   assert.equal(abschlussMonat('2026-12-01'), '2026-11');
   assert.equal(abschlussMonat('2026-01-10'), '2025-12');
   assert.equal(abschlussMonat('2026-12-11'), null);
+  // D238: am Monatsletzten gilt schon der laufende Monat (Ablesetag)
+  assert.equal(abschlussMonat('2026-11-30'), '2026-11');
+  assert.equal(abschlussMonat('2027-02-28'), '2027-02');
+  assert.equal(abschlussMonat('2026-11-29'), null);
   const daten = {
     konten: [{ id: 'giro', name: 'Giro', stichtag: '2026-01-01' }, { id: 'tg', name: 'Tagesgeld', stichtag: '2026-01-01' }],
     abstimmungen: [
@@ -117,6 +121,13 @@ test('D206: Monatsabschluss-Checkliste', () => {
   const leer = abschlussPruefung({ ...daten, buchungen: [], relevant: [], abstimmungen: [
     { kontoId: 'giro', datum: '2026-12-01', bankstandCent: 1, berechnetCent: 1 }, { kontoId: 'tg', datum: '2026-11-30', bankstandCent: 1, berechnetCent: 1 }] }, [], '2026-11');
   assert.ok(leer.every((x) => x.ok));
+  // D238: Punkt Zählerstände nur mit eingeschalteten Zählern
+  const zaehler = [{ id: 'z1', name: 'Strom (Test)', ablesungen: [{ datum: '2026-11-29', stand: 5 }] },
+    { id: 'z2', name: 'Gas (Test)', ablesungen: [] }, { id: 'z3', name: 'Aus', aktiv: false, ablesungen: [] }];
+  const mitZ = abschlussPruefung({ ...daten, zaehler }, [], '2026-11').at(-1);
+  assert.deepEqual([mitZ.id, mitZ.ok, mitZ.offen.map((z) => z.id)], ['zaehler', false, ['z2']]);
+  assert.match(mitZ.text, /Gas \(Test\)/);
+  assert.equal(abschlussPruefung({ ...daten, zaehler: [zaehler[2]] }, [], '2026-11').length, 4, 'nur ausgeschaltete: kein Punkt');
 });
 
 test('D207: Schreibweisen bewusst getrennt lassen', () => {
