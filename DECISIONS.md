@@ -2857,3 +2857,13 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
 - Erinnerung: Eine echte Handy-Benachrichtigung zu fester Zeit geht ohne eigenen Server nicht. Stattdessen Hinweis
   oben in der Übersicht vom Monatsletzten bis zum 5. des Folgemonats für eingeschaltete Zähler ohne Ablesung ab
   3 Tage vor dem Monatsletzten; „Diesen Monat nicht“ merkt sich das Gerät. Zahl am Umschalter „Energie“.
+
+### D234 – Zählerwechsel im Abschlagsrechner
+- Im Dialog „Zählerstand …“ eines Zählers: Häkchen „Zählerwechsel“ mit Endstand des alten Zählers, Anfangsstand des
+  neuen (vorbelegt 0) und optional der neuen Zählernummer. Gespeichert als Ablesung mit
+  `wechsel: { endstandAlt, zaehlernummerAlt }`; `stand` ist der Anfangsstand des neuen Zählers. Die neue Nummer kommt
+  an den Zähler, die alte bleibt an der Ablesung. Optionales Feld, darum keine neue Datenmodell-Version.
+- Verbrauch von einer Ablesung zur nächsten: bei einem Wechsel Endstand alt − Stand davor, danach ab dem Anfangsstand
+  neu (`schritt()` in `js/energie.js`). So laufen Hochrechnung, Nachzahlung und Vorschlag übers ganze Abrechnungsjahr
+  weiter, auch bei mehreren Wechseln. Ein kleinerer Stand ohne Häkchen wird weiter abgelehnt, mit Hinweis auf den Wechsel.
+- In der Liste: „🔄 Wechsel: alt … → neu …“.

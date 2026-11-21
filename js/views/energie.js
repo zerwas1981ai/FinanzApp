@@ -126,13 +126,22 @@ function zaehlerZeile(z, daten, heute) {
         const x = verlauf.get(a.datum);
         return h('tr', {},
           h('td', {}, formatDatum(a.datum)),
-          h('td', {}, zahlText(a.stand, 3)),
+          // D234: Zählerwechsel – Endstand alt → Anfangsstand neu
+          h('td', {}, a.wechsel
+            ? h('span', { title: 'Zählerwechsel' + (a.wechsel.zaehlernummerAlt ? ` (alter Zähler ${a.wechsel.zaehlernummerAlt})` : '') },
+              `🔄 Wechsel: alt ${zahlText(a.wechsel.endstandAlt, 3)} → neu ${zahlText(a.stand, 3)}`)
+            : zahlText(a.stand, 3)),
           h('td', {}, x ? kwhText(x.kwh) : '–'),
           h('td', {}, x?.kwhJeTag != null ? `${zahlText(x.kwhJeTag, 1)} kWh` : '–'),
           h('td', {}, h('button', {
             type: 'button', class: 'knopf knopf-klein', 'aria-label': `Zählerstand vom ${formatDatum(a.datum)} löschen`,
             onclick: async () => {
-              const ok = await frage({ titel: 'Zählerstand löschen?', text: `Stand ${zahlText(a.stand, 3)} ${einheitText(z)} vom ${formatDatum(a.datum)}.`, jaText: 'Löschen', gefahr: true });
+              const ok = await frage({
+                titel: a.wechsel ? 'Zählerwechsel löschen?' : 'Zählerstand löschen?',
+                text: a.wechsel ? `Zählerwechsel vom ${formatDatum(a.datum)} (alt ${zahlText(a.wechsel.endstandAlt, 3)} → neu ${zahlText(a.stand, 3)} ${einheitText(z)}).`
+                  : `Stand ${zahlText(a.stand, 3)} ${einheitText(z)} vom ${formatDatum(a.datum)}.`,
+                jaText: 'Löschen', gefahr: true,
+              });
               if (!ok) return;
               await db.speichere('zaehler', ohneAblesung(z, a.datum));
               datenGeaendert();
@@ -177,16 +186,43 @@ export function ablesungDialog(daten, nur = null) {
       }),
     };
   });
+  // D234: Zählerwechsel – nur beim Erfassen für einen einzelnen Zähler
+  const wechselHaken = nur && h('input', { type: 'checkbox' });
+  const endstand = nur && eingabe({
+    label: `Endstand des alten Zählers (${einheitText(nur)})`, inputmode: 'decimal',
+    hilfe: 'Steht im Wechselprotokoll des Netzbetreibers bzw. auf der Mitteilung zum Zählerwechsel.',
+  });
+  const nummerNeu = nur && eingabe({ label: 'Nummer des neuen Zählers (optional)', maxlength: 40 });
+  const umschalten = () => {
+    if (!nur) return;
+    const an = wechselHaken.checked;
+    endstand.feld.hidden = !an;
+    nummerNeu.feld.hidden = !an;
+    felder[0].feld.querySelector('label').textContent = an ? `Anfangsstand des neuen Zählers (${einheitText(nur)})` : `${nur.name} (${einheitText(nur)})`;
+    const zuletzt = felder[0].feld.querySelector('.feld-hilfe');
+    if (zuletzt) zuletzt.hidden = an; // „Zuletzt …“ gehört zum alten Zähler
+    if (an && !felder[0].input.value) felder[0].input.value = '0';
+  };
+  wechselHaken?.addEventListener('change', umschalten);
+  umschalten();
+
   dialog({
     titel: nur ? `Zählerstand · ${nur.name}` : 'Zählerstände erfassen',
-    inhalt: [datum.feld, ...felder.map((f) => f.feld),
-      liste.length > 1 && h('p', { class: 'feld-hilfe' }, 'Leer gelassene Zähler werden übersprungen.')],
+    inhalt: [datum.feld,
+      nur && h('label', { class: 'schalter feld-schalter' }, wechselHaken, 'Zählerwechsel (neuer Zähler eingebaut)'),
+      nur && endstand.feld, ...felder.map((f) => f.feld), nur && nummerNeu.feld,
+      nur && h('p', { class: 'feld-hilfe' }, 'Beim Zählerwechsel rechnet die App den Verbrauch des alten Zählers bis zu seinem Endstand ' +
+        'und den des neuen ab seinem Anfangsstand zusammen – die Hochrechnung läuft übers ganze Abrechnungsjahr weiter.'),
+      liste.length > 1 && h('p', { class: 'feld-hilfe' }, 'Leer gelassene Zähler werden übersprungen. Einen Zählerwechsel erfasst du über „Zählerstand …“ beim jeweiligen Zähler.')],
     onSpeichern: async () => {
       const neu = [];
+      const wechsel = wechselHaken?.checked
+        ? { endstandAlt: parseZahl(endstand.input.value, 'Endstand des alten Zählers'), zaehlernummerNeu: nummerNeu.input.value }
+        : null;
       for (const f of felder) {
         const stand = parseZahl(f.input.value, f.z.name);
         if (stand == null) continue;
-        neu.push(mitAblesung(f.z, { datum: datum.input.value, stand }));
+        neu.push(mitAblesung(f.z, { datum: datum.input.value, stand, wechsel }));
       }
       if (!neu.length) throw new Error('Bitte mindestens einen Zählerstand eingeben.');
       await db.speichere('zaehler', neu);

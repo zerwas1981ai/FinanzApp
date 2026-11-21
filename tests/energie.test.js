@@ -184,3 +184,32 @@ test('Migration auf Datenversion 26: Sammlung „zaehler“', () => {
   const { daten } = migriereDaten({ version: 25, konten: [] });
   assert.deepEqual(daten.zaehler, []);
 });
+
+test('D234: Zählerwechsel mitten im Abrechnungsjahr', () => {
+  let z = { ...strom, zaehlernummer: 'ALT-1', ablesungen: [{ datum: '2026-03-31', stand: 10000 }, { datum: '2026-06-30', stand: 10600 }] };
+  // neuer Zähler am 15.08.: alter endet bei 10950, neuer beginnt bei 0
+  z = mitAblesung(z, { datum: '2026-08-15', stand: 0, wechsel: { endstandAlt: 10950, zaehlernummerNeu: ' NEU-2 ' } });
+  assert.equal(z.zaehlernummer, 'NEU-2');
+  assert.deepEqual(z.ablesungen[2], { datum: '2026-08-15', stand: 0, wechsel: { endstandAlt: 10950, zaehlernummerAlt: 'ALT-1' } });
+  z = mitAblesung(z, { datum: '2026-10-31', stand: 450 });
+  // 600 + 350 + 450 = 1400 kWh – wie ohne Wechsel
+  const v = verbrauch(z, zeitraum(z, '2026-11-21'), '2026-11-21');
+  assert.equal(v.kwh, 1400);
+  const verlauf = ablesungsVerlauf(z);
+  assert.deepEqual(verlauf.map((x) => x.kwh), [450, 350, 600]);
+  // Prüfungen: alter Endstand nicht kleiner als davor, neuer Stand nach dem Wechsel nicht unter dem Anfangsstand
+  assert.throws(() => mitAblesung(z, { datum: '2026-08-15', stand: 0, wechsel: { endstandAlt: 10500 } }), /Endstand des alten Zählers ist kleiner/);
+  assert.throws(() => mitAblesung(z, { datum: '2026-11-30', stand: 400 }), /nur vorwärts/);
+  assert.throws(() => mitAblesung(z, { datum: '2026-08-15', stand: 0, wechsel: { endstandAlt: null } }), /Endstand des alten Zählers eingeben/);
+  // ohne Wechsel kleiner eingeben → Hinweis auf „Zählerwechsel“
+  assert.throws(() => mitAblesung({ ...strom }, { datum: '2026-11-30', stand: 3 }), /Zählerwechsel/);
+  // Wechsel erneut bearbeiten: alte Nummer bleibt erhalten
+  const nochmal = mitAblesung(z, { datum: '2026-08-15', stand: 2, wechsel: { endstandAlt: 10960, zaehlernummerNeu: 'NEU-2' } });
+  assert.equal(nochmal.ablesungen[2].wechsel.zaehlernummerAlt, 'ALT-1');
+  // Gas in m³: gleiche Rechnung mit Umrechnung
+  const g = mitAblesung({ ...gas, ablesungen: [{ datum: '2026-05-31', stand: 1000 }] }, { datum: '2026-09-15', stand: 0, wechsel: { endstandAlt: 1060 } });
+  const g2 = mitAblesung(g, { datum: '2026-10-31', stand: 40 });
+  nah(verbrauch(g2, zeitraum(g2, '2026-11-21'), '2026-11-21').kwh, 1045);
+  // ohne neue Nummer bleibt die alte am Zähler
+  assert.equal(g.zaehlernummer, gas.zaehlernummer);
+});

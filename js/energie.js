@@ -9,7 +9,8 @@
 //   brennwert, zustandszahl (nur Gas in m³: kWh = m³ × Brennwert × Zustandszahl),
 //   vorjahrKwh (null | Verbrauch laut letzter Abrechnung – Ersatz, solange Ablesungen fehlen),
 //   gezahltManuell (null | { bis "JJJJ-MM-TT", cent } – Abschläge vor dem Start der App im laufenden Zeitraum),
-//   geplantId (null | geplante Einmalbuchung für Nachzahlung/Guthaben), ablesungen: [{ datum, stand }],
+//   geplantId (null | geplante Einmalbuchung für Nachzahlung/Guthaben), ablesungen: [{ datum, stand, wechsel? }],
+//   wechsel (D234, Zählerwechsel): { endstandAlt, zaehlernummerAlt } – stand ist dann der Anfangsstand des neuen Zählers,
 //   aktiv, notiz, erstelltAm, geaendertAm, testdaten? }
 //
 // Rechenweg: Aus zwei Zählerständen ergibt sich der Verbrauch. Er wird auf das ganze Abrechnungsjahr
@@ -86,6 +87,19 @@ export const faktor = (z) => (z.art === 'gas' && z.einheit === 'm3' ? (z.brennwe
 const sortiert = (ablesungen) => [...(ablesungen ?? [])].sort((a, b) => a.datum.localeCompare(b.datum));
 
 /**
+ * D234: Verbrauch in Zählereinheiten von Ablesung a bis zur darauffolgenden Ablesung b.
+ * Beim Zählerwechsel (b.wechsel): alter Zähler bis zu seinem Endstand; der neue beginnt bei b.stand.
+ */
+export const schritt = (a, b) => (b.wechsel ? b.wechsel.endstandAlt - a.stand : b.stand - a.stand);
+
+/** Verbrauch in Zählereinheiten über eine sortierte Liste von Index i bis j (auch über Zählerwechsel hinweg) */
+function einheitenZwischen(liste, i, j) {
+  let summe = 0;
+  for (let k = i + 1; k <= j; k++) summe += schritt(liste[k - 1], liste[k]);
+  return summe;
+}
+
+/**
  * Verbrauchsrate in kWh je Promille Jahresgewicht – Grundlage der Hochrechnung.
  * Aus Ablesungen: von der letzten Ablesung am/vor Beginn des Zeitraums (sonst der ersten danach) bis zur neuesten.
  * Ersatz: Vorjahresverbrauch. Ergebnis null, wenn beides fehlt.
@@ -97,8 +111,9 @@ export function verbrauch(z, zr, heute) {
   const r0 = vorher ?? liste.find((a) => a.datum > zr.start);
   const rN = liste.at(-1);
   const f = faktor(z);
-  if (r0 && rN && rN.datum > r0.datum && rN.stand >= r0.stand && f > 0) {
-    const kwh = (rN.stand - r0.stand) * f;
+  const einheiten = r0 && rN ? einheitenZwischen(liste, liste.indexOf(r0), liste.length - 1) : -1;
+  if (r0 && rN && rN.datum > r0.datum && einheiten >= 0 && f > 0) {
+    const kwh = einheiten * f;
     const g = gewicht(z.art, r0.datum, rN.datum);
     const tage = tageBis(r0.datum, rN.datum);
     return { rate: kwh / g, quelle: 'ablesung', von: r0.datum, bis: rN.datum, kwh, tage, ungenau: tage < 60 };
@@ -256,17 +271,31 @@ export function baueZaehler(eingabe, { zaehler = [], alt = null, jetzt = new Dat
   };
 }
 
-/** Ablesung ergänzen oder (gleiches Datum) ersetzen; Zählerstände dürfen nicht rückwärts laufen */
-export function mitAblesung(z, { datum, stand }, jetzt = new Date().toISOString()) {
+/**
+ * Ablesung ergänzen oder (gleiches Datum) ersetzen; Zählerstände dürfen nicht rückwärts laufen.
+ * D234: wechsel = { endstandAlt, zaehlernummerNeu? } – Zählerwechsel an diesem Tag; stand = Anfangsstand des neuen
+ * Zählers (meist 0). Eine neue Zählernummer wird am Zähler gespeichert, die alte bleibt an der Ablesung.
+ */
+export function mitAblesung(z, { datum, stand, wechsel = null }, jetzt = new Date().toISOString()) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(datum ?? '')) throw new Error('Bitte ein gültiges Datum wählen.');
-  if (stand == null || !(stand >= 0)) throw new Error('Bitte den Zählerstand eingeben.');
-  const andere = sortiert(z.ablesungen).filter((a) => a.datum !== datum);
-  const davor = andere.filter((a) => a.datum < datum).at(-1);
-  const danach = andere.find((a) => a.datum > datum);
+  if (stand == null || !(stand >= 0)) throw new Error(wechsel ? 'Bitte den Anfangsstand des neuen Zählers eingeben (meist 0).' : 'Bitte den Zählerstand eingeben.');
+  if (wechsel && (wechsel.endstandAlt == null || !(wechsel.endstandAlt >= 0))) throw new Error('Bitte den Endstand des alten Zählers eingeben.');
+  const alt = (z.ablesungen ?? []).find((a) => a.datum === datum);
+  const neueNummer = (wechsel?.zaehlernummerNeu ?? '').trim();
+  const eintrag = wechsel
+    ? { datum, stand, wechsel: { endstandAlt: wechsel.endstandAlt, zaehlernummerAlt: alt?.wechsel?.zaehlernummerAlt ?? (neueNummer ? z.zaehlernummer ?? '' : '') } }
+    : { datum, stand };
+  const liste = sortiert([...(z.ablesungen ?? []).filter((a) => a.datum !== datum), eintrag]);
   const einheit = z.einheit === 'm3' ? 'm³' : 'kWh';
-  if (davor && stand < davor.stand) throw new Error(`Der Stand ist kleiner als am ${davor.datum.split('-').reverse().join('.')} (${zahlText(davor.stand, 3)} ${einheit}). Zähler laufen nur vorwärts.`);
-  if (danach && stand > danach.stand) throw new Error(`Der Stand ist größer als am ${danach.datum.split('-').reverse().join('.')} (${zahlText(danach.stand, 3)} ${einheit}).`);
-  return { ...z, ablesungen: sortiert([...andere, { datum, stand }]), geaendertAm: jetzt };
+  const dat = (iso) => iso.split('-').reverse().join('.');
+  for (let k = 1; k < liste.length; k++) {
+    if (schritt(liste[k - 1], liste[k]) >= 0) continue;
+    const [a, b] = [liste[k - 1], liste[k]];
+    const wert = b.wechsel ? 'Der Endstand des alten Zählers' : 'Der Stand';
+    if (b === eintrag) throw new Error(`${wert} ist kleiner als am ${dat(a.datum)} (${zahlText(a.stand, 3)} ${einheit}). Zähler laufen nur vorwärts – bei einem neuen Zähler „Zählerwechsel“ ankreuzen.`);
+    throw new Error(`Der Stand ist größer als am ${dat(b.datum)} (${zahlText(b.wechsel ? b.wechsel.endstandAlt : b.stand, 3)} ${einheit}).`);
+  }
+  return { ...z, zaehlernummer: neueNummer || z.zaehlernummer, ablesungen: liste, geaendertAm: jetzt };
 }
 
 /** Ablesung entfernen */
@@ -280,7 +309,7 @@ export function ablesungsVerlauf(z) {
   const ergebnis = [];
   for (let i = 1; i < liste.length; i++) {
     const tage = tageBis(liste[i - 1].datum, liste[i].datum);
-    const kwh = (liste[i].stand - liste[i - 1].stand) * f;
+    const kwh = schritt(liste[i - 1], liste[i]) * f; // D234: über einen Zählerwechsel hinweg
     ergebnis.push({ von: liste[i - 1].datum, bis: liste[i].datum, tage, kwh, kwhJeTag: tage > 0 ? kwh / tage : null });
   }
   return ergebnis.reverse();
