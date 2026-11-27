@@ -12,7 +12,7 @@ Wird eine Entscheidung geändert, den alten Eintrag nicht löschen, sondern als
 Kurzer Wegweiser, weil viele spätere Einträge frühere aufheben. Maßgeblich bleibt der jeweils letzte Eintrag.
 Bei jeder neuen D-Nummer hier mitpflegen; der Test `tests/wegweiser.test.js` prüft die Stand-Zeile (D236).
 
-**Stand:** D252 · Datenmodell 28 · DB-Struktur 13 · Cache finanzapp-v149
+**Stand:** D253 · Datenmodell 28 · DB-Struktur 13 · Cache finanzapp-v150
 
 **Wieder ausgebaut – nicht mehr im Code:**
 - Szenarien „Was wäre wenn“ → ersetzt durch Projekte (D51)
@@ -3068,3 +3068,13 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
   Beschriftung links, die 0-€-Linie etwas kräftiger; senkrechte Linien an den Tagen 1., 5., 10., 15., 20., 25. und
   am Monatsletzten (`tagesMarken`, im Februar ohne den 25.) mit Beschriftung unten.
 - Die senkrechte Linie für „heute“ ist etwas kräftiger als das Raster.
+
+## D253 – Verlaufsgrafik: alle Konten, jeder Tag, feinere Euro-Stufen
+*Wunsch des Nutzers, 27.11.2026 – ergänzt D252*
+- In der Übersicht „Alle Konten“ steht unter der Aufstellung je Konto ein eigener Bereich „Verlauf im Monat – alle
+  Konten“ für den laufenden Monat: Summe der Tagesverläufe aller aktiven Konten (`gesamtVerlauf`), ohne
+  Mindestsaldo-Linie (die gibt es nur je Konto). Auf- und Zuklappen teilt sich den Zustand mit dem Kontokopf.
+- Senkrechte Rasterlinie für **jeden Tag** (1., 5., 10. … etwas kräftiger). Beschriftet ist jeder Tag; am Handy
+  (unter 768 px) jeder zweite und der Monatsletzte, sonst überlappen die Zahlen.
+- Waagerecht etwa 8 statt 4 Euro-Stufen (mindestens 1 €), mit einer Stufe Luft, wenn Tief- oder Höchstwert sonst
+  fast auf dem Rand läge.

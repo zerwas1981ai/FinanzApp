@@ -18,7 +18,7 @@ import { kuendigungsHinweise } from '../vertraege.js';
 import { vorgemerkteVonKonto, alsGebuchtMarkieren } from '../buchungen.js';
 import { sortiereKonten } from '../konten.js';
 import { verlaufGrafik } from './verlauf-grafik.js'; // D251
-import { faelligListe, budgetHinweise, zeitleiste, nurWirksam, mindestsaldoWarnungen, LETZTER_MONAT, prognoseJahresende, offeneTermine, terminWirkung, annahmeTitel, kopfWerte } from '../prognose.js';
+import { faelligListe, budgetHinweise, zeitleiste, nurWirksam, mindestsaldoWarnungen, LETZTER_MONAT, prognoseJahresende, offeneTermine, terminWirkung, annahmeTitel, kopfWerte, gesamtVerlauf } from '../prognose.js';
 import { umbuchungKnopf, kennzahlenBereich, erwartetBereich, hinweisBereich, buchungsVorgaben } from './kennzahlen.js';
 import { zeitleisteBereich, postenListe } from './zeitleiste.js';
 import { oeffnePostenDialog } from './posten-dialog.js';
@@ -123,6 +123,18 @@ export async function zeigeUebersicht(container) {
       ...oben,
       kontoAuswahl(aktive, null, faelligJeKonto, waehle),
       kontenAufstellung(aktive, zl, heute, waehle),
+      // D253: Verlauf aller Konten zusammen im laufenden Monat
+      (() => {
+        const monat = heute.slice(0, 7);
+        const verlauf = gesamtVerlauf(aktive.map((k) => kopfWerte(
+          { konto: k, buchungen, kd: zl.start.jeKonto.get(k.id), zlKonto: zl.jeKonto.get(k.id) }, monat, heute).verlauf));
+        const grafik = verlaufGrafik(verlauf, null, { beschreibung: 'Verlauf aller Konten zusammen im Monat' });
+        if (!grafik) return null;
+        const d = h('details', { class: 'bereich kopf-verlauf gesamt-verlauf', open: ansicht.verlaufOffen },
+          h('summary', { class: 'kopf-verlauf-schalter klein' }, `Verlauf im Monat – alle Konten (${monatLang(monat)})`), grafik);
+        d.addEventListener('toggle', () => { ansicht.verlaufOffen = d.open; });
+        return d;
+      })(),
       zeitleisteBereich(zl.gesamt, ALLE, aendern),
     ].filter(Boolean));
     return;

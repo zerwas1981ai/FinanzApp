@@ -830,6 +830,20 @@ export function zukunftsVerlauf(zlKonto, i, startStand, mindestCent = null) {
 }
 
 /**
+ * D253: Verlauf mehrerer Konten zusammengezählt (Übersicht „Alle Konten“). Alle Verläufe stammen aus kopfWerte für
+ * denselben Monat und haben dieselben Tage; prognose gilt ab dem ersten Tag, an dem ein Konto erwartete Werte hat.
+ */
+export function gesamtVerlauf(verlaeufe) {
+  const liste = verlaeufe.filter((v) => v?.length);
+  if (!liste.length) return [];
+  return liste[0].map((x, i) => ({
+    datum: x.datum,
+    stand: liste.reduce((s, v) => s + (v[i]?.stand ?? 0), 0),
+    prognose: liste.some((v) => v[i]?.prognose),
+  }));
+}
+
+/**
  * D246: Werte im Kontokopf für den gewählten Monat ("JJJJ-MM").
  * - laufender Monat: Prognose Monatsende und niedrigster erwarteter Stand aus der Monatsprognose (D110/D111)
  * - Zukunftsmonat: Stand Monatsende aus der Zeitleiste; niedrigster erwarteter Stand Tag für Tag ab dem Stand am

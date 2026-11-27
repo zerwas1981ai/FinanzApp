@@ -571,6 +571,7 @@ fieldset.feld { border: none; padding: 0; margin: 0 0 14px; }
 /* D251/D252: Verlaufsgrafik im Kontokopf – unter den Ständen über die volle Breite, überall zum Aufklappen */
 .konto-kopf-raster > .kopf-verlauf { grid-column: 1 / -1; min-width: 0; margin-top: 8px; border-top: 1px solid var(--rand); padding-top: 6px; }
 .kopf-verlauf-schalter { cursor: pointer; color: var(--text-2); padding: 4px 0; }
+.gesamt-verlauf { padding-top: 8px; padding-bottom: 8px; } /* D253: eigener Bereich unter „Alle Konten“ */
 .kopf-verlauf[open] > .kopf-verlauf-schalter { margin-bottom: 4px; }
 .verlauf-grafik { display: flex; flex-direction: column; gap: 4px; }
 .vg-kopf { color: var(--text-2); min-height: 1.4em; }
@@ -580,6 +581,7 @@ fieldset.feld { border: none; padding: 0; margin: 0 0 14px; }
 .vg-flaeche { display: block; width: 100%; height: 100%; overflow: visible; stroke: none; fill: none; } /* ohne die globale svg-Linie */
 .vg-flaeche * { vector-effect: non-scaling-stroke; }
 .vg-raster { stroke: var(--rand); stroke-width: 1; }
+.vg-fein { opacity: .45; } /* D253: Linie je Tag, schwächer als 1./5./10. … */
 .vg-null { stroke: var(--text-2); opacity: .5; }
 .vg-linie { fill: none; stroke: var(--akzent); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
 .vg-erwartet { stroke-dasharray: 5 4; }
@@ -593,7 +595,8 @@ fieldset.feld { border: none; padding: 0; margin: 0 0 14px; }
 .vg-y-achse { position: relative; min-width: 3.5em; }
 .vg-y { position: absolute; right: 0; transform: translateY(-50%); font-size: .72rem; color: var(--text-2); white-space: nowrap; line-height: 1; }
 .vg-x-achse { position: relative; height: 1.1em; }
-.vg-x { position: absolute; transform: translateX(-50%); font-size: .72rem; color: var(--text-2); line-height: 1; }
+.vg-x { position: absolute; transform: translateX(-50%); font-size: .66rem; color: var(--text-2); line-height: 1; }
+@media (max-width: 767px) { .vg-x.nur-breit-x { display: none; } } /* D253: am Handy jeder zweite Tag */
 .vg-legende { display: flex; flex-wrap: wrap; gap: 2px 12px; color: var(--text-2); }
 .vg-legende i { display: inline-block; width: 16px; height: 0; margin-right: 5px; vertical-align: middle; border-top: 2px solid var(--akzent); }
 .vg-legende .vg-l-erwartet { border-top-style: dashed; }
