@@ -21,7 +21,7 @@ export const STANDARD_ERINNERUNG_TAGE = 28;
 export const FRIST_EINHEITEN = { tage: 'Tage', wochen: 'Wochen', monate: 'Monate' };
 /** D192: Zu welchem Tag eine Kündigung wirkt */
 export const KUENDIGUNG_ZUM = { laufzeit: 'Ende der Laufzeit', monat: 'Monatsende', quartal: 'Quartalsende' };
-const INTERVALL_JE_JAHR = { monatlich: 12, vierteljaehrlich: 4, halbjaehrlich: 2, jaehrlich: 1 };
+const INTERVALL_JE_JAHR = { woechentlich: 52, zweiwoechentlich: 26, monatlich: 12, vierteljaehrlich: 4, halbjaehrlich: 2, jaehrlich: 1 };
 
 /* ---------- Datumsrechnung (ISO "JJJJ-MM-TT", ohne Zeitzonen) ---------- */
 

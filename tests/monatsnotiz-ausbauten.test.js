@@ -14,7 +14,7 @@ test('D169: Migration auf 22 entfernt Frei-verfügbar- und Steuer-Felder', () =>
 test('D172: Migration auf 23 entfernt die Vorlagen', () => {
   const { daten } = migriereDaten({ version: 22, vorlagen: [{ id: 'v' }] });
   assert.equal(daten.vorlagen, undefined);
-  assert.equal(daten.version, 27);
+  assert.equal(daten.version, 28);
 });
 
 test('D165: Monatsnotiz bauen', () => {

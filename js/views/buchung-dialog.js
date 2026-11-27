@@ -331,7 +331,7 @@ export async function oeffneBuchungsdialog(buchung = null, vorgaben = {}) {
         ...w,
         notiz: w.notiz ?? '', // D96: Notiz statt Bezeichnung
         start: istLetzter ? monatsende(start) : start,
-        monatsletzter: istLetzter,
+        tagRegel: istLetzter ? 'letzter' : 'datum', // D245
         titel: 'Als wiederkehrende Buchung übernehmen',
       }), 0);
     },

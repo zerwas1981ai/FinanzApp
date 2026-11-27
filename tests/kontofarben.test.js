@@ -33,7 +33,7 @@ test('D228: Migration auf Version 25 – Konten bekommen farbe = null, gewählte
     version: 24, kategorien: [],
     konten: [{ id: 'a', name: 'Girokonto' }, { id: 'b', name: 'Tagesgeld', farbe: 'bank-n26' }],
   });
-  assert.equal(d.version, 27);
+  assert.equal(d.version, 28);
   assert.equal(d.konten[0].farbe, null);
   assert.equal(d.konten[1].farbe, 'bank-n26');
 });

@@ -23,7 +23,7 @@
 import { neueKategorie, INVESTITIONEN_UNTER, BARGELD_UNTER } from './startdaten.js';
 import { startReihenfolge } from './konten.js';
 
-export const DATENMODELL_VERSION = 27;
+export const DATENMODELL_VERSION = 28;
 
 /** Standard-Schwellen für Budgethinweise (in den Stammdaten änderbar) */
 export const STANDARD_EINSTELLUNGEN = Object.freeze({ id: 'hinweise', monate: 3, prozent: 10 });
@@ -313,6 +313,18 @@ export const MIGRATIONEN = [
     beschreibung: 'Notfall-Mappe wieder ausgebaut: die Einstellung "notfall" (eigene Hinweise) entfällt (D236).',
     migriere(daten) {
       daten.einstellungen = (daten.einstellungen ?? []).filter((e) => e.id !== 'notfall');
+      return daten;
+    },
+  },
+  {
+    nach: 28,
+    beschreibung: 'Wiederkehrende Buchungen (D245): "tagRegel" ersetzt "monatsletzter" (Tag des Starts, Mitte, 3 Tage vor Monatsende, '
+      + 'Monatsletzter); dazu die Intervalle wöchentlich und zweiwöchentlich. Alte App-Versionen lesen diesen Stand nicht mehr.',
+    migriere(daten) {
+      for (const w of daten.wiederkehrend ?? []) {
+        w.tagRegel ??= w.monatsletzter ? 'letzter' : 'datum';
+        delete w.monatsletzter;
+      }
       return daten;
     },
   },

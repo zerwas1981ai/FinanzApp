@@ -186,6 +186,32 @@ export function budgetPaare(budgets) {
 /* ======================= Wiederkehrende Buchungen ======================= */
 
 const SCHRITT = { monatlich: 1, vierteljaehrlich: 3, halbjaehrlich: 6, jaehrlich: 12 };
+/** D245: Turnus in Tagen (wöchentlich, zweiwöchentlich) – Termine im festen Abstand ab dem Start */
+export const TAGE_SCHRITT = { woechentlich: 7, zweiwoechentlich: 14 };
+export const INTERVALLE = ['woechentlich', 'zweiwoechentlich', 'monatlich', 'vierteljaehrlich', 'halbjaehrlich', 'jaehrlich'];
+
+/**
+ * D245: Tag im Monat für Termine monatlicher (und längerer) Intervalle.
+ * tagRegel: 'datum' (Tag des Starts, 31. → Monatsletzter) | 'mitte' (15.) | 'vorEnde3' (3 Tage vor dem Monatsletzten) | 'letzter'
+ */
+export const TAG_REGELN = ['datum', 'mitte', 'vorEnde3', 'letzter'];
+export function tagNachRegel(tagRegel, jahr, monat, starttag) {
+  const letzter = tageImMonat(jahr, monat);
+  if (tagRegel === 'letzter') return letzter;
+  if (tagRegel === 'mitte') return 15;
+  if (tagRegel === 'vorEnde3') return letzter - 3;
+  return Math.min(starttag, letzter);
+}
+
+/** D245: Start einer wiederkehrenden Buchung passend zur Tag-Regel (im Monat des Startdatums) */
+export function startNachRegel(start, tagRegel) {
+  const j = Number(start.slice(0, 4));
+  const m = Number(start.slice(5, 7));
+  return `${j}-${pad(m)}-${pad(tagNachRegel(tagRegel, j, m, Number(start.slice(8, 10))))}`;
+}
+
+/** D245: Tag-Regel einer wiederkehrenden Buchung; bei wöchentlich/zweiwöchentlich immer 'datum' */
+export const tagRegelVon = (w) => (TAGE_SCHRITT[w.intervall] ? 'datum' : (TAG_REGELN.includes(w.tagRegel) ? w.tagRegel : 'datum'));
 
 /**
  * Alle Termine einer wiederkehrenden Buchung, deren (ggf. verschobenes) Datum
@@ -193,8 +219,8 @@ const SCHRITT = { monatlich: 1, vierteljaehrlich: 3, halbjaehrlich: 6, jaehrlich
  * Ergebnis: [{ termin, datum, betragCent, verschoben }]
  *   termin = regulärer Termin (dient als Kennung), datum = tatsächliches Datum
  * Fällt der Starttag (z. B. 31.) in einem Monat weg, gilt der letzte Tag des Monats.
- * Mit w.monatsletzter = true ist JEDER Termin der letzte Tag seines Monats
- * (z. B. 30.11., 31.12., 28.02.) – Standard für neue wiederkehrende Buchungen.
+ * Mit w.tagRegel (D245) liegt JEDER Termin am Monatsletzten, am 15. oder 3 Tage vor dem Monatsletzten.
+ * Wöchentlich/zweiwöchentlich: alle 7 bzw. 14 Tage ab dem Start.
  */
 /**
  * Regulärer Betrag eines Termins einer wiederkehrenden Buchung ("JJJJ-MM-TT"), ohne Einzel-Änderung:
@@ -213,13 +239,21 @@ export function termine(w, von, bis) {
   const spaetesterVerschobener = (w.ausnahmen ?? []).filter((a) => a.aktion !== 'ueberspringen').map((a) => a.termin).sort().at(-1) ?? '';
   const grenze = spaetesterVerschobener > bis ? spaetesterVerschobener : bis;
 
+  const tagRegel = tagRegelVon(w);
+  const tageSchritt = TAGE_SCHRITT[w.intervall];
+  const startMs = Date.UTC(sj, sm - 1, st);
   const ergebnis = [];
   for (let k = 0; k < 5000; k++) {
-    const index = (sm - 1) + k * schritt;
-    const j = sj + Math.floor(index / 12);
-    const m = (index % 12) + 1;
-    const tag = w.monatsletzter ? tageImMonat(j, m) : Math.min(st, tageImMonat(j, m));
-    const termin = `${j}-${pad(m)}-${pad(tag)}`;
+    let termin;
+    if (tageSchritt) {
+      const d = new Date(startMs + k * tageSchritt * 86400000);
+      termin = `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+    } else {
+      const index = (sm - 1) + k * schritt;
+      const j = sj + Math.floor(index / 12);
+      const m = (index % 12) + 1;
+      termin = `${j}-${pad(m)}-${pad(tagNachRegel(tagRegel, j, m, st))}`;
+    }
     if (w.ende && termin > w.ende) break;
     if (termin > grenze) break;
 

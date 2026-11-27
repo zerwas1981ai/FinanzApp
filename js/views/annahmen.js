@@ -8,7 +8,7 @@ import * as db from '../db.js';
 import { formatEuro, formatDatum, formatMonat, centZuEingabe, parseEuro, heuteIso } from '../format.js';
 import { dialog, frage, toast, eingabe, auswahl, datenGeaendert, bereichsWahl, kurzLang, kontoEtikett, verbinde, alsText } from '../ui.js';
 import { baueBudget, baueWiederkehrend, baueGeplant, geplantErledigt, haeufigstesKonto, mitAusnahme } from '../annahmen.js';
-import { betragAm, terminBetrag, naechsterTermin, plusMonate, monatsende, annahmeTitel, budgetVorschlag } from '../prognose.js';
+import { betragAm, terminBetrag, naechsterTermin, plusMonate, monatsende, annahmeTitel, budgetVorschlag, tagRegelVon, startNachRegel, TAGE_SCHRITT } from '../prognose.js';
 import { artWahl, fuelleKategorien, projektFeld, oeffneBuchungsdialog, partnerFeld, budgetZuordnungFeld, vertragFeld } from './buchung-dialog.js';
 import { VERTEILUNGEN, istJaehrlich } from '../jahresbudget.js';
 import { kuendigungsHinweise, wiederkehrendJeMonat, aktuellerBetrag } from '../vertraege.js';
@@ -18,8 +18,8 @@ import { offeneAblesungen } from '../energie.js';
 import { abschlussMonat } from '../abschluss.js';
 
 const nachName = (a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base' });
-const INTERVALL_TEXT = { monatlich: 'monatlich', vierteljaehrlich: 'vierteljährlich', halbjaehrlich: 'halbjährlich', jaehrlich: 'jährlich' };
-const INTERVALL_UEBERSCHRIFT = { monatlich: 'Monatlich', vierteljaehrlich: 'Vierteljährlich', halbjaehrlich: 'Halbjährlich', jaehrlich: 'Jährlich' };
+const INTERVALL_TEXT = { woechentlich: 'wöchentlich', zweiwoechentlich: 'zweiwöchentlich', monatlich: 'monatlich', vierteljaehrlich: 'vierteljährlich', halbjaehrlich: 'halbjährlich', jaehrlich: 'jährlich' };
+const INTERVALL_UEBERSCHRIFT = { woechentlich: 'Wöchentlich', zweiwoechentlich: 'Zweiwöchentlich', monatlich: 'Monatlich', vierteljaehrlich: 'Vierteljährlich', halbjaehrlich: 'Halbjährlich', jaehrlich: 'Jährlich' };
 const monatText = (m) => formatMonat(Number(m.slice(0, 4)), Number(m.slice(5, 7)));
 const MONATSNAMEN = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
 const TYP_TEXT = { wiederkehrend: 'Jeden Monat', jaehrlich: 'Jährlich', einmalig: 'Einmalig' };
@@ -398,7 +398,7 @@ function wiederkehrendZeile(w, daten, heute, kat, kontoName) {
   }
   // Das Intervall steht in der Zwischenüberschrift (D97)
   const info = () => [
-    w.monatsletzter && 'zum Monatsletzten',
+    { letzter: 'zum Monatsletzten', mitte: 'zur Monatsmitte', vorEnde3: '3 Tage vor Monatsende' }[tagRegelVon(w)], // D245
     naechster ? `nächster Termin ${formatDatum(naechster.datum)}` : 'keine weiteren Termine',
     typeof zuordnung === 'function' ? zuordnung() : zuordnung,
     w.art === 'ausgabe' && w.umbuchungVonKontoId && ['gekoppelte Umbuchung von ', etikett(w.umbuchungVonKontoId)], // D227
@@ -431,7 +431,7 @@ function wiederkehrendZeile(w, daten, heute, kat, kontoName) {
 /**
  * Dialog für eine wiederkehrende Buchung. daten braucht konten, kategorien, buchungen.
  * vorgaben (nur neu, D71): z. B. aus einer echten Buchung übernommen –
- *   { art, notiz, partner, betragCent, kontoId, gegenkontoId, kategorieId, start, monatsletzter, titel }
+ *   { art, notiz, partner, betragCent, kontoId, gegenkontoId, kategorieId, start, tagRegel, titel }
  */
 export function wiederkehrendDialog(w, daten, vorgaben = {}) {
   const { konten, kategorien } = daten;
@@ -508,27 +508,38 @@ export function wiederkehrendDialog(w, daten, vorgaben = {}) {
     optionen: Object.entries(INTERVALL_TEXT).map(([wert, text]) => ({ wert, text: text[0].toUpperCase() + text.slice(1) })),
     wert: v.intervall ?? 'monatlich',
   });
-  // Standard für neue Einträge: immer am Monatsletzten (Wunsch des Nutzers) – außer die Vorgabe sagt anderes
-  const istMonatsletzter = w ? Boolean(w.monatsletzter) : (vorgaben.monatsletzter ?? true);
+  // D245: Tag im Monat als Auswahl (ersetzt das Häkchen „Immer am Monatsletzten“).
+  // Standard für neue Einträge: am Monatsletzten (Wunsch des Nutzers) – außer die Vorgabe sagt anderes
+  const tagRegelStart = w ? tagRegelVon(w) : (vorgaben.tagRegel ?? 'letzter');
   const start = eingabe({
     label: 'Erster Termin',
     type: 'date',
     value: v.start ?? monatsende(heute),
-    hilfe: 'Ohne Häkchen gilt der Tag dieses Datums für alle Termine (31. → Monatsletzter).',
   });
   const ende = eingabe({ label: 'Letzter Termin (optional)', type: 'date', value: w?.ende ?? '' });
-  const monatsletzter = h('input', {
-    type: 'checkbox',
-    checked: istMonatsletzter,
-    onchange: () => {
-      if (monatsletzter.checked && start.input.value) start.input.value = monatsende(start.input.value);
-    },
+  const tagRegel = auswahl({
+    label: 'Tag im Monat',
+    optionen: [
+      { wert: 'datum', text: 'Wie erster Termin' },
+      { wert: 'mitte', text: 'Zur Mitte des Monats (15.)' },
+      { wert: 'vorEnde3', text: '3 Tage vor Monatsende' },
+      { wert: 'letzter', text: 'Am Monatsletzten' },
+    ],
+    wert: tagRegelStart,
+    hilfe: '„Wie erster Termin“: der Tag dieses Datums gilt für alle Termine (31. → Monatsletzter).',
   });
-  // Wer bewusst einen anderen Tag wählt, schaltet "Monatsletzter" damit ab
+  // Bei einer festen Regel springt „Erster Termin“ auf den passenden Tag seines Monats
+  tagRegel.select.addEventListener('change', () => {
+    if (start.input.value) start.input.value = startNachRegel(start.input.value, tagRegel.select.value);
+  });
+  // Wer bewusst einen anderen Tag wählt, schaltet die Regel damit ab
   start.input.addEventListener('change', () => {
-    if (start.input.value && start.input.value !== monatsende(start.input.value)) monatsletzter.checked = false;
+    if (start.input.value && start.input.value !== startNachRegel(start.input.value, tagRegel.select.value)) tagRegel.select.value = 'datum';
   });
-  const monatsletzterFeld = h('label', { class: 'schalter feld-schalter' }, monatsletzter, 'Immer am Monatsletzten');
+  // Wöchentlich/zweiwöchentlich: Termine alle 7/14 Tage ab dem ersten Termin – ohne Tag im Monat
+  const zeigeTagRegel = () => { tagRegel.feld.hidden = Boolean(TAGE_SCHRITT[intervall.select.value]); };
+  intervall.select.addEventListener('change', zeigeTagRegel);
+  zeigeTagRegel();
 
   const ausnahmenListe = h('div', { class: 'feld' });
   function zeigeAusnahmen() {
@@ -566,7 +577,7 @@ export function wiederkehrendDialog(w, daten, vorgaben = {}) {
     titel: w ? 'Wiederkehrende Buchung bearbeiten' : (vorgaben.titel ?? 'Neue wiederkehrende Buchung'),
     inhalt: [
       artKnoepfe, stufen.feld, kalender.feld, partner.feld, kategorie.feld, konto.feld, gegenkonto.feld, budgetFeld.feld, umbuchungVon.feld,
-      intervall.feld, monatsletzterFeld, h('div', { class: 'feld-paar' }, start.feld, ende.feld), notiz.feld, vertrag?.feld, vertragAnlegenFeld, ausnahmenListe,
+      intervall.feld, tagRegel.feld, h('div', { class: 'feld-paar' }, start.feld, ende.feld), notiz.feld, vertrag?.feld, vertragAnlegenFeld, ausnahmenListe,
     ].filter(Boolean),
     zusatz: w && {
       text: 'Löschen',
@@ -595,7 +606,7 @@ export function wiederkehrendDialog(w, daten, vorgaben = {}) {
         kategorieId: kategorie.select.value,
         intervall: intervall.select.value,
         start: start.input.value,
-        monatsletzter: monatsletzter.checked,
+        tagRegel: tagRegel.select.value, // D245
         ende: ende.input.value,
         stufen: stufen.werte(),
         kalenderMonate: kalender.werte(),

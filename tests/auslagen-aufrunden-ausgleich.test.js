@@ -101,7 +101,7 @@ test('D214: Buchung speichern behält bzw. entfernt die Auslage', () => {
 
 test('D214: Migration auf Version 24', () => {
   const { daten: d } = migriereDaten({ version: 23, konten: [], kategorien: [], buchungen: [{ id: 'x', art: 'ausgabe' }] });
-  assert.equal(d.version, 27);
+  assert.equal(d.version, 28);
   assert.deepEqual([d.buchungen[0].auslage, d.buchungen[0].auslageId], [null, null]);
 });
 

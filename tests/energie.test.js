@@ -174,7 +174,7 @@ test('Neuer Abschlag als Stufe der wiederkehrenden Buchung', () => {
 });
 
 test('Migration auf Datenversion 26: Sammlung „zaehler“', () => {
-  assert.equal(DATENMODELL_VERSION, 27);
+  assert.equal(DATENMODELL_VERSION, 28);
   const { daten } = migriereDaten({ version: 25, konten: [] });
   assert.deepEqual(daten.zaehler, []);
 });

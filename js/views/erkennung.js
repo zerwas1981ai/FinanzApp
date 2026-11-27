@@ -58,7 +58,7 @@ export function erkanntBereich(vorschlaege, daten) {
           type: 'button', class: 'knopf knopf-primaer',
           onclick: () => wiederkehrendDialog(null, daten, {
             art: v.art, kontoId: v.kontoId, kategorieId: v.kategorieId, partner: v.partner, betragCent: v.betragCent,
-            intervall: 'monatlich', start: naechsterTermin(v.letzte, v.tag), monatsletzter: false,
+            intervall: 'monatlich', start: naechsterTermin(v.letzte, v.tag), tagRegel: 'datum',
             titel: 'Als wiederkehrende Buchung anlegen',
           }),
         }, 'Anlegen …'),

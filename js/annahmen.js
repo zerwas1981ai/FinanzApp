@@ -18,8 +18,10 @@
 //
 // Datensatz Wiederkehrende Buchung (Datenversion 3):
 // { id, notiz (optional, ab Version 15 statt "bezeichnung", D96), art: 'einnahme'|'ausgabe'|'umbuchung', kontoId, gegenkontoId, kategorieId,
-//   intervall: 'monatlich'|'vierteljaehrlich'|'halbjaehrlich'|'jaehrlich', start "JJJJ-MM-TT", ende "JJJJ-MM-TT"|null,
-//   monatsletzter: true|false  // true = jeder Termin am letzten Tag des Monats (fehlt = false)
+//   intervall: 'woechentlich'|'zweiwoechentlich' (D245)|'monatlich'|'vierteljaehrlich'|'halbjaehrlich'|'jaehrlich',
+//   start "JJJJ-MM-TT", ende "JJJJ-MM-TT"|null,
+//   tagRegel (ab Version 28, D245, ersetzt monatsletzter): 'datum'|'mitte'|'vorEnde3'|'letzter' – Tag jedes Termins
+//     (Tag des Starts, 15., 3 Tage vor dem Monatsletzten, Monatsletzter); bei wöchentlich/zweiwöchentlich immer 'datum'
 //   stufen: [{ ab "JJJJ-MM-TT", betragCent }],
 //   ausnahmen: [{ termin, aktion: 'ueberspringen'|'verschieben'|'aendern', neuesDatum?, betragCent? }],
 //   partner (ab Version 8, Empfänger/Absender), vertragId (ab Version 18, D148), erstelltAm, geaendertAm, testdaten? }
@@ -27,7 +29,7 @@
 import * as db from './db.js';
 import { istGueltigesDatum, formatDatum } from './format.js';
 import { STANDARD_EINSTELLUNGEN } from './migrationen.js';
-import { monatsende, betragAm, regelBetrag, terminBetrag } from './prognose.js';
+import { betragAm, regelBetrag, terminBetrag, INTERVALLE, TAG_REGELN, TAGE_SCHRITT, startNachRegel } from './prognose.js';
 import { istJaehrlich, budgetZeitraum, ueberschneiden } from './jahresbudget.js';
 
 /** Empfänger/Absender (Datenversion 8): undefined = unverändert, bei Umbuchungen leer */
@@ -176,7 +178,7 @@ export function haeufigstesKonto(hauptId, kategorien, buchungen, konten) {
 export function baueWiederkehrend(eingabe, { konten, kategorien, alt = null, jetzt = new Date().toISOString() }) {
   const notiz = (eingabe.notiz ?? '').trim(); // optional (D96, ersetzt die Pflicht-Bezeichnung)
   if (!['einnahme', 'ausgabe', 'umbuchung'].includes(eingabe.art)) throw new Error('Bitte die Art wählen.');
-  if (!['monatlich', 'vierteljaehrlich', 'halbjaehrlich', 'jaehrlich'].includes(eingabe.intervall)) throw new Error('Bitte das Intervall wählen.');
+  if (!INTERVALLE.includes(eingabe.intervall)) throw new Error('Bitte das Intervall wählen.');
   if (!istGueltigesDatum(eingabe.start)) throw new Error('Bitte ein gültiges Startdatum wählen.');
   if (eingabe.ende && !istGueltigesDatum(eingabe.ende)) throw new Error('Das Enddatum ist ungültig.');
   if (eingabe.ende && eingabe.ende < eingabe.start) throw new Error('Das Enddatum liegt vor dem Start.');
@@ -205,9 +207,12 @@ export function baueWiederkehrend(eingabe, { konten, kategorien, alt = null, jet
     if (umbuchungVonKontoId === eingabe.kontoId) throw new Error('Die Umbuchung braucht ein anderes Konto als die Buchung.');
   }
 
-  // "Immer am Monatsletzten": Start wird auf den letzten Tag seines Monats gesetzt
-  const monatsletzter = Boolean(eingabe.monatsletzter);
-  const start = monatsletzter ? monatsende(eingabe.start) : eingabe.start;
+  // D245: Tag-Regel (Monatsletzter, Mitte, 3 Tage vor Monatsende) – der Start wird auf diesen Tag seines Monats gesetzt.
+  // Wöchentlich/zweiwöchentlich: immer ab dem gewählten Datum. (monatsletzter: ältere Aufrufe)
+  let tagRegel = eingabe.tagRegel ?? (eingabe.monatsletzter ? 'letzter' : 'datum');
+  if (!TAG_REGELN.includes(tagRegel)) throw new Error('Bitte den Tag im Monat wählen.');
+  if (TAGE_SCHRITT[eingabe.intervall]) tagRegel = 'datum';
+  const start = startNachRegel(eingabe.start, tagRegel);
   if (eingabe.ende && eingabe.ende < start) throw new Error('Das Enddatum liegt vor dem ersten Termin.');
 
   const stufen = [...eingabe.stufen];
@@ -223,7 +228,7 @@ export function baueWiederkehrend(eingabe, { konten, kategorien, alt = null, jet
     budgetKategorieId: budgetZuordnung(eingabe, kategorien, alt), // D98
     intervall: eingabe.intervall,
     start,
-    monatsletzter,
+    tagRegel,
     ende: eingabe.ende || null,
     stufen: pruefeStufen(stufen, start, istGueltigesDatum, 'Datum'),
     ausnahmen: alt?.ausnahmen ?? [],

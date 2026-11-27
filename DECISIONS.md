@@ -12,7 +12,7 @@ Wird eine Entscheidung geändert, den alten Eintrag nicht löschen, sondern als
 Kurzer Wegweiser, weil viele spätere Einträge frühere aufheben. Maßgeblich bleibt der jeweils letzte Eintrag.
 Bei jeder neuen D-Nummer hier mitpflegen; der Test `tests/wegweiser.test.js` prüft die Stand-Zeile (D236).
 
-**Stand:** D244 · Datenmodell 27 · DB-Struktur 13 · Cache finanzapp-v142
+**Stand:** D245 · Datenmodell 28 · DB-Struktur 13 · Cache finanzapp-v143
 
 **Wieder ausgebaut – nicht mehr im Code:**
 - Szenarien „Was wäre wenn“ → ersetzt durch Projekte (D51)
@@ -2990,3 +2990,15 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
 - Im Rückblick gibt es nur noch **6 Monate · Jahr**; „6 Monate“ ist der Standard. Der Monatsvergleich (gewählter Monat
   mit 2 Vormonaten) entfällt in der Ansicht. `monatsRueckblick` rechnet weiter mit beliebig vielen Monaten (Tests).
 - Das ✎ für die Monatsnotiz steht jetzt bei „6 Monate“ und gilt für den gewählten (rechten) Monat.
+
+## D245 – Wiederkehrende Buchungen: wöchentlich, zweiwöchentlich, Monatsmitte, 3 Tage vor Monatsende
+*Wunsch des Nutzers, 27.11.2026*
+- Neue Intervalle **wöchentlich** und **zweiwöchentlich**: Termine alle 7 bzw. 14 Tage ab dem ersten Termin
+  (`TAGE_SCHRITT` in `js/prognose.js`). Ein Tag im Monat gilt dafür nicht. Auf Monat/Jahr umgerechnet mit 52 bzw. 26
+  Zahlungen im Jahr (Summen im Annahmen-Tab, Vertragskosten; Vertrag zeigt „… / Woche“ bzw. „… / 2 Wochen“).
+- Das Häkchen „Immer am Monatsletzten“ wird zur Auswahl **„Tag im Monat“**: Wie erster Termin · Zur Mitte des Monats
+  (15.) · 3 Tage vor Monatsende (Monatsletzter − 3, z. B. 27.11., 28.12., 25.02.) · Am Monatsletzten (Standard für neue).
+  Bei einer Regel springt „Erster Termin“ auf den passenden Tag; wer selbst einen anderen Tag wählt, stellt auf
+  „Wie erster Termin“ zurück.
+- Datenmodell 28: Feld `tagRegel` ('datum' | 'mitte' | 'vorEnde3' | 'letzter') ersetzt `monatsletzter`
+  (Migration: true → 'letzter', sonst 'datum'). Alte App-Versionen lesen diesen Stand nicht mehr.

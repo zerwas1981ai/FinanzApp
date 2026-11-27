@@ -18,7 +18,7 @@ import { belegeFeld, zeigeBeleg, belegeEntfernen } from './belege.js';
 import { oeffneBuchungsdialog, partnerFeld } from './buchung-dialog.js';
 import { wiederkehrendDialog } from './annahmen.js';
 
-const INTERVALL = { monatlich: 'monatlich', vierteljaehrlich: 'vierteljährlich', halbjaehrlich: 'halbjährlich', jaehrlich: 'jährlich' };
+const INTERVALL = { woechentlich: 'wöchentlich', zweiwoechentlich: 'zweiwöchentlich', monatlich: 'monatlich', vierteljaehrlich: 'vierteljährlich', halbjaehrlich: 'halbjährlich', jaehrlich: 'jährlich' };
 const nachName = (a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base' });
 const offen = new Set(); // aufgeklappte Verträge, solange die App offen ist
 
@@ -97,7 +97,7 @@ export function kostenText(k, { monat = ' / Monat', jahr = ' / Jahr', vz = -1 } 
   return k.monatlich ? `${formatEuro(vz * k.monatCent)}${monat} · ${j}` : j;
 }
 
-const PERIODE = { vierteljaehrlich: 'Quartal', halbjaehrlich: 'Halbjahr' };
+const PERIODE = { woechentlich: 'Woche', zweiwoechentlich: '2 Wochen', vierteljaehrlich: 'Quartal', halbjaehrlich: 'Halbjahr' };
 
 /**
  * D220: Kosten eines Vertrags als Teile [{ text, haupt }]: Betrag je Zahlung (Quartal/Halbjahr), Monat (bei nicht rein

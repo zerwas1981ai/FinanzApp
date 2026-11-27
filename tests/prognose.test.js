@@ -70,18 +70,49 @@ test('Termine: Intervalle, Monatsende, Ende, Stufen, Ausnahmen', () => {
 });
 
 test('Termine immer am Monatsletzten', () => {
-  const w = { start: '2026-11-30', intervall: 'monatlich', monatsletzter: true, stufen: [{ ab: '2026-11-30', betragCent: 1 }] };
+  const w = { start: '2026-11-30', intervall: 'monatlich', tagRegel: 'letzter', stufen: [{ ab: '2026-11-30', betragCent: 1 }] };
   assert.deepEqual(termine(w, '2026-11-01', '2027-03-31').map((t) => t.datum), ['2026-11-30', '2026-12-31', '2027-01-31', '2027-02-28', '2027-03-31']);
-  // Ohne Häkchen bleibt es beim 30.
-  assert.deepEqual(termine({ ...w, monatsletzter: false }, '2026-12-01', '2027-03-31').map((t) => t.datum), ['2026-12-30', '2027-01-30', '2027-02-28', '2027-03-30']);
+  // Ohne Regel bleibt es beim 30.
+  assert.deepEqual(termine({ ...w, tagRegel: 'datum' }, '2026-12-01', '2027-03-31').map((t) => t.datum), ['2026-12-30', '2027-01-30', '2027-02-28', '2027-03-30']);
   // Bauen: Start wird auf den Monatsletzten gesetzt
   const gebaut = baueWiederkehrend({
     bezeichnung: 'Test', art: 'ausgabe', kontoId: 'giro', kategorieId: 'miete', intervall: 'monatlich',
     start: '2026-11-10', monatsletzter: true, ende: '', stufen: [{ ab: '', betragCent: 100 }],
   }, { konten, kategorien });
   assert.equal(gebaut.start, '2026-11-30');
-  assert.equal(gebaut.monatsletzter, true);
+  assert.equal(gebaut.tagRegel, 'letzter');
   assert.equal(gebaut.stufen[0].ab, '2026-11-30');
+});
+
+test('D245: Termine zur Monatsmitte und 3 Tage vor Monatsende', () => {
+  const w = { start: '2026-11-15', intervall: 'monatlich', tagRegel: 'mitte', stufen: [{ ab: '2026-11-15', betragCent: 1 }] };
+  assert.deepEqual(termine(w, '2026-11-01', '2027-02-28').map((t) => t.datum), ['2026-11-15', '2026-12-15', '2027-01-15', '2027-02-15']);
+  const v = { ...w, start: '2026-11-27', tagRegel: 'vorEnde3' };
+  assert.deepEqual(termine(v, '2026-11-01', '2027-02-28').map((t) => t.datum), ['2026-11-27', '2026-12-28', '2027-01-28', '2027-02-25']);
+  assert.equal(termine(v, '2028-02-01', '2028-02-29')[0].datum, '2028-02-26', 'Schaltjahr: 29. − 3');
+  // Bauen: Start springt auf den passenden Tag seines Monats
+  const bau = (tagRegel, intervall = 'monatlich') => baueWiederkehrend({
+    art: 'ausgabe', kontoId: 'giro', kategorieId: 'miete', intervall, start: '2026-11-10', tagRegel, ende: '', stufen: [{ ab: '', betragCent: 100 }],
+  }, { konten, kategorien });
+  assert.equal(bau('mitte').start, '2026-11-15');
+  assert.equal(bau('vorEnde3').start, '2026-11-27');
+  assert.equal(bau('datum').start, '2026-11-10');
+  assert.throws(() => bau('quatsch'), /Tag im Monat/);
+  // Wöchentlich: keine Tag-Regel, Start bleibt
+  const woche = bau('letzter', 'woechentlich');
+  assert.equal(woche.start, '2026-11-10');
+  assert.equal(woche.tagRegel, 'datum');
+});
+
+test('D245: wöchentliche und zweiwöchentliche Termine', () => {
+  const w = { start: '2026-12-24', intervall: 'woechentlich', stufen: [{ ab: '2026-12-24', betragCent: 1 }] };
+  assert.deepEqual(termine(w, '2026-12-01', '2027-01-14').map((t) => t.datum), ['2026-12-24', '2026-12-31', '2027-01-07', '2027-01-14']);
+  const z = { ...w, intervall: 'zweiwoechentlich', ende: '2027-02-01' };
+  assert.deepEqual(termine(z, '2027-01-01', '2027-12-31').map((t) => t.datum), ['2027-01-07', '2027-01-21']);
+  // Über die Zeitumstellung hinweg bleibt es beim Wochentag
+  const s = { ...w, start: '2027-03-22' };
+  assert.deepEqual(termine(s, '2027-03-25', '2027-04-06').map((t) => t.datum), ['2027-03-29', '2027-04-05']);
+  assert.equal(naechsterTermin(w, '2027-06-01').datum, '2027-06-03');
 });
 
 test('Offene Termine: erledigt durch verknüpfte Buchung, Fenster ab Vormonat bzw. Anlage', () => {
@@ -267,7 +298,7 @@ test('Wiederkehrende Buchung bauen und prüfen', () => {
 test('Migration 2 → 23', () => {
   const v2 = { version: 2, konten: [], kategorien: [], buchungen: [{ id: 'b' }], abstimmungen: [] };
   const { daten } = migriereDaten(v2);
-  assert.equal(daten.version, 27);
+  assert.equal(daten.version, 28);
   assert.deepEqual(daten.budgets, []);
   assert.deepEqual(daten.archive, []);
   assert.deepEqual(daten.wiederkehrend, []);
@@ -289,9 +320,9 @@ test('Migration 3 → 8: Annahmen bekommen Schalter', () => {
   };
   const { daten } = migriereDaten(v3);
   assert.deepEqual(daten.budgets[0], { id: 'b1', aktiv: true });
-  assert.deepEqual(daten.wiederkehrend[0], { id: 'w1', aktiv: true, monatsletzter: false, partner: '', kalenderMonate: [], notiz: '', budgetKategorieId: null, vertragId: null });
+  assert.deepEqual(daten.wiederkehrend[0], { id: 'w1', aktiv: true, tagRegel: 'datum', partner: '', kalenderMonate: [], notiz: '', budgetKategorieId: null, vertragId: null });
   assert.equal(daten.wiederkehrend[1].aktiv, false, 'vorhandene Werte bleiben');
-  assert.equal(daten.wiederkehrend[1].monatsletzter, true);
+  assert.equal(daten.wiederkehrend[1].tagRegel, 'letzter', 'D245: monatsletzter wird zu tagRegel');
 });
 
 test('Migration 4 → 8: Szenarien entfallen, Posten ausgeschalteter Szenarien werden ausgeschaltet', () => {

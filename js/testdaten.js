@@ -83,7 +83,7 @@ export async function ladeTestdaten() {
     wk[schluessel] = {
       id: crypto.randomUUID(), notiz, art, kontoId: k.id, gegenkontoId: null, kategorieId: null,
       intervall, start, ende: null, stufen: [{ ab: start, betragCent }], ausnahmen: [],
-      monatsletzter: false, aktiv: true, partner: '',
+      tagRegel: 'datum', aktiv: true, partner: '',
       erstelltAm: jetzt, geaendertAm: jetzt, testdaten: true, ...extraFelder,
     };
     const unterName = alleKats.find((k) => k.id === wk[schluessel].kategorieId)?.name;

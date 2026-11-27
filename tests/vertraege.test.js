@@ -269,3 +269,13 @@ test('D225: Laufzeit als Enddatum statt Mindestlaufzeit', () => {
   assert.equal(vertragsStand({ ...v, verlaengerungMonate: 0 }, '2026-11-18').status, 'laeuft-aus');
   assert.equal(vertragsStand({ ...v, verlaengerungMonate: 0 }, '2027-07-01').status, 'beendet');
 });
+
+test('D245: wöchentlich und zweiwöchentlich im Monats- und Jahreswert', () => {
+  const wk = [
+    { id: 'a', vertragId: 'w', art: 'ausgabe', intervall: 'woechentlich', stufen: [{ ab: '2026-01-01', betragCent: 1200 }] },
+    { id: 'b', vertragId: 'z', art: 'ausgabe', intervall: 'zweiwoechentlich', stufen: [{ ab: '2026-01-01', betragCent: 1200 }] },
+  ];
+  assert.equal(vertragsKosten('w', wk, '2026-11-12').jahrCent, 52 * 1200);
+  assert.equal(vertragsKosten('z', wk, '2026-11-12').jahrCent, 26 * 1200);
+  assert.equal(vertragsKosten('w', wk, '2026-11-12').jeZahlungCent, 1200);
+});
