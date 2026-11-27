@@ -31,8 +31,10 @@ export function kennzahlenBereich(p, daten, heute, warnungen = p.warnungen, jahr
         monatsende: () => `${w.konto.name} kann bis zum Monatsende (${monat}) unter den Mindestsaldo fallen` +
           (w.unterAb ? ` – ab dem ${formatDatum(w.unterAb)}: ` : ': ') +
           `niedrigster erwarteter Stand ${formatEuro(w.standCent)}, Mindestsaldo ${formatEuro(w.konto.mindestsaldoCent)}.`,
-        zukunft: () => `${w.konto.name} fällt voraussichtlich erstmals im ${monatText(w.monat)} unter den Mindestsaldo: ` +
-          `Prognose ${formatEuro(w.standCent)}, Mindestsaldo ${formatEuro(w.konto.mindestsaldoCent)}.`,
+        // D249: mit Tag; Betrag = niedrigster erwarteter Stand in diesem Monat
+        zukunft: () => `${w.konto.name} fällt voraussichtlich ` +
+          (w.unterAb ? `am ${formatDatum(w.unterAb)}` : `im ${monatText(w.monat)}`) + ' erstmals unter den Mindestsaldo: ' +
+          `niedrigster erwarteter Stand ${formatEuro(w.standCent)}, Mindestsaldo ${formatEuro(w.konto.mindestsaldoCent)}.`,
       }[w.wann]()))),
 
     // D164: Überschrift „Übersicht“ im Kasten – wie bei Projekte oder relevanten Ausgaben; darunter das Raster

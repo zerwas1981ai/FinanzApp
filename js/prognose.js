@@ -396,15 +396,19 @@ export function niedrigsterVerlauf(start, bewegungen, budgetCent, von, bis) {
 }
 
 /**
- * D247/D248: wie niedrigsterVerlauf, dazu der erste Tag, an dessen Ende der Stand unter `mindestCent` liegt.
+ * D247/D248: wie niedrigsterVerlauf, dazu der erste Tag, an dem der Stand unter `mindestCent` fällt.
+ * D249: Am selben Tag zählen zuerst alle Belastungen (Ausgaben, abgehende Umbuchungen, Budgetanteil), danach die
+ * Eingänge – sonst würde eine Einnahme am selben Tag (z. B. beides am Monatsletzten) den Tiefpunkt verdecken.
  * Ergebnis: { niedrigster, unterAb: "JJJJ-MM-TT" | null }
  */
 export function tagesVerlauf(start, bewegungen, budgetCent, von, bis, mindestCent = null) {
-  const jeTag = new Map();
+  const minus = new Map();
+  const plus = new Map();
   for (const x of bewegungen) {
     const tag = x.datum < von ? von : x.datum;
     if (tag > bis) continue;
-    jeTag.set(tag, (jeTag.get(tag) ?? 0) + x.wirkung);
+    const ziel = x.wirkung < 0 ? minus : plus;
+    ziel.set(tag, (ziel.get(tag) ?? 0) + x.wirkung);
   }
   const tage = [];
   for (let t = von; t <= bis; t = plusTage(t, 1)) tage.push(t);
@@ -414,10 +418,11 @@ export function tagesVerlauf(start, bewegungen, budgetCent, von, bis, mindestCen
   let niedrigster = Infinity;
   let unterAb = null;
   for (const t of tage) {
-    stand += (jeTag.get(t) ?? 0) - anteil - (uebrig > 0 ? 1 : 0);
+    stand += (minus.get(t) ?? 0) - anteil - (uebrig > 0 ? 1 : 0);
     if (uebrig > 0) uebrig -= 1;
     niedrigster = Math.min(niedrigster, stand);
     if (unterAb === null && mindestCent != null && stand < mindestCent) unterAb = t;
+    stand += plus.get(t) ?? 0;
   }
   return { niedrigster: tage.length ? niedrigster : start, unterAb };
 }
@@ -814,6 +819,18 @@ export function zeitleiste(daten, heute, bisMonat = LETZTER_MONAT) {
 }
 
 /**
+ * D247: Tagesverlauf eines Zukunftsmonats (Zeile i der Zeitleiste eines Kontos). Start = Stand am Ende des Vormonats
+ * (für den ersten Zukunftsmonat die Prognose zum Ende des laufenden Monats); Budgetposten werden auf alle Tage verteilt.
+ */
+export function zukunftsVerlauf(zlKonto, i, startStand, mindestCent = null) {
+  const z = zlKonto[i];
+  const anfang = i > 0 ? zlKonto[i - 1].stand : startStand;
+  const budget = z.posten.filter((p) => p.quelle === 'budget').reduce((s, p) => s - p.wirkung, 0);
+  const bewegungen = z.posten.filter((p) => p.quelle !== 'budget');
+  return tagesVerlauf(anfang, bewegungen, budget, `${z.monat}-01`, monatsende(`${z.monat}-01`), mindestCent);
+}
+
+/**
  * D246: Werte im Kontokopf für den gewählten Monat ("JJJJ-MM").
  * - laufender Monat: Prognose Monatsende und niedrigster erwarteter Stand aus der Monatsprognose (D110/D111)
  * - Zukunftsmonat: Stand Monatsende aus der Zeitleiste; niedrigster erwarteter Stand Tag für Tag ab dem Stand am
@@ -828,12 +845,7 @@ export function kopfWerte({ konto, buchungen, kd, zlKonto = [] }, monat, heute) 
   if (monat > aktuell) {
     const i = zlKonto.findIndex((z) => z.monat === monat);
     if (i < 0) return { art: 'zukunft', prognose: undefined, niedrigster: undefined, unterAb: null };
-    const z = zlKonto[i];
-    const anfang = i > 0 ? zlKonto[i - 1].stand : (kd?.prognose ?? 0);
-    const budget = z.posten.filter((p) => p.quelle === 'budget').reduce((s, p) => s - p.wirkung, 0);
-    const bewegungen = z.posten.filter((p) => p.quelle !== 'budget');
-    const v = tagesVerlauf(anfang, bewegungen, budget, `${monat}-01`, monatsende(`${monat}-01`), konto.mindestsaldoCent);
-    return { art: 'zukunft', prognose: z.stand, ...v };
+    return { art: 'zukunft', prognose: zlKonto[i].stand, ...zukunftsVerlauf(zlKonto, i, kd?.prognose ?? 0, konto.mindestsaldoCent) };
   }
   const ende = monatsende(`${monat}-01`);
   const tage = new Set([plusTage(`${monat}-01`, -1)]);
@@ -874,9 +886,10 @@ export function jahresZeilen(zeilen) {
 }
 
 /**
- * Mindestsaldo-Warnungen mit erstem betroffenem Monat.
- * Für Konten, die heute oder zum Monatsende schon darunter liegen, gilt die Warnung aus
- * monatsprognose; sonst wird der erste Zukunftsmonat gesucht, dessen Endstand darunter liegt.
+ * Mindestsaldo-Warnungen mit erstem betroffenem Tag.
+ * Für Konten, die heute oder bis Monatsende schon darunter liegen, gilt die Warnung aus
+ * monatsprognose; sonst wird der erste Zukunftsmonat gesucht, in dem der Tagesverlauf (D247) darunter fällt –
+ * mit diesem Tag (unterAb, D249) und dem niedrigsten erwarteten Stand des Monats.
  */
 export function mindestsaldoWarnungen(zl) {
   const warnungen = [...zl.start.warnungen];
@@ -885,8 +898,13 @@ export function mindestsaldoWarnungen(zl) {
     if (schon.has(kontoId)) continue;
     const konto = zl.start.jeKonto.get(kontoId)?.konto;
     if (!konto || konto.mindestsaldoCent == null) continue;
-    const erste = zeilen.find((z) => z.stand < konto.mindestsaldoCent);
-    if (erste) warnungen.push({ konto, wann: 'zukunft', monat: erste.monat, standCent: erste.stand });
+    const startStand = zl.start.jeKonto.get(kontoId)?.prognose ?? 0;
+    for (let i = 0; i < zeilen.length; i++) {
+      const v = zukunftsVerlauf(zeilen, i, startStand, konto.mindestsaldoCent);
+      if (!v.unterAb) continue;
+      warnungen.push({ konto, wann: 'zukunft', monat: zeilen[i].monat, unterAb: v.unterAb, standCent: v.niedrigster });
+      break;
+    }
   }
   return warnungen;
 }

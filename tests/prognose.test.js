@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   monatsende, plusMonate, plusTage, betragAm, budgetFuerMonat, termine, naechsterTermin,
-  offeneTermine, faelligListe, zeitAnteil, kopfWerte, niedrigsterVerlauf, budgetBuchungen, monatsprognose, budgetHinweise, terminWirkung,
+  offeneTermine, faelligListe, zeitAnteil, kopfWerte, niedrigsterVerlauf, mindestsaldoWarnungen, budgetBuchungen, monatsprognose, budgetHinweise, terminWirkung,
 } from '../js/prognose.js';
 import { baueBudget, baueWiederkehrend, mitAusnahme, budgetMitVorschlag } from '../js/annahmen.js';
 import { baueBuchungen } from '../js/buchungen.js';
@@ -208,16 +208,16 @@ test('Monatsprognose: Budgetrest, offene wiederkehrende, Mindestsaldo', () => {
   assert.deepEqual(p4.warnungen.map((w) => w.wann), ['monatsende']);
 
   // D247: niedrigster Tagesstand 06.–30.11. (25 Tage): überfällige Miete heute, Budgetrest 300 € = 12 € je Tag,
-  // Gehalt am 25., Sparrate am 28. → Tiefpunkt am 24.: heute − Miete − 19 Tage Budget
+  // Gehalt am 25., Sparrate am 28. → Tiefpunkt am 25. vor dem Gehalt (D249: Belastungen eines Tages zuerst)
   assert.equal(g.offenEinnahmen, 300000);
   assert.equal(g.offenAusgaben, -95000 - 20000);
-  assert.equal(g.niedrigster, giroHeute - 95000 - 19 * 1200);
+  assert.equal(g.niedrigster, giroHeute - 95000 - 20 * 1200);
   assert.equal(p.jeKonto.get('tg').niedrigster, 20000, 'eingehende Umbuchung erst am 28.');
   // Mindestsaldo 2.000 €: Prognose zum Monatsende reicht (dank Gehalt), der Tiefpunkt nicht → Warnung
   const zweitausend = konten.map((k) => (k.id === 'giro' ? { ...k, mindestsaldoCent: 200000 } : k));
   const p5 = monatsprognose({ konten: zweitausend, kategorien, buchungen, budgets, wiederkehrende }, heute);
   assert.ok(p5.jeKonto.get('giro').prognose >= 200000);
-  assert.deepEqual(p5.warnungen.map((w) => [w.wann, w.standCent]), [['monatsende', giroHeute - 95000 - 19 * 1200]]);
+  assert.deepEqual(p5.warnungen.map((w) => [w.wann, w.standCent]), [['monatsende', giroHeute - 95000 - 20 * 1200]]);
   // D248: Mindestsaldo 1.600 € → erstmals darunter am 18.11. (1.738 € − 12 Tage × 12 €)
   const p7 = monatsprognose({ konten: konten.map((k) => (k.id === 'giro' ? { ...k, mindestsaldoCent: 160000 } : k)), kategorien, buchungen, budgets, wiederkehrende }, heute);
   assert.equal(p7.jeKonto.get('giro').unterAb, '2026-11-18');
@@ -226,8 +226,8 @@ test('Monatsprognose: Budgetrest, offene wiederkehrende, Mindestsaldo', () => {
   const mitSpaeteren = [...buchungen, ...buchung('ausgabe', 7000, '2026-11-20', { kategorieId: 'miete' }), ...buchung('einnahme', 9000, '2026-11-21', { kategorieId: 'gehalt' })];
   const p6 = monatsprognose({ konten, kategorien, buchungen: mitSpaeteren, budgets, wiederkehrende }, heute);
   // (die 70 € Miete verbrauchen auch den Wohnen-Rest von 50 € → Budgetrest nur noch 250 € = 10 € je Tag)
-  // Tiefpunkt am 20.: heute − Miete − 15 Tage Budget − 70 €
-  assert.equal(p6.jeKonto.get('giro').niedrigster, giroHeute - 95000 - 15 * 1000 - 7000);
+  // Tiefpunkt am 21. vor dem Eingang (D249): heute − Miete − 16 Tage Budget − 70 €
+  assert.equal(p6.jeKonto.get('giro').niedrigster, giroHeute - 95000 - 16 * 1000 - 7000);
 });
 
 test('Budgethinweise: 3 Monate in Folge über bzw. unter Budget, Unterdrückung', () => {
@@ -443,8 +443,8 @@ test('D246: Kontokopf-Werte für den gewählten Monat', () => {
   const dez = [{ monat: '2026-12', stand: 5900, posten: [
     { datum: '2026-12-05', wirkung: -6000 }, { datum: '2026-12-10', wirkung: 5000 }, { datum: '2026-12-20', wirkung: -1000, umbuchung: true },
     { datum: '2026-12-31', wirkung: -3100, quelle: 'budget' }] }];
-  // Tiefpunkt am 09.: 7000 − 6000 − 9 × 100
-  assert.deepEqual(kopfWerte({ konto, buchungen, kd, zlKonto: dez }, '2026-12', heute), { art: 'zukunft', prognose: 5900, niedrigster: 100, unterAb: null });
+  // Tiefpunkt am 10. vor dem Eingang (D249): 7000 − 6000 − 10 × 100
+  assert.deepEqual(kopfWerte({ konto, buchungen, kd, zlKonto: dez }, '2026-12', heute), { art: 'zukunft', prognose: 5900, niedrigster: 0, unterAb: null });
   // D248: mit Mindestsaldo 1000 erster Tag darunter: 05.12. (7000 − 6000 − 5 × 100 = 500)
   assert.equal(kopfWerte({ konto: { ...konto, mindestsaldoCent: 1000 }, buchungen, kd, zlKonto: dez }, '2026-12', heute).unterAb, '2026-12-05');
   assert.equal(kopfWerte({ konto, buchungen, kd, zlKonto }, '2027-01', heute).niedrigster, 6000, 'Januar ab 9000: Einnahmen vor der Ausgabe');
@@ -456,7 +456,22 @@ test('D246: Kontokopf-Werte für den gewählten Monat', () => {
 test('D247: niedrigster Tagesstand mit Budget je Tag', () => {
   // 4 Tage, Budget 10 Cent → 3/3/2/2; Einnahme am 3. Tag, Ausgabe vorher (überfällig) am 1. Tag
   const n = niedrigsterVerlauf(100, [{ datum: '2026-11-20', wirkung: -50 }, { datum: '2026-11-29', wirkung: 40 }], 10, '2026-11-27', '2026-11-30');
-  assert.equal(n, 100 - 50 - 3 - 3);
+  assert.equal(n, 100 - 50 - 3 - 3 - 2, 'D249: am 29. erst der Budgetanteil, dann der Eingang');
+  // D249: Ausgabe und Einnahme am selben Tag → Tiefpunkt nach der Ausgabe
+  assert.equal(niedrigsterVerlauf(100000, [{ datum: '2026-12-31', wirkung: 100000 }, { datum: '2026-12-31', wirkung: -95000 }], 0, '2026-12-01', '2026-12-31'), 5000);
   assert.equal(niedrigsterVerlauf(100, [], 0, '2026-11-27', '2026-11-30'), 100);
   assert.equal(niedrigsterVerlauf(100, [{ datum: '2026-12-01', wirkung: -500 }], 0, '2026-11-27', '2026-11-30'), 100, 'nach dem Zeitraum zählt nicht');
+});
+
+test('D249: Zukunftswarnung nennt den ersten Tag unter dem Mindestsaldo', () => {
+  const konto = { id: 'g', name: 'Giro', mindestsaldoCent: 2000 };
+  const zl = {
+    start: { warnungen: [], jeKonto: new Map([['g', { konto, prognose: 10000 }]]) },
+    jeKonto: new Map([['g', [
+      { monat: '2026-12', stand: 9000, posten: [{ datum: '2026-12-10', wirkung: -1000 }] },
+      // Januar: am 15. −9000, am 20. +9000 → Monatsende wieder 9000, aber am 15. unter 2000
+      { monat: '2027-01', stand: 9000, posten: [{ datum: '2027-01-15', wirkung: -9000 }, { datum: '2027-01-20', wirkung: 9000 }] },
+    ]]]),
+  };
+  assert.deepEqual(mindestsaldoWarnungen(zl).map((w) => [w.wann, w.monat, w.unterAb, w.standCent]), [['zukunft', '2027-01', '2027-01-15', 0]]);
 });
