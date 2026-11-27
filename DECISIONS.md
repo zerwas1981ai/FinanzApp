@@ -12,7 +12,7 @@ Wird eine Entscheidung geändert, den alten Eintrag nicht löschen, sondern als
 Kurzer Wegweiser, weil viele spätere Einträge frühere aufheben. Maßgeblich bleibt der jeweils letzte Eintrag.
 Bei jeder neuen D-Nummer hier mitpflegen; der Test `tests/wegweiser.test.js` prüft die Stand-Zeile (D236).
 
-**Stand:** D249 · Datenmodell 28 · DB-Struktur 13 · Cache finanzapp-v146
+**Stand:** D250 · Datenmodell 28 · DB-Struktur 13 · Cache finanzapp-v147
 
 **Wieder ausgebaut – nicht mehr im Code:**
 - Szenarien „Was wäre wenn“ → ersetzt durch Projekte (D51)
@@ -3041,3 +3041,9 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
 - Die Mindestsaldo-Warnung für spätere Monate nutzt ebenfalls den Tagesverlauf (`zukunftsVerlauf`) statt des
   Monatsendstands und nennt den Tag: „… fällt voraussichtlich am 15.01.2027 erstmals unter den Mindestsaldo:
   niedrigster erwarteter Stand …“. Damit warnt sie auch bei Tiefpunkten mitten im Monat.
+
+## D250 – Eingänge am selben Tag zählen wieder sofort mit
+*Wunsch des Nutzers, 27.11.2026 – nimmt den ersten Teil von D249 zurück*
+- Im Tagesverlauf zählen wieder alle Bewegungen eines Tages zusammen (Stand am Tagesende). Sonst fiele z. B. ein
+  Verrechnungskonto, auf dem Geld eingeht und am selben Tag weitergebucht wird, rechnerisch jedes Mal ins Minus.
+- Die Zukunftswarnung mit Tag (D249) bleibt.

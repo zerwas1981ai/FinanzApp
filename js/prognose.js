@@ -397,18 +397,16 @@ export function niedrigsterVerlauf(start, bewegungen, budgetCent, von, bis) {
 
 /**
  * D247/D248: wie niedrigsterVerlauf, dazu der erste Tag, an dem der Stand unter `mindestCent` fällt.
- * D249: Am selben Tag zählen zuerst alle Belastungen (Ausgaben, abgehende Umbuchungen, Budgetanteil), danach die
- * Eingänge – sonst würde eine Einnahme am selben Tag (z. B. beides am Monatsletzten) den Tiefpunkt verdecken.
+ * D250: Alle Bewegungen eines Tages zählen zusammen (Stand am Tagesende) – Eingänge am selben Tag gleichen
+ * Belastungen sofort aus (z. B. Verrechnungskonto: Eingang und Weiterleitung am selben Tag; ersetzt D249).
  * Ergebnis: { niedrigster, unterAb: "JJJJ-MM-TT" | null }
  */
 export function tagesVerlauf(start, bewegungen, budgetCent, von, bis, mindestCent = null) {
-  const minus = new Map();
-  const plus = new Map();
+  const jeTag = new Map();
   for (const x of bewegungen) {
     const tag = x.datum < von ? von : x.datum;
     if (tag > bis) continue;
-    const ziel = x.wirkung < 0 ? minus : plus;
-    ziel.set(tag, (ziel.get(tag) ?? 0) + x.wirkung);
+    jeTag.set(tag, (jeTag.get(tag) ?? 0) + x.wirkung);
   }
   const tage = [];
   for (let t = von; t <= bis; t = plusTage(t, 1)) tage.push(t);
@@ -418,11 +416,10 @@ export function tagesVerlauf(start, bewegungen, budgetCent, von, bis, mindestCen
   let niedrigster = Infinity;
   let unterAb = null;
   for (const t of tage) {
-    stand += (minus.get(t) ?? 0) - anteil - (uebrig > 0 ? 1 : 0);
+    stand += (jeTag.get(t) ?? 0) - anteil - (uebrig > 0 ? 1 : 0);
     if (uebrig > 0) uebrig -= 1;
     niedrigster = Math.min(niedrigster, stand);
     if (unterAb === null && mindestCent != null && stand < mindestCent) unterAb = t;
-    stand += plus.get(t) ?? 0;
   }
   return { niedrigster: tage.length ? niedrigster : start, unterAb };
 }
