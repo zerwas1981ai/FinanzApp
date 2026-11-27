@@ -380,11 +380,48 @@ export function ausgabenJeKontoUndKategorie(buchungen, kategorien, monat) {
  * - Je Konto: Stand am Monatsende aus echten Buchungen
  *   + Wirkung offener wiederkehrender Termine (inkl. überfälliger aus dem Vormonat)
  *   − offener Budgetrest der Budgets, die dieses Konto belasten.
- * - Je Konto (D110/D111): niedrigster erwarteter Stand = Stand heute + alle bis Monatsende noch
- *   erwarteten Bewegungen AUSSER Einnahmen (schon erfasste mit späterem Datum, offene Termine,
- *   Umbuchungen in beide Richtungen) − offener Budgetrest. Noch ausstehende echte Einnahmen
- *   zählen NICHT – so sieht man den ungünstigsten Fall, falls Geld später kommt als die Abbuchungen.
+ * - Je Konto (D247, ersetzt D110/D111): niedrigster erwarteter Stand = niedrigster Tagesstand von heute bis
+ *   Monatsende, Tag für Tag fortgeschrieben (`niedrigsterVerlauf`): alle noch erwarteten Bewegungen samt Einnahmen
+ *   an ihrem Datum (überfällige Termine heute), der offene Budgetrest gleichmäßig auf die verbleibenden Tage verteilt.
  */
+
+/**
+ * D247: Niedrigster Tagesstand eines Zeitraums. Ab `start` (Stand vor dem ersten Tag) werden Tag für Tag die
+ * Bewegungen dieses Tages ([{ datum, wirkung }], frühere Daten zählen am ersten Tag) und ein gleicher Anteil von
+ * `budgetCent` (Budgetrest, wird abgezogen; Cent-Rest auf die ersten Tage) gebucht. Ergebnis: niedrigster Stand
+ * am Ende eines Tages von `von` bis `bis`.
+ */
+export function niedrigsterVerlauf(start, bewegungen, budgetCent, von, bis) {
+  return tagesVerlauf(start, bewegungen, budgetCent, von, bis).niedrigster;
+}
+
+/**
+ * D247/D248: wie niedrigsterVerlauf, dazu der erste Tag, an dessen Ende der Stand unter `mindestCent` liegt.
+ * Ergebnis: { niedrigster, unterAb: "JJJJ-MM-TT" | null }
+ */
+export function tagesVerlauf(start, bewegungen, budgetCent, von, bis, mindestCent = null) {
+  const jeTag = new Map();
+  for (const x of bewegungen) {
+    const tag = x.datum < von ? von : x.datum;
+    if (tag > bis) continue;
+    jeTag.set(tag, (jeTag.get(tag) ?? 0) + x.wirkung);
+  }
+  const tage = [];
+  for (let t = von; t <= bis; t = plusTage(t, 1)) tage.push(t);
+  const anteil = Math.floor(budgetCent / tage.length);
+  let uebrig = budgetCent - anteil * tage.length;
+  let stand = start;
+  let niedrigster = Infinity;
+  let unterAb = null;
+  for (const t of tage) {
+    stand += (jeTag.get(t) ?? 0) - anteil - (uebrig > 0 ? 1 : 0);
+    if (uebrig > 0) uebrig -= 1;
+    niedrigster = Math.min(niedrigster, stand);
+    if (unterAb === null && mindestCent != null && stand < mindestCent) unterAb = t;
+  }
+  return { niedrigster: tage.length ? niedrigster : start, unterAb };
+}
+
 /**
  * D198: Wie viel des Budget-Zeitraums ist heute schon vorbei? Zählt den heutigen Tag mit
  * (15.11. von 30 Tagen = 0,5). von/bis: "JJJJ-MM-TT". Ergebnis 0..1.
@@ -488,13 +525,11 @@ export function monatsprognose(daten, heute) {
     const budgetsKonto = kategorieZeilen.filter((z) => z.budget !== null && z.kontoId === k.id);
     const rest = budgetsKonto.reduce((s, z) => s + z.rest, 0);
     zugeordneterRest += rest;
-    // D111: alles bis Monatsende außer echten Einnahmen – Umbuchungen zählen in beide Richtungen
-    const spaetereOhneEinnahmen = buchungenVonKonto(k, buchungen)
-      .filter((b) => b.datum > heute && b.datum <= ende && b.art !== 'einnahme')
-      .reduce((s, b) => s + wirkungCent(b), 0);
-    const offenOhneEinnahmen = termineKonto
-      .filter((t) => t.wiederkehrend.art !== 'einnahme')
-      .reduce((s, t) => s + t.wirkung, 0);
+    // D247: Tag für Tag bis Monatsende – erfasste spätere Buchungen und offene Termine (mit Einnahmen) an ihrem Datum,
+    // überfällige Termine heute, Budgetrest gleichmäßig auf die verbleibenden Tage (heute eingeschlossen)
+    const spaetere = buchungenVonKonto(k, buchungen)
+      .filter((b) => b.datum > heute && b.datum <= ende)
+      .map((b) => ({ datum: b.datum, wirkung: wirkungCent(b) }));
     jeKonto.set(k.id, {
       konto: k,
       heute: standHeute,
@@ -503,7 +538,7 @@ export function monatsprognose(daten, heute) {
       offenEinnahmen, // davon Eingänge (≥ 0)
       offenAusgaben, // davon Belastungen (≤ 0)
       rest, // offener Budgetrest, der dieses Konto belastet
-      niedrigster: standHeute + spaetereOhneEinnahmen + offenOhneEinnahmen - rest, // D110/D111
+      ...tagesVerlauf(standHeute, [...spaetere, ...termineKonto], rest, heute, ende, k.mindestsaldoCent), // D247: niedrigster, unterAb (D248)
       prognose: endeEcht + offenWirkung - rest,
       termine: termineKonto, // offene Termine dieses Kontos
       budgets: budgetsKonto, // Budgets, die dieses Konto belasten
@@ -516,10 +551,10 @@ export function monatsprognose(daten, heute) {
 
   // Mindestsaldo-Warnungen: heute, sonst bis Monatsende nach dem niedrigsten erwarteten Stand (D110)
   const warnungen = [];
-  for (const { konto, heute: h, niedrigster } of jeKonto.values()) {
+  for (const { konto, heute: h, niedrigster, unterAb } of jeKonto.values()) {
     if (konto.mindestsaldoCent == null) continue;
     if (h < konto.mindestsaldoCent) warnungen.push({ konto, wann: 'heute', standCent: h });
-    else if (niedrigster < konto.mindestsaldoCent) warnungen.push({ konto, wann: 'monatsende', standCent: niedrigster });
+    else if (niedrigster < konto.mindestsaldoCent) warnungen.push({ konto, wann: 'monatsende', standCent: niedrigster, unterAb }); // D248
   }
 
   const groesste = kategorieZeilen.filter((z) => z.ist > 0).sort((a, b) => b.ist - a.ist)[0] ?? null;
@@ -781,28 +816,34 @@ export function zeitleiste(daten, heute, bisMonat = LETZTER_MONAT) {
 /**
  * D246: Werte im Kontokopf für den gewählten Monat ("JJJJ-MM").
  * - laufender Monat: Prognose Monatsende und niedrigster erwarteter Stand aus der Monatsprognose (D110/D111)
- * - Zukunftsmonat: Stand Monatsende aus der Zeitleiste; niedrigster erwarteter Stand = Stand am Monatsanfang
- *   + alle Bewegungen des Monats außer Einnahmen (Umbuchungen in beide Richtungen, Budgetreste) – wie D111
+ * - Zukunftsmonat: Stand Monatsende aus der Zeitleiste; niedrigster erwarteter Stand Tag für Tag ab dem Stand am
+ *   Monatsanfang: alle Posten an ihrem Datum, Budgetreste gleichmäßig auf alle Tage des Monats verteilt (D247)
  * - vergangener Monat: echter Stand am Monatsende und niedrigster echter Tagesstand im Monat
- * Ergebnis: { art: 'aktuell'|'zukunft'|'vergangen', prognose, niedrigster } (Cent; undefined = nichts anzeigen)
+ * Ergebnis: { art: 'aktuell'|'zukunft'|'vergangen', prognose, niedrigster, unterAb } (Cent; undefined = nichts anzeigen;
+ *   unterAb = erster Tag mit Stand unter dem Mindestsaldo oder null, D248)
  */
 export function kopfWerte({ konto, buchungen, kd, zlKonto = [] }, monat, heute) {
   const aktuell = heute.slice(0, 7);
-  if (monat === aktuell) return { art: 'aktuell', prognose: kd?.prognose, niedrigster: kd?.niedrigster };
+  if (monat === aktuell) return { art: 'aktuell', prognose: kd?.prognose, niedrigster: kd?.niedrigster, unterAb: kd?.unterAb ?? null };
   if (monat > aktuell) {
     const i = zlKonto.findIndex((z) => z.monat === monat);
-    if (i < 0) return { art: 'zukunft', prognose: undefined, niedrigster: undefined };
+    if (i < 0) return { art: 'zukunft', prognose: undefined, niedrigster: undefined, unterAb: null };
     const z = zlKonto[i];
     const anfang = i > 0 ? zlKonto[i - 1].stand : (kd?.prognose ?? 0);
-    const belastungen = z.posten.filter((p) => p.umbuchung || p.wirkung < 0).reduce((s, p) => s + p.wirkung, 0);
-    return { art: 'zukunft', prognose: z.stand, niedrigster: anfang + belastungen };
+    const budget = z.posten.filter((p) => p.quelle === 'budget').reduce((s, p) => s - p.wirkung, 0);
+    const bewegungen = z.posten.filter((p) => p.quelle !== 'budget');
+    const v = tagesVerlauf(anfang, bewegungen, budget, `${monat}-01`, monatsende(`${monat}-01`), konto.mindestsaldoCent);
+    return { art: 'zukunft', prognose: z.stand, ...v };
   }
   const ende = monatsende(`${monat}-01`);
   const tage = new Set([plusTage(`${monat}-01`, -1)]);
   for (const b of buchungenVonKonto(konto, buchungen)) if (b.datum.slice(0, 7) === monat) tage.add(b.datum);
   // Tagesstand am Monatsanfang (= Ende des Vortags) und nach jedem Buchungstag
-  const niedrigster = Math.min(...[...tage].map((t) => kontostand(konto, buchungen, t)));
-  return { art: 'vergangen', prognose: kontostand(konto, buchungen, ende), niedrigster };
+  const staende = [...tage].sort().map((t) => [t, kontostand(konto, buchungen, t)]);
+  const niedrigster = Math.min(...staende.map(([, s]) => s));
+  // D248: erster Tag im Monat mit Stand unter dem Mindestsaldo (schon am Monatsanfang darunter → der 1.)
+  const unter = konto.mindestsaldoCent == null ? null : staende.find(([, s]) => s < konto.mindestsaldoCent)?.[0] ?? null;
+  return { art: 'vergangen', prognose: kontostand(konto, buchungen, ende), niedrigster, unterAb: unter && unter < `${monat}-01` ? `${monat}-01` : unter };
 }
 
 /**

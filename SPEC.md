@@ -54,7 +54,7 @@ Details zu Datenmodell, Oberfläche und Rechenlogik (aus CLAUDE.md verschoben). 
    - Oben: Kasten „Übersicht“ (D164) mit Gesamtkontostand heute und prognostiziert zum Monats- und Jahresende (alle
      Konten, D116) ( Einnahmen/Ausgaben des Monats entfallen, D115), Warnung bei Unterschreiten des
      Mindestsaldos (mit erstem betroffenen Monat; im laufenden Monat nach dem
-     niedrigsten erwarteten Stand ohne offene echte Einnahmen, D110/D111), max. 2 Budget-Hinweise
+     niedrigsten erwarteten Tagesstand mit Einnahmen in zeitlicher Reihenfolge, Budgetrest je Tag anteilig, D247), max. 2 Budget-Hinweise
      (eingeklappt in einer Zeile, D117).
      Keine Kategorie-Kacheln (Budgetauslastung steht je Konto unter „Noch
      erwartet“, siehe DECISIONS.md D78)

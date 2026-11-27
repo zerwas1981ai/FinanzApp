@@ -12,7 +12,7 @@ Wird eine Entscheidung geändert, den alten Eintrag nicht löschen, sondern als
 Kurzer Wegweiser, weil viele spätere Einträge frühere aufheben. Maßgeblich bleibt der jeweils letzte Eintrag.
 Bei jeder neuen D-Nummer hier mitpflegen; der Test `tests/wegweiser.test.js` prüft die Stand-Zeile (D236).
 
-**Stand:** D246 · Datenmodell 28 · DB-Struktur 13 · Cache finanzapp-v144
+**Stand:** D248 · Datenmodell 28 · DB-Struktur 13 · Cache finanzapp-v145
 
 **Wieder ausgebaut – nicht mehr im Code:**
 - Szenarien „Was wäre wenn“ → ersetzt durch Projekte (D51)
@@ -3014,3 +3014,21 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
   - Zukunftsmonat: Stand Monatsende aus der Zeitleiste; niedrigster erwarteter Stand = Stand am Monatsanfang + alle
     Bewegungen des Monats außer Einnahmen (Umbuchungen in beide Richtungen, Budgetreste), also wie D111.
   - Vergangener Monat: „Stand Monatsende“ (echt) und „Niedrigster Stand“ = niedrigster Tagesstand laut Buchungen.
+
+## D247 – Niedrigster erwarteter Stand Tag für Tag, mit Einnahmen
+*Wunsch des Nutzers, 27.11.2026 – ersetzt die Rechenregel aus D110/D111*
+- Der niedrigste erwartete Stand ist der **niedrigste Tagesstand** im Zeitraum (laufender Monat: heute bis
+  Monatsende; Zukunftsmonat: ganzer Monat), Tag für Tag fortgeschrieben (`niedrigsterVerlauf` in `js/prognose.js`).
+- **Einnahmen zählen jetzt mit**, aber erst an ihrem Datum. Erfasste spätere Buchungen und offene Termine stehen an
+  ihrem Tag, überfällige Termine am heutigen Tag. Mehrere Bewegungen am selben Tag zählen zusammen (Stand am Tagesende).
+- **Budgetreste** (Monats-, einmalige und Jahresbudgets) werden nur für diese Rechnung gleichmäßig auf die
+  verbleibenden Tage verteilt (laufender Monat: ab heute einschließlich; Zukunftsmonat: alle Tage). Budgetbalken,
+  Prognose Monatsende und Zeitleiste bleiben unverändert.
+- Die Mindestsaldo-Warnung „bis Monatsende“ nutzt denselben Wert.
+
+## D248 – Tag, ab dem der Stand unter den Mindestsaldo fällt
+*Wunsch des Nutzers, 27.11.2026*
+- Fällt der niedrigste Stand unter den Mindestsaldo, nennt der Kontokopf den ersten Tag darunter:
+  „– unter Mindestsaldo ab 18.11.2026“ (laufender und Zukunftsmonat aus dem Tagesverlauf von D247,
+  vergangener Monat aus den echten Tagesständen). Ebenso die Warnkarte oben: „… kann bis zum Monatsende unter den
+  Mindestsaldo fallen – ab dem 18.11.2026: …“ (`tagesVerlauf` liefert `unterAb`).

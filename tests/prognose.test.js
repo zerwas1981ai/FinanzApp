@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   monatsende, plusMonate, plusTage, betragAm, budgetFuerMonat, termine, naechsterTermin,
-  offeneTermine, faelligListe, zeitAnteil, kopfWerte, budgetBuchungen, monatsprognose, budgetHinweise, terminWirkung,
+  offeneTermine, faelligListe, zeitAnteil, kopfWerte, niedrigsterVerlauf, budgetBuchungen, monatsprognose, budgetHinweise, terminWirkung,
 } from '../js/prognose.js';
 import { baueBudget, baueWiederkehrend, mitAusnahme, budgetMitVorschlag } from '../js/annahmen.js';
 import { baueBuchungen } from '../js/buchungen.js';
@@ -207,21 +207,27 @@ test('Monatsprognose: Budgetrest, offene wiederkehrende, Mindestsaldo', () => {
   const p4 = monatsprognose({ konten: mittel, kategorien, buchungen, budgets, wiederkehrende: ohneGehalt }, heute);
   assert.deepEqual(p4.warnungen.map((w) => w.wann), ['monatsende']);
 
-  // D110: niedrigster erwarteter Stand = heute − offene Belastungen − Budgetrest, OHNE das noch offene Gehalt
+  // D247: niedrigster Tagesstand 06.–30.11. (25 Tage): überfällige Miete heute, Budgetrest 300 € = 12 € je Tag,
+  // Gehalt am 25., Sparrate am 28. → Tiefpunkt am 24.: heute − Miete − 19 Tage Budget
   assert.equal(g.offenEinnahmen, 300000);
   assert.equal(g.offenAusgaben, -95000 - 20000);
-  assert.equal(g.niedrigster, giroHeute - 95000 - 20000 - 30000);
-  assert.equal(p.jeKonto.get('tg').niedrigster, 20000 + 20000, 'eingehende Umbuchung zählt mit (D111)');
+  assert.equal(g.niedrigster, giroHeute - 95000 - 19 * 1200);
+  assert.equal(p.jeKonto.get('tg').niedrigster, 20000, 'eingehende Umbuchung erst am 28.');
   // Mindestsaldo 2.000 €: Prognose zum Monatsende reicht (dank Gehalt), der Tiefpunkt nicht → Warnung
   const zweitausend = konten.map((k) => (k.id === 'giro' ? { ...k, mindestsaldoCent: 200000 } : k));
   const p5 = monatsprognose({ konten: zweitausend, kategorien, buchungen, budgets, wiederkehrende }, heute);
   assert.ok(p5.jeKonto.get('giro').prognose >= 200000);
-  assert.deepEqual(p5.warnungen.map((w) => [w.wann, w.standCent]), [['monatsende', giroHeute - 145000]]);
-  // Schon erfasste Abbuchung mit späterem Datum belastet, schon erfasster späterer Eingang nicht
+  assert.deepEqual(p5.warnungen.map((w) => [w.wann, w.standCent]), [['monatsende', giroHeute - 95000 - 19 * 1200]]);
+  // D248: Mindestsaldo 1.600 € → erstmals darunter am 18.11. (1.738 € − 12 Tage × 12 €)
+  const p7 = monatsprognose({ konten: konten.map((k) => (k.id === 'giro' ? { ...k, mindestsaldoCent: 160000 } : k)), kategorien, buchungen, budgets, wiederkehrende }, heute);
+  assert.equal(p7.jeKonto.get('giro').unterAb, '2026-11-18');
+  assert.equal(p7.warnungen[0].unterAb, '2026-11-18');
+  // D247: Schon erfasste spätere Buchungen zählen an ihrem Datum – Abbuchung am 20., Eingang am 21.
   const mitSpaeteren = [...buchungen, ...buchung('ausgabe', 7000, '2026-11-20', { kategorieId: 'miete' }), ...buchung('einnahme', 9000, '2026-11-21', { kategorieId: 'gehalt' })];
   const p6 = monatsprognose({ konten, kategorien, buchungen: mitSpaeteren, budgets, wiederkehrende }, heute);
-  // (die 70 € Miete verbrauchen auch den Wohnen-Rest von 50 € → Budgetrest nur noch 250 €)
-  assert.equal(p6.jeKonto.get('giro').niedrigster, giroHeute - 7000 - 95000 - 20000 - 25000);
+  // (die 70 € Miete verbrauchen auch den Wohnen-Rest von 50 € → Budgetrest nur noch 250 € = 10 € je Tag)
+  // Tiefpunkt am 20.: heute − Miete − 15 Tage Budget − 70 €
+  assert.equal(p6.jeKonto.get('giro').niedrigster, giroHeute - 95000 - 15 * 1000 - 7000);
 });
 
 test('Budgethinweise: 3 Monate in Folge über bzw. unter Budget, Unterdrückung', () => {
@@ -429,14 +435,28 @@ test('D246: Kontokopf-Werte für den gewählten Monat', () => {
   const kd = { prognose: 7000, niedrigster: 4000 };
   const zlKonto = [
     { monat: '2026-12', stand: 9000, posten: [{ wirkung: 5000 }, { wirkung: -2000 }, { wirkung: -1000, umbuchung: true }] },
-    { monat: '2027-01', stand: 6000, posten: [{ wirkung: 3000 }, { wirkung: 2000, umbuchung: true }, { wirkung: -8000 }] },
+    { monat: '2027-01', stand: 6000, posten: [{ datum: '2027-01-01', wirkung: 3000 }, { datum: '2027-01-02', wirkung: 2000, umbuchung: true }, { datum: '2027-01-15', wirkung: -8000 }] },
   ];
   const heute = '2026-11-20';
-  assert.deepEqual(kopfWerte({ konto, buchungen, kd, zlKonto }, '2026-11', heute), { art: 'aktuell', prognose: 7000, niedrigster: 4000 });
-  // Dezember: Anfang = Prognose Ende November (7000) + Belastungen −2000 −1000; Einnahme zählt nicht
-  assert.deepEqual(kopfWerte({ konto, buchungen, kd, zlKonto }, '2026-12', heute), { art: 'zukunft', prognose: 9000, niedrigster: 4000 });
-  // Januar: Anfang 9000 + eingehende Umbuchung 2000 − 8000
-  assert.deepEqual(kopfWerte({ konto, buchungen, kd, zlKonto }, '2027-01', heute), { art: 'zukunft', prognose: 6000, niedrigster: 3000 });
+  assert.deepEqual(kopfWerte({ konto, buchungen, kd, zlKonto }, '2026-11', heute), { art: 'aktuell', prognose: 7000, niedrigster: 4000, unterAb: null });
+  // D247: Dezember ab 7000 (Prognose Ende November): Einnahme am 10., Ausgaben am 05. und 20., Budget 31 € = 1 € je Tag
+  const dez = [{ monat: '2026-12', stand: 5900, posten: [
+    { datum: '2026-12-05', wirkung: -6000 }, { datum: '2026-12-10', wirkung: 5000 }, { datum: '2026-12-20', wirkung: -1000, umbuchung: true },
+    { datum: '2026-12-31', wirkung: -3100, quelle: 'budget' }] }];
+  // Tiefpunkt am 09.: 7000 − 6000 − 9 × 100
+  assert.deepEqual(kopfWerte({ konto, buchungen, kd, zlKonto: dez }, '2026-12', heute), { art: 'zukunft', prognose: 5900, niedrigster: 100, unterAb: null });
+  // D248: mit Mindestsaldo 1000 erster Tag darunter: 05.12. (7000 − 6000 − 5 × 100 = 500)
+  assert.equal(kopfWerte({ konto: { ...konto, mindestsaldoCent: 1000 }, buchungen, kd, zlKonto: dez }, '2026-12', heute).unterAb, '2026-12-05');
+  assert.equal(kopfWerte({ konto, buchungen, kd, zlKonto }, '2027-01', heute).niedrigster, 6000, 'Januar ab 9000: Einnahmen vor der Ausgabe');
   // Oktober (vergangen): echter Stand am Monatsende und niedrigster Tagesstand (2000 nach dem 02.10.)
-  assert.deepEqual(kopfWerte({ konto, buchungen, kd, zlKonto }, '2026-10', heute), { art: 'vergangen', prognose: 6000, niedrigster: 2000 });
+  assert.deepEqual(kopfWerte({ konto, buchungen, kd, zlKonto }, '2026-10', heute), { art: 'vergangen', prognose: 6000, niedrigster: 2000, unterAb: null });
+  assert.equal(kopfWerte({ konto: { ...konto, mindestsaldoCent: 5000 }, buchungen, kd, zlKonto }, '2026-10', heute).unterAb, '2026-10-02');
+});
+
+test('D247: niedrigster Tagesstand mit Budget je Tag', () => {
+  // 4 Tage, Budget 10 Cent → 3/3/2/2; Einnahme am 3. Tag, Ausgabe vorher (überfällig) am 1. Tag
+  const n = niedrigsterVerlauf(100, [{ datum: '2026-11-20', wirkung: -50 }, { datum: '2026-11-29', wirkung: 40 }], 10, '2026-11-27', '2026-11-30');
+  assert.equal(n, 100 - 50 - 3 - 3);
+  assert.equal(niedrigsterVerlauf(100, [], 0, '2026-11-27', '2026-11-30'), 100);
+  assert.equal(niedrigsterVerlauf(100, [{ datum: '2026-12-01', wirkung: -500 }], 0, '2026-11-27', '2026-11-30'), 100, 'nach dem Zeitraum zählt nicht');
 });

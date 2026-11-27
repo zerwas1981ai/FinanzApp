@@ -333,20 +333,23 @@ function kontoKopf(konto, buchungen, abstimmungen, werte, monat) {
         konto.mindestsaldoCent != null && prognoseCent < konto.mindestsaldoCent && h('span', { class: 'warn-text' }, ' – unter Mindestsaldo')),
     ),
     h('button', { type: 'button', class: 'knopf kopf-abstimmen', onclick: () => abstimmungsDialog(konto, buchungen) }, 'Abstimmen'),
-    // D110: ungünstigster Fall bis Monatsende – heute minus alle erwarteten Belastungen, ohne offene Eingänge
+    // D247: niedrigster Tagesstand bis Monatsende – Einnahmen zählen an ihrem Datum, Budgetreste je Tag anteilig
     h('div', { class: 'kopf-zeile' },
       niedrigsterCent !== undefined ? h('div', {
         class: 'klein niedrigster',
         title: {
-          aktuell: 'Stand heute mit allen bis Monatsende noch erwarteten Ausgaben, Umbuchungen und Budgetresten – '
-            + 'noch ausstehende Einnahmen zählen nicht mit.',
-          zukunft: 'Erwarteter Stand am Monatsanfang mit allen Ausgaben, Umbuchungen und Budgetresten dieses Monats – '
-            + 'Einnahmen zählen nicht mit.',
+          // D247
+          aktuell: 'Niedrigster Tagesstand bis Monatsende: alle erwarteten Einnahmen, Ausgaben und Umbuchungen an ihrem Datum, '
+            + 'Budgetreste gleichmäßig auf die verbleibenden Tage verteilt.',
+          zukunft: 'Niedrigster Tagesstand in diesem Monat: alle erwarteten Einnahmen, Ausgaben und Umbuchungen an ihrem Datum, '
+            + 'Budgetreste gleichmäßig auf die Tage des Monats verteilt.',
           vergangen: 'Niedrigster Tagesstand in diesem Monat laut erfassten Buchungen.',
         }[art],
       }, `${vergangen ? 'Niedrigster Stand' : 'Niedrigster erwarteter Stand'}${imMonat}: `,
       h('span', { class: (vergangen ? '' : 'annahme') + (niedrigsterCent < 0 ? ' negativ' : '') }, formatEuro(niedrigsterCent)),
-      konto.mindestsaldoCent != null && niedrigsterCent < konto.mindestsaldoCent && h('span', { class: 'warn-text' }, ' – unter Mindestsaldo'))
+      // D248: mit dem ersten Tag unter dem Mindestsaldo
+      konto.mindestsaldoCent != null && niedrigsterCent < konto.mindestsaldoCent && h('span', { class: 'warn-text' },
+        werte.unterAb ? ` – unter Mindestsaldo ab ${formatDatum(werte.unterAb)}` : ' – unter Mindestsaldo'))
         : h('span'),
       h('div', { class: 'klein abstimm-info' }, abstimmText)),
   );
