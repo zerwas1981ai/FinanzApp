@@ -35,7 +35,7 @@ const ALLE = '__alle'; // gemerkte Auswahl "Alle Konten"
 const nachName = (a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base' });
 // alleAnzeigen: "kontoId|JJJJ-MM-01", wenn für dieses Konto/diesen Monat alle Buchungen gezeigt werden
 // summenOffen (D112): Monatsblock aufgeklappt? Standard zu, bleibt so, solange die App offen ist
-const ansicht = { jahr: null, monat: null, alleAnzeigen: null, summenOffen: false, verlaufOffen: false }; // verlaufOffen: D251 (Handy)
+const ansicht = { jahr: null, monat: null, alleAnzeigen: null, summenOffen: false, verlaufOffen: false }; // verlaufOffen: D251/D252
 const MAX_BUCHUNGEN = 10; // so viele Buchungen zeigt die Monatsansicht standardmäßig
 
 const monatVon = (iso) => [Number(iso.slice(0, 4)), Number(iso.slice(5, 7))];
@@ -333,17 +333,6 @@ function kontoKopf(konto, buchungen, abstimmungen, werte, monat) {
         h('span', { class: (vergangen ? '' : 'annahme') + (prognoseCent < 0 ? ' negativ' : '') }, formatEuro(prognoseCent)),
         konto.mindestsaldoCent != null && prognoseCent < konto.mindestsaldoCent && h('span', { class: 'warn-text' }, ' – unter Mindestsaldo')),
     ),
-    // D251: Verlauf im gewählten Monat – am PC immer sichtbar zwischen Ständen und „Abstimmen“,
-    // am Handy einklappbar (Standard zu, bleibt so, solange die App offen ist)
-    (() => {
-      const grafik = verlaufGrafik(werte.verlauf, konto.mindestsaldoCent);
-      if (!grafik) return null;
-      const breit = window.matchMedia('(min-width: 768px)').matches;
-      const d = h('details', { class: 'kopf-verlauf', open: breit || ansicht.verlaufOffen },
-        h('summary', { class: 'kopf-verlauf-schalter klein' }, 'Verlauf im Monat'), grafik);
-      d.addEventListener('toggle', () => { if (!breit) ansicht.verlaufOffen = d.open; });
-      return d;
-    })(),
     h('button', { type: 'button', class: 'knopf kopf-abstimmen', onclick: () => abstimmungsDialog(konto, buchungen) }, 'Abstimmen'),
     // D247: niedrigster Tagesstand bis Monatsende – Einnahmen zählen an ihrem Datum, Budgetreste je Tag anteilig
     h('div', { class: 'kopf-zeile' },
@@ -364,6 +353,15 @@ function kontoKopf(konto, buchungen, abstimmungen, werte, monat) {
         werte.unterAb ? ` – unter Mindestsaldo ab ${formatDatum(werte.unterAb)}` : ' – unter Mindestsaldo'))
         : h('span'),
       h('div', { class: 'klein abstimm-info' }, abstimmText)),
+    // D251/D252: Verlauf im gewählten Monat – überall zum Aufklappen, Standard zu (bleibt so, solange die App offen ist)
+    (() => {
+      const grafik = verlaufGrafik(werte.verlauf, konto.mindestsaldoCent);
+      if (!grafik) return null;
+      const d = h('details', { class: 'kopf-verlauf', open: ansicht.verlaufOffen },
+        h('summary', { class: 'kopf-verlauf-schalter klein' }, 'Verlauf im Monat'), grafik);
+      d.addEventListener('toggle', () => { ansicht.verlaufOffen = d.open; });
+      return d;
+    })(),
   );
 }
 

@@ -12,7 +12,7 @@ Wird eine Entscheidung geändert, den alten Eintrag nicht löschen, sondern als
 Kurzer Wegweiser, weil viele spätere Einträge frühere aufheben. Maßgeblich bleibt der jeweils letzte Eintrag.
 Bei jeder neuen D-Nummer hier mitpflegen; der Test `tests/wegweiser.test.js` prüft die Stand-Zeile (D236).
 
-**Stand:** D251 · Datenmodell 28 · DB-Struktur 13 · Cache finanzapp-v148
+**Stand:** D252 · Datenmodell 28 · DB-Struktur 13 · Cache finanzapp-v149
 
 **Wieder ausgebaut – nicht mehr im Code:**
 - Szenarien „Was wäre wenn“ → ersetzt durch Projekte (D51)
@@ -3058,3 +3058,13 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
   Warnfarbe). Oben steht der Tiefpunkt mit Datum; Antippen/Überfahren zeigt Tag und Stand.
 - Am PC zwischen Ständen und „Abstimmen“, immer sichtbar. Am Handy unter den Ständen als „Verlauf im Monat“ zum
   Aufklappen, Standard zu (bleibt so, solange die App offen ist).
+
+## D252 – Verlaufsgrafik größer, mit Raster, überall einklappbar
+*Wunsch des Nutzers, 27.11.2026 – ändert D251*
+- „Verlauf im Monat“ ist jetzt auf **allen Geräten** zum Auf- und Einklappen, Standard zu (bleibt so, solange die App
+  offen ist). Er steht über die volle Breite unter den Ständen und der Zeile „Niedrigster erwarteter Stand“.
+- Größer: 190 px hoch am PC, 160 px am Handy.
+- Raster: waagerechte Linien in runden Euro-Stufen (1/2/2,5/5 × 10ⁿ €, etwa 4 Stufen, `rasterSchritte`) mit
+  Beschriftung links, die 0-€-Linie etwas kräftiger; senkrechte Linien an den Tagen 1., 5., 10., 15., 20., 25. und
+  am Monatsletzten (`tagesMarken`, im Februar ohne den 25.) mit Beschriftung unten.
+- Die senkrechte Linie für „heute“ ist etwas kräftiger als das Raster.

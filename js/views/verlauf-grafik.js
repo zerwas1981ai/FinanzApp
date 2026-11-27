@@ -1,5 +1,6 @@
-// D251: Kleine Verlaufsgrafik im Kontokopf – echter Stand bis gestern (durchgezogen), erwarteter Stand ab heute
+// D251/D252: Verlaufsgrafik im Kontokopf – echter Stand bis gestern (durchgezogen), erwarteter Stand ab heute
 // (gestrichelt) für den gewählten Monat, dazu die Linie des Mindestsaldos mit getönter Fläche darunter.
+// D252: Raster mit runden Euro-Werten (waagerecht) und Tagesmarken alle 5 Tage (senkrecht), größere Zeichnung.
 // Antippen/Überfahren zeigt Tag und Stand; ohne Zeiger steht dort der Tiefpunkt.
 // Die Zeichenfläche wird in der Breite gestreckt (preserveAspectRatio="none"); Texte und Punkte liegen daher als
 // HTML darüber, damit sie nicht verzerrt werden.
@@ -8,21 +9,40 @@ import { h } from '../dom.js';
 import { formatEuro, formatDatum } from '../format.js';
 
 const B = 300; // Breite der Zeichenfläche (Einheiten)
-const H = 80;  // Höhe
+const H = 100; // Höhe
+
+/** Euro ohne Cent für Achsenbeschriftungen: 1.250 € */
+const euroKurz = (cent) => `${new Intl.NumberFormat('de-DE', { maximumFractionDigits: 0 }).format(Math.round(cent / 100))} €`;
+
+/** D252: runde Rasterschritte (1, 2, 2,5, 5 × 10ⁿ Euro) für etwa 4 Linien; Ergebnis in Cent */
+export function rasterSchritte(min, max, ziel = 4) {
+  const spanne = Math.max(max - min, 100);
+  const roh = spanne / ziel;
+  const zehner = 10 ** Math.floor(Math.log10(roh));
+  const schritt = [1, 2, 2.5, 5, 10].map((f) => f * zehner).find((s) => s >= roh);
+  let von = Math.floor(min / schritt) * schritt;
+  let bis = Math.ceil(max / schritt) * schritt;
+  if (bis === von) { von -= schritt; bis += schritt; } // gleichbleibender Stand: Linie in der Mitte
+  const linien = [];
+  for (let w = von; w <= bis + schritt / 2; w += schritt) linien.push(Math.round(w));
+  return { von, bis, linien };
+}
+
+/** D252: Tage mit Marke am Rand: 1., 5., 10., 15., 20., 25. und der Monatsletzte (im Februar ohne den 25.) */
+export function tagesMarken(letzterTag) {
+  const marken = [1, 5, 10, 15, 20, 25].filter((t) => t <= letzterTag - 4);
+  return [...marken, letzterTag];
+}
 
 /**
- * verlauf: [{ datum, stand, prognose }] aus kopfWerte (Index 0 = Ende des Vortags, also Monatsanfang)
+ * verlauf: [{ datum, stand, prognose }] aus kopfWerte (Index 0 = Ende des Vortags, also Monatsanfang; Index t = Tag t)
  * mindestCent: Mindestsaldo des Kontos oder null
  */
 export function verlaufGrafik(verlauf, mindestCent) {
   if (!verlauf?.length) return null;
   const werte = verlauf.map((x) => x.stand);
-  let min = Math.min(...werte, ...(mindestCent != null ? [mindestCent] : []));
-  let max = Math.max(...werte, ...(mindestCent != null ? [mindestCent] : []));
-  if (max === min) { max += 100; min -= 100; }
-  const rand = (max - min) * 0.12;
-  min -= rand;
-  max += rand;
+  const extra = mindestCent != null ? [mindestCent] : [];
+  const { von: min, bis: max, linien } = rasterSchritte(Math.min(...werte, ...extra), Math.max(...werte, ...extra));
   const n = verlauf.length;
   const xVon = (i) => (n === 1 ? B / 2 : (i / (n - 1)) * B);
   const yVon = (cent) => H - ((cent - min) / (max - min)) * H;
@@ -36,13 +56,20 @@ export function verlaufGrafik(verlauf, mindestCent) {
   const pfad = (punkte) => punkte.map(([i, c], k) => `${k ? 'L' : 'M'}${xVon(i).toFixed(2)},${yVon(c).toFixed(2)}`).join(' ');
 
   const flaeche = svg('svg', { viewBox: `0 0 ${B} ${H}`, preserveAspectRatio: 'none', class: 'vg-flaeche', 'aria-hidden': 'true' });
-  // Mindestsaldo: getönte Fläche darunter und gestrichelte Linie
+  // Mindestsaldo: getönte Fläche darunter (unter dem Raster)
   if (mindestCent != null && mindestCent > min) {
     const y = Math.min(H, yVon(mindestCent));
     flaeche.append(svg('rect', { x: 0, y, width: B, height: H - y, class: 'vg-unter-mindest' }));
+  }
+  // Raster: waagerecht je Euro-Stufe (0 € etwas kräftiger), senkrecht je Tagesmarke
+  for (const w of linien) flaeche.append(svg('line', { x1: 0, x2: B, y1: yVon(w), y2: yVon(w), class: w === 0 ? 'vg-raster vg-null' : 'vg-raster' }));
+  const letzterTag = Number(verlauf[n - 1].datum.slice(8, 10));
+  const marken = tagesMarken(letzterTag);
+  for (const t of marken) flaeche.append(svg('line', { x1: xVon(t), x2: xVon(t), y1: 0, y2: H, class: 'vg-raster' }));
+  if (mindestCent != null && mindestCent > min) {
+    const y = yVon(mindestCent);
     flaeche.append(svg('line', { x1: 0, x2: B, y1: y, y2: y, class: 'vg-mindest' }));
   }
-  if (min < 0 && max > 0) flaeche.append(svg('line', { x1: 0, x2: B, y1: yVon(0), y2: yVon(0), class: 'vg-null' }));
   // Heute: senkrechte Linie am ersten erwarteten Tag, wenn der Monat echte und erwartete Stände hat
   const ersterErwartet = verlauf.findIndex((x) => x.prognose);
   if (ersterErwartet > 0) flaeche.append(svg('line', { x1: xVon(ersterErwartet), x2: xVon(ersterErwartet), y1: 0, y2: H, class: 'vg-heute' }));
@@ -56,28 +83,19 @@ export function verlaufGrafik(verlauf, mindestCent) {
 
   // Tiefpunkt (erster Tag mit dem niedrigsten Stand) als Punkt
   const tiefIndex = werte.indexOf(Math.min(...werte));
-  const tiefPunkt = h('span', { class: 'vg-punkt vg-tief' + (mindestCent != null && werte[tiefIndex] < mindestCent ? ' warn' : '') });
+  const unterMindest = (cent) => mindestCent != null && cent < mindestCent;
+  const tiefPunkt = h('span', { class: 'vg-punkt vg-tief' + (unterMindest(werte[tiefIndex]) ? ' warn' : '') });
   Object.assign(tiefPunkt.style, { left: prozentX(tiefIndex), top: prozentY(werte[tiefIndex]) });
   const zeiger = h('span', { class: 'vg-punkt vg-zeiger', hidden: true });
 
   const tagText = (i) => (i === 0 ? 'Monatsanfang' : formatDatum(verlauf[i].datum));
+  const betrag = (x) => h('span', { class: (x.prognose ? 'annahme' : '') + (unterMindest(x.stand) ? ' warn-text' : '') }, formatEuro(x.stand));
   const info = h('span', { class: 'vg-info' });
-  const zeigeInfo = (i) => {
-    const x = verlauf[i];
-    info.replaceChildren(`${tagText(i)}: `,
-      h('span', { class: (x.prognose ? 'annahme' : '') + (mindestCent != null && x.stand < mindestCent ? ' warn-text' : '') }, formatEuro(x.stand)),
-      x.prognose ? ' (erwartet)' : '');
-  };
-  const zeigeTief = () => {
-    info.replaceChildren('Tiefpunkt ', tagText(tiefIndex), ': ',
-      h('span', { class: (verlauf[tiefIndex].prognose ? 'annahme' : '') + (mindestCent != null && werte[tiefIndex] < mindestCent ? ' warn-text' : '') },
-        formatEuro(werte[tiefIndex])));
-  };
+  const zeigeInfo = (i) => info.replaceChildren(`${tagText(i)}: `, betrag(verlauf[i]), verlauf[i].prognose ? ' (erwartet)' : '');
+  const zeigeTief = () => info.replaceChildren(`Tiefpunkt ${tagText(tiefIndex)}: `, betrag(verlauf[tiefIndex]));
   zeigeTief();
 
-  const zeichnung = h('div', { class: 'vg-zeichnung' }, flaeche, tiefPunkt, zeiger,
-    h('span', { class: 'vg-y vg-y-oben' }, formatEuro(Math.max(...werte))),
-    h('span', { class: 'vg-y vg-y-unten' }, formatEuro(Math.min(...werte))));
+  const zeichnung = h('div', { class: 'vg-zeichnung' }, flaeche, tiefPunkt, zeiger);
   const bewege = (e) => {
     const r = zeichnung.getBoundingClientRect();
     const i = Math.max(0, Math.min(n - 1, Math.round(((e.clientX - r.left) / r.width) * (n - 1))));
@@ -96,7 +114,20 @@ export function verlaufGrafik(verlauf, mindestCent) {
     zeigeTief();
   });
 
-  const letzterTag = Number(verlauf[n - 1].datum.slice(8, 10));
+  // Achsen als HTML: links die Euro-Stufen, unten die Tagesmarken
+  const yAchse = h('div', { class: 'vg-y-achse', 'aria-hidden': 'true' },
+    linien.map((w) => {
+      const el = h('span', { class: 'vg-y' }, euroKurz(w));
+      el.style.top = prozentY(w);
+      return el;
+    }));
+  const xAchse = h('div', { class: 'vg-x-achse', 'aria-hidden': 'true' },
+    marken.map((t) => {
+      const el = h('span', { class: 'vg-x' }, `${t}.`);
+      el.style.left = prozentX(t);
+      return el;
+    }));
+
   return h('div', {
     class: 'verlauf-grafik',
     role: 'img',
@@ -104,8 +135,7 @@ export function verlaufGrafik(verlauf, mindestCent) {
       (mindestCent != null ? `, Mindestsaldo ${formatEuro(mindestCent)}` : ''),
   },
   h('div', { class: 'vg-kopf klein' }, info),
-  zeichnung,
-  h('div', { class: 'vg-x klein' }, h('span', {}, '1.'), h('span', {}, '15.'), h('span', {}, `${letzterTag}.`)),
+  h('div', { class: 'vg-plot' }, yAchse, zeichnung, h('span'), xAchse),
   h('div', { class: 'vg-legende klein' },
     echt.length > 1 && h('span', {}, h('i', { class: 'vg-l-echt' }), 'Stand'),
     erwartet.length > 1 && h('span', {}, h('i', { class: 'vg-l-erwartet' }), 'erwartet'),
