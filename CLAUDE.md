@@ -8,7 +8,7 @@ Oberfläche auf Deutsch, Währung Euro, deutsches Datums- und Zahlenformat.
 
 ## Aktueller Stand
 - Alle Grundfunktionen sind fertig und online (GitHub Pages); seitdem Verbesserungsrunden auf Wunsch.
-- Letzte Entscheidung: D250, Cache-Version in sw.js: finanzapp-v147, Datenmodell-Version 28.
+- Letzte Entscheidung: D251, Cache-Version in sw.js: finanzapp-v148, Datenmodell-Version 28.
 - Tests mit `npm test`, alle grün. `tests/wegweiser.test.js` prüft, ob diese Zeile, der Wegweiser in DECISIONS.md und sw.js zum Code passen.
 
 ## Arbeitsweise (wichtig)
@@ -53,7 +53,7 @@ Oberfläche auf Deutsch, Währung Euro, deutsches Datums- und Zahlenformat.
 - `js/energie.js` – Abschlagsrechner Strom/Gas (D233), Ansicht `js/views/energie.js`
 - `js/auslagen.js` – Auslagen und Rückzahlungen (D214); Aufrunden und Ausgleich stecken in `js/buchungen.js` (D215/D216)
 - `js/ui.js`, `js/dom.js` – Dialoge, Umschalter, Meldungen, `h()`-Helfer
-- `js/views/*.js` – Ansicht je Tab/Bereich (uebersicht, alle-buchungen, annahmen, stammdaten …)
+- `js/views/*.js` – Ansicht je Tab/Bereich (uebersicht, alle-buchungen, annahmen, stammdaten …); `verlauf-grafik.js` – Monatsverlauf im Kontokopf (D251)
 - `js/testdaten.js` – erfundene Testdaten (nur auf localhost); `tests/` – Tests der reinen Funktionen
 - `SPEC.md` – fachliche Details; `DECISIONS.md` – alle Entscheidungen (D-Nummern)
 

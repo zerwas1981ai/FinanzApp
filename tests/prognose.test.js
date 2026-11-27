@@ -438,18 +438,19 @@ test('D246: Kontokopf-Werte für den gewählten Monat', () => {
     { monat: '2027-01', stand: 6000, posten: [{ datum: '2027-01-01', wirkung: 3000 }, { datum: '2027-01-02', wirkung: 2000, umbuchung: true }, { datum: '2027-01-15', wirkung: -8000 }] },
   ];
   const heute = '2026-11-20';
-  assert.deepEqual(kopfWerte({ konto, buchungen, kd, zlKonto }, '2026-11', heute), { art: 'aktuell', prognose: 7000, niedrigster: 4000, unterAb: null });
+  const ohneVerlauf = ({ verlauf, ...rest }) => rest;
+  assert.deepEqual(ohneVerlauf(kopfWerte({ konto, buchungen, kd, zlKonto }, '2026-11', heute)), { art: 'aktuell', prognose: 7000, niedrigster: 4000, unterAb: null });
   // D247: Dezember ab 7000 (Prognose Ende November): Einnahme am 10., Ausgaben am 05. und 20., Budget 31 € = 1 € je Tag
   const dez = [{ monat: '2026-12', stand: 5900, posten: [
     { datum: '2026-12-05', wirkung: -6000 }, { datum: '2026-12-10', wirkung: 5000 }, { datum: '2026-12-20', wirkung: -1000, umbuchung: true },
     { datum: '2026-12-31', wirkung: -3100, quelle: 'budget' }] }];
   // Tiefpunkt am 09.: 7000 − 6000 − 9 × 100 (Eingang am 10. zählt am selben Tag, D250)
-  assert.deepEqual(kopfWerte({ konto, buchungen, kd, zlKonto: dez }, '2026-12', heute), { art: 'zukunft', prognose: 5900, niedrigster: 100, unterAb: null });
+  assert.deepEqual(ohneVerlauf(kopfWerte({ konto, buchungen, kd, zlKonto: dez }, '2026-12', heute)), { art: 'zukunft', prognose: 5900, niedrigster: 100, unterAb: null });
   // D248: mit Mindestsaldo 1000 erster Tag darunter: 05.12. (7000 − 6000 − 5 × 100 = 500)
   assert.equal(kopfWerte({ konto: { ...konto, mindestsaldoCent: 1000 }, buchungen, kd, zlKonto: dez }, '2026-12', heute).unterAb, '2026-12-05');
   assert.equal(kopfWerte({ konto, buchungen, kd, zlKonto }, '2027-01', heute).niedrigster, 6000, 'Januar ab 9000: Einnahmen vor der Ausgabe');
   // Oktober (vergangen): echter Stand am Monatsende und niedrigster Tagesstand (2000 nach dem 02.10.)
-  assert.deepEqual(kopfWerte({ konto, buchungen, kd, zlKonto }, '2026-10', heute), { art: 'vergangen', prognose: 6000, niedrigster: 2000, unterAb: null });
+  assert.deepEqual(ohneVerlauf(kopfWerte({ konto, buchungen, kd, zlKonto }, '2026-10', heute)), { art: 'vergangen', prognose: 6000, niedrigster: 2000, unterAb: null });
   assert.equal(kopfWerte({ konto: { ...konto, mindestsaldoCent: 5000 }, buchungen, kd, zlKonto }, '2026-10', heute).unterAb, '2026-10-02');
 });
 
@@ -474,4 +475,24 @@ test('D249: Zukunftswarnung nennt den ersten Tag unter dem Mindestsaldo', () => 
     ]]]),
   };
   assert.deepEqual(mindestsaldoWarnungen(zl).map((w) => [w.wann, w.monat, w.unterAb, w.standCent]), [['zukunft', '2027-01', '2027-01-15', 0]]);
+});
+
+test('D251: Tagesverlauf für die Grafik im Kontokopf', () => {
+  const konto = { id: 'g', anfangssaldoCent: 10000, stichtag: '2026-01-01' };
+  const b = (datum, art, betragCent) => ({ id: datum + art, kontoId: 'g', datum, art, betragCent, status: 'gebucht' });
+  const buchungen = [b('2026-11-02', 'ausgabe', 3000), b('2026-10-15', 'ausgabe', 1000)];
+  const kd = { prognose: 5000, niedrigster: 4000, tage: [{ datum: '2026-11-03', stand: 6500 }, { datum: '2026-11-04', stand: 6000 }] };
+  // laufender Monat (heute 03.11.): 31.10., 01.11., 02.11. echt, ab 03.11. erwartet
+  const v = kopfWerte({ konto, buchungen, kd }, '2026-11', '2026-11-03').verlauf;
+  assert.deepEqual(v.map((x) => [x.datum.slice(5), x.stand, x.prognose]),
+    [['10-31', 9000, false], ['11-01', 9000, false], ['11-02', 6000, false], ['11-03', 6500, true], ['11-04', 6000, true]]);
+  // vergangener Monat: Vortag plus alle Tage, nur echte Stände
+  const okt = kopfWerte({ konto, buchungen, kd }, '2026-10', '2026-11-03').verlauf;
+  assert.equal(okt.length, 32);
+  assert.deepEqual([okt[0].stand, okt[15].stand, okt.some((x) => x.prognose)], [10000, 9000, false]);
+  // Zukunftsmonat: Start = Stand Ende Vormonat, alle Tage erwartet
+  const zl = [{ monat: '2026-12', stand: 4000, posten: [{ datum: '2026-12-10', wirkung: -1000 }] }];
+  const dez = kopfWerte({ konto, buchungen, kd, zlKonto: zl }, '2026-12', '2026-11-03').verlauf;
+  assert.equal(dez.length, 32);
+  assert.deepEqual([dez[0].stand, dez[9].stand, dez[10].stand, dez.every((x) => x.prognose)], [5000, 5000, 4000, true]);
 });

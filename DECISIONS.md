@@ -12,7 +12,7 @@ Wird eine Entscheidung geändert, den alten Eintrag nicht löschen, sondern als
 Kurzer Wegweiser, weil viele spätere Einträge frühere aufheben. Maßgeblich bleibt der jeweils letzte Eintrag.
 Bei jeder neuen D-Nummer hier mitpflegen; der Test `tests/wegweiser.test.js` prüft die Stand-Zeile (D236).
 
-**Stand:** D250 · Datenmodell 28 · DB-Struktur 13 · Cache finanzapp-v147
+**Stand:** D251 · Datenmodell 28 · DB-Struktur 13 · Cache finanzapp-v148
 
 **Wieder ausgebaut – nicht mehr im Code:**
 - Szenarien „Was wäre wenn“ → ersetzt durch Projekte (D51)
@@ -3047,3 +3047,14 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
 - Im Tagesverlauf zählen wieder alle Bewegungen eines Tages zusammen (Stand am Tagesende). Sonst fiele z. B. ein
   Verrechnungskonto, auf dem Geld eingeht und am selben Tag weitergebucht wird, rechnerisch jedes Mal ins Minus.
 - Die Zukunftswarnung mit Tag (D249) bleibt.
+
+## D251 – Verlaufsgrafik im Kontokopf
+*Wunsch des Nutzers, 27.11.2026*
+- Im Kontokopf der Übersicht zeigt eine kleine Liniengrafik den Kontostand im **gewählten Monat** Tag für Tag
+  (`js/views/verlauf-grafik.js`, Daten aus `kopfWerte(...).verlauf`): echter Stand bis gestern durchgezogen,
+  erwarteter Stand ab heute gestrichelt (gleiche Rechnung wie der niedrigste erwartete Stand, D247/D250).
+  Vergangene Monate nur echt, Zukunftsmonate nur erwartet. Erster Punkt = Stand am Monatsanfang.
+- Mindestsaldo als gestrichelte Linie mit getönter Fläche darunter; Tiefpunkt als Punkt (bei Unterschreitung in der
+  Warnfarbe). Oben steht der Tiefpunkt mit Datum; Antippen/Überfahren zeigt Tag und Stand.
+- Am PC zwischen Ständen und „Abstimmen“, immer sichtbar. Am Handy unter den Ständen als „Verlauf im Monat“ zum
+  Aufklappen, Standard zu (bleibt so, solange die App offen ist).

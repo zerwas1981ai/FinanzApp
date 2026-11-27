@@ -399,7 +399,7 @@ export function niedrigsterVerlauf(start, bewegungen, budgetCent, von, bis) {
  * D247/D248: wie niedrigsterVerlauf, dazu der erste Tag, an dem der Stand unter `mindestCent` fällt.
  * D250: Alle Bewegungen eines Tages zählen zusammen (Stand am Tagesende) – Eingänge am selben Tag gleichen
  * Belastungen sofort aus (z. B. Verrechnungskonto: Eingang und Weiterleitung am selben Tag; ersetzt D249).
- * Ergebnis: { niedrigster, unterAb: "JJJJ-MM-TT" | null }
+ * Ergebnis: { niedrigster, unterAb: "JJJJ-MM-TT" | null, tage: [{ datum, stand }] } (tage: Stand am Ende jedes Tages, D251)
  */
 export function tagesVerlauf(start, bewegungen, budgetCent, von, bis, mindestCent = null) {
   const jeTag = new Map();
@@ -415,13 +415,15 @@ export function tagesVerlauf(start, bewegungen, budgetCent, von, bis, mindestCen
   let stand = start;
   let niedrigster = Infinity;
   let unterAb = null;
+  const staende = [];
   for (const t of tage) {
     stand += (jeTag.get(t) ?? 0) - anteil - (uebrig > 0 ? 1 : 0);
     if (uebrig > 0) uebrig -= 1;
     niedrigster = Math.min(niedrigster, stand);
     if (unterAb === null && mindestCent != null && stand < mindestCent) unterAb = t;
+    staende.push({ datum: t, stand });
   }
-  return { niedrigster: tage.length ? niedrigster : start, unterAb };
+  return { niedrigster: tage.length ? niedrigster : start, unterAb, tage: staende };
 }
 
 /**
@@ -833,16 +835,29 @@ export function zukunftsVerlauf(zlKonto, i, startStand, mindestCent = null) {
  * - Zukunftsmonat: Stand Monatsende aus der Zeitleiste; niedrigster erwarteter Stand Tag für Tag ab dem Stand am
  *   Monatsanfang: alle Posten an ihrem Datum, Budgetreste gleichmäßig auf alle Tage des Monats verteilt (D247)
  * - vergangener Monat: echter Stand am Monatsende und niedrigster echter Tagesstand im Monat
- * Ergebnis: { art: 'aktuell'|'zukunft'|'vergangen', prognose, niedrigster, unterAb } (Cent; undefined = nichts anzeigen;
- *   unterAb = erster Tag mit Stand unter dem Mindestsaldo oder null, D248)
+ * Ergebnis: { art: 'aktuell'|'zukunft'|'vergangen', prognose, niedrigster, unterAb, verlauf } (Cent; undefined = nichts
+ *   anzeigen; unterAb = erster Tag mit Stand unter dem Mindestsaldo oder null, D248;
+ *   verlauf (D251) = [{ datum, stand, prognose }] – Stand am Ende des Vortags des Monatsersten, dann je Tag; prognose =
+ *   erwarteter statt echter Stand – für die Verlaufsgrafik im Kontokopf)
  */
 export function kopfWerte({ konto, buchungen, kd, zlKonto = [] }, monat, heute) {
   const aktuell = heute.slice(0, 7);
-  if (monat === aktuell) return { art: 'aktuell', prognose: kd?.prognose, niedrigster: kd?.niedrigster, unterAb: kd?.unterAb ?? null };
+  const erster = `${monat}-01`;
+  const echt = (datum) => ({ datum, stand: kontostand(konto, buchungen, datum), prognose: false });
+  if (monat === aktuell) {
+    // bis gestern echte Tagesstände, ab heute der erwartete Verlauf (D247)
+    const verlauf = [];
+    for (let t = plusTage(erster, -1); t < heute; t = plusTage(t, 1)) verlauf.push(echt(t));
+    for (const x of kd?.tage ?? []) verlauf.push({ ...x, prognose: true });
+    return { art: 'aktuell', prognose: kd?.prognose, niedrigster: kd?.niedrigster, unterAb: kd?.unterAb ?? null, verlauf };
+  }
   if (monat > aktuell) {
     const i = zlKonto.findIndex((z) => z.monat === monat);
-    if (i < 0) return { art: 'zukunft', prognose: undefined, niedrigster: undefined, unterAb: null };
-    return { art: 'zukunft', prognose: zlKonto[i].stand, ...zukunftsVerlauf(zlKonto, i, kd?.prognose ?? 0, konto.mindestsaldoCent) };
+    if (i < 0) return { art: 'zukunft', prognose: undefined, niedrigster: undefined, unterAb: null, verlauf: [] };
+    const anfang = i > 0 ? zlKonto[i - 1].stand : (kd?.prognose ?? 0);
+    const { tage, ...v } = zukunftsVerlauf(zlKonto, i, kd?.prognose ?? 0, konto.mindestsaldoCent);
+    const verlauf = [{ datum: plusTage(erster, -1), stand: anfang, prognose: true }, ...tage.map((x) => ({ ...x, prognose: true }))];
+    return { art: 'zukunft', prognose: zlKonto[i].stand, ...v, verlauf };
   }
   const ende = monatsende(`${monat}-01`);
   const tage = new Set([plusTage(`${monat}-01`, -1)]);
@@ -852,7 +867,9 @@ export function kopfWerte({ konto, buchungen, kd, zlKonto = [] }, monat, heute) 
   const niedrigster = Math.min(...staende.map(([, s]) => s));
   // D248: erster Tag im Monat mit Stand unter dem Mindestsaldo (schon am Monatsanfang darunter → der 1.)
   const unter = konto.mindestsaldoCent == null ? null : staende.find(([, s]) => s < konto.mindestsaldoCent)?.[0] ?? null;
-  return { art: 'vergangen', prognose: kontostand(konto, buchungen, ende), niedrigster, unterAb: unter && unter < `${monat}-01` ? `${monat}-01` : unter };
+  const verlauf = [];
+  for (let t = plusTage(erster, -1); t <= ende; t = plusTage(t, 1)) verlauf.push(echt(t));
+  return { art: 'vergangen', prognose: kontostand(konto, buchungen, ende), niedrigster, unterAb: unter && unter < `${monat}-01` ? `${monat}-01` : unter, verlauf };
 }
 
 /**
