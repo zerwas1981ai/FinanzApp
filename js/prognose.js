@@ -192,12 +192,14 @@ export const INTERVALLE = ['woechentlich', 'zweiwoechentlich', 'monatlich', 'vie
 
 /**
  * D245: Tag im Monat für Termine monatlicher (und längerer) Intervalle.
- * tagRegel: 'datum' (Tag des Starts, 31. → Monatsletzter) | 'mitte' (15.) | 'vorEnde3' (3 Tage vor dem Monatsletzten) | 'letzter'
+ * tagRegel: 'datum' (Tag des Starts, 31. → Monatsletzter) | 'anfang' (1., D246) | 'mitte' (15.)
+ *   | 'vorEnde3' (3 Tage vor dem Monatsletzten) | 'letzter'
  */
-export const TAG_REGELN = ['datum', 'mitte', 'vorEnde3', 'letzter'];
+export const TAG_REGELN = ['datum', 'anfang', 'mitte', 'vorEnde3', 'letzter'];
 export function tagNachRegel(tagRegel, jahr, monat, starttag) {
   const letzter = tageImMonat(jahr, monat);
   if (tagRegel === 'letzter') return letzter;
+  if (tagRegel === 'anfang') return 1;
   if (tagRegel === 'mitte') return 15;
   if (tagRegel === 'vorEnde3') return letzter - 3;
   return Math.min(starttag, letzter);
@@ -341,9 +343,10 @@ export function offeneTermine({ wiederkehrende, buchungen, konten, geplant = [] 
 
 /**
  * Fällig-Liste für die Zahl am Kontoknopf (D189): offene Belastungen (Ausgaben und abgehende Umbuchungen,
- * keine Einnahmen) bis 3 Tage im Voraus, überfällige eingeschlossen. Gezählt wird beim abgebenden Konto (kontoId).
+ * keine Einnahmen) ab dem Tag selbst (D246, vorher 3 Tage im Voraus), überfällige eingeschlossen.
+ * Gezählt wird beim abgebenden Konto (kontoId).
  */
-export const FAELLIG_TAGE = 3;
+export const FAELLIG_TAGE = 0;
 export function faelligListe(daten, heute) {
   return offeneTermine(daten, heute, plusTage(heute, FAELLIG_TAGE)).filter((t) => t.wiederkehrend.art !== 'einnahme');
 }
@@ -773,6 +776,33 @@ export function zeitleiste(daten, heute, bisMonat = LETZTER_MONAT) {
     gesamt.push(g);
   }
   return { monate, jeKonto, gesamt, start };
+}
+
+/**
+ * D246: Werte im Kontokopf für den gewählten Monat ("JJJJ-MM").
+ * - laufender Monat: Prognose Monatsende und niedrigster erwarteter Stand aus der Monatsprognose (D110/D111)
+ * - Zukunftsmonat: Stand Monatsende aus der Zeitleiste; niedrigster erwarteter Stand = Stand am Monatsanfang
+ *   + alle Bewegungen des Monats außer Einnahmen (Umbuchungen in beide Richtungen, Budgetreste) – wie D111
+ * - vergangener Monat: echter Stand am Monatsende und niedrigster echter Tagesstand im Monat
+ * Ergebnis: { art: 'aktuell'|'zukunft'|'vergangen', prognose, niedrigster } (Cent; undefined = nichts anzeigen)
+ */
+export function kopfWerte({ konto, buchungen, kd, zlKonto = [] }, monat, heute) {
+  const aktuell = heute.slice(0, 7);
+  if (monat === aktuell) return { art: 'aktuell', prognose: kd?.prognose, niedrigster: kd?.niedrigster };
+  if (monat > aktuell) {
+    const i = zlKonto.findIndex((z) => z.monat === monat);
+    if (i < 0) return { art: 'zukunft', prognose: undefined, niedrigster: undefined };
+    const z = zlKonto[i];
+    const anfang = i > 0 ? zlKonto[i - 1].stand : (kd?.prognose ?? 0);
+    const belastungen = z.posten.filter((p) => p.umbuchung || p.wirkung < 0).reduce((s, p) => s + p.wirkung, 0);
+    return { art: 'zukunft', prognose: z.stand, niedrigster: anfang + belastungen };
+  }
+  const ende = monatsende(`${monat}-01`);
+  const tage = new Set([plusTage(`${monat}-01`, -1)]);
+  for (const b of buchungenVonKonto(konto, buchungen)) if (b.datum.slice(0, 7) === monat) tage.add(b.datum);
+  // Tagesstand am Monatsanfang (= Ende des Vortags) und nach jedem Buchungstag
+  const niedrigster = Math.min(...[...tage].map((t) => kontostand(konto, buchungen, t)));
+  return { art: 'vergangen', prognose: kontostand(konto, buchungen, ende), niedrigster };
 }
 
 /**

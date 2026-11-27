@@ -12,7 +12,7 @@ Wird eine Entscheidung geändert, den alten Eintrag nicht löschen, sondern als
 Kurzer Wegweiser, weil viele spätere Einträge frühere aufheben. Maßgeblich bleibt der jeweils letzte Eintrag.
 Bei jeder neuen D-Nummer hier mitpflegen; der Test `tests/wegweiser.test.js` prüft die Stand-Zeile (D236).
 
-**Stand:** D245 · Datenmodell 28 · DB-Struktur 13 · Cache finanzapp-v143
+**Stand:** D246 · Datenmodell 28 · DB-Struktur 13 · Cache finanzapp-v144
 
 **Wieder ausgebaut – nicht mehr im Code:**
 - Szenarien „Was wäre wenn“ → ersetzt durch Projekte (D51)
@@ -3002,3 +3002,15 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
   „Wie erster Termin“ zurück.
 - Datenmodell 28: Feld `tagRegel` ('datum' | 'mitte' | 'vorEnde3' | 'letzter') ersetzt `monatsletzter`
   (Migration: true → 'letzter', sonst 'datum'). Alte App-Versionen lesen diesen Stand nicht mehr.
+
+## D246 – Beginn des Monats, Fälligkeit erst am Tag, Kontokopf je gewähltem Monat
+*Wunsch des Nutzers, 27.11.2026*
+- „Tag im Monat“ hat zusätzlich **„Zum Beginn des Monats (1.)“** (`tagRegel` 'anfang'; Datenmodell bleibt 28).
+- Die Zahl fälliger Buchungen am Kontoknopf zählt Termine erst **am Tag selbst** (überfällige weiter mit);
+  `FAELLIG_TAGE` = 0 statt 3 (ändert D189).
+- Kontokopf (`kopfWerte` in `js/prognose.js`): „Prognose Monatsende“ und „Niedrigster erwarteter Stand“ gelten für den
+  **gewählten Monat**, mit Monatsname in Klammern, sobald es nicht der laufende ist.
+  - Laufender Monat: wie bisher (D110/D111).
+  - Zukunftsmonat: Stand Monatsende aus der Zeitleiste; niedrigster erwarteter Stand = Stand am Monatsanfang + alle
+    Bewegungen des Monats außer Einnahmen (Umbuchungen in beide Richtungen, Budgetreste), also wie D111.
+  - Vergangener Monat: „Stand Monatsende“ (echt) und „Niedrigster Stand“ = niedrigster Tagesstand laut Buchungen.

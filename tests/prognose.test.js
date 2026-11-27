@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   monatsende, plusMonate, plusTage, betragAm, budgetFuerMonat, termine, naechsterTermin,
-  offeneTermine, faelligListe, zeitAnteil, budgetBuchungen, monatsprognose, budgetHinweise, terminWirkung,
+  offeneTermine, faelligListe, zeitAnteil, kopfWerte, budgetBuchungen, monatsprognose, budgetHinweise, terminWirkung,
 } from '../js/prognose.js';
 import { baueBudget, baueWiederkehrend, mitAusnahme, budgetMitVorschlag } from '../js/annahmen.js';
 import { baueBuchungen } from '../js/buchungen.js';
@@ -124,12 +124,12 @@ test('Offene Termine: erledigt durch verknüpfte Buchung, Fenster ab Vormonat bz
   const offen = faelligListe(daten, heute);
   // Oktober erledigt, November (03.11.) offen und überfällig; Dezember noch zu weit weg
   assert.deepEqual(offen.map((t) => [t.termin, t.ueberfaellig]), [['2026-11-03', true]]);
-  // D189: nur Belastungen, höchstens 3 Tage im Voraus
+  // D189: nur Belastungen; D246: erst am Tag selbst (nicht mehr 3 Tage vorher)
   const gehalt = { id: 'w2', art: 'einnahme', kontoId: 'giro', kategorieId: 'gehalt', start: '2026-11-01', intervall: 'monatlich', stufen: [{ ab: '2026-11-01', betragCent: 300000 }], erstelltAm: '2026-08-01T00:00:00Z' };
   const strom = (tag) => ({ id: `s${tag}`, art: 'ausgabe', kontoId: 'giro', kategorieId: 'miete', start: `2026-11-${tag}`, intervall: 'monatlich', stufen: [{ ab: `2026-11-${tag}`, betragCent: 100 }], erstelltAm: '2026-08-01T00:00:00Z' });
   const h = '2026-11-10';
-  const f = faelligListe({ wiederkehrende: [gehalt, strom('13'), strom('14')], buchungen: [], konten }, h);
-  assert.deepEqual(f.map((t) => t.wiederkehrend.id), ['s13'], 'ohne Gehalt, der 14. ist mehr als 3 Tage weg');
+  const f = faelligListe({ wiederkehrende: [gehalt, strom('10'), strom('11')], buchungen: [], konten }, h);
+  assert.deepEqual(f.map((t) => t.wiederkehrend.id), ['s10'], 'ohne Gehalt, der 11. ist erst morgen');
 
   // Gerade erst angelegt → Oktober zählt nicht als offen
   const neu = { ...miete, erstelltAm: '2026-11-05T10:00:00Z' };
@@ -411,4 +411,32 @@ test('D199: Buchungen, die ein Budget verbrauchen', () => {
     b('9', '2026-11-09', { art: 'einnahme' }),
   ];
   assert.deepEqual(budgetBuchungen(liste, kat, 'giro', 'leb', '2026-11-01', '2026-11-30').map((x) => x.id), ['2', '8', '1']);
+});
+
+test('D246: Termine zum Beginn des Monats', () => {
+  const w = { start: '2026-11-01', intervall: 'vierteljaehrlich', tagRegel: 'anfang', stufen: [{ ab: '2026-11-01', betragCent: 1 }] };
+  assert.deepEqual(termine(w, '2026-11-01', '2027-05-31').map((t) => t.datum), ['2026-11-01', '2027-02-01', '2027-05-01']);
+  const gebaut = baueWiederkehrend({
+    art: 'ausgabe', kontoId: 'giro', kategorieId: 'miete', intervall: 'monatlich', start: '2026-11-20', tagRegel: 'anfang', ende: '', stufen: [{ ab: '', betragCent: 100 }],
+  }, { konten, kategorien });
+  assert.equal(gebaut.start, '2026-11-01');
+});
+
+test('D246: Kontokopf-Werte für den gewählten Monat', () => {
+  const konto = { id: 'g', anfangssaldoCent: 10000, stichtag: '2026-01-01' };
+  const b = (datum, art, betragCent) => ({ id: datum + art, kontoId: 'g', datum, art, betragCent, status: 'gebucht' });
+  const buchungen = [b('2026-10-02', 'ausgabe', 8000), b('2026-10-15', 'einnahme', 5000), b('2026-10-20', 'ausgabe', 1000)];
+  const kd = { prognose: 7000, niedrigster: 4000 };
+  const zlKonto = [
+    { monat: '2026-12', stand: 9000, posten: [{ wirkung: 5000 }, { wirkung: -2000 }, { wirkung: -1000, umbuchung: true }] },
+    { monat: '2027-01', stand: 6000, posten: [{ wirkung: 3000 }, { wirkung: 2000, umbuchung: true }, { wirkung: -8000 }] },
+  ];
+  const heute = '2026-11-20';
+  assert.deepEqual(kopfWerte({ konto, buchungen, kd, zlKonto }, '2026-11', heute), { art: 'aktuell', prognose: 7000, niedrigster: 4000 });
+  // Dezember: Anfang = Prognose Ende November (7000) + Belastungen −2000 −1000; Einnahme zählt nicht
+  assert.deepEqual(kopfWerte({ konto, buchungen, kd, zlKonto }, '2026-12', heute), { art: 'zukunft', prognose: 9000, niedrigster: 4000 });
+  // Januar: Anfang 9000 + eingehende Umbuchung 2000 − 8000
+  assert.deepEqual(kopfWerte({ konto, buchungen, kd, zlKonto }, '2027-01', heute), { art: 'zukunft', prognose: 6000, niedrigster: 3000 });
+  // Oktober (vergangen): echter Stand am Monatsende und niedrigster Tagesstand (2000 nach dem 02.10.)
+  assert.deepEqual(kopfWerte({ konto, buchungen, kd, zlKonto }, '2026-10', heute), { art: 'vergangen', prognose: 6000, niedrigster: 2000 });
 });

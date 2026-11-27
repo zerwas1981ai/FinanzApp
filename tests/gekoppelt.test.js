@@ -41,7 +41,8 @@ test('D227: abgeleitete Umbuchung in der Prognose, nicht einzeln buchbar', () =>
   const daten = nurWirksam({ konten, kategorien, buchungen: [], budgets: [], wiederkehrend: [abo], geplant: [] });
   assert.equal(daten.wiederkehrende.length, 2);
   // Fällig-Liste und offene Termine ohne die gekoppelte; mit Schalter dabei
-  assert.equal(faelligListe(daten, '2026-11-14').length, 1);
+  assert.equal(faelligListe(daten, '2026-11-15').length, 1);
+  assert.equal(faelligListe(daten, '2026-11-14').length, 0, 'D246: erst am Tag selbst');
   assert.equal(offeneTermine(daten, '2026-11-14', '2026-11-30').length, 1);
   assert.equal(offeneTermine(daten, '2026-11-14', '2026-11-30', { mitGekoppelten: true }).length, 2);
 

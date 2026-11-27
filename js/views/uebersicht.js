@@ -6,7 +6,7 @@ import { h } from '../dom.js';
 import * as db from '../db.js';
 import {
   formatEuro, formatDatum, formatMonat, formatTag, heuteIso, parseEuro,
-  isoMonatsanfang, naechsterMonat, vorigerMonat, istGueltigesDatum,
+  isoMonatsanfang, naechsterMonat, vorigerMonat, istGueltigesDatum, monatLang,
 } from '../format.js';
 import { monatsuebersicht, kontostand, vorgemerktBis, wirkungCent, ausgabenVergleich } from '../rechnen.js';
 import { dialog, eingabe, hinweis, toast, geraet, datenGeaendert, klappBereich, katPunkt, kontoEtikett, merkeScroll, wischGeste, auslageMarke } from '../ui.js';
@@ -17,7 +17,7 @@ import { notizKnopf, notizZeile } from './monatsnotiz.js';
 import { kuendigungsHinweise } from '../vertraege.js';
 import { vorgemerkteVonKonto, alsGebuchtMarkieren } from '../buchungen.js';
 import { sortiereKonten } from '../konten.js';
-import { faelligListe, budgetHinweise, zeitleiste, nurWirksam, mindestsaldoWarnungen, LETZTER_MONAT, prognoseJahresende, offeneTermine, terminWirkung, annahmeTitel } from '../prognose.js';
+import { faelligListe, budgetHinweise, zeitleiste, nurWirksam, mindestsaldoWarnungen, LETZTER_MONAT, prognoseJahresende, offeneTermine, terminWirkung, annahmeTitel, kopfWerte } from '../prognose.js';
 import { umbuchungKnopf, kennzahlenBereich, erwartetBereich, hinweisBereich, buchungsVorgaben } from './kennzahlen.js';
 import { zeitleisteBereich, postenListe } from './zeitleiste.js';
 import { oeffnePostenDialog } from './posten-dialog.js';
@@ -79,7 +79,7 @@ export async function zeigeUebersicht(container) {
   const prognose = zl.start;
   const warnungen = mindestsaldoWarnungen(zl);
   const hinweise = budgetHinweise(daten, heute);
-  // Fällige Belastungen (bis 3 Tage im Voraus, ohne Einnahmen, D189) je Konto zählen – als Zahl an den Kontoknöpfen
+  // Fällige Belastungen (ab dem Tag selbst, ohne Einnahmen, D189/D246) je Konto zählen – als Zahl an den Kontoknöpfen
   const faelligJeKonto = new Map();
   for (const t of faelligListe(daten, heute)) {
     faelligJeKonto.set(t.wiederkehrend.kontoId, (faelligJeKonto.get(t.wiederkehrend.kontoId) ?? 0) + 1);
@@ -153,7 +153,10 @@ export async function zeigeUebersicht(container) {
   container.replaceChildren(...[
     ...oben,
     kontoAuswahl(aktive, konto, faelligJeKonto, waehle),
-    kontoKopf(konto, buchungen, abstimmungen, kd?.prognose, kd?.niedrigster),
+    // D246: Prognose Monatsende und niedrigster Stand für den gewählten Monat
+    kontoKopf(konto, buchungen, abstimmungen,
+      kopfWerte({ konto, buchungen, kd, zlKonto }, isoMonatsanfang(ansicht.jahr, ansicht.monat).slice(0, 7), heute),
+      isoMonatsanfang(ansicht.jahr, ansicht.monat).slice(0, 7)),
     ...monatsNavigation({
       zurueck: schluessel([ansicht.jahr, ansicht.monat]) > schluessel(minMonat),
       vor: schluessel([ansicht.jahr, ansicht.monat]) < schluessel(maxMonat),
@@ -291,7 +294,10 @@ function kontoAuswahl(konten, aktiv, faelligJeKonto, beiWahl) {
 
 /* ---------- Kopf: Stand heute, Abstimmung ---------- */
 
-function kontoKopf(konto, buchungen, abstimmungen, prognoseCent, niedrigsterCent) {
+function kontoKopf(konto, buchungen, abstimmungen, werte, monat) {
+  const { art, prognose: prognoseCent, niedrigster: niedrigsterCent } = werte;
+  const imMonat = art === 'aktuell' ? '' : ` (${monatLang(monat)})`;
+  const vergangen = art === 'vergangen';
   const heute = heuteIso();
   const stand = kontostand(konto, buchungen, heute);
   const vorgemerkt = vorgemerktBis(konto, buchungen, heute);
@@ -322,8 +328,8 @@ function kontoKopf(konto, buchungen, abstimmungen, prognoseCent, niedrigsterCent
       vorgemerkteVonKonto(konto.id, buchungen).length > 0 && h('button', {
         type: 'button', class: 'link-knopf klein vorgemerkt-buchen', onclick: () => vorgemerktDialog(konto, buchungen),
       }, `Vorgemerkte buchen (${vorgemerkteVonKonto(konto.id, buchungen).length}) …`),
-      prognoseCent !== undefined && h('div', { class: 'klein' }, 'Prognose Monatsende: ',
-        h('span', { class: 'annahme' + (prognoseCent < 0 ? ' negativ' : '') }, formatEuro(prognoseCent)),
+      prognoseCent !== undefined && h('div', { class: 'klein' }, `${vergangen ? 'Stand Monatsende' : 'Prognose Monatsende'}${imMonat}: `,
+        h('span', { class: (vergangen ? '' : 'annahme') + (prognoseCent < 0 ? ' negativ' : '') }, formatEuro(prognoseCent)),
         konto.mindestsaldoCent != null && prognoseCent < konto.mindestsaldoCent && h('span', { class: 'warn-text' }, ' – unter Mindestsaldo')),
     ),
     h('button', { type: 'button', class: 'knopf kopf-abstimmen', onclick: () => abstimmungsDialog(konto, buchungen) }, 'Abstimmen'),
@@ -331,10 +337,15 @@ function kontoKopf(konto, buchungen, abstimmungen, prognoseCent, niedrigsterCent
     h('div', { class: 'kopf-zeile' },
       niedrigsterCent !== undefined ? h('div', {
         class: 'klein niedrigster',
-        title: 'Stand heute mit allen bis Monatsende noch erwarteten Ausgaben, Umbuchungen und Budgetresten – '
-          + 'noch ausstehende Einnahmen zählen nicht mit.',
-      }, 'Niedrigster erwarteter Stand: ',
-      h('span', { class: 'annahme' + (niedrigsterCent < 0 ? ' negativ' : '') }, formatEuro(niedrigsterCent)),
+        title: {
+          aktuell: 'Stand heute mit allen bis Monatsende noch erwarteten Ausgaben, Umbuchungen und Budgetresten – '
+            + 'noch ausstehende Einnahmen zählen nicht mit.',
+          zukunft: 'Erwarteter Stand am Monatsanfang mit allen Ausgaben, Umbuchungen und Budgetresten dieses Monats – '
+            + 'Einnahmen zählen nicht mit.',
+          vergangen: 'Niedrigster Tagesstand in diesem Monat laut erfassten Buchungen.',
+        }[art],
+      }, `${vergangen ? 'Niedrigster Stand' : 'Niedrigster erwarteter Stand'}${imMonat}: `,
+      h('span', { class: (vergangen ? '' : 'annahme') + (niedrigsterCent < 0 ? ' negativ' : '') }, formatEuro(niedrigsterCent)),
       konto.mindestsaldoCent != null && niedrigsterCent < konto.mindestsaldoCent && h('span', { class: 'warn-text' }, ' – unter Mindestsaldo'))
         : h('span'),
       h('div', { class: 'klein abstimm-info' }, abstimmText)),

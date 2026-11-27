@@ -20,8 +20,8 @@
 // { id, notiz (optional, ab Version 15 statt "bezeichnung", D96), art: 'einnahme'|'ausgabe'|'umbuchung', kontoId, gegenkontoId, kategorieId,
 //   intervall: 'woechentlich'|'zweiwoechentlich' (D245)|'monatlich'|'vierteljaehrlich'|'halbjaehrlich'|'jaehrlich',
 //   start "JJJJ-MM-TT", ende "JJJJ-MM-TT"|null,
-//   tagRegel (ab Version 28, D245, ersetzt monatsletzter): 'datum'|'mitte'|'vorEnde3'|'letzter' – Tag jedes Termins
-//     (Tag des Starts, 15., 3 Tage vor dem Monatsletzten, Monatsletzter); bei wöchentlich/zweiwöchentlich immer 'datum'
+//   tagRegel (ab Version 28, D245, ersetzt monatsletzter): 'datum'|'anfang' (D246)|'mitte'|'vorEnde3'|'letzter' – Tag jedes Termins
+//     (Tag des Starts, 1., 15., 3 Tage vor dem Monatsletzten, Monatsletzter); bei wöchentlich/zweiwöchentlich immer 'datum'
 //   stufen: [{ ab "JJJJ-MM-TT", betragCent }],
 //   ausnahmen: [{ termin, aktion: 'ueberspringen'|'verschieben'|'aendern', neuesDatum?, betragCent? }],
 //   partner (ab Version 8, Empfänger/Absender), vertragId (ab Version 18, D148), erstelltAm, geaendertAm, testdaten? }

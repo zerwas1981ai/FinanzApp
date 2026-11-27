@@ -41,7 +41,7 @@ Details zu Datenmodell, Oberfläche und Rechenlogik (aus CLAUDE.md verschoben). 
   erst nach Klick übernommen (neue Betragsstufe bzw. geplante Einmalbuchung). Erinnerung „Zählerstände eingetragen“ als
   Punkt im Monatsabschluss, der dafür schon am Monatsletzten erscheint (D238).
 - Wiederkehrende Buchung: Intervall (wöchentlich/zweiwöchentlich/monatlich/vierteljährlich/halbjährlich/jährlich, D197, D245),
-  Tag im Monat (wie erster Termin, Mitte = 15., 3 Tage vor Monatsende, Monatsletzter; D245), Start, optional Ende, Wertänderungen ab Datum, feste Abweichung je
+  Tag im Monat (wie erster Termin, Beginn = 1. (D246), Mitte = 15., 3 Tage vor Monatsende, Monatsletzter; D245), Start, optional Ende, Wertänderungen ab Datum, feste Abweichung je
   Kalendermonat (jedes Jahr, D94), einzelne Monate überspringen oder verschieben;
   keine Pflicht-Bezeichnung, sondern optionale Notiz wie bei Buchungen (D96)
 - Geplante Einmalbuchung: bekannt, aber nicht wiederkehrend. Wird bei

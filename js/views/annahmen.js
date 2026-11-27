@@ -398,7 +398,7 @@ function wiederkehrendZeile(w, daten, heute, kat, kontoName) {
   }
   // Das Intervall steht in der Zwischenüberschrift (D97)
   const info = () => [
-    { letzter: 'zum Monatsletzten', mitte: 'zur Monatsmitte', vorEnde3: '3 Tage vor Monatsende' }[tagRegelVon(w)], // D245
+    { letzter: 'zum Monatsletzten', anfang: 'zum Monatsbeginn', mitte: 'zur Monatsmitte', vorEnde3: '3 Tage vor Monatsende' }[tagRegelVon(w)], // D245
     naechster ? `nächster Termin ${formatDatum(naechster.datum)}` : 'keine weiteren Termine',
     typeof zuordnung === 'function' ? zuordnung() : zuordnung,
     w.art === 'ausgabe' && w.umbuchungVonKontoId && ['gekoppelte Umbuchung von ', etikett(w.umbuchungVonKontoId)], // D227
@@ -521,6 +521,7 @@ export function wiederkehrendDialog(w, daten, vorgaben = {}) {
     label: 'Tag im Monat',
     optionen: [
       { wert: 'datum', text: 'Wie erster Termin' },
+      { wert: 'anfang', text: 'Zum Beginn des Monats (1.)' }, // D246
       { wert: 'mitte', text: 'Zur Mitte des Monats (15.)' },
       { wert: 'vorEnde3', text: '3 Tage vor Monatsende' },
       { wert: 'letzter', text: 'Am Monatsletzten' },
