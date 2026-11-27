@@ -581,7 +581,6 @@ fieldset.feld { border: none; padding: 0; margin: 0 0 14px; }
 .vg-flaeche { display: block; width: 100%; height: 100%; overflow: visible; stroke: none; fill: none; } /* ohne die globale svg-Linie */
 .vg-flaeche * { vector-effect: non-scaling-stroke; }
 .vg-raster { stroke: var(--rand); stroke-width: 1; }
-.vg-fein { opacity: .45; } /* D253: Linie je Tag, schwächer als 1./5./10. … */
 .vg-null { stroke: var(--text-2); opacity: .5; }
 .vg-linie { fill: none; stroke: var(--akzent); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
 .vg-erwartet { stroke-dasharray: 5 4; }

@@ -1,7 +1,7 @@
 // D252/D253: Raster und Tagesmarken der Verlaufsgrafik im Kontokopf
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { rasterSchritte, tagesMarken, tagesBeschriftung } from '../js/views/verlauf-grafik.js';
+import { rasterSchritte, rasterTeilung, tagesBeschriftung } from '../js/views/verlauf-grafik.js';
 import { gesamtVerlauf } from '../js/prognose.js';
 
 test('D253: runde, feine Rasterschritte (etwa 8 Linien)', () => {
@@ -15,10 +15,14 @@ test('D253: runde, feine Rasterschritte (etwa 8 Linien)', () => {
   assert.ok(flach.linien[1] - flach.linien[0] >= 100);
 });
 
-test('D252: kräftigere Tageslinien je Monatslänge', () => {
-  assert.deepEqual(tagesMarken(30), [1, 5, 10, 15, 20, 25, 30]);
-  assert.deepEqual(tagesMarken(31), [1, 5, 10, 15, 20, 25, 31]);
-  assert.deepEqual(tagesMarken(28), [1, 5, 10, 15, 20, 28]);
+test('D255: Rasterteilung für Quadrate', () => {
+  // PC: Tag 29 px breit → halbe Tage (14,5 px); Euro-Stufe 22 px → 2 Teile (11 px)
+  assert.deepEqual(rasterTeilung(29, 22), { halbeTage: true, teile: 2 });
+  // Handy: Tag 9 px breit → keine halben Tage; Euro-Stufe 19 px → 2 Teile
+  assert.deepEqual(rasterTeilung(9, 19), { halbeTage: false, teile: 2 });
+  // sehr kleine Stufe: mindestens 1 Teil; sehr große: höchstens 10
+  assert.equal(rasterTeilung(30, 3).teile, 1);
+  assert.equal(rasterTeilung(2, 500).teile, 10);
 });
 
 test('D253: jeder Tag beschriftet, am Handy jeder zweite', () => {

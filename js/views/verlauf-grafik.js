@@ -1,8 +1,8 @@
 // D251/D252: Verlaufsgrafik im Kontokopf – echter Stand bis gestern (durchgezogen), erwarteter Stand ab heute
 // (gestrichelt) für den gewählten Monat, dazu die Linie des Mindestsaldos mit getönter Fläche darunter.
 // D252: Raster mit runden Euro-Werten (waagerecht) und Tagesmarken (senkrecht), größere Zeichnung.
-// D253: senkrechte Linie für jeden Tag (1., 5., 10. … etwas kräftiger), jeder Tag beschriftet (am Handy jeder zweite);
-// feinere Euro-Stufen (etwa 8 statt 4).
+// D253: jeder Tag beschriftet (am Handy jeder zweite); feinere Euro-Stufen (etwa 8 statt 4).
+// D255: Raster aus gleich starken Linien in möglichst quadratischen Kästchen.
 // Antippen/Überfahren zeigt Tag und Stand; ohne Zeiger steht dort der Tiefpunkt.
 // Die Zeichenfläche wird in der Breite gestreckt (preserveAspectRatio="none"); Texte und Punkte liegen daher als
 // HTML darüber, damit sie nicht verzerrt werden.
@@ -33,10 +33,16 @@ export function rasterSchritte(min, max, ziel = 8) {
   return { von, bis, linien };
 }
 
-/** D252: Tage mit kräftigerer Linie: 1., 5., 10., 15., 20., 25. und der Monatsletzte (im Februar ohne den 25.) */
-export function tagesMarken(letzterTag) {
-  const marken = [1, 5, 10, 15, 20, 25].filter((t) => t <= letzterTag - 4);
-  return [...marken, letzterTag];
+/**
+ * D255: Teilung des Rasters, damit möglichst Quadrate entstehen. tagPx = Abstand zweier Tage, stufePx = Abstand
+ * zweier beschrifteter Euro-Stufen (beides in Bildpunkten). Halbe Tage nur, wenn ein Tag mindestens 20 px breit ist;
+ * die Euro-Stufe wird in so viele Teile geteilt, dass ein Teil etwa so hoch ist wie ein Kästchen breit.
+ */
+export function rasterTeilung(tagPx, stufePx) {
+  const halbeTage = tagPx >= 20;
+  const kaestchen = halbeTage ? tagPx / 2 : tagPx;
+  const teile = Math.max(1, Math.min(10, Math.round(stufePx / Math.max(kaestchen, 1))));
+  return { halbeTage, teile };
 }
 
 /**
@@ -79,18 +85,28 @@ export function verlaufGrafik(verlauf, mindestCent, { beschreibung = 'Verlauf de
     const y = Math.min(H, yVon(mindestCent));
     flaeche.append(svg('rect', { x: 0, y, width: B, height: H - y, class: 'vg-unter-mindest' }));
   }
-  // Raster: waagerecht je Euro-Stufe (0 € etwas kräftiger), senkrecht je Tagesmarke
-  for (const w of linien) flaeche.append(svg('line', { x1: 0, x2: B, y1: yVon(w), y2: yVon(w), class: w === 0 ? 'vg-raster vg-null' : 'vg-raster' }));
-  // D254: je eine schwächere Zwischenlinie ohne Beschriftung zwischen zwei beschrifteten Stufen
-  for (let k = 1; k < linien.length; k++) {
-    const y = yVon((linien[k - 1] + linien[k]) / 2);
-    flaeche.append(svg('line', { x1: 0, x2: B, y1: y, y2: y, class: 'vg-raster vg-fein' }));
-  }
+  // D255: Raster aus gleich starken Linien, möglichst quadratisch. Beschriftete Euro-Stufen und Tage sind fest;
+  // Zwischenlinien (halbe Tage, Teile einer Euro-Stufe) richten sich nach der Größe auf dem Bildschirm (rasterTeilung).
   const letzterTag = Number(verlauf[n - 1].datum.slice(8, 10));
-  const marken = new Set(tagesMarken(letzterTag));
-  for (let t = 1; t <= letzterTag && t < n; t++) {
-    flaeche.append(svg('line', { x1: xVon(t), x2: xVon(t), y1: 0, y2: H, class: marken.has(t) ? 'vg-raster' : 'vg-raster vg-fein' }));
-  }
+  const raster = svg('g', {});
+  flaeche.append(raster);
+  const zeichneRaster = (breitePx, hoehePx) => {
+    raster.replaceChildren();
+    const linie = (x1, y1, x2, y2, klasse = 'vg-raster') => raster.append(svg('line', { x1, y1, x2, y2, class: klasse }));
+    const tagPx = n > 1 ? breitePx / (n - 1) : breitePx;
+    const stufePx = linien.length > 1 ? hoehePx * (linien[1] - linien[0]) / (max - min) : hoehePx;
+    const { halbeTage, teile } = rasterTeilung(tagPx, stufePx);
+    for (let t = 1; t <= letzterTag && t < n; t++) linie(xVon(t), 0, xVon(t), H);
+    if (halbeTage) for (let t = 0; t < n - 1; t++) linie(xVon(t + 0.5), 0, xVon(t + 0.5), H);
+    for (let k = 1; k < linien.length; k++) {
+      for (let j = 1; j < teile; j++) {
+        const y = yVon(linien[k - 1] + ((linien[k] - linien[k - 1]) * j) / teile);
+        linie(0, y, B, y);
+      }
+    }
+    for (const w of linien) linie(0, yVon(w), B, yVon(w), w === 0 ? 'vg-raster vg-null' : 'vg-raster');
+  };
+  zeichneRaster(600, 190); // Startwert; nach dem Aufklappen passt der ResizeObserver unten das Raster an
   if (mindestCent != null && mindestCent > min) {
     const y = yVon(mindestCent);
     flaeche.append(svg('line', { x1: 0, x2: B, y1: y, y2: y, class: 'vg-mindest' }));
@@ -131,6 +147,13 @@ export function verlaufGrafik(verlauf, mindestCent, { beschreibung = 'Verlauf de
     Object.assign(zeiger.style, { left: prozentX(i), top: prozentY(verlauf[i].stand) });
     zeigeInfo(i);
   };
+  // D255: Raster an die tatsächliche Größe anpassen (auch nach dem Aufklappen und beim Drehen des Handys)
+  if (typeof ResizeObserver !== 'undefined') {
+    new ResizeObserver(([e]) => {
+      const { width, height } = e.contentRect;
+      if (width > 0 && height > 0) zeichneRaster(width, height);
+    }).observe(zeichnung);
+  }
   zeichnung.addEventListener('pointermove', bewege);
   zeichnung.addEventListener('pointerdown', bewege);
   zeichnung.addEventListener('pointerleave', () => {

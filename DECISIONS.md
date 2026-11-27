@@ -12,7 +12,7 @@ Wird eine Entscheidung geändert, den alten Eintrag nicht löschen, sondern als
 Kurzer Wegweiser, weil viele spätere Einträge frühere aufheben. Maßgeblich bleibt der jeweils letzte Eintrag.
 Bei jeder neuen D-Nummer hier mitpflegen; der Test `tests/wegweiser.test.js` prüft die Stand-Zeile (D236).
 
-**Stand:** D254 · Datenmodell 28 · DB-Struktur 13 · Cache finanzapp-v151
+**Stand:** D255 · Datenmodell 28 · DB-Struktur 13 · Cache finanzapp-v152
 
 **Wieder ausgebaut – nicht mehr im Code:**
 - Szenarien „Was wäre wenn“ → ersetzt durch Projekte (D51)
@@ -3083,3 +3083,13 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
 *Wunsch des Nutzers, 27.11.2026 – ergänzt D253*
 - Zwischen zwei beschrifteten Euro-Stufen liegt je eine schwächere Linie ohne Beschriftung (halbe Stufe),
   gleich hell wie die Tageslinien. Die Beschriftung bleibt wie in D253.
+
+## D255 – Verlaufsgrafik: quadratisches Raster aus gleich starken Linien
+*Wunsch des Nutzers, 27.11.2026 – ersetzt D254 und die kräftigeren Tageslinien aus D252/D253*
+- Alle Rasterlinien sind gleich stark (nur die 0-€-Linie bleibt etwas kräftiger). Beschriftet bleiben die
+  Euro-Stufen (D253) und die Tage (am Handy jeder zweite).
+- Das Raster bildet möglichst Quadrate (`rasterTeilung`): Ist ein Tag mindestens 20 px breit (PC), kommt je eine
+  Linie zwischen zwei Tagen dazu; jede Euro-Stufe wird in so viele Teile geteilt, dass ein Teil etwa so hoch ist wie
+  ein Kästchen breit (1–10 Teile). Die Teilung richtet sich nach der tatsächlichen Größe und passt sich beim
+  Aufklappen, Verkleinern des Fensters und Drehen des Handys an (ResizeObserver).
+- Gemessen mit erfundenen Werten: PC etwa 15 × 14 px, Handy etwa 9 × 8 px je Kästchen.
