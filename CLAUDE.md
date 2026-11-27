@@ -8,7 +8,7 @@ Oberfläche auf Deutsch, Währung Euro, deutsches Datums- und Zahlenformat.
 
 ## Aktueller Stand
 - Alle Grundfunktionen sind fertig und online (GitHub Pages); seitdem Verbesserungsrunden auf Wunsch.
-- Letzte Entscheidung: D253, Cache-Version in sw.js: finanzapp-v150, Datenmodell-Version 28.
+- Letzte Entscheidung: D254, Cache-Version in sw.js: finanzapp-v151, Datenmodell-Version 28.
 - Tests mit `npm test`, alle grün. `tests/wegweiser.test.js` prüft, ob diese Zeile, der Wegweiser in DECISIONS.md und sw.js zum Code passen.
 
 ## Arbeitsweise (wichtig)

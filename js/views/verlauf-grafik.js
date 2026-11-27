@@ -81,6 +81,11 @@ export function verlaufGrafik(verlauf, mindestCent, { beschreibung = 'Verlauf de
   }
   // Raster: waagerecht je Euro-Stufe (0 € etwas kräftiger), senkrecht je Tagesmarke
   for (const w of linien) flaeche.append(svg('line', { x1: 0, x2: B, y1: yVon(w), y2: yVon(w), class: w === 0 ? 'vg-raster vg-null' : 'vg-raster' }));
+  // D254: je eine schwächere Zwischenlinie ohne Beschriftung zwischen zwei beschrifteten Stufen
+  for (let k = 1; k < linien.length; k++) {
+    const y = yVon((linien[k - 1] + linien[k]) / 2);
+    flaeche.append(svg('line', { x1: 0, x2: B, y1: y, y2: y, class: 'vg-raster vg-fein' }));
+  }
   const letzterTag = Number(verlauf[n - 1].datum.slice(8, 10));
   const marken = new Set(tagesMarken(letzterTag));
   for (let t = 1; t <= letzterTag && t < n; t++) {

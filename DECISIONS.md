@@ -12,7 +12,7 @@ Wird eine Entscheidung geändert, den alten Eintrag nicht löschen, sondern als
 Kurzer Wegweiser, weil viele spätere Einträge frühere aufheben. Maßgeblich bleibt der jeweils letzte Eintrag.
 Bei jeder neuen D-Nummer hier mitpflegen; der Test `tests/wegweiser.test.js` prüft die Stand-Zeile (D236).
 
-**Stand:** D253 · Datenmodell 28 · DB-Struktur 13 · Cache finanzapp-v150
+**Stand:** D254 · Datenmodell 28 · DB-Struktur 13 · Cache finanzapp-v151
 
 **Wieder ausgebaut – nicht mehr im Code:**
 - Szenarien „Was wäre wenn“ → ersetzt durch Projekte (D51)
@@ -3078,3 +3078,8 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
   (unter 768 px) jeder zweite und der Monatsletzte, sonst überlappen die Zahlen.
 - Waagerecht etwa 8 statt 4 Euro-Stufen (mindestens 1 €), mit einer Stufe Luft, wenn Tief- oder Höchstwert sonst
   fast auf dem Rand läge.
+
+## D254 – Verlaufsgrafik: Zwischenlinien im waagerechten Raster
+*Wunsch des Nutzers, 27.11.2026 – ergänzt D253*
+- Zwischen zwei beschrifteten Euro-Stufen liegt je eine schwächere Linie ohne Beschriftung (halbe Stufe),
+  gleich hell wie die Tageslinien. Die Beschriftung bleibt wie in D253.
