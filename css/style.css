@@ -1730,8 +1730,8 @@ body:not(.umbuchungen-sichtbar) .ub-ausblendbar { display: none; }
 .umschalter-zeile > .knopf { flex: none; }
 .umschalter-info { margin: 0; font-size: 1rem; flex: none; }
 .umschalter-info:empty { display: none; }
-.modus-zeile { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
-.modus-zeile .segmente { margin-bottom: 0; }
+.modus-zeile { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.modus-zeile .chips { margin-bottom: 0; padding-bottom: 0; } /* D257 */
 
 /* D162: Kopfzeile eines Blocks – Knöpfe bleiben nebeneinander (am Handy etwas schmaler), die Überschrift gibt nach */
 .bereich-kopf h2 { min-width: 0; }

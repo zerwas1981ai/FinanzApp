@@ -12,7 +12,7 @@ Wird eine Entscheidung geändert, den alten Eintrag nicht löschen, sondern als
 Kurzer Wegweiser, weil viele spätere Einträge frühere aufheben. Maßgeblich bleibt der jeweils letzte Eintrag.
 Bei jeder neuen D-Nummer hier mitpflegen; der Test `tests/wegweiser.test.js` prüft die Stand-Zeile (D236).
 
-**Stand:** D256 · Datenmodell 28 · DB-Struktur 13 · Cache finanzapp-v153
+**Stand:** D257 · Datenmodell 28 · DB-Struktur 13 · Cache finanzapp-v154
 
 **Wieder ausgebaut – nicht mehr im Code:**
 - Szenarien „Was wäre wenn“ → ersetzt durch Projekte (D51)
@@ -3100,3 +3100,11 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
   unter dem Übersicht-Kasten, vor Hinweisen, Kontoauswahl und Kontokopf. Blättern wirkt wie bisher auf das gewählte
   Konto (Kontokopf, Grafik, Monatsübersicht, Buchungen).
 - Die bewusst gelassene Lücke vor der Kontoauswahl (D164, `.konten-abstand`) entfällt – auch in „Alle Konten“.
+
+## D257 – Auswertungen: Ansichtswahl direkt unter dem Filter, gestaltet wie Untertabs
+*Wunsch des Nutzers, 27.11.2026*
+- „Liste · Analyse · Rückblick · Belege“ steht in allen vier Ansichten an derselben Stelle direkt unter dem Filter
+  (in Liste und Analyse vorher unter der Summenkarte – die Auswahl sprang beim Wechseln). Die Summenkarte folgt
+  darunter; „Drucken / PDF“ bleibt in der Analyse rechts neben der Auswahl.
+- Gestaltung wie die Untertabs in Annahmen, Projekte und Stammdaten (`.chips`/`.chip`): einzelne Kästchen mit
+  abgerundeten Ecken, die gewählte Ansicht blau.

@@ -449,11 +449,12 @@ function zeigeErgebnis(ziel, daten) {
   const s = summen(eintraege);
   const { von, bis } = zeitraumFuer(zustand.filter, heute);
 
-  const modusWahl = h('div', { class: 'segmente', role: 'group', 'aria-label': 'Ansicht' },
+  // D257: gestaltet wie die Untertabs anderer Seiten (Kästchen, Auswahl blau) und immer direkt unter dem Filter
+  const modusWahl = h('div', { class: 'chips', role: 'group', 'aria-label': 'Ansicht' },
     // D191: Belege; D240: Rückblick wieder da, zwischen Analyse und Belege
     [['liste', 'Liste'], ['analyse', 'Analyse'], ['rueckblick', 'Rückblick'], ['belege', 'Belege']].map(([wert, text]) => h('button', {
       type: 'button',
-      class: 'segment',
+      class: 'chip',
       'aria-pressed': String(zustand.modus === wert),
       onclick: () => { zustand.modus = wert; zeigeErgebnis(ziel, daten); },
     }, text)));
@@ -488,12 +489,13 @@ function zeigeErgebnis(ziel, daten) {
     ? liste(eintraege, daten, () => zeigeErgebnis(ziel, daten))
     : analyse(eintraege, daten, heute, () => zeigeErgebnis(ziel, daten));
   ziel.replaceChildren(
-    karte,
     // D237: „Drucken / PDF“ rechts neben den Umschaltern, solange die Analyse gewählt ist
+    // D257: Umschalter vor der Summenkarte, damit er beim Wechseln nicht springt
     h('div', { class: 'modus-zeile' }, modusWahl,
       zustand.modus === 'analyse' && h('button', {
         type: 'button', class: 'knopf knopf-klein', onclick: () => druckeAnalyse(karte, inhalt),
       }, 'Drucken / PDF')),
+    karte,
     inhalt,
   );
 }
