@@ -109,8 +109,7 @@ export async function zeigeUebersicht(container) {
       const stand = jahreswechselStand(alleDaten.einstellungen, jahr);
       return stand.erledigt ? null : jahreswechselBereich(jahr, jahreswechselPruefung(alleDaten, jahr, heute, stand.haken));
     })(),
-    // D164: Überschrift „Konten“ entfällt, der Abstand bleibt gleich
-    h('div', { class: 'konten-abstand', 'aria-hidden': 'true' }),
+    // D256: die bewusst gelassene Lücke vor den Konten (D164) entfällt
   ];
 
   const gemerkt = geraet.lies('ansicht-konto');
@@ -163,13 +162,11 @@ export async function zeigeUebersicht(container) {
   const zlKonto = zl.jeKonto.get(konto.id) ?? [];
 
   // filter(Boolean): leere Bereiche (null/false) weglassen – sonst stünde "null" als Text da
+  // D256: Monatsleiste (Blättern, Monatsnotiz, „Heute“) direkt unter dem Übersicht-Kasten ganz oben
+  const [titel, kennzahlen, ...restOben] = oben;
   container.replaceChildren(...[
-    ...oben,
-    kontoAuswahl(aktive, konto, faelligJeKonto, waehle),
-    // D246: Prognose Monatsende und niedrigster Stand für den gewählten Monat
-    kontoKopf(konto, buchungen, abstimmungen,
-      kopfWerte({ konto, buchungen, kd, zlKonto }, isoMonatsanfang(ansicht.jahr, ansicht.monat).slice(0, 7), heute),
-      isoMonatsanfang(ansicht.jahr, ansicht.monat).slice(0, 7)),
+    titel,
+    kennzahlen,
     ...monatsNavigation({
       zurueck: schluessel([ansicht.jahr, ansicht.monat]) > schluessel(minMonat),
       vor: schluessel([ansicht.jahr, ansicht.monat]) < schluessel(maxMonat),
@@ -181,6 +178,12 @@ export async function zeigeUebersicht(container) {
         neu();
       }),
     }),
+    ...restOben,
+    kontoAuswahl(aktive, konto, faelligJeKonto, waehle),
+    // D246: Prognose Monatsende und niedrigster Stand für den gewählten Monat
+    kontoKopf(konto, buchungen, abstimmungen,
+      kopfWerte({ konto, buchungen, kd, zlKonto }, isoMonatsanfang(ansicht.jahr, ansicht.monat).slice(0, 7), heute),
+      isoMonatsanfang(ansicht.jahr, ansicht.monat).slice(0, 7)),
     ...(istZukunft
       ? zukunftsMonat(zlKonto, isoMonatsanfang(ansicht.jahr, ansicht.monat).slice(0, 7), kd?.prognose ?? 0, m, konto, konten, kategorien, aendern)
       : [

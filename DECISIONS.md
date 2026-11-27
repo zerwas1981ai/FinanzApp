@@ -12,7 +12,7 @@ Wird eine Entscheidung geändert, den alten Eintrag nicht löschen, sondern als
 Kurzer Wegweiser, weil viele spätere Einträge frühere aufheben. Maßgeblich bleibt der jeweils letzte Eintrag.
 Bei jeder neuen D-Nummer hier mitpflegen; der Test `tests/wegweiser.test.js` prüft die Stand-Zeile (D236).
 
-**Stand:** D255 · Datenmodell 28 · DB-Struktur 13 · Cache finanzapp-v152
+**Stand:** D256 · Datenmodell 28 · DB-Struktur 13 · Cache finanzapp-v153
 
 **Wieder ausgebaut – nicht mehr im Code:**
 - Szenarien „Was wäre wenn“ → ersetzt durch Projekte (D51)
@@ -3093,3 +3093,10 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
   ein Kästchen breit (1–10 Teile). Die Teilung richtet sich nach der tatsächlichen Größe und passt sich beim
   Aufklappen, Verkleinern des Fensters und Drehen des Handys an (ResizeObserver).
 - Gemessen mit erfundenen Werten: PC etwa 15 × 14 px, Handy etwa 9 × 8 px je Kästchen.
+
+## D256 – Monatsleiste ganz oben, Lücke vor den Konten entfällt
+*Wunsch des Nutzers, 27.11.2026 – ändert D164*
+- In der Übersicht eines Kontos steht die Monatsleiste (‹ Monat ›, ✎ Monatsnotiz, „Heute“) samt Notizzeile direkt
+  unter dem Übersicht-Kasten, vor Hinweisen, Kontoauswahl und Kontokopf. Blättern wirkt wie bisher auf das gewählte
+  Konto (Kontokopf, Grafik, Monatsübersicht, Buchungen).
+- Die bewusst gelassene Lücke vor der Kontoauswahl (D164, `.konten-abstand`) entfällt – auch in „Alle Konten“.

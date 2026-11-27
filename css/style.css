@@ -1740,9 +1740,8 @@ body:not(.umbuchungen-sichtbar) .ub-ausblendbar { display: none; }
   .bereich-kopf .knopf { padding: 6px 10px; }
 }
 
-/* D164: Übersicht – Überschrift im Kennzahlen-Kasten; statt „Konten“ nur der gleiche Abstand */
+/* D164: Übersicht – Überschrift im Kennzahlen-Kasten (die Lücke danach entfällt seit D256) */
 .kz-kasten .kz-titel { font-size: 1.15rem; margin: 0 0 10px; }
-.konten-abstand { height: calc(1.1rem * 1.45); margin: 16px 0 8px; }
 
 /* D165: Monatsnotiz */
 .notiz-knopf { font-size: .95rem; color: var(--text-2); }
