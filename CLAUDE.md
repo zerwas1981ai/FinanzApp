@@ -8,7 +8,7 @@ Oberfläche auf Deutsch, Währung Euro, deutsches Datums- und Zahlenformat.
 
 ## Aktueller Stand
 - Alle Grundfunktionen sind fertig und online (GitHub Pages); seitdem Verbesserungsrunden auf Wunsch.
-- Letzte Entscheidung: D257, Cache-Version in sw.js: finanzapp-v154, Datenmodell-Version 28.
+- Letzte Entscheidung: D261, Cache-Version in sw.js: finanzapp-v155, Datenmodell-Version 28.
 - Tests mit `npm test`, alle grün. `tests/wegweiser.test.js` prüft, ob diese Zeile, der Wegweiser in DECISIONS.md und sw.js zum Code passen.
 
 ## Arbeitsweise (wichtig)
@@ -45,7 +45,7 @@ Oberfläche auf Deutsch, Währung Euro, deutsches Datums- und Zahlenformat.
 - `sw.js` – Offline-Cache: bei jeder Änderung CACHE hochzählen, neue Dateien eintragen
 - `js/app.js` – Start, Tab-Umschaltung; `js/sperre.js`, `js/login.js` – App-Login/Passkey
 - `js/db.js` – IndexedDB mit Zwischenspeicher; `js/migrationen.js` – Datenmodell-Version, Migrationen
-- `js/prognose.js` – Prognose, Zeitleiste bis 2050, Budgets, Termine wiederkehrender Buchungen
+- `js/prognose.js` – Prognose, Zeitleiste bis 2050; `js/termine.js` – Termine wiederkehrender Buchungen; `js/budgets.js` – Budgets (D258)
 - `js/rechnen.js` – Kontostände, Monatsübersicht; `js/buchungen.js` – Buchungen, Umbuchungen, Papierkorb
 - `js/annahmen.js`, `js/jahresbudget.js` – Budgets, wiederkehrende und geplante Buchungen bauen
 - `js/sync/` – Google-Drive-Abgleich mit Konfliktabfrage

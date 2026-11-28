@@ -189,6 +189,73 @@ export function alsGebuchtMarkieren(ids, alle, jetzt = new Date().toISOString())
   return [...geaendert.values()];
 }
 
+/**
+ * D260: Mehrere Buchungen auf einmal ändern – entweder die Kategorie ({ kategorieId }) oder das Konto ({ kontoId }).
+ * Es gelten dieselben Regeln wie beim Bearbeiten einer einzelnen Buchung (baueBuchungen: Stichtag usw.).
+ * Übersprungen werden Umbuchungen, Buchungen im Papierkorb oder Archiv, Buchungen, die schon so sind,
+ * und bei der Kategorie Buchungen einer anderen Art (Einnahme ↔ Ausgabe).
+ * Aufrundung (D215) und Ausgleich (D216) folgen wie im Dialog: Gab es eine, wird sie angepasst
+ * (bzw. in den Papierkorb gelegt, wenn sie auf dem neuen Konto nicht mehr gilt); neue entstehen nicht.
+ * Ergebnis: { geaendert: [zu speichernde Datensätze], vorher: [bisherige Fassungen derselben Datensätze],
+ *   anzahl: geänderte Buchungen, uebersprungen: [{ buchung, grund }] }
+ */
+export function mehrereAendern(ids, aenderung, { alle, konten, kategorien = [], aufrunden = null, ausgleich = null, jetzt = new Date().toISOString() }) {
+  const nachId = new Map(alle.map((b) => [b.id, b]));
+  const kat = new Map(kategorien.map((k) => [k.id, k]));
+  const artVon = (kategorieId) => kat.get(kat.get(kategorieId)?.elternId)?.art ?? null;
+  const zielArt = aenderung.kategorieId ? artVon(aenderung.kategorieId) : null;
+  if (aenderung.kategorieId && !zielArt) throw new Error('Bitte eine Unterkategorie wählen.');
+  if (!aenderung.kategorieId && !konten.some((k) => k.id === aenderung.kontoId)) throw new Error('Bitte ein Konto wählen.');
+
+  const geaendert = new Map();
+  const uebersprungen = [];
+  let stand = alle;
+  let anzahl = 0;
+  for (const id of ids) {
+    const b = nachId.get(id);
+    if (!b) continue;
+    let grund = null;
+    if (b.geloeschtAm) grund = 'im Papierkorb';
+    else if (b.archivJahr) grund = 'archiviert';
+    else if (b.art === 'umbuchung') grund = 'Umbuchung';
+    else if (aenderung.kategorieId && b.art !== zielArt) grund = b.art === 'einnahme' ? 'Einnahme' : 'Ausgabe';
+    else if (aenderung.kategorieId ? b.kategorieId === aenderung.kategorieId : b.kontoId === aenderung.kontoId) grund = 'schon so';
+    if (grund) { uebersprungen.push({ buchung: b, grund }); continue; }
+    let neu;
+    try {
+      [neu] = baueBuchungen({ ...b, ...aenderung }, { konten, bestehende: [b], jetzt });
+    } catch (err) {
+      uebersprungen.push({ buchung: b, grund: err.message });
+      continue;
+    }
+    anzahl += 1;
+    geaendert.set(neu.id, neu);
+    stand = stand.map((x) => (x.id === neu.id ? neu : x));
+    if (b.art !== 'ausgabe') continue;
+    // Aufrundung und Ausgleich: nur bestehende mitnehmen (wie im Dialog beim Bearbeiten)
+    const folgen = [
+      [aufrundungenVon, (x, an) => aufrundungAnpassen(x, aufrunden, stand, { konten, an, jetzt })],
+      [ausgleicheVon, (x, an) => ausgleichAnpassen(x, ausgleich, stand, { konten, kategorien, an, jetzt })],
+    ];
+    for (const [von, anpassen] of folgen) {
+      const an = von([b.id], stand).some((x) => !x.geloeschtAm);
+      if (!an) continue;
+      let dazu;
+      try {
+        dazu = anpassen(neu, true);
+      } catch {
+        dazu = anpassen(neu, false); // gilt nicht mehr (z. B. Stichtag) → in den Papierkorb statt falsch stehen lassen
+      }
+      for (const x of dazu) {
+        geaendert.set(x.id, x);
+        stand = stand.map((y) => (y.id === x.id ? x : y));
+      }
+    }
+  }
+  const vorher = [...geaendert.keys()].map((id) => nachId.get(id)).filter(Boolean);
+  return { geaendert: [...geaendert.values()], vorher, anzahl, uebersprungen };
+}
+
 /* ---------- D215: Aufrunden auf den nächsten vollen Euro ---------- */
 // Einstellung (Sammlung einstellungen, id 'aufrunden'): { aktiv, vonKontoId, zielKontoId }.
 // Ausgaben vom Von-Konto mit Cent-Betrag bekommen eine Umbuchung über den Rest bis zum vollen Euro aufs Ziel-Konto.

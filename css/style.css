@@ -1385,6 +1385,23 @@ body.gesperrt .kopf, body.gesperrt main, body.gesperrt .fab, body.gesperrt #neue
 .btab-status { grid-column: 2; grid-row: 1; text-align: center; color: var(--text-2); font-size: .8rem; font-weight: 600; }
 
 .btab-hinweis { margin: 10px 0 0; font-size: .8rem; }
+
+/* D260: mehrere Buchungen auswählen und gemeinsam ändern */
+.auswahl-leiste {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  margin: 0 0 8px; padding: 8px 10px; border: 1px solid var(--akzent); border-radius: var(--radius-mini); background: var(--flaeche);
+}
+.auswahl-alle { display: flex; align-items: center; gap: 8px; margin-right: auto; cursor: pointer; }
+.auswahl-alle input, .btab-haken input { width: 18px; height: 18px; accent-color: var(--akzent); }
+.btab.mit-auswahl .btab-liste > li { display: flex; align-items: center; }
+.btab.mit-auswahl .btab-liste > li > .btab-zeile { flex: 1; min-width: 0; }
+.btab-haken { flex: none; display: flex; justify-content: center; width: 32px; pointer-events: none; }
+.btab.mit-auswahl .btab-kopf { padding-left: 32px; }
+/* Am Handy ausgeblendete Umbuchungen (D77) bleiben auch beim Auswählen ausgeblendet */
+body:not(.umbuchungen-sichtbar) .btab.mit-auswahl .btab-liste > li.ub-ausblendbar { display: none; }
+@media (max-width: 767px) { .btab.mit-auswahl .btab-kopf { padding-left: 0; } }
+.btab-liste > li.gewaehlt { background: var(--akzent-leicht); }
+.btab-liste > li.gewaehlt .btab-zeile { background: transparent; }
 .nur-schmal { display: none; }
 
 @media (max-width: 767px) {

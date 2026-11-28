@@ -8,6 +8,8 @@
 // (Lebensmittel deutlich über, Freizeit deutlich unter Budget), und ein Termin
 // ("Internet & Telefon") ist im laufenden Monat bewusst noch nicht gebucht.
 // Etappe 5: geplante Einmalbuchungen und zwei Projekte (Umbau Bad, Sommerurlaub).
+//
+// App-Passwort für Tests im Browser auf localhost (erfunden, nur dort benutzen): lokal-test-2026
 
 import * as db from './db.js';
 import { neueKategorie } from './startdaten.js';

@@ -12,7 +12,7 @@ Wird eine Entscheidung geändert, den alten Eintrag nicht löschen, sondern als
 Kurzer Wegweiser, weil viele spätere Einträge frühere aufheben. Maßgeblich bleibt der jeweils letzte Eintrag.
 Bei jeder neuen D-Nummer hier mitpflegen; der Test `tests/wegweiser.test.js` prüft die Stand-Zeile (D236).
 
-**Stand:** D257 · Datenmodell 28 · DB-Struktur 13 · Cache finanzapp-v154
+**Stand:** D261 · Datenmodell 28 · DB-Struktur 13 · Cache finanzapp-v155
 
 **Wieder ausgebaut – nicht mehr im Code:**
 - Szenarien „Was wäre wenn“ → ersetzt durch Projekte (D51)
@@ -42,12 +42,18 @@ Bei jeder neuen D-Nummer hier mitpflegen; der Test `tests/wegweiser.test.js` pr�
 - Konto-Farben: Kontoname als farbiges Etikett (D228–D232)
 - Abschlagsrechner Strom/Gas mit Zählerständen, Zählerwechsel und Trendpfeil (D233–D235)
 - Scrollbare Leisten behalten ihre Position (D171); „+“-Knöpfe überall im blauen Stil (D161)
+- Auswertungen → Liste → „Auswählen“: Kategorie, Konto oder Papierkorb für mehrere Buchungen auf einmal (D260)
+- Lupe versteht Betragsvergleiche „> 100“, „< 20“, „50-100“ (D261)
 
 **Schlaue Hinweise ohne KI:** erkannte wiederkehrende Zahlungen, „↑ hoch“-Marke, Kategorie aus Notiz, Archiv-Erinnerung (D182–D185); Preisänderung, Abstimmhilfe, Monatsabschluss (D203, D204, D206); „↑ hoch“ per Antippen bestätigen (D186); Kategoriefarbe als schmaler Balken (D187); Zählerstände als Punkt im Monatsabschluss, der schon am Monatsletzten erscheint (D238); Jahreswechsel-Check 15.12.–31.01. (D239). KI bleibt außen vor.
 
 **Datenstand:** Alte Schubladen (werden geleert): szenarien, sparziele, vorlagen.
 Sammlungen: konten, kategorien, buchungen, abstimmungen, budgets, wiederkehrend, hinweise, einstellungen, geplant,
 projekte, archive, relevant, vertraege, monatsnotizen, zaehler.
+
+**Code-Aufteilung (D258):** Termine/Datums-Helfer in `termine.js`, Budgets in `budgets.js` (beide über `prognose.js` weitergereicht);
+Tab Auswertungen in `alle-buchungen.js` (Liste) + `auswertung-zustand.js`, `auswertung-filter.js`, `auswertung-analyse.js`.
+Der Drive-Abgleich wird mit nachgebautem Drive getestet (`tests/abgleich-konflikte.test.js`, D259).
 
 ---
 
@@ -3108,3 +3114,47 @@ Sperrzeit wie bisher wählbar (Standard 5 Minuten)*
   darunter; „Drucken / PDF“ bleibt in der Analyse rechts neben der Auswahl.
 - Gestaltung wie die Untertabs in Annahmen, Projekte und Stammdaten (`.chips`/`.chip`): einzelne Kästchen mit
   abgerundeten Ecken, die gewählte Ansicht blau.
+
+## D258 – Große Dateien aufgeteilt (nur Code, an der App ändert sich nichts)
+*Wunsch des Nutzers, 28.11.2026*
+- `js/prognose.js` (gut 1.000 Zeilen) → `js/termine.js` (Datums-Helfer, Ein/Aus-Schalter, Stufen, Termine
+  wiederkehrender Buchungen), `js/budgets.js` (Budgets, Jahresbudgets, Budget-Vorschlag) und der Rest in
+  `prognose.js` (Monatsprognose, Budgethinweise, Zeitleiste). `prognose.js` gibt alles aus den beiden neuen
+  Dateien weiter – alle bisherigen `import … from './prognose.js'` funktionieren unverändert.
+- `js/views/alle-buchungen.js` (gut 1.100 Zeilen) → gemeinsamer Zustand `auswertung-zustand.js`, Filterbereich
+  `auswertung-filter.js`, Ansicht Analyse `auswertung-analyse.js`; Liste und Aufbau bleiben in `alle-buchungen.js`.
+- Die Abschnitte wurden unverändert verschoben; nur Importe/Exporte kamen dazu. Neue Dateien stehen in `sw.js`.
+- **Warum:** Kürzere Dateien lassen sich leichter und sicherer ändern.
+
+## D259 – Tests für den Drive-Abgleich: Nachfrage bei Konflikten
+*Wunsch des Nutzers, 28.11.2026*
+- `tests/abgleich-konflikte.test.js` lässt den echten Ablauf aus `js/sync/abgleich.js` gegen einen nachgebauten
+  Drive und eine nachgebaute Datenbank laufen. Geprüft wird u. a.: beide Geräte ändern dieselbe Buchung → Nachfrage,
+  „später“ ändert nichts; gelöscht ↔ geändert → Nachfrage; verworfene Fassung landet als Backup in Drive; anderes Gerät
+  speichert genau vor dem Hochladen → erst zusammenführen; während der Nachfrage hier weiter gebucht → nichts geht
+  verloren; erstes Verbinden und Neubeginn auf anderem Gerät fragen nach. Dazu 500 Zufallsfälle für `fuehreZusammen`.
+- Gegenprobe: Mit absichtlich eingebauten Fehlern (Konflikt still übernehmen, Versionsprüfung vor dem Hochladen
+  weglassen) schlagen die Tests an.
+- Dafür läuft `npm test` mit `--experimental-test-module-mocks` (eingebauter Node-Testrunner, keine Zusatzpakete).
+
+## D260 – Mehrere Buchungen auf einmal ändern
+*Wunsch des Nutzers, 28.11.2026*
+- Auswertungen → Liste → Knopf **„Auswählen“**: Häkchen vor jeder Zeile, „Alle“ hakt die angezeigten an.
+  Aktionen: **Kategorie …**, **Konto …**, **Papierkorb**; „Fertig“ beendet die Auswahl. Archiv-Buchungen lassen sich
+  nicht anhaken. Ein neuer Filter leert die Auswahl.
+- Es gelten dieselben Regeln wie beim Bearbeiten einer einzelnen Buchung (`mehrereAendern()` in `js/buchungen.js`,
+  nutzt `baueBuchungen`): Stichtag des Kontos, Aufrundung (D215) und Ausgleich (D216) folgen – bestehende werden
+  angepasst oder in den Papierkorb gelegt, neue entstehen nicht.
+- Übersprungen (und in der Meldung genannt): Umbuchungen (bei Kategorie und Konto), Buchungen der anderen Art,
+  Buchungen, die schon so sind. Sind Einnahmen und Ausgaben ausgewählt, wählt man, für welche die Kategorie gilt.
+- Papierkorb mit Rückfrage; Umbuchungen mit beiden Hälften. Jede Aktion hat „Rückgängig“ in der Meldung (wie D176).
+- Projekt bewusst nicht dabei (Wahl des Nutzers: Kategorie, Konto, Papierkorb).
+
+## D261 – Betragsvergleiche in der Lupe
+*Wunsch des Nutzers, 28.11.2026*
+- Die Suche (D146) versteht „> 100“, „>= 100“, „< 20“, „<= 49,99“ und „50-100“ (auch mit Leerzeichen) als Bedingung
+  für den Betrag in Euro, ohne Vorzeichen; kombinierbar mit Wörtern, z. B. „Markt > 50“. Mehrere Bedingungen gelten zusammen.
+- Mit Betragsbedingung erscheinen nur Einträge mit Betrag (Buchungen, relevante Ausgaben, wiederkehrende mit
+  aktuellem Betrag, geplante); Projekte und Verträge nicht.
+- Eine einzelne Zahl wie „49,99“ sucht weiter wie bisher als Text (findet also auch 149,99 €) – „Nur genaue Treffer“
+  hat der Nutzer nicht gewählt.

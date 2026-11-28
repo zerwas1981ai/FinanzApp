@@ -1,9 +1,10 @@
 // Tab "Auswertungen" (bis D240 "Alle Buchungen", Etappe 3): über alle Konten filtern, sortieren, auswerten.
+// D258: Zustand, Filter und Analyse stehen in auswertung-zustand.js, auswertung-filter.js, auswertung-analyse.js.
 
 import { h } from '../dom.js';
 import * as db from '../db.js';
-import { formatEuro, formatEuroRund, formatProzent, formatDatum, formatMonat, heuteIso, parseEuro } from '../format.js';
-import { herunterladen, toast, katPunkt, kontoEtikett, merkeScroll, auslageMarke } from '../ui.js';
+import { formatEuro, formatDatum, heuteIso } from '../format.js';
+import { herunterladen, toast, katPunkt, kontoEtikett, auslageMarke } from '../ui.js';
 import { farbenZuordnung, farbeVon } from '../farben.js';
 import { rueckblickBereich } from './rueckblick.js';
 import { ungewoehnlicheBuchungen } from '../erkennung.js';
@@ -12,55 +13,17 @@ import { belegeBereich } from './belege.js';
 import { relevantDialog } from './relevant.js';
 import { vertragDialog } from './vertraege.js';
 import { buchungenWischbar } from './wisch-buchung.js';
-
-let wischDaten = null; // D211: aktuelle Buchungen (inkl. geladener Archivjahre) für das Wischen
-import { notizListe } from './monatsnotiz.js';
 import { archivInhalt } from '../sync/abgleich.js';
 import { buchungenAlsCsv, exportName } from '../export.js';
-import {
-  STANDARD_FILTER, STANDARD_SORTIERUNG, filtere, sortiere, summen, zeitraumFuer,
-  monateDerAuswertung, ersterErfassterTag, abgeschlosseneMonate, summenJeKategorie, schoeneObergrenze,
-  vorjahrJeMonat,
-  vorperiode, budgetSchnitt, groessteBuchungen, veraenderungProzent,
-  ausgabenVerlauf,
-  OHNE_PARTNER, partnerListe, partnerSchluessel, summenJePartner, sortiereNach,
-} from '../auswertung.js';
+import { STANDARD_SORTIERUNG, filtere, sortiere, summen, zeitraumFuer, sortiereNach } from '../auswertung.js';
 import { oeffneBuchungsdialog } from './buchung-dialog.js';
-import { zeitleiste, nurWirksam, plusMonate, monatsende } from '../prognose.js';
 import { umbuchungKnopf } from './kennzahlen.js';
-import { sortiereKonten } from '../konten.js';
+import { SEITE, zustand, zeigeJahr } from './auswertung-zustand.js';
+import { filterBereich } from './auswertung-filter.js';
+import { analyse } from './auswertung-analyse.js';
+import { kategorieAendern, kontoAendern, inDenPapierkorb } from './auswahl-aendern.js';
 
-const nachName = (a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base' });
-// D124: zunächst 20 Buchungen (Umbuchungen zählen dabei nicht mit), der Rest per Knopf darunter
-const SEITE = 20;
-
-// Zustand bleibt erhalten, solange die App offen ist (beim Neuladen: Standard)
-const zustand = {
-  filter: { ...STANDARD_FILTER },
-  sortierung: STANDARD_SORTIERUNG,
-  modus: 'liste', // liste | analyse | rueckblick (D240) | belege
-  analyseArt: 'ausgabe',
-  analyseGruppe: 'kategorie', // kategorie | partner
-  vorjahr: false, // Vorjahr im Verlauf zeigen (D107)
-  sichtbar: SEITE,
-  offen: new Set(), // aufgeklappte Kategorien in der Analyse
-};
-
-/** "Ansehen" eines archivierten Jahres (aus den Stammdaten): Filter auf dieses Jahr stellen */
-function zeigeJahr(jahr) {
-  zustand.sichtbar = SEITE;
-  zustand.filter = { ...STANDARD_FILTER, zeitraum: 'eigen', von: `${jahr}-01-01`, bis: `${jahr}-12-31` };
-}
-
-// D122: Reihenfolge nach Wunsch des Nutzers; „Vormonat“ und „Vorjahr“ entfallen
-const ZEITRAEUME = [
-  ['alles', 'Alles'],
-  ['jahr', 'Dieses Jahr'],
-  ['monat', 'Dieser Monat'],
-  ['vormonat', 'Vormonat'], // D174
-  ['letzte3', 'Letzte 3 Monate'],
-  ['eigen', 'Eigener Zeitraum'],
-];
+let wischDaten = null; // D211: aktuelle Buchungen (inkl. geladener Archivjahre) für das Wischen
 
 /**
  * Archivierte Jahre (D68/D69) zählen in Liste und Analyse ganz normal mit – nur bearbeiten lassen
@@ -115,6 +78,7 @@ export async function zeigeBuchungen(container, { archivAnmelden = false } = {})
   const neuZeichnen = () => zeigeBuchungen(container);
   const aktualisiere = () => {
     zustand.sichtbar = SEITE;
+    zustand.auswahl?.clear(); // D260: nach neuem Filter nichts Unsichtbares angehakt lassen
     zeigeErgebnis(ergebnis, daten);
   };
 
@@ -136,309 +100,6 @@ export async function zeigeBuchungen(container, { archivAnmelden = false } = {})
     ergebnis,
   ].filter(Boolean));
   zeigeErgebnis(ergebnis, daten);
-}
-
-/* =========================== Filter =========================== */
-
-function filterGeaendert() {
-  return Object.keys(STANDARD_FILTER).some((k) => JSON.stringify(zustand.filter[k]) !== JSON.stringify(STANDARD_FILTER[k]));
-}
-
-// Offene Mehrfachauswahl schließen, wenn daneben getippt wird (einmal für die ganze App)
-document.addEventListener('click', (e) => {
-  for (const d of document.querySelectorAll('details.mehrfach[open]')) {
-    if (!d.contains(e.target)) d.open = false;
-  }
-});
-
-/**
- * Aufklappliste mit Häkchen (Mehrfachauswahl, D72). Nichts angehakt = alle.
- * optionen: [{ wert, text, kurz?, gruppe?, eltern? }] – gruppe = Hauptkategorie (umfasst ihre
- * Unterkategorien), eltern = wert der zugehörigen Hauptkategorie, kurz = Text für die Anzeige.
- */
-function mehrfachAuswahl({ optionen, gewaehlt, alleText, gleich = (a, b) => a === b, beiAenderung, einzeln = false, moeglich = null }) {
-  let auswahl = [...gewaehlt];
-  let d = null; // die Aufklappliste (wird unten erzeugt)
-  const gruppenName = `einzeln-${Math.random().toString(36).slice(2, 8)}`;
-  const istGewaehlt = (wert) => auswahl.some((w) => gleich(w, wert));
-  const anzeige = h('span', { class: 'mehrfach-text' });
-  const kaesten = [];
-
-  const leeren = h('button', {
-    type: 'button',
-    class: 'mehrfach-leeren',
-    onclick: () => {
-      auswahl = [];
-      aktualisiereAnzeige();
-      beiAenderung(auswahl);
-    },
-  }, 'Auswahl aufheben');
-
-  function aktualisiereAnzeige() {
-    const namen = optionen.filter((o) => istGewaehlt(o.wert)).map((o) => o.kurz ?? o.text);
-    anzeige.textContent = namen.length === 0 ? alleText
-      : namen.length <= 2 ? namen.join(', ')
-        : `${namen.length} ausgewählt`;
-    for (const { o, input } of kaesten) {
-      // Unterkategorie ist schon enthalten, wenn ihre Hauptkategorie angehakt ist
-      const durchEltern = o.eltern != null && istGewaehlt(o.eltern);
-      input.checked = durchEltern || istGewaehlt(o.wert);
-      input.disabled = durchEltern;
-    }
-    leeren.hidden = auswahl.length === 0;
-    anzeige.title = anzeige.textContent; // vollständiger Text als Tooltip, falls abgeschnitten
-    // D126: ein aktiver Filter ist farbig hervorgehoben
-    d?.classList.toggle('aktiv', auswahl.length > 0);
-  }
-
-  // D120: Unterkategorien zunächst eingeklappt; „+“ an der Hauptkategorie klappt sie auf.
-  // Ist schon eine Unterkategorie gewählt, steht ihre Gruppe von Anfang an offen.
-  const offeneGruppen = new Set(optionen.filter((o) => o.eltern != null && istGewaehlt(o.wert)).map((o) => o.eltern));
-  const unterZeilen = new Map(); // Hauptkategorie → ihre Zeilen
-  const zeilen = optionen.map((o) => {
-    const input = h('input', {
-      type: einzeln ? 'radio' : 'checkbox', // D130: Einfachauswahl mit runden Punkten
-      name: einzeln ? gruppenName : null,
-      onchange: () => {
-        if (einzeln) {
-          // D130: nur eine Auswahl (z. B. Art) – die vorige wird abgewählt, die Liste schließt sich
-          auswahl = input.checked ? [o.wert] : [];
-          aktualisiereAnzeige();
-          beiAenderung(auswahl);
-          if (d) d.open = false;
-          return;
-        }
-        auswahl = input.checked
-          ? [...auswahl, o.wert]
-          : auswahl.filter((w) => !gleich(w, o.wert));
-        // Hauptkategorie angehakt: einzeln gewählte Unterkategorien sind darin schon enthalten
-        if (o.gruppe && input.checked) {
-          const unter = optionen.filter((u) => u.eltern === o.wert).map((u) => u.wert);
-          auswahl = auswahl.filter((w) => !unter.includes(w));
-        }
-        aktualisiereAnzeige();
-        beiAenderung(auswahl);
-      },
-    });
-    const klasse = 'mehrfach-option' + (o.gruppe ? ' gruppe' : '') + (o.eltern != null ? ' unter' : '');
-    const zeile = h('label', { class: klasse, hidden: o.eltern != null && !offeneGruppen.has(o.eltern), title: o.text }, input, h('span', {}, o.text));
-    kaesten.push({ o, input, zeile });
-    if (o.eltern != null) {
-      if (!unterZeilen.has(o.eltern)) unterZeilen.set(o.eltern, []);
-      unterZeilen.get(o.eltern).push(zeile);
-    }
-    if (!o.gruppe || !optionen.some((u) => u.eltern === o.wert)) return zeile;
-    const knopf = h('button', {
-      type: 'button',
-      class: 'mehrfach-klapp',
-      'aria-expanded': String(offeneGruppen.has(o.wert)),
-      'aria-label': `Unterkategorien von ${o.kurz ?? o.text} anzeigen`,
-      onclick: () => {
-        const auf = knopf.getAttribute('aria-expanded') !== 'true';
-        knopf.setAttribute('aria-expanded', String(auf));
-        knopf.textContent = auf ? '−' : '+';
-        for (const z of unterZeilen.get(o.wert) ?? []) z.hidden = !auf;
-      },
-    }, offeneGruppen.has(o.wert) ? '−' : '+');
-    const gruppe = h('div', { class: 'mehrfach-gruppe-zeile' }, zeile, knopf);
-    kaesten.at(-1).aussen = gruppe;
-    return gruppe;
-  });
-
-  // D132: Beim Öffnen nur Optionen zeigen, die mit den übrigen Filtern noch Buchungen ergeben.
-  // Schon Gewähltes bleibt immer sichtbar (damit man es abwählen kann).
-  const keine = h('p', { class: 'mehrfach-keine', hidden: true }, 'Mit den übrigen Filtern gibt es hier keine weitere Auswahl.');
-  const pruefeMoeglich = () => {
-    if (!moeglich) return;
-    const set = moeglich();
-    let sichtbar = 0;
-    for (const k of kaesten) {
-      const ok = istGewaehlt(k.o.wert) || (k.o.eltern != null && istGewaehlt(k.o.eltern)) || set.has(k.o.schluessel ?? k.o.wert);
-      (k.aussen ?? k.zeile).classList.toggle('nicht-moeglich', !ok);
-      if (ok) sichtbar += 1;
-    }
-    keine.hidden = sichtbar > 0;
-  };
-
-  d = h('details', { class: 'mehrfach', ontoggle: () => { if (d.open) pruefeMoeglich(); } },
-    h('summary', { class: 'mehrfach-knopf', title: '' }, anzeige),
-    h('div', { class: 'mehrfach-liste' }, leeren, keine, zeilen));
-  aktualisiereAnzeige();
-  return d;
-}
-
-function filterBereich({ konten, kategorien, buchungen }, aktualisiere, neuZeichnen) {
-  const f = zustand.filter;
-  const setze = (schluessel, wert, ganzNeu = false) => {
-    f[schluessel] = wert;
-    if (ganzNeu) { zustand.sichtbar = SEITE; zustand.vorMonatswahl = null; neuZeichnen(); }
-    else {
-      resetKnopf.hidden = !filterGeaendert();
-      aktualisiere();
-    }
-  };
-
-  // Zeitraum-Schnellwahl
-  const zeitraum = merkeScroll(h('div', { class: 'chips', role: 'group', 'aria-label': 'Zeitraum' },
-    ZEITRAEUME.map(([wert, text]) => h('button', {
-      type: 'button',
-      class: 'chip',
-      'aria-pressed': String(f.zeitraum === wert),
-      onclick: () => setze('zeitraum', wert, true),
-    }, text))), 'zeitraum'); // D171
-
-  const eigenerZeitraum = f.zeitraum === 'eigen' && h('div', { class: 'filter-reihe' },
-    feld('Von', h('input', { type: 'date', value: f.von, onchange: (e) => setze('von', e.target.value) })),
-    feld('Bis', h('input', { type: 'date', value: f.bis, onchange: (e) => setze('bis', e.target.value) })),
-  );
-
-  // D132: Welche Werte sind mit allen ÜBRIGEN Filtern noch möglich? (beim Öffnen einer Liste berechnet)
-  const ctx = { kategorien, konten, heute: heuteIso() };
-  const ohne = (schluessel) => filtere(buchungen, { ...zustand.filter, [schluessel]: [] }, ctx);
-  const moeglichKonten = () => new Set(ohne('kontoIds').flatMap((e) => [e.buchung.kontoId, e.buchung.gegenkontoId].filter(Boolean)));
-  const moeglichArten = () => new Set(ohne('arten').map((e) => e.buchung.art));
-  const moeglichKategorien = () => {
-    const kat = new Map(kategorien.map((k) => [k.id, k]));
-    const set = new Set();
-    for (const { buchung: b } of ohne('kategorieIds')) {
-      if (!b.kategorieId) continue;
-      set.add(b.kategorieId);
-      const eltern = kat.get(b.kategorieId)?.elternId;
-      if (eltern) set.add(eltern);
-    }
-    return set;
-  };
-  const moeglichPartner = () => new Set(ohne('partner').filter((e) => e.buchung.art !== 'umbuchung')
-    .map((e) => partnerSchluessel(e.buchung.partner) || OHNE_PARTNER));
-
-  // Auswahllisten mit Häkchen (Mehrfachauswahl, D72)
-  const kontoAuswahl = mehrfachAuswahl({
-    moeglich: moeglichKonten,
-    optionen: sortiereKonten(konten).map((k) => ({ wert: k.id, text: k.name + (k.archiviert ? ' (archiviert)' : ''), kurz: k.name })),
-    gewaehlt: f.kontoIds,
-    alleText: 'Alle Konten',
-    beiAenderung: (w) => setze('kontoIds', w),
-  });
-  const artAuswahl = mehrfachAuswahl({
-    moeglich: moeglichArten,
-    optionen: [{ wert: 'ausgabe', text: 'Ausgaben' }, { wert: 'einnahme', text: 'Einnahmen' }, { wert: 'umbuchung', text: 'Umbuchungen' }],
-    gewaehlt: f.arten,
-    alleText: 'Alle Arten',
-    einzeln: true, // D130
-    // Art bestimmt, ob das Ausgaben-Diagramm erscheint → ganze Seite neu zeichnen
-    beiAenderung: (w) => setze('arten', w, true),
-  });
-
-  const katOptionen = ['einnahme', 'ausgabe'].flatMap((art) => kategorien
-    .filter((k) => !k.elternId && k.art === art)
-    .sort(nachName)
-    .flatMap((hk) => [
-      { wert: hk.id, text: `${hk.name} (${art === 'einnahme' ? 'Einnahme' : 'Ausgabe'})`, kurz: hk.name, gruppe: true },
-      ...kategorien.filter((u) => u.elternId === hk.id).sort(nachName)
-        .map((u) => ({ wert: u.id, text: u.name + (u.archiviert ? ' (archiviert)' : ''), kurz: u.name, eltern: hk.id })),
-    ]));
-  const kategorieAuswahl = mehrfachAuswahl({
-    moeglich: moeglichKategorien,
-    optionen: katOptionen,
-    gewaehlt: f.kategorieIds,
-    alleText: 'Alle Kategorien',
-    beiAenderung: (w) => setze('kategorieIds', w),
-  });
-
-  // Empfänger/Absender: alle bisher verwendeten Namen, häufigste zuerst
-  const partner = partnerListe(buchungen);
-  const partnerGleich = (a, b) => (a === OHNE_PARTNER || b === OHNE_PARTNER ? a === b : partnerSchluessel(a) === partnerSchluessel(b));
-  const partnerAuswahl = mehrfachAuswahl({
-    moeglich: moeglichPartner,
-    optionen: [
-      { wert: OHNE_PARTNER, text: 'Ohne Angabe' },
-      ...partner.map((p) => ({ wert: p.name, text: `${p.name} (${p.anzahl})`, kurz: p.name, schluessel: partnerSchluessel(p.name) })),
-    ],
-    gewaehlt: f.partner,
-    alleText: 'Alle',
-    gleich: partnerGleich,
-    beiAenderung: (w) => setze('partner', w),
-  });
-
-  // Suche: bei jeder Eingabe, leicht verzögert
-  let timer;
-  const suche = h('input', {
-    type: 'search',
-    placeholder: 'Suchen in An/Von, Notiz, Kategorie, Konto …',
-    value: f.suche,
-    'aria-label': 'Suchen',
-    class: f.suche.trim() ? 'aktiv' : null,
-    oninput: (e) => {
-      e.target.classList.toggle('aktiv', e.target.value.trim() !== ''); // D126: aktiver Filter farbig
-      clearTimeout(timer);
-      timer = setTimeout(() => setze('suche', e.target.value), 200);
-    },
-  });
-
-  // Betrag von/bis
-  const betragFeld = (schluessel, label) => {
-    const fehler = h('small', { class: 'feld-fehler' });
-    const input = h('input', {
-      type: 'text',
-      inputmode: 'decimal',
-      placeholder: label === 'Betrag ab' ? 'z. B. 50' : 'z. B. 500',
-      value: f[schluessel] == null ? '' : String(f[schluessel] / 100).replace('.', ','),
-      class: f[schluessel] != null ? 'aktiv' : null,
-      onchange: (e) => {
-        try {
-          const cent = parseEuro(e.target.value, label);
-          fehler.textContent = '';
-          e.target.classList.toggle('aktiv', cent !== null);
-          setze(schluessel, cent === null ? null : Math.abs(cent));
-        } catch (err) {
-          fehler.textContent = err.message;
-        }
-      },
-    });
-    return feld(label + ' (€)', input, fehler);
-  };
-
-  const resetKnopf = h('button', {
-    type: 'button',
-    class: 'knopf knopf-klein',
-    hidden: !filterGeaendert(),
-    onclick: () => {
-      zustand.filter = { ...STANDARD_FILTER };
-      zustand.sichtbar = SEITE;
-      zustand.vorMonatswahl = null;
-      neuZeichnen();
-    },
-  }, 'Filter zurücksetzen');
-
-  // D123: Suche und Betrag ganz oben; Status („nur gebuchte“, D120) und „ohne Beleg“ entfallen
-  // in der Oberfläche – damit gibt es keinen Bereich „Weitere Filter“ mehr
-  return h('section', { class: 'bereich filter' },
-    h('div', { class: 'filter-suche' },
-      feld('Suche', suche),
-      betragFeld('betragMin', 'Betrag ab'),
-      betragFeld('betragMax', 'Betrag bis'),
-    ),
-    zeitraum,
-    eigenerZeitraum,
-    h('div', { class: 'filter-raster' },
-      feld('Konto', kontoAuswahl),
-      feld('Art', artAuswahl),
-      feld('Kategorie', kategorieAuswahl),
-      feld('Empfänger/Absender', partnerAuswahl),
-    ),
-    h('div', { class: 'filter-fuss' }, resetKnopf),
-  );
-}
-
-function feld(label, steuerelement, zusatz = null) {
-  return h('label', { class: 'feld' }, h('span', { class: 'feld-label' }, label), steuerelement, zusatz);
-}
-
-function auswahlListe(optionen, wert, beiAenderung) {
-  const s = h('select', { onchange: (e) => beiAenderung(e.target.value) },
-    optionen.map((o) => h('option', { value: o.wert }, o.text)));
-  s.value = wert;
-  return s;
 }
 
 /* =========================== Ergebnis =========================== */
@@ -613,9 +274,66 @@ function liste(eintraege, daten, neu) {
     onclick: () => { zustand.sortierung = STANDARD_SORTIERUNG; neu(); },
   }, 'Sortierung zurücksetzen');
 
+  // D260: mehrere Buchungen per Häkchen auswählen und gemeinsam ändern
+  const auswahl = zustand.auswahl;
+  const waehlbar = zeigen.map((e) => e.buchung).filter((b) => !b.archivJahr);
+  const haken = new Map(); // Buchungs-ID → Kästchen
+  const zaehler = h('span', { class: 'klein auswahl-zahl', 'aria-live': 'polite' });
+  const alleKasten = h('input', { type: 'checkbox', 'aria-label': 'Alle angezeigten auswählen' });
+  const aktionen = [];
+  const zeigeZahl = () => {
+    if (!auswahl) return;
+    zaehler.textContent = `${auswahl.size} ausgewählt`;
+    alleKasten.checked = waehlbar.length > 0 && waehlbar.every((b) => auswahl.has(b.id));
+    for (const k of aktionen) k.disabled = auswahl.size === 0;
+  };
+  const umschalten = (b, an = !auswahl.has(b.id)) => {
+    if (an) auswahl.add(b.id); else auswahl.delete(b.id);
+    const k = haken.get(b.id);
+    if (k) { k.checked = an; k.closest('li').classList.toggle('gewaehlt', an); }
+    zeigeZahl();
+  };
+  alleKasten.addEventListener('change', () => { for (const b of waehlbar) umschalten(b, alleKasten.checked); });
+  const beenden = () => { zustand.auswahl = null; };
+  const aktion = (text, wirkung, variante = '') => {
+    const k = h('button', { type: 'button', class: `knopf knopf-klein ${variante}`.trim(), onclick: () => wirkung(new Set(auswahl), beenden) }, text);
+    aktionen.push(k);
+    return k;
+  };
+  const auswahlLeiste = auswahl && h('div', { class: 'auswahl-leiste', role: 'toolbar', 'aria-label': 'Ausgewählte Buchungen' },
+    h('label', { class: 'auswahl-alle' }, alleKasten, h('span', { class: 'nur-breit' }, 'Alle'), zaehler),
+    aktion('Kategorie …', kategorieAendern),
+    aktion('Konto …', kontoAendern),
+    aktion('Papierkorb', inDenPapierkorb, 'knopf-gefahr'),
+    h('button', { type: 'button', class: 'knopf knopf-klein auswahl-fertig', onclick: () => { beenden(); neu(); } }, 'Fertig'));
+  const auswaehlenKnopf = !auswahl && waehlbar.length > 0 && h('button', {
+    type: 'button',
+    class: 'knopf knopf-klein',
+    title: 'Mehrere Buchungen anhaken und gemeinsam ändern',
+    onclick: () => { zustand.auswahl = new Set(); neu(); },
+  }, 'Auswählen');
+
   const farben = farbenZuordnung([...kat.values()]); // D155
   const ungewoehnlich = ungewoehnlicheBuchungen(daten.buchungen); // D183
-  const zeile = ({ buchung: b, wirkung }) => {
+  const zeile = (eintrag) => {
+    const li = zeileOhneHaken(eintrag);
+    const b = eintrag.buchung;
+    if (!auswahl) return li;
+    const an = auswahl.has(b.id);
+    const kasten = h('input', { type: 'checkbox', checked: an, disabled: Boolean(b.archivJahr), tabindex: -1, 'aria-hidden': 'true' });
+    haken.set(b.id, kasten);
+    li.classList.toggle('gewaehlt', an);
+    li.prepend(h('span', { class: 'btab-haken' }, kasten));
+    const knopf = li.querySelector('.btab-zeile');
+    knopf.setAttribute('aria-pressed', String(an));
+    knopf.addEventListener('click', () => {
+      if (b.archivJahr) return toast(`Archiv ${b.archivJahr}: nur lesen.`);
+      umschalten(b);
+      knopf.setAttribute('aria-pressed', String(auswahl.has(b.id)));
+    });
+    return li;
+  };
+  const zeileOhneHaken = ({ buchung: b, wirkung }) => {
     let partnerText;
     let katText;
     if (b.art === 'umbuchung') {
@@ -641,7 +359,7 @@ function liste(eintraege, daten, neu) {
       h('button', {
         type: 'button',
         class: 'btab-zeile' + (b.art === 'umbuchung' ? ' umbuchung' : ''),
-        onclick: () => (b.archivJahr ? toast(`Archiv ${b.archivJahr}: nur lesen. Zum Ändern das Jahr in den Stammdaten zurückholen.`) : oeffneBuchungsdialog(b)),
+        onclick: () => auswahl || (b.archivJahr ? toast(`Archiv ${b.archivJahr}: nur lesen. Zum Ändern das Jahr in den Stammdaten zurückholen.`) : oeffneBuchungsdialog(b)),
       },
       h('span', { class: 'btab-zelle btab-partner' },
         partnerText
@@ -662,13 +380,16 @@ function liste(eintraege, daten, neu) {
       h('span', { class: `btab-zelle btab-betrag betrag ${klasse}` }, betragText)));
   };
 
+  zeigeZahl();
   return h('section', { class: 'bereich buchungen' },
     h('div', { class: 'btab-werkzeuge' },
       h('span', { class: 'klein' }, `Sortiert nach ${sortText}`),
       !umbuchungGefiltert && umbuchungKnopf(zeigen.filter((e) => e.buchung.art === 'umbuchung').length),
       zuruecksetzen,
+      auswaehlenKnopf,
       exportKnopf),
-    h('div', { class: 'btab', role: 'table', 'aria-label': 'Buchungen' },
+    auswahlLeiste,
+    h('div', { class: 'btab' + (auswahl ? ' mit-auswahl' : ''), role: 'table', 'aria-label': 'Buchungen' },
       tabellenKopf(neu),
       h('ul', { class: 'btab-liste', role: 'rowgroup' }, zeigen.map(zeile))),
     h('p', { class: 'hinweis btab-hinweis' }, 'Spaltenkopf antippen zum Sortieren, erneut antippen dreht die Richtung um. ' +
@@ -680,445 +401,4 @@ function liste(eintraege, daten, neu) {
         onclick: () => { zustand.sichtbar = Infinity; neu(); },
       }, `Alle weiteren anzeigen (${uebrig === 1 ? '1 Buchung' : `${uebrig} Buchungen`})`)),
   );
-}
-
-/* --------------------------- Analyse --------------------------- */
-
-function analyse(eintraege, daten, heute, neu) {
-  const erster = ersterErfassterTag(daten.buchungen, zustand.filter);
-  const monate = monateDerAuswertung(eintraege, zustand.filter, heute, erster);
-  if (eintraege.length === 0 || monate.length === 0) {
-    return h('section', { class: 'bereich' }, h('p', { class: 'leer' }, 'Keine Buchungen für eine Auswertung.'));
-  }
-  // D126: Ausgaben der letzten 12 und nächsten 12 Monate – immer Ausgaben, egal welche Art gefiltert ist
-  const nurAusgaben = filtere(daten.buchungen, { ...zustand.filter, zeitraum: 'alles', arten: ['ausgabe'] }, { ...daten, heute });
-  const zl = zeitleiste(nurWirksam({ ...daten, buchungen: daten.hauptBuchungen }), heute, plusMonate(heute.slice(0, 7), 6));
-  const verlauf = ausgabenVerlauf({
-    istEintraege: nurAusgaben, zl, buchungen: daten.hauptBuchungen, kategorien: daten.kategorien, filter: zustand.filter, heute, erster,
-  });
-  const vorjahr = vorjahrJeMonat(nurAusgaben, verlauf.map((z) => [z.jahr, z.monat]), erster);
-  // D130: Ist bei „Art“ nur Einnahmen oder Umbuchungen gewählt, entfällt das Ausgaben-Diagramm
-  const mitAusgaben = !zustand.filter.arten.length || zustand.filter.arten.includes('ausgabe');
-  return h('div', {},
-    mitAusgaben && verlaufBereich(verlauf, neu, vorjahr),
-    // D165: Monatsnotizen der gezeigten Monate
-    mitAusgaben && notizListe(verlauf.map((z) => `${z.jahr}-${String(z.monat).padStart(2, '0')}`), daten.monatsnotizen),
-    zustand.analyseGruppe === 'partner'
-      ? partnerBereich(eintraege, monate, heute, neu)
-      : kategorieBereich(kategorieEintraege(eintraege, daten, heute), daten, monate, heute, neu, erster),
-    // D132/D133: die Top-10-Liste nur in der Ansicht „Nach Kategorien“ und ohne Empfänger-Filter
-    zustand.analyseGruppe === 'kategorie' && zustand.filter.partner.length === 0 && groessteBereich(eintraege, daten, neu),
-  );
-}
-
-/**
- * D129: Ist auf Unterkategorien gefiltert, zeigt die Kategorientabelle deren Hauptkategorie vollständig
- * (Gesamtsumme der Hauptkategorie, alle Unterkategorien mit Anteil daran). Die gewählte Unterkategorie
- * wird hervorgehoben. Liste, Summen und Diagramm bleiben auf die Unterkategorie gefiltert.
- */
-function kategorieEintraege(eintraege, daten, heute) {
-  const ids = zustand.filter.kategorieIds;
-  if (!ids.length) return eintraege;
-  const kat = new Map(daten.kategorien.map((k) => [k.id, k]));
-  if (!ids.some((id) => kat.get(id)?.elternId)) return eintraege;
-  const haupt = [...new Set(ids.map((id) => kat.get(id)?.elternId ?? id))];
-  return filtere(daten.buchungen, { ...zustand.filter, kategorieIds: haupt }, { ...daten, heute });
-}
-
-/** Umschalter: Analyse nach Kategorien oder nach Empfänger/Absender */
-function gruppeWahl(neu) {
-  return h('div', { class: 'segmente', role: 'group', 'aria-label': 'Gruppieren nach' },
-    [['kategorie', 'Nach Kategorien'], ['partner', 'Nach Empfänger/Absender']].map(([wert, text]) => h('button', {
-      type: 'button',
-      class: 'segment',
-      'aria-pressed': String(zustand.analyseGruppe === wert),
-      onclick: () => { zustand.analyseGruppe = wert; neu(); },
-    }, text)));
-}
-
-/** Genau eine Art (Ausgabe oder Einnahme) im Filter? Dann richtet sich die Analyse danach. */
-function eineGefilterteArt() {
-  const arten = zustand.filter.arten.filter((x) => x !== 'umbuchung');
-  return arten.length === 1 ? arten[0] : null;
-}
-
-/** Ausgaben/Einnahmen-Umschalter der Analyse */
-function artWahlAnalyse(neu) {
-  // D126: Ist im Filter genau eine Art gewählt (Standard: Ausgaben), gibt es nichts umzuschalten
-  if (eineGefilterteArt()) return null;
-  return h('div', { class: 'segmente', role: 'group', 'aria-label': 'Art' },
-    [['ausgabe', 'Ausgaben'], ['einnahme', 'Einnahmen']].map(([wert, text]) => h('button', {
-      type: 'button',
-      class: 'segment',
-      'aria-pressed': String(zustand.analyseArt === wert),
-      onclick: () => { zustand.analyseArt = wert; neu(); },
-    }, text)));
-}
-
-const MAX_PARTNER = 25; // so viele Empfänger/Absender einzeln, der Rest als "Weitere"
-
-/** Summen je Empfänger/Absender mit Anteil und Ø pro Monat. Antippen filtert die Liste. */
-function partnerBereich(eintraege, monate, heute, neu) {
-  const schnittMonate = abgeschlosseneMonate(monate, heute);
-  const anzahlMonate = schnittMonate.length;
-  const art = eineGefilterteArt() ?? zustand.analyseArt;
-  const alle = summenJePartner(eintraege, art, schnittMonate);
-  const gesamt = alle.reduce((s, g) => s + g.summe, 0);
-  const max = Math.max(...alle.map((g) => g.summe), 1);
-  const mitSchnitt = anzahlMonate > 0 && monate.length > 1;
-  const gezeigt = alle.slice(0, MAX_PARTNER);
-  const rest = alle.slice(MAX_PARTNER);
-  const schnittVon = (liste) => (anzahlMonate ? Math.round(liste.reduce((s, g) => s + g.schnittSumme, 0) / anzahlMonate) : null);
-
-  const zeile = (x, klickbar) => {
-    const inhalt = [
-      h('span', { class: 'kat-zeile-name' }, x.name, h('span', { class: 'klein' }, ` (${x.anzahl})`)),
-      h('span', { class: 'kat-balken-spur', 'aria-hidden': 'true' },
-        h('span', { class: `kat-balken ${art}`, style: `width:${(x.summe / max) * 100}%` })),
-      h('span', { class: 'betrag' }, formatEuro(x.summe)),
-      h('span', { class: 'kat-anteil' }, formatProzent(x.anteil)),
-      mitSchnitt && h('span', { class: 'kat-schnitt' }, x.schnitt == null ? '' : `Ø ${formatEuro(x.schnitt)}`),
-    ];
-    return klickbar
-      ? h('button', {
-        type: 'button',
-        class: 'kat-zeile ebene-1 kat-zeile-knopf' + (zustand.filter.partner.length === 1
-          && zustand.filter.partner[0] === (x.id === OHNE_PARTNER ? OHNE_PARTNER : x.name) ? ' gewaehlt' : ''),
-        title: 'Nach diesem Empfänger/Absender filtern (erneut antippen hebt auf)',
-        onclick: () => {
-          // D129: in der Analyse bleiben; die Liste ist trotzdem mitgefiltert. Erneut antippen hebt auf.
-          const wert = x.id === OHNE_PARTNER ? OHNE_PARTNER : x.name;
-          const schon = zustand.filter.partner.length === 1 && zustand.filter.partner[0] === wert;
-          zustand.filter.partner = schon ? [] : [wert];
-          zustand.sichtbar = SEITE;
-          window.dispatchEvent(new Event('daten-geaendert'));
-        },
-      }, inhalt)
-      : h('div', { class: 'kat-zeile ebene-1' }, inhalt);
-  };
-
-  const restSumme = rest.reduce((s, g) => s + g.summe, 0);
-  return h('section', { class: 'bereich' },
-    h('div', { class: 'bereich-kopf' }, h('h2', {}, 'Nach Empfänger/Absender')),
-    gruppeWahl(neu),
-    artWahlAnalyse(neu),
-    alle.length === 0
-      ? h('p', { class: 'leer' }, art === 'ausgabe' ? 'Keine Ausgaben in der Auswahl.' : 'Keine Einnahmen in der Auswahl.')
-      : h('div', { class: 'kat-tabelle' + (mitSchnitt ? ' mit-schnitt' : '') },
-        gezeigt.map((g) => zeile(g, true)),
-        rest.length > 0 && zeile({
-          name: `Weitere ${rest.length}`,
-          anzahl: rest.reduce((s, g) => s + g.anzahl, 0),
-          summe: restSumme,
-          anteil: gesamt ? restSumme / gesamt : 0,
-          schnitt: schnittVon(rest),
-        }, false),
-        h('div', { class: 'kat-zeile summe-zeile' },
-          h('span', { class: 'kat-zeile-name' }, 'Gesamt'),
-          h('span', {}),
-          h('span', { class: 'betrag' }, formatEuro(gesamt)),
-          h('span', { class: 'kat-anteil' }, '100 %'),
-          mitSchnitt && h('span', { class: 'kat-schnitt' }, `Ø ${formatEuro(schnittVon(alle))}`))),
-    h('p', { class: 'hinweis' }, 'Eine Zeile antippen, um die Liste nach diesem Empfänger/Absender zu filtern. ' +
-      'Groß-/Kleinschreibung spielt keine Rolle. Der Ø zählt wie bei den Kategorien nur abgeschlossene Monate.'),
-  );
-}
-
-/**
- * D126: Ausgaben-Verlauf – die letzten 12 und die nächsten 12 Monate, unabhängig vom gewählten Zeitraum.
- * Gebuchte Ausgaben kräftig; im laufenden Monat darauf heller die noch erwarteten (vorgemerkt, offen, Budgetrest),
- * in den Folgemonaten nur die erwarteten Auszahlungen (hell). Optional das Vorjahr als blasse Balken daneben.
- */
-function verlaufBereich(zeilen, neu, vorjahr = []) {
-  const mitVorjahr = zustand.vorjahr && vorjahr.some(Boolean);
-  const ohneErwartung = zeilen.some((z) => (z.aktuell || z.zukunft) && z.erwartet === null);
-  const kurz = (z) => new Intl.DateTimeFormat('de-DE', { month: 'short' }).format(new Date(z.jahr, z.monat - 1, 1)).replace('.', '')
-    + ` ${String(z.jahr).slice(2)}`;
-
-  const vorjahrKnopf = vorjahr.some(Boolean) && h('button', {
-    type: 'button',
-    class: 'knopf knopf-klein',
-    'aria-pressed': String(zustand.vorjahr),
-    onclick: () => { zustand.vorjahr = !zustand.vorjahr; neu(); },
-  }, zustand.vorjahr ? 'Vorjahr ausblenden' : 'Vorjahr zeigen');
-  const kopf = h('div', { class: 'bereich-kopf' }, h('h2', {}, 'Ausgaben je Monat'),
-    vorjahrKnopf && h('div', { class: 'knopfreihe' }, vorjahrKnopf)); // D131: nur noch das Diagramm
-  const legende = h('div', { class: 'legende' },
-    h('span', {}, h('span', { class: 'legende-punkt ausgabe' }), 'gebucht'),
-    !ohneErwartung && h('span', {}, h('span', { class: 'legende-punkt ausgabe offen-teil' }), 'erwartet (vorgemerkt, offen, Budget)'),
-    mitVorjahr && h('span', {}, h('span', { class: 'legende-punkt ausgabe vorjahr' }), 'Vorjahr'),
-    h('span', { class: 'klein' }, 'letzte 6 und nächste 6 Monate · unabhängig vom Zeitraum'));
-  const hinweis = ohneErwartung && h('p', { class: 'hinweis' },
-    'Erwartete Ausgaben lassen sich nur mit Konto- und Kategoriefilter zuordnen – bei Filtern auf Empfänger, Suche oder Betrag fehlen sie.');
-
-  const max = schoeneObergrenze(Math.max(...zeilen.map((z) => z.ist + (z.erwartet ?? 0)),
-    ...(mitVorjahr ? vorjahr.filter(Boolean).map((z) => z.ausgaben) : []), 1));
-  const ticks = [0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1]; // D129: doppelt so viele Linien
-  const tooltip = h('div', { class: 'tooltip', role: 'status', hidden: true });
-  const zeigeTooltip = (spalte, z, v) => {
-    tooltip.replaceChildren(
-      h('strong', {}, formatMonat(z.jahr, z.monat) + (z.zukunft ? ' (Prognose)' : z.aktuell ? ' (laufend)' : '')),
-      !z.zukunft && h('div', {}, h('span', { class: 'legende-punkt ausgabe' }), `Gebucht ${formatEuro(z.ist)}`),
-      z.erwartet != null && h('div', {}, h('span', { class: 'legende-punkt ausgabe offen-teil' }), `Erwartet ${formatEuro(z.erwartet)}`),
-      (z.aktuell && z.erwartet != null) && h('div', { class: 'tooltip-saldo' }, `Zusammen ${formatEuro(z.ist + z.erwartet)}`),
-      mitVorjahr && h('div', { class: 'klein' }, v ? `Vorjahr ${formatEuro(v.ausgaben)}${veraenderung(z.ist + (z.erwartet ?? 0), v.ausgaben)}` : 'Vorjahr: noch nicht erfasst'),
-    );
-    tooltip.hidden = false;
-    const flaeche = spalte.closest('.diagramm-flaeche').getBoundingClientRect();
-    const r = spalte.getBoundingClientRect();
-    tooltip.style.left = `${Math.min(Math.max(r.left + r.width / 2 - flaeche.left, 80), flaeche.width - 80)}px`;
-  };
-  const hoehe = (cent) => `height:${(cent / max) * 100}%`;
-  const spalten = zeilen.map((z, i) => {
-    const v = vorjahr[i];
-    // D128: Monate mit gebuchten Ausgaben lassen sich antippen – dann zeigt alles darunter nur diesen Monat
-    const klickbar = !z.zukunft && z.ist > 0;
-    const gewaehlt = monatGewaehlt(z.jahr, z.monat);
-    const spalte = h('div', {
-      class: 'spalte' + (z.aktuell ? ' aktuell' : '') + (z.zukunft ? ' zukunft' : '') + (klickbar ? ' klickbar' : '') + (gewaehlt ? ' gewaehlt' : ''),
-      tabindex: '0',
-      role: klickbar ? 'button' : null,
-      'aria-pressed': klickbar ? String(gewaehlt) : null,
-      title: klickbar ? (gewaehlt ? 'Monatsauswahl aufheben' : 'Nur diesen Monat auswerten') : null,
-      'aria-label': `${formatMonat(z.jahr, z.monat)}: gebucht ${formatEuro(z.ist)}` + (z.erwartet != null ? `, erwartet ${formatEuro(z.erwartet)}` : ''),
-      onclick: klickbar ? () => waehleMonat(z.jahr, z.monat) : null,
-      onkeydown: klickbar ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); waehleMonat(z.jahr, z.monat); } } : null,
-    },
-    h('div', { class: 'balken-paar' + (mitVorjahr ? ' mit-vorjahr' : '') },
-      // D127: Vorjahresbalken nur, wo es im Vorjahr Werte gibt
-      mitVorjahr && v?.ausgaben > 0 && h('div', { class: 'balken ausgabe vorjahr', style: hoehe(v.ausgaben) }),
-      // gestapelt: unten gebucht, oben (heller) erwartet
-      h('div', { class: 'balken-stapel', style: hoehe(z.ist + (z.erwartet ?? 0)) },
-        z.erwartet > 0 && h('div', { class: 'balken ausgabe offen-teil', style: `flex:${z.erwartet}` }),
-        z.ist > 0 && h('div', { class: 'balken ausgabe', style: `flex:${z.ist}` }))),
-    h('div', { class: 'spalte-label' }, kurz(z)));
-    spalte.addEventListener('mouseenter', () => zeigeTooltip(spalte, z, v));
-    spalte.addEventListener('focus', () => zeigeTooltip(spalte, z, v));
-    spalte.addEventListener('mouseleave', () => { tooltip.hidden = true; });
-    spalte.addEventListener('blur', () => { tooltip.hidden = true; });
-    return spalte;
-  });
-
-  // Am Handy ist das Diagramm breiter als der Bildschirm: zuerst den laufenden Monat zeigen
-  // D128: Gitter innerhalb der Spalten – so reicht es über die volle (auch gescrollte) Breite
-  const flaeche = h('div', { class: 'diagramm-flaeche' },
-    h('div', { class: 'spalten', style: `min-width:${zeilen.length * (mitVorjahr ? 46 : 40)}px` },
-      h('div', { class: 'gitter' }, ticks.map((t) => h('span', { style: `bottom:${t * 100}%` }))),
-      spalten),
-    tooltip);
-  requestAnimationFrame(() => {
-    const aktuell = flaeche.querySelector('.spalte.aktuell');
-    if (aktuell && flaeche.scrollWidth > flaeche.clientWidth) flaeche.scrollLeft = aktuell.offsetLeft - flaeche.clientWidth / 2;
-  });
-
-  return h('section', { class: 'bereich' }, kopf, legende, hinweis,
-    h('div', { class: 'diagramm' },
-      h('div', { class: 'achse' }, [...ticks].reverse().map((t) => h('span', {}, formatEuroRund(max * t)))),
-      flaeche));
-}
-
-/** D128: Ist dieser Monat gerade als Zeitraum gewählt (über einen Balken im Diagramm)? */
-function monatGewaehlt(jahr, monat) {
-  const f = zustand.filter;
-  const von = `${jahr}-${String(monat).padStart(2, '0')}-01`;
-  return f.zeitraum === 'eigen' && f.von === von && f.bis === monatsende(von);
-}
-
-/** D128: Balken antippen – nur diesen Monat auswerten; erneut antippen stellt den vorigen Zeitraum wieder her */
-function waehleMonat(jahr, monat) {
-  const f = zustand.filter;
-  if (monatGewaehlt(jahr, monat)) {
-    const vorher = zustand.vorMonatswahl ?? { zeitraum: STANDARD_FILTER.zeitraum, von: '', bis: '' };
-    Object.assign(f, vorher);
-    zustand.vorMonatswahl = null;
-  } else {
-    if (!zustand.vorMonatswahl) zustand.vorMonatswahl = { zeitraum: f.zeitraum, von: f.von, bis: f.bis };
-    const von = `${jahr}-${String(monat).padStart(2, '0')}-01`;
-    Object.assign(f, { zeitraum: 'eigen', von, bis: monatsende(von) });
-  }
-  zustand.sichtbar = SEITE;
-  window.dispatchEvent(new Event('daten-geaendert')); // alles neu zeichnen (auch die Zeitraum-Kacheln)
-}
-
-/** Veränderung zum Vorjahr als Text, z. B. " (+12 % zum Vorjahr)" (ohne Vorjahreswert leer) */
-function veraenderung(jetzt, vorher) {
-  if (!vorher) return '';
-  const p = Math.round(((jetzt - vorher) / vorher) * 100);
-  return ` (${p > 0 ? '+' : ''}${p} %)`;
-}
-
-/**
- * D125/D129: auf eine Kategorie (Haupt- oder Unterkategorie) filtern. Man bleibt in der Analyse –
- * Diagramm, Summen und die Liste („Liste“) folgen dem Filter. Erneut antippen hebt den Filter auf.
- */
-function filtereKategorie(id) {
-  const schon = zustand.filter.kategorieIds.length === 1 && zustand.filter.kategorieIds[0] === id;
-  zustand.filter.kategorieIds = schon ? [] : [id];
-  zustand.sichtbar = SEITE;
-  window.dispatchEvent(new Event('daten-geaendert'));
-}
-
-/**
- * Summen je Haupt-/Unterkategorie mit Anteil und Durchschnitt pro Monat.
- * D125: Vergleich zur Vorperiode, Ist vs. Budget (nur Ausgaben).
- * D128: Haupt- oder Unterkategorie antippen filtert die Liste; „+“ klappt die Unterkategorien auf.
- */
-function kategorieBereich(eintraege, daten, monate, heute, neu, erster) {
-  const { kategorien } = daten;
-  // Ø nur über abgeschlossene Monate – der laufende Monat würde ihn verfälschen
-  const schnittMonate = abgeschlosseneMonate(monate, heute);
-  const anzahlMonate = schnittMonate.length;
-  const art = eineGefilterteArt() ?? zustand.analyseArt;
-  const gruppen = summenJeKategorie(eintraege, kategorien, art, schnittMonate);
-  const gesamt = gruppen.reduce((s, g) => s + g.summe, 0);
-  const gesamtSchnitt = anzahlMonate ? Math.round(gruppen.reduce((s, g) => s + g.schnittSumme, 0) / anzahlMonate) : null;
-  // D128: Anteilsbalken wieder für Haupt- und Unterkategorien (der Verlauf steht im Diagramm darüber)
-  const max = Math.max(...gruppen.map((g) => g.summe), 1);
-  const mitSchnitt = anzahlMonate > 0 && monate.length > 1;
-  const balken = (summe) => h('span', { class: 'kat-balken-spur', 'aria-hidden': 'true' },
-    h('span', { class: `kat-balken ${art}`, style: `width:${(summe / max) * 100}%` }));
-
-  // Vorperiode: dieselben Filter, gleich langer Zeitraum davor – nur, wenn es dort schon erfasste Buchungen
-  // gab (sonst sähe „0,00 €“ aus wie „nichts ausgegeben“)
-  const vpRoh = vorperiode(zustand.filter, heute);
-  const vp = vpRoh && erster && vpRoh.bis >= erster ? vpRoh : null;
-  const vpSummen = new Map();
-  if (vp) {
-    const vpEintraege = filtere(daten.buchungen, { ...zustand.filter, zeitraum: 'eigen', von: vp.von, bis: vp.bis }, { ...daten, heute });
-    for (const g of summenJeKategorie(vpEintraege, kategorien, art)) {
-      vpSummen.set(g.id, g.summe);
-      for (const u of g.unter) vpSummen.set(`u:${u.id}`, u.summe);
-    }
-  }
-  const vpGesamt = [...vpSummen.entries()].filter(([k]) => !k.startsWith('u:')).reduce((s, [, v]) => s + v, 0);
-  const vergleich = (jetzt, vorher) => {
-    if (!vp) return null;
-    const p = veraenderungProzent(jetzt, vorher ?? 0);
-    const text = `${vp.text}: ${formatEuro(vorher ?? 0)}` + (p == null ? '' : ` (${p > 0 ? '+' : ''}${p} %)`);
-    // Bei Ausgaben ist „mehr“ ungünstig, bei Einnahmen günstig
-    const schlecht = p != null && (art === 'ausgabe' ? p > 10 : p < -10);
-    return h('span', { class: 'kat-vergleich' + (schlecht ? ' warn-text' : '') }, text);
-  };
-  // Ist vs. Budget (nur Ausgaben, nur mit abgeschlossenen Monaten); D217: als „+12 %“ hinter dem Ø in derselben
-  // Zeile, ohne Warnfarbe – der Budgetbetrag steht im Tooltip
-  const budgetAbw = new Map();
-  if (art === 'ausgabe' && mitSchnitt) {
-    for (const g of gruppen) {
-      const budget = budgetSchnitt(daten.budgets ?? [], g.id, schnittMonate, zustand.filter.kontoIds);
-      const p = budget == null ? null : veraenderungProzent(g.schnitt, budget);
-      if (p != null) budgetAbw.set(g.id, { budget, p });
-    }
-  }
-  const budgetText = (g) => {
-    const x = budgetAbw.get(g.id);
-    if (!x) return null;
-    return h('span', { class: 'kat-budget', title: `Budget Ø ${formatEuro(x.budget)}/Monat` },
-      ` · ${x.p > 0 ? '+' : x.p < 0 ? '−' : ''}${Math.abs(x.p)} %`);
-  };
-
-  // D128: Zeile antippen = Liste auf diese Hauptkategorie filtern (Diagramm folgt dem Filter);
-  // „+“ links klappt die Unterkategorien auf
-  const hauptZeile = (g, klapp) => {
-    const info = [vergleich(g.summe, vpSummen.get(g.id))].filter(Boolean);
-    const filtern = () => g.id !== 'unbekannt' && filtereKategorie(g.id);
-    return h('div', {
-      class: 'kat-zeile ebene-1 kat-zeile-knopf' + (gewaehlt.has(g.id) ? ' gewaehlt' : ''),
-      role: 'button',
-      tabindex: '0',
-      'aria-pressed': String(gewaehlt.has(g.id)),
-      title: gewaehlt.has(g.id) ? 'Filter aufheben' : 'Auf diese Kategorie filtern',
-      onclick: filtern,
-      onkeydown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); filtern(); } },
-    },
-    h('span', { class: 'kat-zeile-name' }, klapp, g.name),
-    balken(g.summe),
-    h('span', { class: 'betrag' }, formatEuro(g.summe)),
-    h('span', { class: 'kat-anteil' }, formatProzent(g.anteil)),
-    mitSchnitt && h('span', { class: 'kat-schnitt' }, `Ø ${formatEuro(g.schnitt)}`, budgetText(g)),
-    info.length > 0 && h('span', { class: 'kat-info' }, info));
-  };
-  const gewaehlt = new Set(zustand.filter.kategorieIds);
-  const unterZeile = (u) => h('button', {
-    type: 'button',
-    class: 'kat-zeile ebene-2 kat-zeile-knopf' + (gewaehlt.has(u.id) ? ' gewaehlt' : ''),
-    'aria-pressed': String(gewaehlt.has(u.id)),
-    title: gewaehlt.has(u.id) ? 'Filter aufheben' : 'Auf diese Unterkategorie filtern',
-    onclick: () => u.id !== 'unbekannt' && filtereKategorie(u.id),
-  },
-  h('span', { class: 'kat-zeile-name' }, u.name),
-  balken(u.summe),
-  h('span', { class: 'betrag' }, formatEuro(u.summe)),
-  h('span', { class: 'kat-anteil' }, formatProzent(u.anteil)),
-  mitSchnitt && h('span', { class: 'kat-schnitt' }, `Ø ${formatEuro(u.schnitt)}`));
-
-  return h('section', { class: 'bereich' },
-    h('div', { class: 'bereich-kopf' }, h('h2', {}, 'Nach Kategorien')),
-    gruppeWahl(neu),
-    artWahlAnalyse(neu),
-    gruppen.length === 0
-      ? h('p', { class: 'leer' }, art === 'ausgabe' ? 'Keine Ausgaben in der Auswahl.' : 'Keine Einnahmen in der Auswahl.')
-      : h('div', { class: 'kat-tabelle' + (mitSchnitt ? ' mit-schnitt' : '') + (budgetAbw.size > 0 ? ' mit-budget' : '') },
-        h('div', { class: 'kat-zeile kat-kopf', 'aria-hidden': 'true' },
-          h('span', {}, 'Kategorie'), h('span', {}), h('span', {}, 'Summe'), h('span', {}, 'Anteil'),
-          mitSchnitt && h('span', {}, budgetAbw.size > 0 ? 'Ø/Monat · Budget' : 'Ø/Monat')),
-        gruppen.map((g) => {
-          const offen = zustand.offen.has(g.id) || g.unter.some((u) => gewaehlt.has(u.id));
-          const unter = h('div', { class: 'kat-unter', hidden: !offen }, g.unter.map(unterZeile));
-          const klapp = h('button', {
-            type: 'button',
-            class: 'kat-klapp',
-            'aria-expanded': String(offen),
-            'aria-label': `Unterkategorien von ${g.name} ${offen ? 'zuklappen' : 'aufklappen'}`,
-            onclick: (e) => {
-              e.stopPropagation(); // nicht gleichzeitig filtern
-              const auf = unter.hidden;
-              unter.hidden = !auf;
-              klapp.textContent = auf ? '−' : '+';
-              klapp.setAttribute('aria-expanded', String(auf));
-              if (auf) zustand.offen.add(g.id); else zustand.offen.delete(g.id);
-            },
-          }, offen ? '−' : '+');
-          return h('div', { class: 'kat-gruppe' }, hauptZeile(g, klapp), unter);
-        }),
-        h('div', { class: 'kat-zeile summe-zeile' },
-          h('span', { class: 'kat-zeile-name' }, 'Gesamt'),
-          h('span', {}),
-          h('span', { class: 'betrag' }, formatEuro(gesamt)),
-          h('span', { class: 'kat-anteil' }, '100 %'),
-          mitSchnitt && h('span', { class: 'kat-schnitt' }, `Ø ${formatEuro(gesamtSchnitt)}`),
-          vp && h('span', { class: 'kat-info' }, vergleich(gesamt, vpGesamt)))),
-    h('p', { class: 'hinweis erklaerung' },
-      'Eine Kategorie antippen filtert darauf – Diagramm, Summen und die Liste folgen; erneut antippen hebt den Filter auf. '
-      + '„+“ klappt die Unterkategorien auf; ihr Anteil bezieht sich auf die Hauptkategorie. '
-      + (mitSchnitt ? `Ø = Durchschnitt pro Monat über ${anzahlMonate === 1 ? '1 abgeschlossenen Monat' : `${anzahlMonate} abgeschlossene Monate`} `
-        + `(${formatMonat(...schnittMonate[0])}${anzahlMonate > 1 ? ` bis ${formatMonat(...schnittMonate.at(-1))}` : ''}); der laufende Monat zählt nicht mit. ` : '')
-      + (budgetAbw.size > 0 ? '„+12 %“ hinter dem Ø = so weit liegt der Ø über (bzw. bei „−“ unter) dem Budget; Budget = Monatsbudgets im selben Zeitraum, '
-        + 'Jahresbudgets mit einem Zwölftel je Monat (Betrag beim Draufzeigen). ' : '')
-      + (vp ? `Vergleichszeitraum „${vp.text}“: ${formatDatum(vp.von)} – ${formatDatum(vp.bis)}, mit denselben Filtern.` : '')),
-  );
-}
-
-/** D125: die zehn größten Einzelbuchungen der gewählten Art im Zeitraum – antippen öffnet die Buchung */
-function groessteBereich(eintraege, daten, neu) {
-  const art = eineGefilterteArt() ?? zustand.analyseArt;
-  const top = groessteBuchungen(eintraege, art, 10);
-  if (top.length === 0) return null;
-  const kat = new Map(daten.kategorien.map((k) => [k.id, k]));
-  return h('section', { class: 'bereich groesste' },
-    h('div', { class: 'bereich-kopf' }, h('h2', {}, art === 'ausgabe' ? 'Größte Ausgaben' : 'Größte Einnahmen')),
-    h('ol', { class: 'groesste-liste' }, top.map(({ buchung: b }) => {
-      const unter = kat.get(b.kategorieId);
-      const titel = b.partner?.trim() || unter?.name || 'Buchung';
-      const katText = [kat.get(unter?.elternId)?.name, unter?.name].filter(Boolean).join(' › ');
-      return h('li', {},
-        h('button', {
-          type: 'button',
-          class: 'groesste-zeile',
-          onclick: () => (b.archivJahr ? toast(`Archiv ${b.archivJahr}: nur lesen.`) : oeffneBuchungsdialog(b)),
-        },
-        h('span', { class: 'groesste-text' },
-          h('span', { class: 'groesste-titel' }, titel),
-          h('span', { class: 'klein' }, `${formatDatum(b.datum)}${katText && katText !== titel ? ` · ${katText}` : ''}`)),
-        h('span', { class: 'betrag' + (art === 'einnahme' ? ' plus' : '') }, (art === 'einnahme' ? '+' : '−') + formatEuro(b.betragCent))));
-    })));
 }

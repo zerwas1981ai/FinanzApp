@@ -21,7 +21,7 @@ export async function oeffneSuche() {
   const daten = Object.fromEntries(namen.map((n, i) => [n, werte[i]]));
 
   const input = h('input', {
-    type: 'search', class: 'such-eingabe', placeholder: 'z. B. Stadtwerke, Garantie, 85,00', autocomplete: 'off',
+    type: 'search', class: 'such-eingabe', placeholder: 'z. B. Stadtwerke, 85,00, > 100', autocomplete: 'off',
     'aria-label': 'Suchbegriff', enterkeyhint: 'search', autofocus: true, value: letzterBegriff,
   });
   const liste = h('div', { class: 'such-ergebnis', 'aria-live': 'polite' });
@@ -43,7 +43,9 @@ export async function oeffneSuche() {
     const anzahl = BEREICHE.reduce((s, b) => s + ergebnis[b.schluessel].length, 0);
     if (!input.value.trim()) {
       liste.replaceChildren(h('p', { class: 'klein gedaempft' },
-        'Sucht in Empfänger, Notiz, Kategorie, Konto, Betrag, Datum und Belegnamen – in Buchungen, relevanten Ausgaben, Projekten, Verträgen und Annahmen.'));
+        'Sucht in Empfänger, Notiz, Kategorie, Konto, Betrag, Datum und Belegnamen – in Buchungen, relevanten Ausgaben, Projekten, Verträgen und Annahmen.'),
+        // D261: Betragsvergleiche
+        h('p', { class: 'klein gedaempft' }, 'Beträge eingrenzen: „> 100“, „< 20“ oder „50-100“ (in Euro), auch zusammen mit Wörtern, z. B. „Markt > 50“.'));
       return;
     }
     if (anzahl === 0) {
